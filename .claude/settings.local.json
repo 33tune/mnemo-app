@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(xargs ls *)",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(del *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/dashboard)",
+      "Bash(curl -s http://localhost:3000/login)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3000\")",
+      "Bash(tasklist /FI \"PID eq 2924\")",
+      "Bash(tasklist /FI \"PID eq 13268\")",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/login)",
+      "Bash(ls src/components/ui/)",
+      "Bash(ls src/styles/)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\src\" -Directory | ForEach-Object { $_.Name })",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\src\\\\styles\" -File)",
+      "Bash(Select-Object Name)",
+      "Bash(Remove-Item *)",
+      "Bash(layout\")",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\")",
+      "Bash(xargs grep -l \"dedup\\\\|dedupl\\\\|idempotent\\\\|request.*ID\")",
+      "Bash(xargs grep -l \"\\\\[handle\\\\]\")"
+    ]
+  }
+}
