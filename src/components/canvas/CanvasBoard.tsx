@@ -727,6 +727,15 @@ export default function CanvasBoard({
         else if (op.type === "set_wallpaper") { setWallpaper(op.value); setWallpaperLoaded(true); }
         else                                  { newElements = reduceOp(newElements, op); }
       }
+
+      // Sync zCounter to the highest zIndex among loaded elements.
+      // Without this, zCounter starts at 10 but loaded elements may have zIndex 500+,
+      // so newly added elements or "bring to front" would land below existing ones.
+      const maxLoadedZ = newElements.reduce(
+        (m, e) => Math.max(m, (e as { zIndex?: number }).zIndex ?? 0), 0
+      );
+      if (maxLoadedZ > zCounter.current) zCounter.current = maxLoadedZ;
+
       setElements(newElements);
 
       // Final deduplication — guarantees no duplicate IDs regardless of snapshot/op overlap
@@ -1127,14 +1136,24 @@ export default function CanvasBoard({
         else if (type === "media")   enqueueOp({ type: "update_media",   id, patch });
       } else if (result.resized) {
         const { id, type, ...dims } = result.resized;
-        const patch = type === "text" ? { size: dims.size } : { w: dims.w, h: dims.h };
-        if (type === "image")   enqueueOp({ type: "update_image",   id, patch });
-        else if (type === "card")    enqueueOp({ type: "update_card",    id, patch });
-        else if (type === "text")    enqueueOp({ type: "update_text",    id, patch });
-        else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch });
-        else if (type === "profile") enqueueOp({ type: "update_profile", id, patch });
-        else if (type === "postit")  enqueueOp({ type: "update_postit",  id, patch });
-        else if (type === "media")   enqueueOp({ type: "update_media",   id, patch });
+        // Guard: never persist NaN/Infinity/zero — these make elements invisible on reload
+        const safeNum = (n: number | undefined, min: number) =>
+          typeof n === "number" && isFinite(n) && n >= min ? n : undefined;
+        if (type === "text") {
+          const size = safeNum(dims.size, 6);
+          if (size !== undefined) enqueueOp({ type: "update_text", id, patch: { size } });
+        } else {
+          const w = safeNum(dims.w, 1);
+          const h = safeNum(dims.h, 1);
+          if (w !== undefined && h !== undefined) {
+            if (type === "image")   enqueueOp({ type: "update_image",   id, patch: { w, h } });
+            else if (type === "card")    enqueueOp({ type: "update_card",    id, patch: { w, h } });
+            else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch: { w, h } });
+            else if (type === "profile") enqueueOp({ type: "update_profile", id, patch: { w, h } });
+            else if (type === "postit")  enqueueOp({ type: "update_postit",  id, patch: { w, h } });
+            else if (type === "media")   enqueueOp({ type: "update_media",   id, patch: { w, h } });
+          }
+        }
       }
     }
   }
@@ -1291,9 +1310,11 @@ export default function CanvasBoard({
             onClick={e=>handleElementClick(img.id,e)}
 
             onDoubleClick={e=>{e.stopPropagation();zCounter.current++;setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,zIndex:zCounter.current}:e));}}>
-            <img src={img.src} draggable={false} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:img.isTransparent?0:8,outline:isSel?"1px solid rgba(255,255,255,0.3)":"none",filter:isSel?"drop-shadow(0 0 8px rgba(255,255,255,0.12))":"none"}} />
-            {isSel&&canInteract&&(<div style={{position:"absolute",top:-22,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4,padding:4,background:"rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,backdropFilter:"blur(6px)"}}>
+            <img src={img.src} draggable={false} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:img.borderRadius??( img.isTransparent?0:8),outline:isSel?"1px solid rgba(255,255,255,0.3)":"none",filter:isSel?"drop-shadow(0 0 8px rgba(255,255,255,0.12))":"none"}} />
+            {isSel&&canInteract&&(<div style={{position:"absolute",top:-22,left:"50%",transform:"translateX(-50%)",display:"flex",alignItems:"center",gap:4,padding:4,background:"rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,backdropFilter:"blur(6px)"}} onMouseDown={e=>e.stopPropagation()}>
               {([0,1,2] as const).map(l=>{const hk=`img_${img.id}_${l}`;return(<div key={l} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,layer:l}:e));}} onMouseDown={e=>e.stopPropagation()} onMouseEnter={()=>setHovLayerKey(hk)} onMouseLeave={()=>setHovLayerKey(null)} style={{padding:"4px 8px",borderRadius:4,fontFamily:MONO,fontSize:11,letterSpacing:"1px",cursor:"pointer",transition:"all 0.12s ease",background:img.layer===l?"white":"transparent",color:img.layer===l?"black":"rgba(255,255,255,0.4)",opacity:hovLayerKey===hk?1:undefined,transform:hovLayerKey===hk?"scale(1.05)":undefined}}>{LAYER_NAMES[l].slice(0,2).toUpperCase()}</div>);})}
+              <div style={{width:1,height:12,background:"rgba(255,255,255,0.18)",margin:"0 2px",flexShrink:0}} />
+              {([0,8,20,999] as const).map(r=>{const cur=img.borderRadius??(img.isTransparent?0:8);const active=r===999?cur>=50:cur===r;const vr=r===0?"2px":r===8?"4px":r===20?"7px":"50%";return(<div key={r} title={r===0?"Square":r===8?"Slight":r===20?"Rounded":"Circle"} onClick={e=>{e.stopPropagation();setElements(p=>p.map(el=>el.elementType==="image"&&el.id===img.id?{...el,borderRadius:r}:el));enqueueOp({type:"update_image",id:img.id,patch:{borderRadius:r}});}} onMouseDown={e=>e.stopPropagation()} style={{width:14,height:14,borderRadius:vr,border:`1px solid ${active?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.3)"}`,background:active?"rgba(255,255,255,0.2)":"transparent",cursor:"pointer",flexShrink:0}} />);})}
             </div>)}
             {isSel&&canInteract&&!multiSel&&(<LockBtn locked={!!img.locked} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,locked:!e.locked}:e));}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<div onMouseDown={e=>startSingleResize(img.id,"image",e)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.7)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}

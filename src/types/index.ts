@@ -14,6 +14,7 @@ export type CanvasImage = {
   layer: 0 | 1 | 2;
   depth: number;
   rotation: number;
+  borderRadius?: number;
   locked?: boolean;
   isPublic?: boolean;
   isLocal?: boolean;

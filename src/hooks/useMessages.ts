@@ -9,7 +9,6 @@ export function useMessages(chatId?: string) {
   const [loading,  setLoading]  = useState(false);
   const [sending,  setSending]  = useState(false);
   const cancelledRef  = useRef(false);
-  const mountedRef    = useRef(false);
   const sendInFlight  = useRef(false);
 
   const fetchMessages = useCallback(async () => {
@@ -43,11 +42,10 @@ export function useMessages(chatId?: string) {
     return () => { cancelledRef.current = true; };
   }, [fetchMessages]);
 
-  // Realtime subscription — unique channel name prevents reuse of a cached subscribed channel
+  // Realtime subscription — unique channel name per effect run prevents stale channel reuse.
+  // No mountedRef guard: cleanup correctly removes the channel so each run is independent.
   useEffect(() => {
     if (!chatId) return;
-    if (mountedRef.current) return;
-    mountedRef.current = true;
     const sb = createClient();
     const channel = sb
       .channel(`chat-messages:${chatId}:${crypto.randomUUID()}`)
@@ -64,9 +62,12 @@ export function useMessages(chatId?: string) {
           });
         }
       )
-      .subscribe();
+      .subscribe((status: string, err?: Error) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.error(`[useMessages] realtime ${status} for chat ${chatId}:`, err?.message ?? "—");
+        }
+      });
     return () => {
-      mountedRef.current = false;
       sb.removeChannel(channel);
     };
   }, [chatId]);

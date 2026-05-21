@@ -77,9 +77,14 @@ export function useDragDrop({
     const el = elements.find(el => el.id === id && el.elementType === type) as any;
     if (!el) return;
     if (type === "text") {
-      resizeStart.current = { x: e.clientX, y: e.clientY, w: el.size, h: el.size, items: [] };
+      // Guard against NaN/0 font size
+      const sz = isFinite(el.size) && el.size > 0 ? el.size : 16;
+      resizeStart.current = { x: e.clientX, y: e.clientY, w: sz, h: sz, items: [] };
     } else {
-      resizeStart.current = { x: e.clientX, y: e.clientY, w: el.w, h: el.h, items: [] };
+      // Guard against NaN/0 dimensions — fall back to sensible minimums
+      const w = isFinite(el.w) && el.w > 0 ? el.w : 80;
+      const h = isFinite(el.h) && el.h > 0 ? el.h : 60;
+      resizeStart.current = { x: e.clientX, y: e.clientY, w, h, items: [] };
     }
     setResizing({ type, id });
   }
@@ -153,7 +158,9 @@ export function useDragDrop({
       const dx = e.clientX - resizeStart.current.x;
       const dy = e.clientY - resizeStart.current.y;
       if (resizing.type === "group") {
-        const ow=resizeStart.current.w, oh=resizeStart.current.h;
+        // Guard against zero/invalid initial bounds to prevent Infinity scale factors
+        const ow = Math.max(80, resizeStart.current.w);
+        const oh = Math.max(60, resizeStart.current.h);
         const sx=Math.max(80,ow+dx)/ow, sy=Math.max(60,oh+dy)/oh;
         const ox=Math.min(...resizeStart.current.items.map(i=>i.x));
         const oy=Math.min(...resizeStart.current.items.map(i=>i.y));
@@ -165,9 +172,14 @@ export function useDragDrop({
       } else if (resizing.type==="image") {
         const img = elements.find(el => el.id === resizing.id && el.elementType === "image");
         if (!img || img.elementType !== "image") return;
-        const nw=Math.max(40,resizeStart.current.w+dx);
-        lastResize.current = { w: nw, h: Math.round(nw*img.naturalH/img.naturalW) };
-        setElements(p=>p.map(el=>el.id===resizing.id&&el.elementType==="image"?{...el,w:nw,h:Math.round(nw*img.naturalH/img.naturalW)}:el));
+        const nw = Math.max(40, resizeStart.current.w + dx);
+        // Use natural dimensions for ratio; fall back to current dimensions; fall back to 1:1
+        const naturalRatio =
+          img.naturalW > 0 && img.naturalH > 0 ? img.naturalH / img.naturalW :
+          img.w > 0 && img.h > 0               ? img.h        / img.w        : 1;
+        const nh = Math.max(1, Math.round(nw * naturalRatio));
+        lastResize.current = { w: nw, h: nh };
+        setElements(p=>p.map(el=>el.id===resizing.id&&el.elementType==="image"?{...el,w:nw,h:nh}:el));
       } else if (resizing.type==="card") {
         lastResize.current = { w: Math.max(80,resizeStart.current.w+dx), h: Math.max(60,resizeStart.current.h+dy) };
         setElements(p=>p.map(el=>el.id===resizing.id&&el.elementType==="card"?{...el,w:Math.max(80,resizeStart.current.w+dx),h:Math.max(60,resizeStart.current.h+dy)}:el));
