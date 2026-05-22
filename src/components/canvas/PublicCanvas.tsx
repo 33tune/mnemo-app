@@ -5,6 +5,7 @@ import type { CanvasState, TextFont } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { useParallax } from "@/hooks/useParallax";
 import { createClient } from "@/lib/supabase/client";
+import { useElementPins } from "@/hooks/useElementPins";
 import AnonymousMessageWidget from "./AnonymousMessageWidget";
 
 const MONO = "'Space Mono', monospace";
@@ -24,7 +25,7 @@ const LOGICAL_HEIGHT = 3000;
 
 const EMPTY: CanvasState = {
   cards: [], images: [], texts: [], galleries: [],
-  profiles: [], medias: [], guestbooks: [], bgColor: "#0a0a0c", wallpaper: "",
+  profiles: [], medias: [], bgColor: "#0a0a0c", wallpaper: "",
 };
 
 export default function PublicCanvas({
@@ -45,7 +46,12 @@ export default function PublicCanvas({
   userId?: string;
 }) {
   const isPreview = preview || readOnly;
-  const [fetchedState, setFetchedState] = useState<CanvasState | null>(null);
+  const [fetchedState,   setFetchedState]   = useState<CanvasState | null>(null);
+  const [currentUserId,  setCurrentUserId]  = useState<string | undefined>(undefined);
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? undefined));
+  }, []);
+
   useEffect(() => {
     if (!userId) return;
     const sb = createClient();
@@ -73,6 +79,11 @@ export default function PublicCanvas({
   }, []);
 
   const { handleMouseMoveParallax, getParallaxStyle } = useParallax();
+  const ownerUserId = userId ?? state.profiles?.[0]?.userId ?? undefined;
+  const { pinnedIds, pinCounts, togglePin } = useElementPins(
+    !isPreview ? ownerUserId : undefined,
+    !isPreview ? currentUserId : undefined,
+  );
 
   const hasWallpaper = !!(state.wallpaper && !state.wallpaper.startsWith("blob:"));
   const bgStyle: React.CSSProperties = {
@@ -161,25 +172,43 @@ export default function PublicCanvas({
 
             {/* Texts */}
             {(state.texts ?? []).map(txt => {
-              const ps = getParallaxStyle(txt.layer, txt.depth);
+              const ps       = getParallaxStyle(txt.layer, txt.depth);
+              const isPinned = pinnedIds.has(txt.id);
+              const count    = pinCounts.get(txt.id) ?? 0;
               return (
                 <div key={txt.id} style={{
                   position: "absolute", left: txt.x, top: txt.y,
                   zIndex: txt.zIndex + txt.layer * 100,
                   transform: `${ps.transform} rotate(${txt.rotation ?? 0}deg)`,
-                  fontFamily: FONT_MAP[txt.font] ?? SANS, fontSize: txt.size, color: txt.color,
-                  opacity: txt.opacity, letterSpacing: txt.letterSpacing,
-                  textTransform: txt.uppercase ? "uppercase" : "none",
-                  cursor: "default", whiteSpace: "pre-wrap", userSelect: "none", willChange: "transform",
+                  willChange: "transform",
                 }}>
-                  {txt.content}
+                  <div style={{
+                    fontFamily: FONT_MAP[txt.font] ?? SANS, fontSize: txt.size, color: txt.color,
+                    opacity: txt.opacity, letterSpacing: txt.letterSpacing,
+                    textTransform: txt.uppercase ? "uppercase" : "none",
+                    cursor: "default", whiteSpace: "pre-wrap", userSelect: "none",
+                  }}>
+                    {txt.content}
+                  </div>
+                  {!isPreview && (
+                    <PinOverlay
+                      isPinned={isPinned}
+                      count={count}
+                      onToggle={() => {
+                        if (!currentUserId) { window.location.href = "/login"; return; }
+                        togglePin(txt.id, "text", { content: txt.content, font: txt.font, size: txt.size, color: txt.color });
+                      }}
+                    />
+                  )}
                 </div>
               );
             })}
 
             {/* Images */}
             {(state.images ?? []).filter(img => !img.src?.startsWith("blob:")).map(img => {
-              const ps = getParallaxStyle(img.layer, img.depth);
+              const ps      = getParallaxStyle(img.layer, img.depth);
+              const isPinned = pinnedIds.has(img.id);
+              const count    = pinCounts.get(img.id) ?? 0;
               return (
                 <div key={img.id} style={{
                   position: "absolute", left: img.x, top: img.y, width: img.w, height: img.h,
@@ -188,6 +217,16 @@ export default function PublicCanvas({
                 }}>
                   <img src={img.src} draggable={false} alt=""
                     style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: img.isTransparent ? 0 : 8 }} />
+                  {!isPreview && (
+                    <PinOverlay
+                      isPinned={isPinned}
+                      count={count}
+                      onToggle={() => {
+                        if (!currentUserId) { window.location.href = "/login"; return; }
+                        togglePin(img.id, "image", { src: img.src, w: img.w, h: img.h });
+                      }}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -219,6 +258,49 @@ export default function PublicCanvas({
       </div>
 
       {toUserId && <AnonymousMessageWidget toUserId={toUserId} />}
+    </div>
+  );
+}
+
+const MONO_PIN = "'Space Mono', monospace";
+
+function PinOverlay({ isPinned, count, onToggle }: { isPinned: boolean; count: number; onToggle: () => void }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: "absolute", top: 6, right: 6,
+        opacity: hov || isPinned || count > 0 ? 1 : 0,
+        transition: "opacity 0.15s",
+        display: "flex", alignItems: "center", gap: 3,
+      }}
+    >
+      {count > 0 && (
+        <span style={{ fontFamily: MONO_PIN, fontSize: 8, color: "rgba(255,255,255,0.5)", background: "rgba(0,0,0,0.6)", borderRadius: 3, padding: "1px 4px" }}>
+          {count}
+        </span>
+      )}
+      <button
+        onClick={e => { e.stopPropagation(); onToggle(); }}
+        title={isPinned ? "Unpin" : "Pin"}
+        style={{
+          width: 22, height: 22,
+          borderRadius: "50%",
+          border: `1px solid ${isPinned ? "rgba(212,240,196,0.5)" : "rgba(255,255,255,0.25)"}`,
+          background: isPinned ? "rgba(212,240,196,0.15)" : "rgba(0,0,0,0.55)",
+          color: isPinned ? "rgba(212,240,196,0.9)" : "rgba(255,255,255,0.6)",
+          fontSize: 10,
+          cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          backdropFilter: "blur(6px)",
+          transition: "all 0.1s",
+          flexShrink: 0,
+        }}
+      >
+        {isPinned ? "★" : "☆"}
+      </button>
     </div>
   );
 }

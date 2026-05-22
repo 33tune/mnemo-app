@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export type ActivityType = "canvas_update" | "new_image" | "status_change" | "new_guestbook" | "followed_you";
+export type ActivityType = "canvas_update" | "new_image" | "new_text" | "status_change" | "followed_you";
 
 export interface ActivityFeedItem {
   id:            string;

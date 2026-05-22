@@ -2,8 +2,7 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, CanvasGuestbook, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
-import GuestbookWidget from "./GuestbookWidget";
+import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
 import MediaCardWidget from "./MediaCardWidget";
 import { SocialDock } from "./SocialDock";
 import Topbar from "./Topbar";
@@ -90,9 +89,6 @@ type CanvasOp =
   | { type: "add_media";       media:      CanvasMedia }
   | { type: "update_media";    id: string; patch: Partial<CanvasMedia> }
   | { type: "delete_media";    id: string }
-  | { type: "add_guestbook";   guestbook:  CanvasGuestbook }
-  | { type: "update_guestbook";id: string; patch: Partial<CanvasGuestbook> }
-  | { type: "delete_guestbook";id: string }
   | { type: "set_bg";          value: string }
   | { type: "set_wallpaper";   value: string }
   | { type: "move_elements";   moves: Array<{ id: string; elementType: string; x: number; y: number }> };
@@ -120,9 +116,6 @@ function reduceOp(els: CanvasElement[], op: CanvasOp): CanvasElement[] {
     case "add_media":       return [...els, { ...op.media,      elementType: "media"     as const }];
     case "update_media":    return els.map(e => e.elementType==="media"     && e.id===op.id ? { ...e, ...op.patch } : e);
     case "delete_media":    return els.filter(e => !(e.elementType==="media"     && e.id===op.id));
-    case "add_guestbook":   return [...els, { ...op.guestbook, elementType: "guestbook" as const }];
-    case "update_guestbook":return els.map(e => e.elementType==="guestbook" && e.id===op.id ? { ...e, ...op.patch } : e);
-    case "delete_guestbook":return els.filter(e => !(e.elementType==="guestbook" && e.id===op.id));
     case "move_elements":   return els.map(e => { const m = op.moves.find(m => m.id===e.id); return m ? { ...e, x: m.x, y: m.y } as CanvasElement : e; });
     default:                return els;
   }
@@ -176,7 +169,6 @@ export default function CanvasBoard({
   const galleries    = useMemo(() => elements.filter(e => e.elementType === "gallery")     as (CanvasGallery     & { elementType: "gallery" })[], [elements]);
   const profiles     = useMemo(() => elements.filter(e => e.elementType === "profile")     as (ProfileCardData   & { elementType: "profile" })[], [elements]);
   const medias       = useMemo(() => elements.filter(e => e.elementType === "media")       as (CanvasMedia       & { elementType: "media" })[], [elements]);
-  const guestbooks   = useMemo(() => elements.filter(e => e.elementType === "guestbook")  as (CanvasGuestbook   & { elementType: "guestbook" })[], [elements]);
 
   const trashRef          = useRef<HTMLDivElement>(null);
   const canvasWrapperRef  = useRef<HTMLDivElement>(null);
@@ -203,7 +195,8 @@ export default function CanvasBoard({
   const flushingRef  = useRef(false);
   const clientIdRef       = useRef(crypto.randomUUID());
   const logicalW          = useRef(typeof window !== "undefined" ? window.screen.width : 1920);
-  const firstEditRef      = useRef(false); // fires analytics.canvasEdit once per session
+  const firstEditRef        = useRef(false); // fires analytics.canvasEdit once per session
+  const reportedImageIdsRef = useRef(new Set<string>()); // dedup activity_feed inserts for images
 
   const isMobile     = useIsMobile();
   const isReadOnly   = !canEdit;
@@ -292,7 +285,6 @@ export default function CanvasBoard({
   const visGalleries = useMemo(() => inSpace ? galleries.filter(g => g.isPublic)          : galleries,    [inSpace, galleries]);
   const visProfiles  = useMemo(() => inSpace ? profiles.filter(p => p.isPublic)           : profiles,     [inSpace, profiles]);
   const visMedias      = useMemo(() => inSpace ? medias.filter(m => m.isPublic)           : medias,       [inSpace, medias]);
-  const visGuestbooks  = useMemo(() => inSpace ? guestbooks.filter(g => g.isPublic)      : guestbooks,   [inSpace, guestbooks]);
 
   // ── Persistencia ─────────────────────────────────────────────────────────────
 
@@ -327,7 +319,6 @@ export default function CanvasBoard({
     const sGalleries = snapshot.filter(e => e.elementType === "gallery") as (CanvasGallery     & { elementType: "gallery" })[];
     const sProfiles  = snapshot.filter(e => e.elementType === "profile") as (ProfileCardData   & { elementType: "profile" })[];
     const sMedias      = snapshot.filter(e => e.elementType === "media")     as (CanvasMedia     & { elementType: "media" })[];
-    const sGuestbooks  = snapshot.filter(e => e.elementType === "guestbook") as (CanvasGuestbook & { elementType: "guestbook" })[];
     return {
       cards:        await Promise.all(sCards.map(async c => ({ ...c, bgImage: await safe(c.bgImage) }))),
       images:       await Promise.all(sImages.map(async i => ({ ...i, src: await safe(i.src) }))),
@@ -335,7 +326,6 @@ export default function CanvasBoard({
       galleries:    await Promise.all(sGalleries.map(async g => ({ ...g, images: await Promise.all(g.images.map(async gi => ({ ...gi, src: await safe(gi.src) }))) }))),
       profiles:     await Promise.all(sProfiles.map(async p => ({ ...p, photo: await safe(p.photo), bgImage: await safe(p.bgImage) }))),
       medias:       sMedias,
-      guestbooks:   sGuestbooks,
       bgColor,
       wallpaper: await safe(wallpaper),
     };
@@ -384,13 +374,6 @@ export default function CanvasBoard({
         setElements(p => p.map(e => e.elementType === "media" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
       case "delete_media":
         setElements(p => p.filter(e => !(e.elementType === "media" && e.id === op.id))); break;
-
-      case "add_guestbook":
-        setElements(p => p.some(e => e.id === op.guestbook.id) ? p : [...p, { ...op.guestbook, elementType: "guestbook" as const }]); break;
-      case "update_guestbook":
-        setElements(p => p.map(e => e.elementType === "guestbook" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
-      case "delete_guestbook":
-        setElements(p => p.filter(e => !(e.elementType === "guestbook" && e.id === op.id))); break;
 
       case "set_bg":
         setBgColor(op.value);
@@ -482,14 +465,22 @@ export default function CanvasBoard({
     // Activity feed — fire-and-forget for space mode ops
     if (canvasModeRef.current === "space") {
       const uid = currentUserIdRef.current;
-      const actType =
-        op.type === "add_image"      ? "new_image"     :
-        op.type === "set_wallpaper"  ? "canvas_update" :
-        op.type === "update_profile" ? "status_change" :
-        op.type === "add_guestbook"  ? "new_guestbook"  :
-        null;
-      if (actType && uid) {
-        createClient().from("activity_feed").insert({ user_id: uid, activity_type: actType, metadata: {} }).then();
+      if (uid) {
+        // Image: track on first update_image with an http src (after upload)
+        if (op.type === "update_image" && typeof op.patch.src === "string" && op.patch.src.startsWith("http") && !reportedImageIdsRef.current.has(op.id)) {
+          reportedImageIdsRef.current.add(op.id);
+          createClient().from("activity_feed").insert({ user_id: uid, activity_type: "new_image", metadata: { element_id: op.id, src: op.patch.src } }).then();
+        }
+        // Text: track on add_text
+        if (op.type === "add_text") {
+          createClient().from("activity_feed").insert({ user_id: uid, activity_type: "new_text", metadata: { element_id: op.text.id, content: op.text.content, font: op.text.font, size: op.text.size, color: op.text.color } }).then();
+        }
+        // Misc
+        const simpleType =
+          op.type === "set_wallpaper"  ? "canvas_update" :
+          op.type === "update_profile" ? "status_change" :
+          null;
+        if (simpleType) createClient().from("activity_feed").insert({ user_id: uid, activity_type: simpleType, metadata: {} }).then();
       }
     }
 
@@ -638,7 +629,6 @@ export default function CanvasBoard({
             ...(initialState.galleries    ?? []).map(g => ({ ...g, elementType: "gallery" as const })),
             ...(initialState.profiles     ?? []).map(p => ({ ...p, elementType: "profile" as const })),
             ...(initialState.medias       ?? []).map(m => ({ ...m, elementType: "media"    as const })),
-            ...(initialState.guestbooks   ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
           ]);
           if (initialState.bgColor)   setBgColor(initialState.bgColor);
           if (initialState.wallpaper) { setWallpaper(initialState.wallpaper); setWallpaperLoaded(true); }
@@ -691,7 +681,6 @@ export default function CanvasBoard({
           ...(s.galleries    ?? []).map(g => ({ ...g, elementType: "gallery" as const })),
           ...(s.profiles     ?? []).map(p => ({ ...p, elementType: "profile" as const })),
           ...(s.medias       ?? []).map(m => ({ ...m, elementType: "media"    as const })),
-          ...(s.guestbooks   ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
         ].filter(el => el.elementType !== "image" || (el.src && el.src !== ""));
         if (s.bgColor)   setBgColor(s.bgColor);
         if (s.wallpaper) { setWallpaper(s.wallpaper); setWallpaperLoaded(true); }
@@ -859,18 +848,16 @@ export default function CanvasBoard({
     images.forEach(check);
     galleries.forEach(check);
     profiles.forEach(check);
-    guestbooks.forEach(check);
     hits.sort((a, b) => b.z - a.z);
     return hits;
   }
 
-  function findElementById(id: string): { id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"guestbook"; x: number; y: number } | null {
+  function findElementById(id: string): { id: string; type: "image"|"card"|"text"|"gallery"|"profile"; x: number; y: number } | null {
     const img = images.find(i => i.id === id); if (img) return { id: img.id, type: "image", x: img.x, y: img.y };
     const card = cards.find(c => c.id === id); if (card) return { id: card.id, type: "card", x: card.x, y: card.y };
     const txt = texts.find(t => t.id === id); if (txt) return { id: txt.id, type: "text", x: txt.x, y: txt.y };
     const gal = galleries.find(g => g.id === id); if (gal) return { id: gal.id, type: "gallery", x: gal.x, y: gal.y };
     const prof = profiles.find(p => p.id === id); if (prof) return { id: prof.id, type: "profile", x: prof.x, y: prof.y };
-    const gb = guestbooks.find(g => g.id === id); if (gb) return { id: gb.id, type: "guestbook", x: gb.x, y: gb.y };
     return null;
   }
 
@@ -941,24 +928,6 @@ export default function CanvasBoard({
     setMenuOpen(false);
   }
 
-  function addGuestbook() {
-    if (!canInteract) return;
-    zCounter.current += 1;
-    const vc = viewCenter();
-    const { x: gx, y: gy } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 300, 340);
-    const gb: CanvasGuestbook = {
-      id: crypto.randomUUID(),
-      x: gx, y: gy,
-      w: 300, h: 340,
-      zIndex: zCounter.current,
-      layer: 2, depth: 0.5, rotation: 0,
-      isPublic: inSpace ? true : undefined,
-    };
-    enqueueOp({ type: "add_guestbook", guestbook: gb });
-    setSelectedIds(new Set([gb.id]));
-    setMenuOpen(false);
-  }
-
   function addGallery() {
     if (!canInteract) return;
     zCounter.current += 1;
@@ -986,7 +955,7 @@ export default function CanvasBoard({
     return {x:minX,y:minY,w:maxX-minX,h:maxY-minY,items:all};
   }
 
-  function onElementMouseDown(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook", x: number, y: number, e: React.MouseEvent) {
+  function onElementMouseDown(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media", x: number, y: number, e: React.MouseEvent) {
     if (!canInteract) return;
     userInteractedRef.current = true;
     if (creatingCard||addingText) return;
@@ -1097,7 +1066,6 @@ export default function CanvasBoard({
         visGalleries.forEach(g => { if(hit(g.x,g.y,g.w,g.h)) ns.add(g.id); });
         visProfiles.forEach(p => { if(hit(p.x,p.y,p.w,p.h)) ns.add(p.id); });
         visMedias.forEach(m    => { if(hit(m.x,m.y,m.w,m.h)) ns.add(m.id); });
-        visGuestbooks.forEach(g => { if(hit(g.x,g.y,g.w,g.h)) ns.add(g.id); });
         setSelectedIds(ns);
       } else setSelectedIds(new Set());
       setSelRect(null);
@@ -1105,7 +1073,7 @@ export default function CanvasBoard({
     }
 
     // Capture what's about to be deleted before handleDragUp removes them
-    const toDelete: Array<{ id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook" }> = [];
+    const toDelete: Array<{ id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media" }> = [];
     if (dragging && overTrash) {
       images.forEach(i  => { if (selectedIds.has(i.id))  toDelete.push({ id: i.id,  type: "image"   }); });
       cards.forEach(c   => { if (selectedIds.has(c.id))  toDelete.push({ id: c.id,  type: "card"    }); });
@@ -1113,7 +1081,6 @@ export default function CanvasBoard({
       galleries.forEach(g => { if (selectedIds.has(g.id)) toDelete.push({ id: g.id, type: "gallery" }); });
       profiles.forEach(p  => { if (selectedIds.has(p.id)) toDelete.push({ id: p.id, type: "profile" }); });
       medias.forEach(m      => { if (selectedIds.has(m.id))  toDelete.push({ id: m.id,  type: "media"     }); });
-      guestbooks.forEach(g  => { if (selectedIds.has(g.id)) toDelete.push({ id: g.id, type: "guestbook" }); });
     }
 
     if (dragging && overTrash) setSelectedIds(new Set());
@@ -1128,7 +1095,6 @@ export default function CanvasBoard({
           else if (type === "gallery") enqueueOp({ type: "delete_gallery", id });
           else if (type === "profile") enqueueOp({ type: "delete_profile", id });
           else if (type === "media")     enqueueOp({ type: "delete_media",     id });
-          else if (type === "guestbook") enqueueOp({ type: "delete_guestbook", id });
         });
       } else if (result.moved.length === 1) {
         const { id, type, x, y } = result.moved[0];
@@ -1148,7 +1114,6 @@ export default function CanvasBoard({
         else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch });
         else if (type === "profile") enqueueOp({ type: "update_profile", id, patch });
         else if (type === "media")     enqueueOp({ type: "update_media",     id, patch });
-        else if (type === "guestbook") enqueueOp({ type: "update_guestbook", id, patch });
       } else if (result.resized) {
         const { id, type, ...dims } = result.resized;
         // Guard: never persist NaN/Infinity/zero — these make elements invisible on reload
@@ -1166,7 +1131,6 @@ export default function CanvasBoard({
             else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch: { w, h } });
             else if (type === "profile") enqueueOp({ type: "update_profile", id, patch: { w, h } });
             else if (type === "media")     enqueueOp({ type: "update_media",     id, patch: { w, h } });
-            else if (type === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: { w, h } });
           }
         }
       }
@@ -1494,30 +1458,6 @@ export default function CanvasBoard({
         );
       })}
 
-      {/* ── GUESTBOOKS ── */}
-      {visGuestbooks.map(gb => {
-        const ps = getParallaxStyle(gb.layer, gb.depth);
-        return (
-          <WidgetBoundary key={gb.id} label="guestbook">
-            <GuestbookWidget
-              guestbook={gb}
-              isSel={selectedIds.has(gb.id)}
-              draggingId={dragging?.id ?? null}
-              parallaxTransform={ps.transform as string}
-              onMouseDown={gb.locked ? e => e.stopPropagation() : e => onElementMouseDown(gb.id, "guestbook", gb.x, gb.y, e)}
-              onClick={e => handleElementClick(gb.id, e)}
-              onResizeMD={gb.locked ? e => e.stopPropagation() : e => startSingleResize(gb.id, "guestbook", e)}
-              onRotateMD={gb.locked ? e => e.stopPropagation() : e => startRotate(gb.id, "guestbook", e, gb.x + gb.w / 2, gb.y + gb.h / 2)}
-              locked={!!gb.locked}
-              canInteract={canInteract}
-              ownerUserId={ownerUserId}
-              currentUserId={currentUserId}
-              currentUserHandle={userHandle}
-              onToggleLock={() => enqueueOp({ type: "update_guestbook", id: gb.id, patch: { locked: !gb.locked } })}
-            />
-          </WidgetBoundary>
-        );
-      })}
 
       {view==="canvas"&&groupBounds&&!dragging&&!resizing&&!rotating&&(
         <div style={{position:"absolute",left:groupBounds.x-4,top:groupBounds.y-4,width:groupBounds.w+8,height:groupBounds.h+8,border:"1px dashed rgba(255,255,255,0.1)",borderRadius:6,pointerEvents:"none",zIndex:900}}>
@@ -1603,7 +1543,6 @@ export default function CanvasBoard({
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
             {label:"Media",         fn:()=>{addMedia();               setMenuOpen(false);}},
-            {label:"Guestbook",     fn:()=>{addGuestbook();           setMenuOpen(false);}},
           ].map(item=>(
             <button key={item.label} onClick={item.fn}
               style={{display:"block",width:"100%",padding:"7px 11px",borderRadius:4,border:"none",background:"transparent",color:"rgba(255,255,255,0.55)",fontSize:9,letterSpacing:1.5,cursor:"pointer",textAlign:"left",fontFamily:MONO,textTransform:"uppercase",transition:"background 0.08s ease, color 0.08s ease"}}

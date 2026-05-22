@@ -2,10 +2,10 @@
 import { useState, useRef } from "react";
 import type { CanvasElement } from "@/types";
 
-export type DragTarget   = { type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"; id: string };
-export type ResizeTarget = { type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"; id: string } | { type: "group" };
+export type DragTarget   = { type: "image"|"card"|"text"|"gallery"|"profile"|"media"; id: string };
+export type ResizeTarget = { type: "image"|"card"|"text"|"gallery"|"profile"|"media"; id: string } | { type: "group" };
 export type RotateTarget = {
-  type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook";
+  type: "image"|"card"|"text"|"gallery"|"profile"|"media";
   id: string; cx: number; cy: number;
   startAngle: number; startRotation: number;
 };
@@ -14,7 +14,7 @@ export type DragUpResult = {
   wasDeleted: boolean;
   moved: Array<{ id: string; type: DragTarget["type"]; x: number; y: number }>;
   rotated: { id: string; type: RotateTarget["type"]; rotation: number } | null;
-  resized: { id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"; w?: number; h?: number; size?: number } | null;
+  resized: { id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"; w?: number; h?: number; size?: number } | null;
 };
 
 type GroupBoundsItem = { id: string; x: number; y: number; w: number; h: number };
@@ -49,7 +49,7 @@ export function useDragDrop({
 
   function startDrag(
     id: string,
-    type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook",
+    type: "image"|"card"|"text"|"gallery"|"profile"|"media",
     x: number, y: number,
     e: React.MouseEvent,
     selectedIds: Set<string>
@@ -71,7 +71,7 @@ export function useDragDrop({
     setResizing({ type: "group" });
   }
 
-  function startSingleResize(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook", e: React.MouseEvent) {
+  function startSingleResize(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media", e: React.MouseEvent) {
     e.preventDefault(); e.stopPropagation();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const el = elements.find(el => el.id === id && el.elementType === type) as any;
@@ -91,7 +91,7 @@ export function useDragDrop({
 
   function startRotate(
     id: string,
-    type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook",
+    type: "image"|"card"|"text"|"gallery"|"profile"|"media",
     e: React.MouseEvent,
     domCx?: number, domCy?: number
   ) {
@@ -196,9 +196,6 @@ export function useDragDrop({
       } else if (resizing.type==="media") {
         lastResize.current = { w: Math.max(200,resizeStart.current.w+dx), h: Math.max(60,resizeStart.current.h+dy) };
         setElements(p=>p.map(el=>el.id===resizing.id&&el.elementType==="media"?{...el,w:Math.max(200,resizeStart.current.w+dx),h:Math.max(60,resizeStart.current.h+dy)}:el));
-      } else if (resizing.type==="guestbook") {
-        lastResize.current = { w: Math.max(220,resizeStart.current.w+dx), h: Math.max(200,resizeStart.current.h+dy) };
-        setElements(p=>p.map(el=>el.id===resizing.id&&el.elementType==="guestbook"?{...el,w:Math.max(220,resizeStart.current.w+dx),h:Math.max(200,resizeStart.current.h+dy)}:el));
       }
     }
   }
@@ -209,7 +206,7 @@ export function useDragDrop({
       : null;
 
     const resized = (resizing && resizing.type !== "group")
-      ? { id: resizing.id, type: resizing.type as "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook", ...lastResize.current }
+      ? { id: resizing.id, type: resizing.type as "image"|"card"|"text"|"gallery"|"profile"|"media", ...lastResize.current }
       : null;
 
     const moved: DragUpResult["moved"] = [];

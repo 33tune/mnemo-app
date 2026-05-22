@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type {
   CanvasState, CanvasCard, CanvasImage, CanvasText,
-  CanvasGallery, ProfileCardData, CanvasMedia, CanvasGuestbook,
+  CanvasGallery, ProfileCardData, CanvasMedia,
 } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 
@@ -35,7 +35,6 @@ function parseCanvas(raw: unknown): CanvasState | null {
     galleries:    Array.isArray(d.galleries)    ? d.galleries    as CanvasGallery[]   : [],
     profiles:     Array.isArray(d.profiles)     ? d.profiles     as ProfileCardData[] : [],
     medias:       Array.isArray(d.medias)       ? d.medias       as CanvasMedia[]     : [],
-    guestbooks:   Array.isArray(d.guestbooks)   ? d.guestbooks   as CanvasGuestbook[] : [],
     bgColor:   typeof d.bgColor   === "string" ? d.bgColor   : "#0a0a0c",
     wallpaper: typeof d.wallpaper === "string" ? d.wallpaper : "",
   };
