@@ -20,6 +20,7 @@ import { openOrCreateChat } from "@/lib/chat/openOrCreateChat";
 import ChatsWorkspace from "@/components/chats/ChatsWorkspace";
 import SocialPanelWindow from "@/components/social/SocialPanelWindow";
 import SocialView from "@/components/social/SocialView";
+import FeedView   from "@/components/feed/FeedView";
 import type { SocialPanelState } from "@/components/social/SocialPanelWindow";
 import NotificationsPanel from "@/components/notifications/NotificationsPanel";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -138,7 +139,7 @@ export default function CanvasBoard({
   const [wallpaperLoaded,  setWallpaperLoaded]  = useState(true);
   const [bgColor,          setBgColor]          = useState("#0a0a0c");
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
-  const [view,             setView]             = useState<"canvas" | "browse" | "chats">("canvas");
+  const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "feed">("canvas");
   const [totalUnread,      setTotalUnread]      = useState(0);
   const [homeBg,           setHomeBg]           = useState<{ color: string; wallpaper: string; wallpaperLoaded: boolean }>({ color: "#0a0a0c", wallpaper: "", wallpaperLoaded: false });
   const [currentUserId,    setCurrentUserId]    = useState<string | undefined>(undefined);
@@ -469,7 +470,7 @@ export default function CanvasBoard({
         // Image: track on first update_image with an http src (after upload)
         if (op.type === "update_image" && typeof op.patch.src === "string" && op.patch.src.startsWith("http") && !reportedImageIdsRef.current.has(op.id)) {
           reportedImageIdsRef.current.add(op.id);
-          createClient().from("activity_feed").insert({ user_id: uid, activity_type: "new_image", metadata: { element_id: op.id, src: op.patch.src } }).then();
+          createClient().from("activity_feed").insert({ user_id: uid, activity_type: "new_image", metadata: { element_id: op.id, src: op.patch.src, owner_handle: userHandle } }).then();
         }
         // Text: track on add_text
         if (op.type === "add_text") {
@@ -1240,6 +1241,8 @@ export default function CanvasBoard({
         onPublish={canEdit && canvasMode === "space" && view === "canvas" ? publishSpace : undefined}
         isChats={view === "chats"}
         onChats={canEdit ? () => setView("chats") : (viewerLoggedIn ? () => router.push("/dashboard?view=chats") : undefined)}
+        isFeed={view === "feed"}
+        onFeed={canEdit ? () => setView("feed") : (viewerLoggedIn ? () => router.push("/dashboard?view=feed") : undefined)}
         unreadChats={totalUnread}
         unreadSignals={canEdit ? unreadCount : undefined}
         onSignals={canEdit ? () => { if (!showSignals) markAllRead(); setShowSignals(s => !s); } : undefined}
@@ -1660,6 +1663,25 @@ export default function CanvasBoard({
               openWindow={openWindow}
               totalUnread={totalUnread}
             />
+          </div>
+        </WidgetBoundary>
+      )}
+
+      {/* Feed view */}
+      {view === "feed" && (
+        <WidgetBoundary label="feed-view">
+          <div style={{
+            position: "fixed", inset: 0, top: 44,
+            zIndex: 490,
+            overflowY: "auto",
+            backgroundColor: homeBg.color || "#0a0a0c",
+            ...(homeBg.wallpaper && homeBg.wallpaperLoaded ? {
+              backgroundImage: `url(${homeBg.wallpaper})`,
+              backgroundRepeat: "repeat",
+              backgroundSize: "auto",
+            } : {}),
+          }}>
+            <FeedView currentUserId={currentUserId} userHandle={userHandle} />
           </div>
         </WidgetBoundary>
       )}

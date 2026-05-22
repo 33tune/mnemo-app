@@ -16,6 +16,8 @@ export default function Topbar({
   onBrowse,
   isChats,
   onChats,
+  isFeed,
+  onFeed,
   unreadChats,
   unreadSignals,
   onSignals,
@@ -31,6 +33,8 @@ export default function Topbar({
   onBrowse?: () => void;
   isChats?: boolean;
   onChats?: () => void;
+  isFeed?:  boolean;
+  onFeed?:  () => void;
   unreadChats?:   number;
   unreadSignals?: number;
   onSignals?:     () => void;
@@ -70,10 +74,11 @@ export default function Topbar({
 
   const tabs: { key: string; label: string; active: boolean; onClick: () => void }[] = [];
   if (onModeChange && canvasMode) {
-    tabs.push({ key: "home",  label: "HOME",     active: canvasMode === "home"  && !isBrowse && !isChats, onClick: () => onModeChange("home") });
-    tabs.push({ key: "space", label: "MY SPACE", active: canvasMode === "space" && !isBrowse && !isChats, onClick: () => onModeChange("space") });
+    tabs.push({ key: "home",  label: "HOME",     active: canvasMode === "home"  && !isBrowse && !isChats && !isFeed, onClick: () => onModeChange("home") });
+    tabs.push({ key: "space", label: "MY SPACE", active: canvasMode === "space" && !isBrowse && !isChats && !isFeed, onClick: () => onModeChange("space") });
   }
-  if (onChats)   tabs.push({ key: "chats",  label: "SOCIAL", active: !!isChats,  onClick: onChats });
+  if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats && !isFeed, onClick: onChats });
+  if (onFeed)  tabs.push({ key: "feed",  label: "FEED",   active: !!isFeed,              onClick: onFeed });
 
   return (
     <>
