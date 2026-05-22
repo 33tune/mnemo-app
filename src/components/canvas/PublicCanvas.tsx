@@ -24,7 +24,7 @@ const LOGICAL_HEIGHT = 3000;
 
 const EMPTY: CanvasState = {
   cards: [], images: [], texts: [], galleries: [],
-  profiles: [], postItBoards: [], medias: [], guestbooks: [], bgColor: "#0a0a0c", wallpaper: "",
+  profiles: [], medias: [], guestbooks: [], bgColor: "#0a0a0c", wallpaper: "",
 };
 
 export default function PublicCanvas({
@@ -214,29 +214,6 @@ export default function PublicCanvas({
               );
             })}
 
-            {/* PostIt boards */}
-            {(state.postItBoards ?? []).map(board => {
-              const ps = getParallaxStyle(board.layer, board.depth);
-              return (
-                <div key={board.id} style={{
-                  position: "absolute", left: board.x, top: board.y, width: board.w, height: board.h,
-                  zIndex: board.zIndex + board.layer * 100,
-                  transform: `${ps.transform} rotate(${board.rotation ?? 0}deg)`, willChange: "transform",
-                }}>
-                  {(board.posts ?? []).map(post => (
-                    <div key={post.id} style={{
-                      position: "absolute", left: post.x, top: post.y, width: post.w,
-                      background: post.color || "rgba(255,255,255,0.08)",
-                      borderRadius: 8, padding: 10,
-                      transform: `rotate(${post.rotation ?? 0}deg)`,
-                      fontFamily: SANS, fontSize: 11, color: "rgba(0,0,0,0.75)",
-                    }}>
-                      {post.text}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
 
         </div>
       </div>

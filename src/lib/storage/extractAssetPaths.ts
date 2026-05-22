@@ -54,14 +54,6 @@ export function extractAssetPaths(state: CanvasState): string[] {
     add(profile.bgImage);
   }
 
-  // ── postItBoards ───────────────────────────────────────────────────────────
-  for (const board of state.postItBoards ?? []) {
-    add(board.bgImageUrl);
-    for (const post of board.posts ?? []) {
-      add(post.photo);
-    }
-  }
-
   // ── wallpaper ──────────────────────────────────────────────────────────────
   add(state.wallpaper);
 

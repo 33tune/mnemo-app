@@ -178,58 +178,6 @@ export type ProfileCardData = {
   musicUrl?:      string;
 };
 
-export type SignalTheme = "void" | "graphite" | "terminal" | "chrome" | "signal" | "notebook" | "static";
-
-export type PostItItem = {
-  id:        string;
-  text:      string;
-  photo:     string;
-  createdAt: number;
-  // legacy layout fields — kept for backward compat, unused in new vertical feed
-  x?:        number;
-  y?:        number;
-  rotation?: number;
-  color?:    string;
-  w?:        number;
-};
-
-export type PostStyleKey    = "compact" | "minimal" | "tumblr" | "terminal" | "diary" | "media-heavy";
-export type CardStyleKey    = "solid" | "glass" | "gradient" | "noise" | "transparent" | "image";
-export type ImageDisplayMode = "natural" | "cover" | "contain";
-
-export type PostItBoard = {
-  id:                 string;
-  x:                  number;
-  y:                  number;
-  w:                  number;
-  h:                  number;
-  zIndex:             number;
-  layer:              0 | 1 | 2;
-  depth:              number;
-  rotation:           number;
-  posts:              PostItItem[];
-  locked?:            boolean;
-  isPublic?:          boolean;
-  // Signal Card Studio — all optional, backward-compatible
-  theme?:             SignalTheme;
-  signalFont?:        "mono" | "sans";
-  postStyle?:         PostStyleKey;
-  imageDisplayMode?:  ImageDisplayMode;
-  cardStyle?:         CardStyleKey;
-  bgImageUrl?:        string;
-  bgOpacity?:         number;
-  blurStrength?:      number;
-  cardBorderRadius?:  number;
-  borderIntensity?:   number;
-  shadowIntensity?:   number;
-  paddingDensity?:    "compact" | "normal" | "spacious";
-  accentColor?:       string;
-  textColor?:         string;
-  glowEnabled?:       boolean;
-  titleLabel?:        string;
-  fontSize?:          number;
-  lineSpacing?:       number;
-};
 
 export type CanvasGuestbook = {
   id:        string;
@@ -262,14 +210,13 @@ export type CanvasState = {
   texts:         CanvasText[];
   galleries:     CanvasGallery[];
   profiles:      ProfileCardData[];
-  postItBoards:  PostItBoard[];
   medias:        CanvasMedia[];
   guestbooks:    CanvasGuestbook[];
   bgColor:       string;
   wallpaper:     string;
 };
 
-export type ElementType = "card" | "image" | "text" | "gallery" | "profile" | "postit" | "media" | "guestbook";
+export type ElementType = "card" | "image" | "text" | "gallery" | "profile" | "media" | "guestbook";
 
 export type CanvasElement =
   | (CanvasCard        & { elementType: "card" })
@@ -277,7 +224,6 @@ export type CanvasElement =
   | (CanvasText        & { elementType: "text" })
   | (CanvasGallery     & { elementType: "gallery" })
   | (ProfileCardData   & { elementType: "profile" })
-  | (PostItBoard       & { elementType: "postit" })
   | (CanvasMedia       & { elementType: "media" })
   | (CanvasGuestbook   & { elementType: "guestbook" });
 

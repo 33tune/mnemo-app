@@ -2,7 +2,7 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, PostItBoard, CanvasMedia, CanvasGuestbook, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
+import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, CanvasGuestbook, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
 import GuestbookWidget from "./GuestbookWidget";
 import MediaCardWidget from "./MediaCardWidget";
 import { SocialDock } from "./SocialDock";
@@ -10,7 +10,6 @@ import Topbar from "./Topbar";
 import CardMenu from "./CardMenu";
 import GalleryWidget from "./GalleryWidget";
 import ProfileCard from "./ProfileCard";
-import PostItBoardWidget from "./PostItBoardWidget";
 import { renderContent, textColor, isLight } from "./CardContent";
 import { useParallax } from "@/hooks/useParallax";
 import { useDragDrop } from "@/hooks/useDragDrop";
@@ -88,9 +87,6 @@ type CanvasOp =
   | { type: "add_profile";    profile: ProfileCardData }
   | { type: "update_profile"; id: string; patch: Partial<ProfileCardData> }
   | { type: "delete_profile"; id: string }
-  | { type: "add_postit";     board: PostItBoard }
-  | { type: "update_postit";  id: string; patch: Partial<PostItBoard> }
-  | { type: "delete_postit";  id: string }
   | { type: "add_media";       media:      CanvasMedia }
   | { type: "update_media";    id: string; patch: Partial<CanvasMedia> }
   | { type: "delete_media";    id: string }
@@ -121,9 +117,6 @@ function reduceOp(els: CanvasElement[], op: CanvasOp): CanvasElement[] {
     case "add_profile":    return [...els, { ...op.profile, elementType: "profile" as const }];
     case "update_profile": return els.map(e => e.elementType==="profile" && e.id===op.id ? { ...e, ...op.patch } : e);
     case "delete_profile": return els.filter(e => !(e.elementType==="profile" && e.id===op.id));
-    case "add_postit":     return [...els, { ...op.board,   elementType: "postit"  as const }];
-    case "update_postit":  return els.map(e => e.elementType==="postit"  && e.id===op.id ? { ...e, ...op.patch } : e);
-    case "delete_postit":  return els.filter(e => !(e.elementType==="postit"  && e.id===op.id));
     case "add_media":       return [...els, { ...op.media,      elementType: "media"     as const }];
     case "update_media":    return els.map(e => e.elementType==="media"     && e.id===op.id ? { ...e, ...op.patch } : e);
     case "delete_media":    return els.filter(e => !(e.elementType==="media"     && e.id===op.id));
@@ -182,7 +175,6 @@ export default function CanvasBoard({
   const texts        = useMemo(() => elements.filter(e => e.elementType === "text")        as (CanvasText        & { elementType: "text" })[], [elements]);
   const galleries    = useMemo(() => elements.filter(e => e.elementType === "gallery")     as (CanvasGallery     & { elementType: "gallery" })[], [elements]);
   const profiles     = useMemo(() => elements.filter(e => e.elementType === "profile")     as (ProfileCardData   & { elementType: "profile" })[], [elements]);
-  const postItBoards = useMemo(() => elements.filter(e => e.elementType === "postit")      as (PostItBoard       & { elementType: "postit" })[], [elements]);
   const medias       = useMemo(() => elements.filter(e => e.elementType === "media")       as (CanvasMedia       & { elementType: "media" })[], [elements]);
   const guestbooks   = useMemo(() => elements.filter(e => e.elementType === "guestbook")  as (CanvasGuestbook   & { elementType: "guestbook" })[], [elements]);
 
@@ -299,7 +291,6 @@ export default function CanvasBoard({
   const visTexts     = useMemo(() => inSpace ? texts.filter(t => t.isPublic)              : texts,        [inSpace, texts]);
   const visGalleries = useMemo(() => inSpace ? galleries.filter(g => g.isPublic)          : galleries,    [inSpace, galleries]);
   const visProfiles  = useMemo(() => inSpace ? profiles.filter(p => p.isPublic)           : profiles,     [inSpace, profiles]);
-  const visBoards    = useMemo(() => inSpace ? postItBoards.filter(b => b.isPublic)       : postItBoards, [inSpace, postItBoards]);
   const visMedias      = useMemo(() => inSpace ? medias.filter(m => m.isPublic)           : medias,       [inSpace, medias]);
   const visGuestbooks  = useMemo(() => inSpace ? guestbooks.filter(g => g.isPublic)      : guestbooks,   [inSpace, guestbooks]);
 
@@ -335,7 +326,6 @@ export default function CanvasBoard({
     const sTexts     = snapshot.filter(e => e.elementType === "text")    as (CanvasText        & { elementType: "text" })[];
     const sGalleries = snapshot.filter(e => e.elementType === "gallery") as (CanvasGallery     & { elementType: "gallery" })[];
     const sProfiles  = snapshot.filter(e => e.elementType === "profile") as (ProfileCardData   & { elementType: "profile" })[];
-    const sBoards    = snapshot.filter(e => e.elementType === "postit")  as (PostItBoard       & { elementType: "postit" })[];
     const sMedias      = snapshot.filter(e => e.elementType === "media")     as (CanvasMedia     & { elementType: "media" })[];
     const sGuestbooks  = snapshot.filter(e => e.elementType === "guestbook") as (CanvasGuestbook & { elementType: "guestbook" })[];
     return {
@@ -344,7 +334,6 @@ export default function CanvasBoard({
       texts:        sTexts,
       galleries:    await Promise.all(sGalleries.map(async g => ({ ...g, images: await Promise.all(g.images.map(async gi => ({ ...gi, src: await safe(gi.src) }))) }))),
       profiles:     await Promise.all(sProfiles.map(async p => ({ ...p, photo: await safe(p.photo), bgImage: await safe(p.bgImage) }))),
-      postItBoards: await Promise.all(sBoards.map(async b => ({ ...b, posts: await Promise.all(b.posts.map(async p => ({ ...p, photo: await safe(p.photo) }))) }))),
       medias:       sMedias,
       guestbooks:   sGuestbooks,
       bgColor,
@@ -388,13 +377,6 @@ export default function CanvasBoard({
         setElements(p => p.map(e => e.elementType === "profile" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
       case "delete_profile":
         setElements(p => p.filter(e => !(e.elementType === "profile" && e.id === op.id))); break;
-
-      case "add_postit":
-        setElements(p => p.some(e => e.id === op.board.id) ? p : [...p, { ...op.board, elementType: "postit" as const }]); break;
-      case "update_postit":
-        setElements(p => p.map(e => e.elementType === "postit" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
-      case "delete_postit":
-        setElements(p => p.filter(e => !(e.elementType === "postit" && e.id === op.id))); break;
 
       case "add_media":
         setElements(p => p.some(e => e.id === op.media.id) ? p : [...p, { ...op.media, elementType: "media" as const }]); break;
@@ -504,7 +486,7 @@ export default function CanvasBoard({
         op.type === "add_image"      ? "new_image"     :
         op.type === "set_wallpaper"  ? "canvas_update" :
         op.type === "update_profile" ? "status_change" :
-        op.type === "add_guestbook"  ? "new_guestbook" :
+        op.type === "add_guestbook"  ? "new_guestbook"  :
         null;
       if (actType && uid) {
         createClient().from("activity_feed").insert({ user_id: uid, activity_type: actType, metadata: {} }).then();
@@ -655,7 +637,6 @@ export default function CanvasBoard({
             ...(initialState.texts        ?? []).map(t => ({ ...t, elementType: "text"    as const })),
             ...(initialState.galleries    ?? []).map(g => ({ ...g, elementType: "gallery" as const })),
             ...(initialState.profiles     ?? []).map(p => ({ ...p, elementType: "profile" as const })),
-            ...(initialState.postItBoards ?? []).map(b => ({ ...b, elementType: "postit"    as const })),
             ...(initialState.medias       ?? []).map(m => ({ ...m, elementType: "media"    as const })),
             ...(initialState.guestbooks   ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
           ]);
@@ -709,7 +690,6 @@ export default function CanvasBoard({
           ...(s.texts        ?? []).map(t => ({ ...t, elementType: "text"    as const })),
           ...(s.galleries    ?? []).map(g => ({ ...g, elementType: "gallery" as const })),
           ...(s.profiles     ?? []).map(p => ({ ...p, elementType: "profile" as const })),
-          ...(s.postItBoards ?? []).map(b => ({ ...b, elementType: "postit"    as const })),
           ...(s.medias       ?? []).map(m => ({ ...m, elementType: "media"    as const })),
           ...(s.guestbooks   ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
         ].filter(el => el.elementType !== "image" || (el.src && el.src !== ""));
@@ -879,19 +859,17 @@ export default function CanvasBoard({
     images.forEach(check);
     galleries.forEach(check);
     profiles.forEach(check);
-    postItBoards.forEach(check);
     guestbooks.forEach(check);
     hits.sort((a, b) => b.z - a.z);
     return hits;
   }
 
-  function findElementById(id: string): { id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"postit"|"guestbook"; x: number; y: number } | null {
+  function findElementById(id: string): { id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"guestbook"; x: number; y: number } | null {
     const img = images.find(i => i.id === id); if (img) return { id: img.id, type: "image", x: img.x, y: img.y };
     const card = cards.find(c => c.id === id); if (card) return { id: card.id, type: "card", x: card.x, y: card.y };
     const txt = texts.find(t => t.id === id); if (txt) return { id: txt.id, type: "text", x: txt.x, y: txt.y };
     const gal = galleries.find(g => g.id === id); if (gal) return { id: gal.id, type: "gallery", x: gal.x, y: gal.y };
     const prof = profiles.find(p => p.id === id); if (prof) return { id: prof.id, type: "profile", x: prof.x, y: prof.y };
-    const board = postItBoards.find(b => b.id === id); if (board) return { id: board.id, type: "postit", x: board.x, y: board.y };
     const gb = guestbooks.find(g => g.id === id); if (gb) return { id: gb.id, type: "guestbook", x: gb.x, y: gb.y };
     return null;
   }
@@ -910,7 +888,6 @@ export default function CanvasBoard({
   function updateText(id: string, patch: Partial<CanvasText>) { enqueueOp({ type: "update_text", id, patch }); }
   function updateGallery(id: string, patch: Partial<CanvasGallery>) { enqueueOp({ type: "update_gallery", id, patch }); }
   function updateProfile(id: string, patch: Partial<ProfileCardData>) { enqueueOp({ type: "update_profile", id, patch }); }
-  function updatePostItBoard(id: string, patch: Partial<PostItBoard>) { enqueueOp({ type: "update_postit", id, patch }); }
   function updateMedia(id: string, patch: Partial<CanvasMedia>) { enqueueOp({ type: "update_media", id, patch }); }
 
   function addMedia() {
@@ -964,23 +941,6 @@ export default function CanvasBoard({
     setMenuOpen(false);
   }
 
-  function addPostItBoard() {
-    if (!canInteract) return;
-    zCounter.current += 1;
-    const vc = viewCenter();
-    const { x: bx, y: by } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 360, 320);
-    const b: PostItBoard = {
-      id: crypto.randomUUID(),
-      x: bx, y: by,
-      w: 360, h: 320, zIndex: zCounter.current,
-      layer: 2, depth: 0.5, rotation: 0, posts: [],
-      isPublic: inSpace ? true : undefined,
-    };
-    enqueueOp({ type: "add_postit", board: b });
-    setSelectedIds(new Set([b.id]));
-    setMenuOpen(false);
-  }
-
   function addGuestbook() {
     if (!canInteract) return;
     zCounter.current += 1;
@@ -1026,7 +986,7 @@ export default function CanvasBoard({
     return {x:minX,y:minY,w:maxX-minX,h:maxY-minY,items:all};
   }
 
-  function onElementMouseDown(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"postit"|"media"|"guestbook", x: number, y: number, e: React.MouseEvent) {
+  function onElementMouseDown(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook", x: number, y: number, e: React.MouseEvent) {
     if (!canInteract) return;
     userInteractedRef.current = true;
     if (creatingCard||addingText) return;
@@ -1136,7 +1096,6 @@ export default function CanvasBoard({
         visTexts.forEach(t => { const tw=(t.content?.length??4)*t.size*0.55; const th=t.size*1.6; if(hit(t.x,t.y,tw,th)) ns.add(t.id); });
         visGalleries.forEach(g => { if(hit(g.x,g.y,g.w,g.h)) ns.add(g.id); });
         visProfiles.forEach(p => { if(hit(p.x,p.y,p.w,p.h)) ns.add(p.id); });
-        visBoards.forEach(b => { if(hit(b.x,b.y,b.w,b.h)) ns.add(b.id); });
         visMedias.forEach(m    => { if(hit(m.x,m.y,m.w,m.h)) ns.add(m.id); });
         visGuestbooks.forEach(g => { if(hit(g.x,g.y,g.w,g.h)) ns.add(g.id); });
         setSelectedIds(ns);
@@ -1146,14 +1105,13 @@ export default function CanvasBoard({
     }
 
     // Capture what's about to be deleted before handleDragUp removes them
-    const toDelete: Array<{ id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"postit"|"media"|"guestbook" }> = [];
+    const toDelete: Array<{ id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook" }> = [];
     if (dragging && overTrash) {
       images.forEach(i  => { if (selectedIds.has(i.id))  toDelete.push({ id: i.id,  type: "image"   }); });
       cards.forEach(c   => { if (selectedIds.has(c.id))  toDelete.push({ id: c.id,  type: "card"    }); });
       texts.forEach(t   => { if (selectedIds.has(t.id))  toDelete.push({ id: t.id,  type: "text"    }); });
       galleries.forEach(g => { if (selectedIds.has(g.id)) toDelete.push({ id: g.id, type: "gallery" }); });
       profiles.forEach(p  => { if (selectedIds.has(p.id)) toDelete.push({ id: p.id, type: "profile" }); });
-      postItBoards.forEach(b => { if (selectedIds.has(b.id)) toDelete.push({ id: b.id, type: "postit" }); });
       medias.forEach(m      => { if (selectedIds.has(m.id))  toDelete.push({ id: m.id,  type: "media"     }); });
       guestbooks.forEach(g  => { if (selectedIds.has(g.id)) toDelete.push({ id: g.id, type: "guestbook" }); });
     }
@@ -1169,7 +1127,6 @@ export default function CanvasBoard({
           else if (type === "text")    enqueueOp({ type: "delete_text",    id });
           else if (type === "gallery") enqueueOp({ type: "delete_gallery", id });
           else if (type === "profile") enqueueOp({ type: "delete_profile", id });
-          else if (type === "postit")    enqueueOp({ type: "delete_postit",    id });
           else if (type === "media")     enqueueOp({ type: "delete_media",     id });
           else if (type === "guestbook") enqueueOp({ type: "delete_guestbook", id });
         });
@@ -1190,7 +1147,6 @@ export default function CanvasBoard({
         else if (type === "text")    enqueueOp({ type: "update_text",    id, patch });
         else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch });
         else if (type === "profile") enqueueOp({ type: "update_profile", id, patch });
-        else if (type === "postit")    enqueueOp({ type: "update_postit",    id, patch });
         else if (type === "media")     enqueueOp({ type: "update_media",     id, patch });
         else if (type === "guestbook") enqueueOp({ type: "update_guestbook", id, patch });
       } else if (result.resized) {
@@ -1209,7 +1165,6 @@ export default function CanvasBoard({
             else if (type === "card")    enqueueOp({ type: "update_card",    id, patch: { w, h } });
             else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch: { w, h } });
             else if (type === "profile") enqueueOp({ type: "update_profile", id, patch: { w, h } });
-            else if (type === "postit")    enqueueOp({ type: "update_postit",    id, patch: { w, h } });
             else if (type === "media")     enqueueOp({ type: "update_media",     id, patch: { w, h } });
             else if (type === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: { w, h } });
           }
@@ -1479,24 +1434,6 @@ export default function CanvasBoard({
           }} />);
       })}
 
-      {/* ── POST IT BOARDS ── */}
-      {visBoards.map(board=>{
-        const ps=getParallaxStyle(board.layer,board.depth);
-        return (
-          <WidgetBoundary key={board.id} label="postit">
-            <PostItBoardWidget board={board} isSel={selectedIds.has(board.id)} multiSel={multiSel} draggingId={dragging?.id??null}
-              parallaxTransform={ps.transform as string}
-              onMouseDown={board.locked?(id,t,x,y,e)=>e.stopPropagation():onElementMouseDown}
-              onClick={e=>handleElementClick(board.id,e)}
-              onResizeMD={board.locked?(id,t,e)=>e.stopPropagation():startSingleResize}
-              onRotateMD={board.locked?(id,t,e)=>e.stopPropagation():startRotate}
-              updateBoard={updatePostItBoard}
-              locked={!!board.locked}
-              canInteract={canInteract}
-              onToggleLock={()=>setElements(p=>p.map(e=>e.elementType==="postit"&&e.id===board.id?{...e,locked:!e.locked}:e))} />
-          </WidgetBoundary>
-        );
-      })}
 
       {/* ── CARDS ── */}
       {visCards.map(card=>{
@@ -1663,7 +1600,6 @@ export default function CanvasBoard({
             {label:"New Card",      fn:()=>{setCreatingCard(true);    setMenuOpen(false);}},
             {label:"Free Text",     fn:()=>{setAddingText(true);      setMenuOpen(false);}},
             {label:"Gallery",       fn:()=>{addGallery();             setMenuOpen(false);}},
-            {label:"Signal Card",   fn:()=>{addPostItBoard();         setMenuOpen(false);}},
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
             {label:"Media",         fn:()=>{addMedia();               setMenuOpen(false);}},
