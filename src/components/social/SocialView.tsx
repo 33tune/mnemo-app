@@ -4,18 +4,15 @@ import type React from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useChats } from "@/hooks/useChats";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
-import { useActivityFeed } from "@/hooks/useActivityFeed";
-import { useMyPins } from "@/hooks/useElementPins";
 import { openOrCreateChat } from "@/lib/chat/openOrCreateChat";
 import ActivityFeed from "@/components/social/ActivityFeed";
-import PinsGrid from "@/components/social/PinsGrid";
 import { useRouter } from "next/navigation";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "people" | "following" | "messages" | "activity" | "feed" | "pinned";
+type Tab = "people" | "following" | "messages" | "activity";
 
 interface SocialUser {
   user_id:      string;
@@ -532,10 +529,8 @@ export default function SocialView({ currentUserId, openWindow, totalUnread }: P
   const [messaging,    setMessaging]    = useState(false);
   const loadedRef = useRef(false);
 
-  const { chats }                                    = useChats(currentUserId);
-  const { unreadCounts, markRead }                   = useUnreadCounts(chats, currentUserId);
-  const { items: feedItems, loading: feedLoading }   = useActivityFeed(currentUserId);
-  const { pins, loading: pinsLoading }               = useMyPins(currentUserId);
+  const { chats }                  = useChats(currentUserId);
+  const { unreadCounts, markRead } = useUnreadCounts(chats, currentUserId);
 
   useEffect(() => { setS(loadSettings()); }, []);
 
@@ -658,8 +653,6 @@ export default function SocialView({ currentUserId, openWindow, totalUnread }: P
     { key: "following", label: "FOLLOWING", badge: followedUsers.length > 0 ? followedUsers.length : undefined },
     { key: "messages",  label: "MESSAGES",  badge: totalUnread > 0 ? totalUnread : undefined },
     { key: "activity",  label: "ACTIVITY" },
-    { key: "feed",      label: "FEED" },
-    { key: "pinned",    label: "PINNED",    badge: pins.length > 0 ? pins.length : undefined },
   ];
 
   return (
@@ -720,12 +713,6 @@ export default function SocialView({ currentUserId, openWindow, totalUnread }: P
                 display_name:  a.user.display_name,
                 avatar_url:    a.user.avatar_url,
               }))} loading={false} density={s.density} />
-            )}
-            {tab === "feed" && (
-              <ActivityFeed items={feedItems} loading={feedLoading} density={s.density} />
-            )}
-            {tab === "pinned" && (
-              <PinsGrid pins={pins} loading={pinsLoading} />
             )}
           </Panel>
 

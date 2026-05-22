@@ -8,32 +8,37 @@ const SANS = "'DM Sans', sans-serif";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface FeedImage {
-  id:           string;
-  element_id:   string;
-  src:          string;
-  user_id:      string;
-  owner_handle: string;
-  avatar_url:   string | null;
-  created_at:   string;
+  id:            string;  // activity_feed.id
+  element_id:    string;
+  src:           string;
+  user_id:       string;
+  owner_handle:  string;
+  avatar_url:    string | null;
+  created_at:    string;
+  pin_count:     number;
+  comment_count: number;
+  score:         number;
 }
 
 interface Comment {
-  id:              string;
-  author_user_id:  string;
-  author_handle:   string | null;
-  content:         string;
-  created_at:      string;
+  id:             string;
+  author_user_id: string;
+  author_handle:  string | null;
+  content:        string;
+  created_at:     string;
 }
 
-// ── Data hooks ────────────────────────────────────────────────────────────────
+type FeedTab = "for_you" | "recent";
+
+// ── Feed data hook ────────────────────────────────────────────────────────────
 
 function useFeedImages(currentUserId?: string) {
-  const [images,  setImages]  = useState<FeedImage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [allImages, setAllImages] = useState<FeedImage[]>([]);
+  const [loading,   setLoading]   = useState(false);
   const cancelRef = useRef(false);
 
   useEffect(() => {
-    if (!currentUserId) { setImages([]); return; }
+    if (!currentUserId) { setAllImages([]); return; }
     cancelRef.current = false;
     setLoading(true);
 
@@ -41,43 +46,43 @@ function useFeedImages(currentUserId?: string) {
       try {
         const sb = createClient();
 
+        // 1. Get followings
         const { data: follows } = await sb
-          .from("followers")
-          .select("following_id")
-          .eq("follower_id", currentUserId);
-
+          .from("followers").select("following_id").eq("follower_id", currentUserId);
         if (cancelRef.current) return;
         const followingIds = (follows ?? []).map(f => f.following_id as string);
-        if (!followingIds.length) { setImages([]); setLoading(false); return; }
+        if (!followingIds.length) { setAllImages([]); setLoading(false); return; }
 
+        // 2. Fetch last 7 days of activity
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const { data: activity } = await sb
           .from("activity_feed")
           .select("id, user_id, metadata, created_at")
           .eq("activity_type", "new_image")
           .in("user_id", followingIds)
+          .gte("created_at", sevenDaysAgo)
           .order("created_at", { ascending: false })
-          .limit(50);
+          .limit(80);
 
         if (cancelRef.current) return;
-        if (!activity?.length) { setImages([]); setLoading(false); return; }
+        if (!activity?.length) { setAllImages([]); setLoading(false); return; }
 
+        // 3. Enrich with profiles
         const userIds = [...new Set(activity.map(a => a.user_id))];
         const { data: profiles } = await sb
-          .from("profiles")
-          .select("user_id, handle, avatar_url")
-          .in("user_id", userIds);
-
+          .from("profiles").select("user_id, handle, avatar_url").in("user_id", userIds);
         if (cancelRef.current) return;
         const pMap = new Map((profiles ?? []).map(p => [p.user_id, p]));
 
-        const imgs: FeedImage[] = activity.flatMap(a => {
+        // Build base images (filter bad URLs)
+        const base: Omit<FeedImage, "pin_count" | "comment_count" | "score">[] = activity.flatMap(a => {
           const meta = (a.metadata ?? {}) as Record<string, unknown>;
-          const src = meta.src as string | undefined;
+          const src  = meta.src as string | undefined;
           if (!src || src.startsWith("blob:")) return [];
           const p = pMap.get(a.user_id);
           return [{
             id:           a.id,
-            element_id:   (meta.element_id as string) ?? a.id,
+            element_id:   (meta.element_id as string) || a.id,
             src,
             user_id:      a.user_id,
             owner_handle: (meta.owner_handle as string) || (p?.handle ?? "?"),
@@ -86,7 +91,34 @@ function useFeedImages(currentUserId?: string) {
           }];
         });
 
-        setImages(imgs);
+        if (!base.length) { setAllImages([]); setLoading(false); return; }
+        const elementIds = base.map(b => b.element_id);
+
+        // 4. Batch-fetch pin counts
+        const { data: pinRows } = await sb
+          .from("element_pins").select("element_id").in("element_id", elementIds);
+        if (cancelRef.current) return;
+        const pinMap = new Map<string, number>();
+        for (const row of pinRows ?? []) pinMap.set(row.element_id, (pinMap.get(row.element_id) ?? 0) + 1);
+
+        // 5. Batch-fetch comment counts
+        const { data: commentRows } = await sb
+          .from("feed_comments").select("element_id").in("element_id", elementIds);
+        if (cancelRef.current) return;
+        const cmtMap = new Map<string, number>();
+        for (const row of commentRows ?? []) cmtMap.set(row.element_id, (cmtMap.get(row.element_id) ?? 0) + 1);
+
+        // 6. Compute scores
+        const now = Date.now();
+        const imgs: FeedImage[] = base.map(b => {
+          const pc = pinMap.get(b.element_id) ?? 0;
+          const cc = cmtMap.get(b.element_id) ?? 0;
+          const age = now - new Date(b.created_at).getTime();
+          const recency = age < 86_400_000 ? 10 : 0; // 24h boost
+          return { ...b, pin_count: pc, comment_count: cc, score: pc * 3 + cc * 2 + recency };
+        });
+
+        setAllImages(imgs);
         setLoading(false);
       } catch { if (!cancelRef.current) setLoading(false); }
     })();
@@ -94,8 +126,19 @@ function useFeedImages(currentUserId?: string) {
     return () => { cancelRef.current = true; };
   }, [currentUserId]);
 
-  return { images, loading };
+  // FOR YOU — last 7 days, sorted by score desc
+  const forYou = [...allImages].sort((a, b) => b.score - a.score);
+
+  // RECENT — last 48h, sorted by created_at desc
+  const twoDaysAgo = Date.now() - 48 * 60 * 60 * 1000;
+  const recent = allImages
+    .filter(i => new Date(i.created_at).getTime() > twoDaysAgo)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  return { allImages, forYou, recent, loading };
 }
+
+// ── Pin hook (per feed, multi-owner) ─────────────────────────────────────────
 
 function useFeedPins(elementIds: string[], currentUserId?: string) {
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
@@ -104,10 +147,8 @@ function useFeedPins(elementIds: string[], currentUserId?: string) {
 
   useEffect(() => {
     if (!elementIds.length) return;
-    const sb = createClient();
-    sb.from("element_pins")
-      .select("element_id, pinner_user_id")
-      .in("element_id", elementIds)
+    createClient()
+      .from("element_pins").select("element_id, pinner_user_id").in("element_id", elementIds)
       .then(({ data }) => {
         const counts = new Map<string, number>();
         const mine   = new Set<string>();
@@ -164,10 +205,11 @@ function ago(ts: string): string {
 // ── FeedView ──────────────────────────────────────────────────────────────────
 
 export default function FeedView({ currentUserId, userHandle: _ }: { currentUserId?: string; userHandle?: string }) {
-  const { images, loading } = useFeedImages(currentUserId);
-  const elementIds = images.map(i => i.element_id);
+  const { allImages, forYou, recent, loading } = useFeedImages(currentUserId);
+  const elementIds = allImages.map(i => i.element_id);
   const { pinnedIds, pinCounts, togglePin } = useFeedPins(elementIds, currentUserId);
-  const [modal, setModal] = useState<FeedImage | null>(null);
+  const [modal,   setModal]   = useState<FeedImage | null>(null);
+  const [feedTab, setFeedTab] = useState<FeedTab>("for_you");
 
   // ESC closes modal
   useEffect(() => {
@@ -193,37 +235,36 @@ export default function FeedView({ currentUserId, userHandle: _ }: { currentUser
     );
   }
 
-  if (!images.length) {
+  const displayed = feedTab === "for_you" ? forYou : recent;
+
+  if (!displayed.length) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "80vh", gap: 8 }}>
-        <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 3, color: "rgba(255,255,255,0.06)" }}>── ──</div>
-        <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2.5, color: "rgba(255,255,255,0.15)", textTransform: "uppercase" }}>NOTHING HERE YET</div>
-        <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 1.5, color: "rgba(255,255,255,0.08)", textTransform: "uppercase" }}>FOLLOW PEOPLE TO SEE THEIR IMAGES</div>
-        <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 3, color: "rgba(255,255,255,0.06)" }}>── ──</div>
+      <div style={{ padding: "20px 20px 0" }}>
+        <FeedTabBar feedTab={feedTab} setFeedTab={setFeedTab} forYouCount={forYou.length} recentCount={recent.length} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 8 }}>
+          <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 3, color: "rgba(255,255,255,0.06)" }}>── ──</div>
+          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2.5, color: "rgba(255,255,255,0.15)", textTransform: "uppercase" }}>
+            {feedTab === "recent" ? "NOTHING IN THE LAST 48H" : "NOTHING HERE YET"}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 1.5, color: "rgba(255,255,255,0.08)", textTransform: "uppercase" }}>FOLLOW PEOPLE TO SEE THEIR IMAGES</div>
+          <div style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 3, color: "rgba(255,255,255,0.06)" }}>── ──</div>
+        </div>
       </div>
     );
   }
 
-  // 4-column masonry via CSS columns
   return (
     <div style={{ padding: "20px 20px 60px" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 3, color: "rgba(255,255,255,0.18)", textTransform: "uppercase" }}>FEED</span>
-        <span style={{ fontFamily: MONO, fontSize: 7, color: "rgba(255,255,255,0.1)" }}>{images.length} images</span>
-      </div>
+      <FeedTabBar feedTab={feedTab} setFeedTab={setFeedTab} forYouCount={forYou.length} recentCount={recent.length} />
 
       {/* Masonry grid */}
-      <div style={{
-        columns: "4 200px",
-        columnGap: 12,
-      }}>
-        {images.map(img => (
+      <div style={{ columns: "4 200px", columnGap: 12, marginTop: 16 }}>
+        {displayed.map(img => (
           <FeedCard
             key={img.id}
             img={img}
             isPinned={pinnedIds.has(img.element_id)}
-            pinCount={pinCounts.get(img.element_id) ?? 0}
+            pinCount={pinCounts.get(img.element_id) ?? img.pin_count}
             onPin={() => togglePin(img.element_id, img.user_id, { src: img.src })}
             onClick={() => setModal(img)}
           />
@@ -235,12 +276,51 @@ export default function FeedView({ currentUserId, userHandle: _ }: { currentUser
         <FeedModal
           img={modal}
           isPinned={pinnedIds.has(modal.element_id)}
-          pinCount={pinCounts.get(modal.element_id) ?? 0}
+          pinCount={pinCounts.get(modal.element_id) ?? modal.pin_count}
           onPin={() => togglePin(modal.element_id, modal.user_id, { src: modal.src })}
           currentUserId={currentUserId}
           onClose={() => setModal(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ── Feed tab bar ──────────────────────────────────────────────────────────────
+
+function FeedTabBar({ feedTab, setFeedTab, forYouCount, recentCount }: {
+  feedTab:     FeedTab;
+  setFeedTab:  (t: FeedTab) => void;
+  forYouCount: number;
+  recentCount: number;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+      {([
+        { key: "for_you" as FeedTab, label: "FOR YOU", count: forYouCount },
+        { key: "recent"  as FeedTab, label: "RECENT",  count: recentCount },
+      ] as const).map(t => (
+        <button
+          key={t.key}
+          onClick={() => setFeedTab(t.key)}
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            padding: "4px 12px", borderRadius: 5,
+            border: feedTab === t.key ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(255,255,255,0.06)",
+            background: feedTab === t.key ? "rgba(255,255,255,0.08)" : "transparent",
+            color: feedTab === t.key ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)",
+            fontFamily: MONO, fontSize: 7.5, letterSpacing: 2, textTransform: "uppercase",
+            cursor: "pointer", transition: "all 0.1s", userSelect: "none",
+          }}
+        >
+          {t.label}
+          {t.count > 0 && (
+            <span style={{ fontFamily: MONO, fontSize: 6.5, color: feedTab === t.key ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.2)" }}>
+              {t.count}
+            </span>
+          )}
+        </button>
+      ))}
     </div>
   );
 }
@@ -254,8 +334,8 @@ function FeedCard({ img, isPinned, pinCount, onPin, onClick }: {
   onPin:    () => void;
   onClick:  () => void;
 }) {
-  const [hov,     setHov]     = useState(false);
-  const [imgErr,  setImgErr]  = useState(false);
+  const [hov,    setHov]    = useState(false);
+  const [imgErr, setImgErr] = useState(false);
 
   if (imgErr) return null;
 
@@ -265,16 +345,16 @@ function FeedCard({ img, isPinned, pinCount, onPin, onClick }: {
       onMouseLeave={() => setHov(false)}
       onClick={onClick}
       style={{
-        breakInside:   "avoid",
-        marginBottom:  12,
-        borderRadius:  8,
-        overflow:      "hidden",
-        position:      "relative",
-        cursor:        "pointer",
-        border:        `1px solid ${hov ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)"}`,
-        transition:    "border-color 0.12s, transform 0.12s",
-        transform:     hov ? "translateY(-1px)" : "none",
-        background:    "rgba(255,255,255,0.02)",
+        breakInside: "avoid",
+        marginBottom: 12,
+        borderRadius: 8,
+        overflow: "hidden",
+        position: "relative",
+        cursor: "pointer",
+        border: `1px solid ${hov ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)"}`,
+        transition: "border-color 0.12s, transform 0.12s",
+        transform: hov ? "translateY(-1px)" : "none",
+        background: "rgba(255,255,255,0.02)",
       }}
     >
       <img
@@ -285,18 +365,14 @@ function FeedCard({ img, isPinned, pinCount, onPin, onClick }: {
         onError={() => setImgErr(true)}
       />
 
-      {/* Bottom overlay — always visible */}
+      {/* Bottom gradient overlay */}
       <div style={{
-        position:   "absolute", bottom: 0, left: 0, right: 0,
-        background: "linear-gradient(transparent, rgba(0,0,0,0.72))",
-        padding:    "20px 10px 9px",
-        display:    "flex",
-        alignItems: "center",
-        gap:        7,
-        opacity:    hov ? 1 : 0.7,
-        transition: "opacity 0.12s",
+        position: "absolute", bottom: 0, left: 0, right: 0,
+        background: "linear-gradient(transparent, rgba(0,0,0,0.75))",
+        padding: "22px 10px 9px",
+        display: "flex", alignItems: "center", gap: 7,
+        opacity: hov ? 1 : 0.72, transition: "opacity 0.12s",
       }}>
-        {/* Avatar */}
         <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.15)", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {img.avatar_url
             ? <img src={img.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -309,14 +385,14 @@ function FeedCard({ img, isPinned, pinCount, onPin, onClick }: {
         <span style={{ fontFamily: MONO, fontSize: 6.5, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>{ago(img.created_at)}</span>
       </div>
 
-      {/* Pin button — visible on hover or if pinned/has count */}
+      {/* Pin button — on hover or when pinned/has count */}
       {(hov || isPinned || pinCount > 0) && (
         <div
           onClick={e => { e.stopPropagation(); onPin(); }}
           style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 4 }}
         >
           {pinCount > 0 && (
-            <span style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.7)", background: "rgba(0,0,0,0.6)", borderRadius: 3, padding: "1px 5px", backdropFilter: "blur(6px)" }}>
+            <span style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.7)", background: "rgba(0,0,0,0.62)", borderRadius: 3, padding: "1px 5px", backdropFilter: "blur(6px)" }}>
               {pinCount}
             </span>
           )}
@@ -333,6 +409,17 @@ function FeedCard({ img, isPinned, pinCount, onPin, onClick }: {
           </button>
         </div>
       )}
+
+      {/* Score chips (on hover) */}
+      {hov && (img.comment_count > 0 || img.pin_count > 0) && (
+        <div style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 4 }}>
+          {img.comment_count > 0 && (
+            <span style={{ fontFamily: MONO, fontSize: 6.5, color: "rgba(255,255,255,0.5)", background: "rgba(0,0,0,0.62)", borderRadius: 3, padding: "1px 5px", backdropFilter: "blur(6px)" }}>
+              {img.comment_count} cmt
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -340,12 +427,12 @@ function FeedCard({ img, isPinned, pinCount, onPin, onClick }: {
 // ── FeedModal ─────────────────────────────────────────────────────────────────
 
 function FeedModal({ img, isPinned, pinCount, onPin, currentUserId, onClose }: {
-  img:          FeedImage;
-  isPinned:     boolean;
-  pinCount:     number;
-  onPin:        () => void;
+  img:            FeedImage;
+  isPinned:       boolean;
+  pinCount:       number;
+  onPin:          () => void;
   currentUserId?: string;
-  onClose:      () => void;
+  onClose:        () => void;
 }) {
   return (
     <div
@@ -354,24 +441,18 @@ function FeedModal({ img, isPinned, pinCount, onPin, currentUserId, onClose }: {
         position: "fixed", inset: 0, zIndex: 2000,
         background: "rgba(0,0,0,0.88)",
         backdropFilter: "blur(12px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: "flex", alignItems: "center", justifyContent: "center",
         padding: "20px",
-        gap: 0,
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
           display: "flex",
-          maxWidth: 1100,
-          width: "100%",
-          maxHeight: "90vh",
+          maxWidth: 1100, width: "100%", maxHeight: "90vh",
           background: "rgba(10,10,13,0.97)",
           border: "1px solid rgba(255,255,255,0.09)",
-          borderRadius: 12,
-          overflow: "hidden",
+          borderRadius: 12, overflow: "hidden",
           boxShadow: "0 32px 80px rgba(0,0,0,0.8)",
         }}
       >
@@ -381,30 +462,29 @@ function FeedModal({ img, isPinned, pinCount, onPin, currentUserId, onClose }: {
         </div>
 
         {/* Right: info + comments */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 240, maxWidth: 380 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 260, maxWidth: 380 }}>
           {/* Header */}
-          <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
               {img.avatar_url
                 ? <img src={img.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                : <span style={{ fontFamily: MONO, fontSize: 9, color: "rgba(255,255,255,0.2)" }}>{img.owner_handle.slice(0, 1).toUpperCase()}</span>
+                : <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.2)" }}>{img.owner_handle.slice(0, 1).toUpperCase()}</span>
               }
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: SANS, fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)" }}>{img.owner_handle}</div>
-              <div style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.25)", marginTop: 1 }}>{ago(img.created_at)}</div>
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <div style={{ fontFamily: SANS, fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{img.owner_handle}</div>
+              <div style={{ fontFamily: MONO, fontSize: 7, color: "rgba(255,255,255,0.22)", marginTop: 1 }}>{ago(img.created_at)}</div>
             </div>
             {/* Pin */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {pinCount > 0 && <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{pinCount}</span>}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+              {pinCount > 0 && <span style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.28)" }}>{pinCount}</span>}
               <button
                 onClick={onPin}
-                style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${isPinned ? "rgba(212,240,196,0.45)" : "rgba(255,255,255,0.18)"}`, background: isPinned ? "rgba(212,240,196,0.1)" : "transparent", color: isPinned ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.1s" }}>
+                style={{ width: 26, height: 26, borderRadius: "50%", border: `1px solid ${isPinned ? "rgba(212,240,196,0.45)" : "rgba(255,255,255,0.18)"}`, background: isPinned ? "rgba(212,240,196,0.1)" : "transparent", color: isPinned ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.38)", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.1s" }}>
                 {isPinned ? "★" : "☆"}
               </button>
             </div>
-            {/* Close */}
-            <button onClick={onClose} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
+            <button onClick={onClose} style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.35)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
           </div>
 
           {/* Comments */}
@@ -424,27 +504,28 @@ function ModalComments({ elementId, currentUserId }: { elementId: string; curren
   const [handle,     setHandle]     = useState<string | null>(null);
   const cancelRef = useRef(false);
 
-  // Fetch current user's handle for comment display
+  // Fetch current user's handle once
   useEffect(() => {
     if (!currentUserId) return;
     createClient().from("profiles").select("handle").eq("user_id", currentUserId).maybeSingle()
       .then(({ data }) => { if (data) setHandle(data.handle); });
   }, [currentUserId]);
 
-  // Load comments
+  // Load comments on mount
   useEffect(() => {
     cancelRef.current = false;
-    const sb = createClient();
-    sb.from("feed_comments")
+    createClient()
+      .from("feed_comments")
       .select("id, author_user_id, author_handle, content, created_at")
       .eq("element_id", elementId)
       .order("created_at", { ascending: true })
       .limit(50)
-      .then(({ data }) => { if (!cancelRef.current) setComments((data ?? []) as Comment[]); });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data }: any) => { if (!cancelRef.current) setComments((data ?? []) as Comment[]); });
     return () => { cancelRef.current = true; };
   }, [elementId]);
 
-  // Realtime
+  // Realtime subscription — unique UUID per mount, same pattern as useMessages.ts
   useEffect(() => {
     const sb = createClient();
     const channel = sb
@@ -459,7 +540,11 @@ function ModalComments({ elementId, currentUserId }: { elementId: string; curren
           setComments(prev => prev.some(x => x.id === c.id) ? prev : [...prev, c]);
         }
       )
-      .subscribe();
+      .subscribe((status: string, err?: Error) => {
+        if (status === "SUBSCRIBED") console.log(`[FeedComments] SUBSCRIBED for element ${elementId}`);
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
+          console.error(`[FeedComments] ${status} for element ${elementId}:`, err?.message ?? "—");
+      });
     return () => { sb.removeChannel(channel); };
   }, [elementId]);
 
@@ -467,62 +552,71 @@ function ModalComments({ elementId, currentUserId }: { elementId: string; curren
     if (!currentUserId || !input.trim() || submitting) return;
     setSubmitting(true);
     const { error } = await createClient().from("feed_comments").insert({
-      element_id:      elementId,
-      author_user_id:  currentUserId,
-      author_handle:   handle,
-      content:         input.trim(),
+      element_id:     elementId,
+      author_user_id: currentUserId,
+      author_handle:  handle,
+      content:        input.trim(),
     });
     if (!error) setInput("");
+    else console.error("[FeedComments] submit error", error);
     setSubmitting(false);
   }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Section header with count */}
+      <div style={{ padding: "8px 14px 6px", borderBottom: "1px solid rgba(255,255,255,0.04)", flexShrink: 0, display: "flex", alignItems: "center", gap: 7 }}>
+        <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 2, color: "rgba(255,255,255,0.18)", textTransform: "uppercase" }}>COMMENTS</span>
+        {comments.length > 0 && (
+          <span style={{ fontFamily: MONO, fontSize: 7, color: "rgba(255,255,255,0.1)" }}>{comments.length}</span>
+        )}
+      </div>
+
       {/* Comment list */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
         {!comments.length && (
-          <div style={{ padding: "20px 16px", textAlign: "center" }}>
-            <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 1.5, color: "rgba(255,255,255,0.08)", textTransform: "uppercase" }}>— no comments yet —</span>
+          <div style={{ padding: "18px 14px", textAlign: "center" }}>
+            <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 1.5, color: "rgba(255,255,255,0.07)", textTransform: "uppercase" }}>— no comments yet —</span>
           </div>
         )}
         {comments.map(c => (
-          <div key={c.id} style={{ padding: "7px 16px", borderBottom: "1px solid rgba(255,255,255,0.03)", display: "flex", gap: 8 }}>
-            <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>
-              <span style={{ fontFamily: MONO, fontSize: 6, color: "rgba(255,255,255,0.2)" }}>{(c.author_handle || "?").slice(0,1).toUpperCase()}</span>
+          <div key={c.id} style={{ padding: "6px 14px", borderBottom: "1px solid rgba(255,255,255,0.03)", display: "flex", gap: 8 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}>
+              <span style={{ fontFamily: MONO, fontSize: 5.5, color: "rgba(255,255,255,0.2)" }}>{(c.author_handle || "?").slice(0, 1).toUpperCase()}</span>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <span style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.35)" }}>{c.author_handle ? `@${c.author_handle}` : "anon"}</span>
+                <span style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.32)" }}>{c.author_handle ? `@${c.author_handle}` : "anon"}</span>
                 <span style={{ fontFamily: MONO, fontSize: 6.5, color: "rgba(255,255,255,0.1)" }}>{ago(c.created_at)}</span>
               </div>
-              <p style={{ margin: 0, fontFamily: SANS, fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.45, wordBreak: "break-word" }}>{c.content}</p>
+              <p style={{ margin: 0, fontFamily: SANS, fontSize: 12, color: "rgba(255,255,255,0.62)", lineHeight: 1.45, wordBreak: "break-word" }}>{c.content}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Input */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "10px 12px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "9px 12px", flexShrink: 0 }}>
         {currentUserId ? (
-          <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input
               value={input}
               onChange={e => setInput(e.target.value.slice(0, 280))}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
               placeholder="add a comment..."
-              style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "6px 10px", fontFamily: MONO, fontSize: 8.5, color: "rgba(255,255,255,0.7)", outline: "none", boxSizing: "border-box" }}
+              style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 5, padding: "5px 9px", fontFamily: MONO, fontSize: 8.5, color: "rgba(255,255,255,0.68)", outline: "none", boxSizing: "border-box" }}
             />
             <button
               onClick={submit}
               disabled={submitting || !input.trim()}
-              style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 5, border: "1px solid rgba(212,240,196,0.2)", background: "transparent", color: "rgba(212,240,196,0.55)", fontFamily: MONO, fontSize: 7.5, letterSpacing: 1.5, textTransform: "uppercase", cursor: submitting || !input.trim() ? "default" : "pointer", opacity: submitting ? 0.5 : 1 }}
+              style={{ flexShrink: 0, padding: "4px 10px", borderRadius: 5, border: "1px solid rgba(212,240,196,0.2)", background: "transparent", color: "rgba(212,240,196,0.55)", fontFamily: MONO, fontSize: 7.5, letterSpacing: 1.5, textTransform: "uppercase", cursor: submitting || !input.trim() ? "default" : "pointer", opacity: submitting ? 0.5 : 1 }}
             >
               {submitting ? "…" : "POST"}
             </button>
           </div>
         ) : (
           <div style={{ textAlign: "center" }}>
-            <span style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.18)" }}>
+            <span style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.16)" }}>
               <a href="/login" style={{ color: "rgba(212,240,196,0.4)", textDecoration: "none" }}>sign in</a> to comment
             </span>
           </div>

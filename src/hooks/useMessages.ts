@@ -63,7 +63,9 @@ export function useMessages(chatId?: string) {
         }
       )
       .subscribe((status: string, err?: Error) => {
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        if (status === "SUBSCRIBED") {
+          console.log(`[useMessages] realtime SUBSCRIBED for chat ${chatId}`);
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           console.error(`[useMessages] realtime ${status} for chat ${chatId}:`, err?.message ?? "—");
         }
       });

@@ -467,15 +467,31 @@ export default function CanvasBoard({
     if (canvasModeRef.current === "space") {
       const uid = currentUserIdRef.current;
       if (uid) {
-        // Image: track on first update_image with an http src (after upload)
-        if (op.type === "update_image" && typeof op.patch.src === "string" && op.patch.src.startsWith("http") && !reportedImageIdsRef.current.has(op.id)) {
-          reportedImageIdsRef.current.add(op.id);
-          createClient().from("activity_feed").insert({ user_id: uid, activity_type: "new_image", metadata: { element_id: op.id, src: op.patch.src, owner_handle: userHandle } }).then();
+        // Image deleted — clean up activity_feed entry
+        if (op.type === "delete_image") {
+          createClient().from("activity_feed").delete().eq("user_id", uid).eq("metadata->>element_id", op.id).then();
         }
+
+        // Image uploaded (src becomes http URL) — upsert to avoid duplicates
+        if (op.type === "update_image" && typeof op.patch.src === "string" && op.patch.src.startsWith("http")) {
+          const sb   = createClient();
+          const meta = { element_id: op.id, src: op.patch.src, owner_handle: userHandle };
+          (async () => {
+            const { data: existing } = await sb
+              .from("activity_feed").select("id").eq("user_id", uid).eq("metadata->>element_id", op.id).maybeSingle();
+            if (!existing) {
+              await sb.from("activity_feed").insert({ user_id: uid, activity_type: "new_image", metadata: meta });
+            } else {
+              await sb.from("activity_feed").update({ metadata: meta }).eq("id", existing.id);
+            }
+          })();
+        }
+
         // Text: track on add_text
         if (op.type === "add_text") {
           createClient().from("activity_feed").insert({ user_id: uid, activity_type: "new_text", metadata: { element_id: op.text.id, content: op.text.content, font: op.text.font, size: op.text.size, color: op.text.color } }).then();
         }
+
         // Misc
         const simpleType =
           op.type === "set_wallpaper"  ? "canvas_update" :
