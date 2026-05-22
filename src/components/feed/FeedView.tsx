@@ -94,7 +94,16 @@ function useFeedImages(currentUserId?: string) {
         });
 
         if (!base.length) { setAllImages([]); setLoading(false); return; }
-        const elementIds = base.map(b => b.element_id);
+
+        // Deduplicate by element_id — keep most recent (activity is already DESC)
+        const seenEids = new Set<string>();
+        const dedupedBase = base.filter(b => {
+          if (seenEids.has(b.element_id)) return false;
+          seenEids.add(b.element_id);
+          return true;
+        });
+
+        const elementIds = dedupedBase.map(b => b.element_id);
 
         // 4. Batch-fetch pin counts
         const { data: pinRows } = await sb
@@ -112,7 +121,7 @@ function useFeedImages(currentUserId?: string) {
 
         // 6. Compute scores
         const now = Date.now();
-        const imgs: FeedImage[] = base.map(b => {
+        const imgs: FeedImage[] = dedupedBase.map(b => {
           const pc = pinMap.get(b.element_id) ?? 0;
           const cc = cmtMap.get(b.element_id) ?? 0;
           const age = now - new Date(b.created_at).getTime();

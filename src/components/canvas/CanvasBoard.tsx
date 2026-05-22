@@ -462,62 +462,64 @@ export default function CanvasBoard({
     }
     markActive(op.type === "update_profile" || canvasModeRef.current === "space");
 
-    // Activity feed — fire-and-forget for space mode ops
-    if (canvasModeRef.current === "space") {
+    // Activity feed — fire-and-forget
+    {
       const uid = currentUserIdRef.current;
-      console.log("[FEED] enqueueOp", { op_type: op.type, uid, canvasMode: canvasModeRef.current });
 
-      if (uid) {
-        // Image deleted
-        if (op.type === "delete_image") {
-          console.log("[FEED DELETE] firing", { user_id: uid, element_id: op.id });
-          createClient().from("activity_feed").delete()
-            .eq("user_id", uid).eq("element_id", op.id)
-            .then(({ error, ...rest }) => {
-              console.log("[FEED DELETE] response", { element_id: op.id, error, rest });
-            });
-        }
+      // Delete cleanup runs unconditionally (not gated by space mode).
+      // An image deleted from ANY canvas must not linger in the feed.
+      if (op.type === "delete_image" && uid) {
+        console.log("[FEED DELETE]", { user_id: uid, element_id: op.id });
+        createClient().from("activity_feed").delete()
+          .eq("user_id", uid).eq("element_id", op.id)
+          .then(({ error }) => {
+            if (error) console.error("[FEED DELETE] error", { element_id: op.id, error });
+            else        console.log("[FEED DELETE] ok", { element_id: op.id });
+          });
+      }
 
-        // Image uploaded — upsert
+      // Feed inserts are only for MY SPACE content
+      if (canvasModeRef.current === "space" && uid) {
+        // Image uploaded — DELETE first, then INSERT (avoids upsert/constraint fragility)
         if (op.type === "update_image" && typeof op.patch.src === "string" && op.patch.src.startsWith("http")) {
-          const row = {
-            user_id:       uid,
-            activity_type: "new_image",
-            element_id:    op.id,
-            metadata:      { element_id: op.id, src: op.patch.src, owner_handle: userHandle },
-          };
-          console.log("[FEED UPSERT] image — sending row", row);
-          createClient().from("activity_feed")
-            .upsert(row, { onConflict: "user_id,activity_type,element_id" })
-            .then(({ error, data }) => {
-              console.log("[FEED UPSERT] image — response", { error, data });
-            });
+          const sb   = createClient();
+          const meta = { element_id: op.id, src: op.patch.src, owner_handle: userHandle };
+          console.log("[FEED INSERT] image queued", { user_id: uid, element_id: op.id, src: op.patch.src });
+          sb.from("activity_feed").delete()
+            .eq("user_id", uid).eq("element_id", op.id)
+            .then(() =>
+              sb.from("activity_feed")
+                .insert({ user_id: uid, activity_type: "new_image", element_id: op.id, metadata: meta })
+                .then(({ error, data }) => {
+                  if (error) console.error("[FEED INSERT] image error", { element_id: op.id, error });
+                  else        console.log("[FEED INSERT] image ok", { element_id: op.id, data });
+                })
+            );
         }
 
-        // Text added — upsert
+        // Text added — DELETE first, then INSERT
         if (op.type === "add_text") {
-          const row = {
-            user_id:       uid,
-            activity_type: "new_text",
-            element_id:    op.text.id,
-            metadata:      { element_id: op.text.id, content: op.text.content, font: op.text.font, size: op.text.size, color: op.text.color },
-          };
-          console.log("[FEED UPSERT] text — sending row", row);
-          createClient().from("activity_feed")
-            .upsert(row, { onConflict: "user_id,activity_type,element_id" })
-            .then(({ error, data }) => {
-              console.log("[FEED UPSERT] text — response", { error, data });
-            });
+          const sb   = createClient();
+          const meta = { element_id: op.text.id, content: op.text.content, font: op.text.font, size: op.text.size, color: op.text.color };
+          console.log("[FEED INSERT] text queued", { user_id: uid, element_id: op.text.id });
+          sb.from("activity_feed").delete()
+            .eq("user_id", uid).eq("element_id", op.text.id)
+            .then(() =>
+              sb.from("activity_feed")
+                .insert({ user_id: uid, activity_type: "new_text", element_id: op.text.id, metadata: meta })
+                .then(({ error, data }) => {
+                  if (error) console.error("[FEED INSERT] text error", { element_id: op.text.id, error });
+                  else        console.log("[FEED INSERT] text ok", { element_id: op.text.id, data });
+                })
+            );
         }
 
-        // Misc events (no element_id — each is distinct)
+        // Misc events (wallpaper, profile — no element_id, no dedup needed)
         const simpleType =
           op.type === "set_wallpaper"  ? "canvas_update" :
           op.type === "update_profile" ? "status_change" :
           null;
         if (simpleType) createClient().from("activity_feed").insert({ user_id: uid, activity_type: simpleType, metadata: {} }).then();
-      } else {
-        console.warn("[FEED] uid is null — activity_feed op skipped", { op_type: op.type });
       }
     }
 
@@ -1128,15 +1130,6 @@ export default function CanvasBoard({
         toDelete.forEach(({ id, type }) => {
           if (type === "image") {
             enqueueOp({ type: "delete_image", id });
-            // Belt-and-suspenders delete at call site
-            console.log("[FEED DELETE callsite]", { currentUserId, element_id: id });
-            if (currentUserId) {
-              createClient().from("activity_feed").delete()
-                .eq("user_id", currentUserId).eq("element_id", id)
-                .then(({ error, ...rest }) => {
-                  console.log("[FEED DELETE callsite] response", { element_id: id, error, rest });
-                });
-            }
           }
           else if (type === "card")    enqueueOp({ type: "delete_card",    id });
           else if (type === "text")    enqueueOp({ type: "delete_text",    id });
