@@ -57,7 +57,7 @@ function useFeedImages(currentUserId?: string) {
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const { data: activity } = await sb
           .from("activity_feed")
-          .select("id, user_id, metadata, created_at")
+          .select("id, user_id, element_id, metadata, created_at")
           .eq("activity_type", "new_image")
           .in("user_id", followingIds)
           .gte("created_at", sevenDaysAgo)
@@ -80,9 +80,11 @@ function useFeedImages(currentUserId?: string) {
           const src  = meta.src as string | undefined;
           if (!src || src.startsWith("blob:")) return [];
           const p = pMap.get(a.user_id);
+          // Prefer typed column; fall back to metadata for rows pre-migration
+          const elementId = (a.element_id as string | null) || (meta.element_id as string) || a.id;
           return [{
             id:           a.id,
-            element_id:   (meta.element_id as string) || a.id,
+            element_id:   elementId,
             src,
             user_id:      a.user_id,
             owner_handle: (meta.owner_handle as string) || (p?.handle ?? "?"),

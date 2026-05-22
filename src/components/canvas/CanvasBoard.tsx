@@ -196,8 +196,7 @@ export default function CanvasBoard({
   const flushingRef  = useRef(false);
   const clientIdRef       = useRef(crypto.randomUUID());
   const logicalW          = useRef(typeof window !== "undefined" ? window.screen.width : 1920);
-  const firstEditRef        = useRef(false); // fires analytics.canvasEdit once per session
-  const reportedImageIdsRef = useRef(new Set<string>()); // dedup activity_feed inserts for images
+  const firstEditRef = useRef(false); // fires analytics.canvasEdit once per session
 
   const isMobile     = useIsMobile();
   const isReadOnly   = !canEdit;
@@ -467,32 +466,33 @@ export default function CanvasBoard({
     if (canvasModeRef.current === "space") {
       const uid = currentUserIdRef.current;
       if (uid) {
-        // Image deleted — clean up activity_feed entry
+        // Image deleted — delete by typed element_id column (not JSONB extraction)
         if (op.type === "delete_image") {
-          createClient().from("activity_feed").delete().eq("user_id", uid).eq("metadata->>element_id", op.id).then();
+          createClient().from("activity_feed").delete()
+            .eq("user_id", uid).eq("element_id", op.id).then();
         }
 
-        // Image uploaded (src becomes http URL) — upsert to avoid duplicates
+        // Image uploaded — UPSERT so DB UNIQUE index prevents duplicates
         if (op.type === "update_image" && typeof op.patch.src === "string" && op.patch.src.startsWith("http")) {
-          const sb   = createClient();
-          const meta = { element_id: op.id, src: op.patch.src, owner_handle: userHandle };
-          (async () => {
-            const { data: existing } = await sb
-              .from("activity_feed").select("id").eq("user_id", uid).eq("metadata->>element_id", op.id).maybeSingle();
-            if (!existing) {
-              await sb.from("activity_feed").insert({ user_id: uid, activity_type: "new_image", metadata: meta });
-            } else {
-              await sb.from("activity_feed").update({ metadata: meta }).eq("id", existing.id);
-            }
-          })();
+          createClient().from("activity_feed").upsert({
+            user_id:       uid,
+            activity_type: "new_image",
+            element_id:    op.id,
+            metadata:      { element_id: op.id, src: op.patch.src, owner_handle: userHandle },
+          }, { onConflict: "user_id,activity_type,element_id" }).then();
         }
 
-        // Text: track on add_text
+        // Text added — UPSERT for same dedup safety
         if (op.type === "add_text") {
-          createClient().from("activity_feed").insert({ user_id: uid, activity_type: "new_text", metadata: { element_id: op.text.id, content: op.text.content, font: op.text.font, size: op.text.size, color: op.text.color } }).then();
+          createClient().from("activity_feed").upsert({
+            user_id:       uid,
+            activity_type: "new_text",
+            element_id:    op.text.id,
+            metadata:      { element_id: op.text.id, content: op.text.content, font: op.text.font, size: op.text.size, color: op.text.color },
+          }, { onConflict: "user_id,activity_type,element_id" }).then();
         }
 
-        // Misc
+        // Misc events (no element_id — each event is distinct, no dedup needed)
         const simpleType =
           op.type === "set_wallpaper"  ? "canvas_update" :
           op.type === "update_profile" ? "status_change" :
@@ -1106,12 +1106,20 @@ export default function CanvasBoard({
     if (canEdit) {
       if (result.wasDeleted) {
         toDelete.forEach(({ id, type }) => {
-          if (type === "image")   enqueueOp({ type: "delete_image",   id });
+          if (type === "image") {
+            enqueueOp({ type: "delete_image", id });
+            // Belt-and-suspenders: also delete via typed column at call site
+            if (currentUserId) {
+              createClient().from("activity_feed").delete()
+                .eq("user_id", currentUserId).eq("element_id", id)
+                .then(({ error }) => { if (error) console.error("[FEED DELETE]", error); });
+            }
+          }
           else if (type === "card")    enqueueOp({ type: "delete_card",    id });
           else if (type === "text")    enqueueOp({ type: "delete_text",    id });
           else if (type === "gallery") enqueueOp({ type: "delete_gallery", id });
           else if (type === "profile") enqueueOp({ type: "delete_profile", id });
-          else if (type === "media")     enqueueOp({ type: "delete_media",     id });
+          else if (type === "media")   enqueueOp({ type: "delete_media",   id });
         });
       } else if (result.moved.length === 1) {
         const { id, type, x, y } = result.moved[0];
