@@ -4,7 +4,9 @@ import type React from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useChats } from "@/hooks/useChats";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
+import { useActivityFeed } from "@/hooks/useActivityFeed";
 import { openOrCreateChat } from "@/lib/chat/openOrCreateChat";
+import ActivityFeed from "@/components/social/ActivityFeed";
 import { useRouter } from "next/navigation";
 
 const MONO = "'Space Mono', monospace";
@@ -528,8 +530,9 @@ export default function SocialView({ currentUserId, openWindow, totalUnread }: P
   const [messaging,    setMessaging]    = useState(false);
   const loadedRef = useRef(false);
 
-  const { chats }                  = useChats(currentUserId);
-  const { unreadCounts, markRead } = useUnreadCounts(chats, currentUserId);
+  const { chats }                       = useChats(currentUserId);
+  const { unreadCounts, markRead }      = useUnreadCounts(chats, currentUserId);
+  const { items: feedItems, loading: feedLoading } = useActivityFeed(currentUserId);
 
   useEffect(() => { setS(loadSettings()); }, []);
 
@@ -702,7 +705,7 @@ export default function SocialView({ currentUserId, openWindow, totalUnread }: P
               <MessagesTab peers={peers} unreadCounts={unreadCounts} allUsers={allUsers} onOpen={handleChatOpen} s={s} />
             )}
             {tab === "activity" && (
-              <ActivityTab items={activity} onSelect={setSelectedUser} s={s} />
+              <ActivityFeed items={feedItems} loading={feedLoading} density={s.density} />
             )}
           </Panel>
 

@@ -7,6 +7,7 @@ import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
 import { useFollow } from "@/hooks/useFollow";
 import { useFavorite } from "@/hooks/useFavorite";
 import { usePresence } from "@/hooks/usePresence";
+import { useProfileViews } from "@/hooks/useProfileViews";
 import type { PresenceState } from "@/types";
 import { UIButton, UISlider } from "@/components/ui";
 
@@ -124,6 +125,7 @@ function ProfileCard({
   const { isFavorite, addFavorite, removeFavorite, justFavorited } =
     useFavorite(targetUserId ?? "", currentUserId);
   const presenceState = usePresence(isSelf && canInteract ? undefined : targetUserId);
+  const { total: totalViews } = useProfileViews(!canInteract ? (targetUserId ?? undefined) : undefined);
 
   const photoSizeKey   = card.photoSize      ?? "md";
   const photoSizePx    = PHOTO_SIZES[photoSizeKey];
@@ -559,6 +561,12 @@ function ProfileCard({
                   onClick={e => { e.stopPropagation(); onOpenSocialPanel?.("following"); }}
                   color={faintColor}
                 />
+                {totalViews > 0 && (
+                  <>
+                    <span style={{ opacity: 0.4 }}> · </span>
+                    <span style={{ color: withOpacity(baseColor, 0.45), fontSize: 10 }}>{totalViews} views</span>
+                  </>
+                )}
               </>
             ) : (
               <>{followerCount} seg · {followingCount} sig</>

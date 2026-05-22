@@ -42,6 +42,14 @@ export default async function PublicPage({
 
   if (!canvas) notFound();
 
+  // Track view — fire-and-forget, don't block render
+  if (!viewer || viewer.id !== profile.user_id) {
+    supabase.from("profile_views").insert({
+      profile_user_id: profile.user_id,
+      viewer_user_id:  viewer?.id ?? null,
+    }).then();
+  }
+
   const state = (canvas.data ?? {}) as CanvasState;
 
   return (

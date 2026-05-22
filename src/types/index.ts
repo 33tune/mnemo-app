@@ -231,6 +231,31 @@ export type PostItBoard = {
   lineSpacing?:       number;
 };
 
+export type CanvasGuestbook = {
+  id:        string;
+  x:         number;
+  y:         number;
+  w:         number;
+  h:         number;
+  zIndex:    number;
+  layer:     0 | 1 | 2;
+  depth:     number;
+  rotation:  number;
+  locked?:   boolean;
+  isPublic?: boolean;
+};
+
+export type GuestbookEntry = {
+  id:              string;
+  profile_user_id: string;
+  author_user_id:  string | null;
+  author_handle:   string | null;
+  content:         string | null;
+  image_url:       string | null;
+  created_at:      string;
+  pinned:          boolean;
+};
+
 export type CanvasState = {
   cards:         CanvasCard[];
   images:        CanvasImage[];
@@ -239,11 +264,12 @@ export type CanvasState = {
   profiles:      ProfileCardData[];
   postItBoards:  PostItBoard[];
   medias:        CanvasMedia[];
+  guestbooks:    CanvasGuestbook[];
   bgColor:       string;
   wallpaper:     string;
 };
 
-export type ElementType = "card" | "image" | "text" | "gallery" | "profile" | "postit" | "media";
+export type ElementType = "card" | "image" | "text" | "gallery" | "profile" | "postit" | "media" | "guestbook";
 
 export type CanvasElement =
   | (CanvasCard        & { elementType: "card" })
@@ -252,7 +278,8 @@ export type CanvasElement =
   | (CanvasGallery     & { elementType: "gallery" })
   | (ProfileCardData   & { elementType: "profile" })
   | (PostItBoard       & { elementType: "postit" })
-  | (CanvasMedia       & { elementType: "media" });
+  | (CanvasMedia       & { elementType: "media" })
+  | (CanvasGuestbook   & { elementType: "guestbook" });
 
 export type PublishState = "idle" | "pending" | "publishing" | "success";
 
