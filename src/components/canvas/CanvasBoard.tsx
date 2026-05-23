@@ -1164,8 +1164,8 @@ export default function CanvasBoard({
 
         const uploadSession = sessionIdRef.current;
         uploadToStorage(f)
-          .then(storageUrl => {
-            if (!storageUrl) {
+          .then(({ publicUrl, storagePath }) => {
+            if (!publicUrl) {
               enqueueOp({ type: "delete_image", id });
               return;
             }
@@ -1173,8 +1173,7 @@ export default function CanvasBoard({
               URL.revokeObjectURL(localUrl);
               return;
             }
-            const storagePath = storageUrl.split("/canvas-assets/")[1]?.split("?")[0];
-            enqueueOp({ type: "update_image", id, patch: { src: storageUrl, isLocal: false, storage_path: storagePath } });
+            enqueueOp({ type: "update_image", id, patch: { src: publicUrl, isLocal: false, storage_path: storagePath } });
             URL.revokeObjectURL(localUrl);
           })
           .catch(() => {
@@ -1191,7 +1190,7 @@ export default function CanvasBoard({
   async function handleBgImage(e: React.ChangeEvent<HTMLInputElement>) {
     const f=e.target.files?.[0];
     if(!f||!bgCardId.current)return;
-    const src = await uploadToStorage(f);
+    const { publicUrl: src } = await uploadToStorage(f);
     const bgMode = await detectBgMode(src);
     updateCard(bgCardId.current,{bgImage:src,bgMode});
     bgCardId.current=null;
@@ -1251,7 +1250,7 @@ export default function CanvasBoard({
         </div>
       )}
 
-      <input ref={wallpaperRef} type="file" accept="image/*" style={{display:"none"}} onChange={async e=>{const f=e.target.files?.[0];if(f){const src=await uploadToStorage(f);enqueueOp({type:"set_wallpaper",value:src});}}} />
+      <input ref={wallpaperRef} type="file" accept="image/*" style={{display:"none"}} onChange={async e=>{const f=e.target.files?.[0];if(f){const {publicUrl}=await uploadToStorage(f);enqueueOp({type:"set_wallpaper",value:publicUrl});}}} />
       <input ref={imageRef} type="file" accept="image/*,image/gif" multiple style={{display:"none"}} onChange={handleImageUpload} />
       <input ref={bgImageRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleBgImage} />
 

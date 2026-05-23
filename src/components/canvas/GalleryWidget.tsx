@@ -38,7 +38,7 @@ function GalleryWidget({
     if (!files) return;
     const newImgs: GalleryImage[] = [];
     for (const f of Array.from(files)) {
-      const src = await uploadToStorage(f);
+      const { publicUrl: src } = await uploadToStorage(f);
       newImgs.push({ id: crypto.randomUUID(), src, name: f.name });
     }
     updateGallery(gallery.id, { images: [...gallery.images, ...newImgs] });

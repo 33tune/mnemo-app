@@ -259,14 +259,15 @@ function ProfileCard({
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    updateProfile(card.id, { photo: await uploadToStorage(f) });
+    const { publicUrl } = await uploadToStorage(f);
+    updateProfile(card.id, { photo: publicUrl });
     if (photoRef.current) photoRef.current.value = "";
   }
 
   async function handleBgImgUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const src = await uploadToStorage(f);
+    const { publicUrl: src } = await uploadToStorage(f);
     const bgMode = await detectBgMode(src);
     updateProfile(card.id, { bgImage: src, bgColor: "", bgMode });
     if (bgImgRef.current) bgImgRef.current.value = "";
