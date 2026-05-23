@@ -20,7 +20,6 @@ import { openOrCreateChat } from "@/lib/chat/openOrCreateChat";
 import ChatsWorkspace from "@/components/chats/ChatsWorkspace";
 import SocialPanelWindow from "@/components/social/SocialPanelWindow";
 import SocialView from "@/components/social/SocialView";
-import FeedView   from "@/components/feed/FeedView";
 import type { SocialPanelState } from "@/components/social/SocialPanelWindow";
 import NotificationsPanel from "@/components/notifications/NotificationsPanel";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -139,7 +138,7 @@ export default function CanvasBoard({
   const [wallpaperLoaded,  setWallpaperLoaded]  = useState(true);
   const [bgColor,          setBgColor]          = useState("#0a0a0c");
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
-  const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "feed">("canvas");
+  const [view,             setView]             = useState<"canvas" | "browse" | "chats">("canvas");
   const [totalUnread,      setTotalUnread]      = useState(0);
   const [homeBg,           setHomeBg]           = useState<{ color: string; wallpaper: string; wallpaperLoaded: boolean }>({ color: "#0a0a0c", wallpaper: "", wallpaperLoaded: false });
   const [currentUserId,    setCurrentUserId]    = useState<string | undefined>(undefined);
@@ -461,67 +460,6 @@ export default function CanvasBoard({
       setPublishState(s => (s === "publishing" ? s : "pending"));
     }
     markActive(op.type === "update_profile" || canvasModeRef.current === "space");
-
-    // Activity feed — fire-and-forget
-    {
-      const uid = currentUserIdRef.current;
-
-      // Delete cleanup runs unconditionally (not gated by space mode).
-      // An image deleted from ANY canvas must not linger in the feed.
-      if (op.type === "delete_image" && uid) {
-        console.log("[FEED DELETE]", { user_id: uid, element_id: op.id });
-        createClient().from("activity_feed").delete()
-          .eq("user_id", uid).eq("element_id", op.id)
-          .then(({ error }) => {
-            if (error) console.error("[FEED DELETE] error", { element_id: op.id, error });
-            else        console.log("[FEED DELETE] ok", { element_id: op.id });
-          });
-      }
-
-      // Feed inserts are only for MY SPACE content
-      if (canvasModeRef.current === "space" && uid) {
-        // Image uploaded — DELETE first, then INSERT (avoids upsert/constraint fragility)
-        if (op.type === "update_image" && typeof op.patch.src === "string" && op.patch.src.startsWith("http")) {
-          const sb   = createClient();
-          const meta = { element_id: op.id, src: op.patch.src, owner_handle: userHandle };
-          console.log("[FEED INSERT] image queued", { user_id: uid, element_id: op.id, src: op.patch.src });
-          sb.from("activity_feed").delete()
-            .eq("user_id", uid).eq("element_id", op.id)
-            .then(() =>
-              sb.from("activity_feed")
-                .insert({ user_id: uid, activity_type: "new_image", element_id: op.id, metadata: meta })
-                .then(({ error, data }) => {
-                  if (error) console.error("[FEED INSERT] image error", { element_id: op.id, error });
-                  else        console.log("[FEED INSERT] image ok", { element_id: op.id, data });
-                })
-            );
-        }
-
-        // Text added — DELETE first, then INSERT
-        if (op.type === "add_text") {
-          const sb   = createClient();
-          const meta = { element_id: op.text.id, content: op.text.content, font: op.text.font, size: op.text.size, color: op.text.color };
-          console.log("[FEED INSERT] text queued", { user_id: uid, element_id: op.text.id });
-          sb.from("activity_feed").delete()
-            .eq("user_id", uid).eq("element_id", op.text.id)
-            .then(() =>
-              sb.from("activity_feed")
-                .insert({ user_id: uid, activity_type: "new_text", element_id: op.text.id, metadata: meta })
-                .then(({ error, data }) => {
-                  if (error) console.error("[FEED INSERT] text error", { element_id: op.text.id, error });
-                  else        console.log("[FEED INSERT] text ok", { element_id: op.text.id, data });
-                })
-            );
-        }
-
-        // Misc events (wallpaper, profile — no element_id, no dedup needed)
-        const simpleType =
-          op.type === "set_wallpaper"  ? "canvas_update" :
-          op.type === "update_profile" ? "status_change" :
-          null;
-        if (simpleType) createClient().from("activity_feed").insert({ user_id: uid, activity_type: simpleType, metadata: {} }).then();
-      }
-    }
 
     flushOps();
   }
@@ -1281,8 +1219,6 @@ export default function CanvasBoard({
         onPublish={canEdit && canvasMode === "space" && view === "canvas" ? publishSpace : undefined}
         isChats={view === "chats"}
         onChats={canEdit ? () => setView("chats") : (viewerLoggedIn ? () => router.push("/dashboard?view=chats") : undefined)}
-        isFeed={view === "feed"}
-        onFeed={canEdit ? () => setView("feed") : (viewerLoggedIn ? () => router.push("/dashboard?view=feed") : undefined)}
         unreadChats={totalUnread}
         unreadSignals={canEdit ? unreadCount : undefined}
         onSignals={canEdit ? () => { if (!showSignals) markAllRead(); setShowSignals(s => !s); } : undefined}
@@ -1703,25 +1639,6 @@ export default function CanvasBoard({
               openWindow={openWindow}
               totalUnread={totalUnread}
             />
-          </div>
-        </WidgetBoundary>
-      )}
-
-      {/* Feed view */}
-      {view === "feed" && (
-        <WidgetBoundary label="feed-view">
-          <div style={{
-            position: "fixed", inset: 0, top: 44,
-            zIndex: 490,
-            overflowY: "auto",
-            backgroundColor: homeBg.color || "#0a0a0c",
-            ...(homeBg.wallpaper && homeBg.wallpaperLoaded ? {
-              backgroundImage: `url(${homeBg.wallpaper})`,
-              backgroundRepeat: "repeat",
-              backgroundSize: "auto",
-            } : {}),
-          }}>
-            <FeedView currentUserId={currentUserId} userHandle={userHandle} />
           </div>
         </WidgetBoundary>
       )}

@@ -1,7 +1,17 @@
 "use client";
 import { useState } from "react";
-import type { ActivityFeedItem } from "@/hooks/useActivityFeed";
 import { useRouter } from "next/navigation";
+
+export interface ActivityFeedItem {
+  id:            string;
+  user_id:       string;
+  activity_type: string;
+  metadata:      Record<string, unknown>;
+  created_at:    string;
+  handle?:       string;
+  display_name?: string | null;
+  avatar_url?:   string | null;
+}
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
