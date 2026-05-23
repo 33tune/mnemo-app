@@ -19,6 +19,7 @@ export type CanvasImage = {
   isPublic?: boolean;
   isLocal?: boolean;
   pinCount?: number;
+  storage_path?: string;
 };
 
 export type CardType = "empty" | "text" | "list" | "gallery" | "links" | "folder";

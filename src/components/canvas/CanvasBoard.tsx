@@ -343,8 +343,14 @@ export default function CanvasBoard({
         setElements(p => p.some(e => e.id === op.image.id) ? p : [...p, { ...op.image, elementType: "image" as const }]); break;
       case "update_image":
         setElements(p => p.map(e => e.elementType === "image" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
-      case "delete_image":
+      case "delete_image": {
+        const imgEl = elements.find(e => e.elementType === "image" && e.id === op.id);
+        if (imgEl && "storage_path" in imgEl && imgEl.storage_path) {
+          createClient().storage.from("canvas-assets").remove([imgEl.storage_path])
+            .then(({ error }) => { if (error) console.error("[STORAGE DELETE]", error); });
+        }
         setElements(p => p.filter(e => !(e.elementType === "image" && e.id === op.id))); break;
+      }
 
       case "add_text":
         setElements(p => p.some(e => e.id === op.text.id) ? p : [...p, { ...op.text, elementType: "text" as const }]); break;
@@ -659,6 +665,12 @@ export default function CanvasBoard({
           ...(s.profiles     ?? []).map(p => ({ ...p, elementType: "profile" as const })),
           ...(s.medias       ?? []).map(m => ({ ...m, elementType: "media"    as const })),
         ].filter(el => el.elementType !== "image" || (el.src && el.src !== ""));
+        newElements = newElements.map(e => {
+          if (e.elementType === "image" && e.src?.includes("/canvas-assets/") && !e.storage_path) {
+            return { ...e, storage_path: e.src.split("/canvas-assets/")[1]?.split("?")[0] };
+          }
+          return e;
+        });
         if (s.bgColor)   setBgColor(s.bgColor);
         if (s.wallpaper) { setWallpaper(s.wallpaper); setWallpaperLoaded(true); }
       }
@@ -1153,7 +1165,8 @@ export default function CanvasBoard({
               URL.revokeObjectURL(localUrl);
               return;
             }
-            enqueueOp({ type: "update_image", id, patch: { src: storageUrl, isLocal: false } });
+            const storagePath = storageUrl.split("/canvas-assets/")[1]?.split("?")[0];
+            enqueueOp({ type: "update_image", id, patch: { src: storageUrl, isLocal: false, storage_path: storagePath } });
             URL.revokeObjectURL(localUrl);
           })
           .catch(() => {
