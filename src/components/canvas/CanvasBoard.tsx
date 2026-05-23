@@ -344,11 +344,7 @@ export default function CanvasBoard({
       case "update_image":
         setElements(p => p.map(e => e.elementType === "image" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
       case "delete_image": {
-        const imgEl = elements.find(e => e.elementType === "image" && e.id === op.id);
-        if (imgEl && "storage_path" in imgEl && imgEl.storage_path) {
-          createClient().storage.from("canvas-assets").remove([imgEl.storage_path])
-            .then(({ error }) => { if (error) console.error("[STORAGE DELETE]", error); });
-        }
+        console.log("[DELETE_IMAGE OP]", op.id, elements.find(e => e.elementType === "image" && e.id === op.id)?.elementType);
         setElements(p => p.filter(e => !(e.elementType === "image" && e.id === op.id))); break;
       }
 
@@ -459,6 +455,17 @@ export default function CanvasBoard({
     if (!firstEditRef.current && currentUserId) {
       firstEditRef.current = true;
       analytics.canvasEdit(currentUserId, op.type);
+    }
+    if (op.type === "delete_image") {
+      const imgEl = elements.find(e => e.elementType === "image" && e.id === op.id);
+      const storagePath = imgEl?.elementType === "image" ? imgEl.storage_path : undefined;
+      console.log("[STORAGE DELETE ATTEMPT]", storagePath);
+      if (storagePath) {
+        createClient().storage.from("canvas-assets").remove([storagePath])
+          .then(({ error, data }) => {
+            console.log("[STORAGE DELETE RESULT]", { error, data });
+          });
+      }
     }
     applyOp(op);
     opsQueueRef.current.push({ op, canvas_type: canvasModeRef.current });
@@ -1079,6 +1086,7 @@ export default function CanvasBoard({
       if (result.wasDeleted) {
         toDelete.forEach(({ id, type }) => {
           if (type === "image") {
+            console.log("[ENQUEUE DELETE_IMAGE]", id);
             enqueueOp({ type: "delete_image", id });
           }
           else if (type === "card")    enqueueOp({ type: "delete_card",    id });
