@@ -3,7 +3,6 @@ import { useState, useRef, useEffect, memo } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, ProfileLink, TextFont } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { createClient } from "@/lib/supabase/client";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
 import { useFollow } from "@/hooks/useFollow";
 import { useFavorite } from "@/hooks/useFavorite";
@@ -262,15 +261,6 @@ function ProfileCard({
     if (!f) return;
     const { publicUrl } = await uploadToStorage(f);
     updateProfile(card.id, { photo: publicUrl });
-    console.log("[PROFILE PHOTO UPLOAD]", { currentUserId, publicUrl });
-    if (currentUserId) {
-      const result = await createClient()
-        .from("profiles")
-        .update({ avatar_url: publicUrl })
-        .eq("user_id", currentUserId)
-        .select();
-      console.log("[PROFILE AVATAR UPDATE RESULT]", result);
-    }
     if (photoRef.current) photoRef.current.value = "";
   }
 

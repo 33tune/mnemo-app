@@ -18,7 +18,7 @@ interface SocialUser {
   user_id:      string;
   handle:       string;
   display_name: string | null;
-  avatar_url:   string | null;
+  avatar:       string | null;
   last_active:  string | null;
 }
 
@@ -58,20 +58,29 @@ const LABEL_COLOR: Record<Presence, string> = {
   AWAY:   "rgba(255,255,255,0.2)",  OFFLINE: "rgba(255,255,255,0.1)",
 };
 
-// ── Primitives ────────────────────────────────────────────────────────────────
-function Avatar({ u, size = 36, dot }: { u: SocialUser; size?: number; dot?: boolean }) {
-  const init = (u.display_name || u.handle).slice(0, 2).toUpperCase();
-  const p    = getPresence(u.last_active);
-  const dc   = DOT_COLOR[p];
+// ── Avatar ────────────────────────────────────────────────────────────────────
+// Isolated avatar component. frameStyle and badge are reserved for future
+// cosmetics (animated frames, borders, collectibles) — do not implement yet.
+type AvatarProps = {
+  src?:        string | null;
+  initials:    string;
+  size?:       number;
+  dot?:        boolean;
+  dotColor?:   string;
+  frameStyle?: string;   // future: animated frame / border cosmetic
+  badge?:      string;   // future: collectible badge overlay
+};
+
+function Avatar({ src, initials, size = 36, dot, dotColor = "transparent" }: AvatarProps) {
   return (
     <div style={{ position: "relative", flexShrink: 0 }}>
-      <div style={{ width: size, height: size, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.09)", background: u.avatar_url ? undefined : "rgba(255,255,255,0.05)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {u.avatar_url
-          ? <img src={u.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          : <span style={{ fontFamily: MONO, fontSize: Math.floor(size * 0.28), color: "rgba(255,255,255,0.22)" }}>{init}</span>
+      <div style={{ width: size, height: size, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.09)", background: src ? undefined : "rgba(255,255,255,0.05)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {src
+          ? <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <span style={{ fontFamily: MONO, fontSize: Math.floor(size * 0.28), color: "rgba(255,255,255,0.22)" }}>{initials}</span>
         }
       </div>
-      {dot && dc !== "transparent" && <div style={{ position: "absolute", bottom: 0, right: 0, width: Math.max(7, size * 0.22), height: Math.max(7, size * 0.22), borderRadius: "50%", background: dc, border: "1.5px solid rgba(8,8,10,0.95)" }} />}
+      {dot && dotColor !== "transparent" && <div style={{ position: "absolute", bottom: 0, right: 0, width: Math.max(7, size * 0.22), height: Math.max(7, size * 0.22), borderRadius: "50%", background: dotColor, border: "1.5px solid rgba(8,8,10,0.95)" }} />}
     </div>
   );
 }
@@ -255,7 +264,7 @@ function PeopleTab({
                   style={{ width: cardW, padding: s.density === "compact" ? "10px 10px" : "14px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: s.density === "compact" ? 7 : 9 }}
                 >
                   <div style={{ position: "relative" }}>
-                    <Avatar u={u} size={s.density === "compact" ? 38 : 46} />
+                    <Avatar src={u.avatar} initials={(u.display_name || u.handle).slice(0,2).toUpperCase()} size={s.density === "compact" ? 38 : 46} />
                     {dc !== "transparent" && <div style={{ position: "absolute", bottom: 0, right: 0, width: 9, height: 9, borderRadius: "50%", background: dc, border: "1.5px solid rgba(7,7,9,0.95)" }} />}
                   </div>
                   <div style={{ textAlign: "center", width: "100%", overflow: "hidden" }}>
@@ -309,7 +318,7 @@ function FollowingTab({
             onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = "transparent"; }}
           >
             <div style={{ position: "relative", flexShrink: 0 }}>
-              <Avatar u={u} size={36} />
+              <Avatar src={u.avatar} initials={(u.display_name || u.handle).slice(0,2).toUpperCase()} size={36} />
               {dc !== "transparent" && <div style={{ position: "absolute", bottom: 0, right: 0, width: 8, height: 8, borderRadius: "50%", background: dc, border: "1.5px solid rgba(7,7,9,0.95)" }} />}
             </div>
             <div style={{ flex: 1, overflow: "hidden" }}>
@@ -401,7 +410,7 @@ function ActivityTab({ items, onSelect, s }: { items: ActivityItem[]; onSelect: 
             onMouseLeave={e=>(e.currentTarget.style.background="transparent")}
           >
             <span style={{ fontFamily: MONO, fontSize: 10, color, width: 14, textAlign: "center", flexShrink: 0 }}>{icon}</span>
-            <Avatar u={item.user} size={28} />
+            <Avatar src={item.user.avatar} initials={(item.user.display_name || item.user.handle).slice(0,2).toUpperCase()} size={28} />
             <div style={{ flex: 1, overflow: "hidden" }}>
               <span style={{ fontFamily: SANS, fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.78)" }}>{item.user.display_name || item.user.handle}</span>
               <span style={{ fontFamily: SANS, fontSize: 11, color: "rgba(255,255,255,0.3)" }}> {item.label}</span>
@@ -453,8 +462,8 @@ function RightPanel({ user, followingIds, onFollow, onMsg, onVisit, messaging, s
       <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
           <div style={{ position: "relative" }}>
-            <div style={{ width: 58, height: 58, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.09)", background: user.avatar_url ? undefined : "rgba(255,255,255,0.04)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {user.avatar_url ? <img src={user.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: MONO, fontSize: 17, color: "rgba(255,255,255,0.2)" }}>{(user.display_name || user.handle).slice(0,2).toUpperCase()}</span>}
+            <div style={{ width: 58, height: 58, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.09)", background: user.avatar ? undefined : "rgba(255,255,255,0.04)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {user.avatar ? <img src={user.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontFamily: MONO, fontSize: 17, color: "rgba(255,255,255,0.2)" }}>{(user.display_name || user.handle).slice(0,2).toUpperCase()}</span>}
             </div>
             {dc !== "transparent" && <div style={{ position: "absolute", bottom: 1, right: 1, width: 10, height: 10, borderRadius: "50%", background: dc, border: "2px solid rgba(7,7,9,0.95)" }} />}
           </div>
@@ -539,25 +548,39 @@ export default function SocialView({ currentUserId, openWindow, totalUnread }: P
     async function load() {
       const sb = createClient();
 
-      // Exact BrowseView query — no joins, no presence, no ordering that could fail
-      const { data: profiles, error } = await sb
+      const { data: profileRows } = await sb
         .from("profiles")
-        .select("user_id, handle, display_name, avatar_url")
+        .select("user_id, handle, display_name")
         .limit(50);
 
-      // eslint-disable-next-line no-console
-      console.log("SOCIAL PROFILES", profiles);
-      // eslint-disable-next-line no-console
-      console.log("SOCIAL COUNT", profiles?.length ?? 0, error?.message ?? "ok");
+      const otherIds = (profileRows ?? [])
+        .filter(p => p.user_id !== currentUserId)
+        .map(p => p.user_id as string);
 
-      const users: SocialUser[] = (profiles ?? [])
+      // Extract profile photo from published (space) canvas — single source of truth.
+      // photo must be an HTTP URL (not a local blob) to be valid.
+      const avatarMap = new Map<string, string | null>();
+      if (otherIds.length > 0) {
+        const { data: canvasRows } = await sb
+          .from("canvases")
+          .select("user_id, data")
+          .eq("type", "space")
+          .in("user_id", otherIds);
+        for (const row of canvasRows ?? []) {
+          const photo = (row.data as { profiles?: Array<{ photo?: string }> } | null)
+            ?.profiles?.[0]?.photo ?? null;
+          avatarMap.set(row.user_id as string, photo?.startsWith("http") ? photo : null);
+        }
+      }
+
+      const users: SocialUser[] = (profileRows ?? [])
         .filter(p => p.user_id !== currentUserId)
         .map(p => ({
           user_id:      p.user_id,
           handle:       p.handle,
           display_name: p.display_name,
-          avatar_url:   p.avatar_url,
-          last_active:  null, // not queried — presence not required for discovery
+          avatar:       avatarMap.get(p.user_id) ?? null,
+          last_active:  null,
         }));
       setAllUsers(users);
 
@@ -711,7 +734,7 @@ export default function SocialView({ currentUserId, openWindow, totalUnread }: P
                 created_at:    a.timestamp,
                 handle:        a.user.handle,
                 display_name:  a.user.display_name,
-                avatar_url:    a.user.avatar_url,
+                avatar_url:    a.user.avatar,
               }))} loading={false} density={s.density} />
             )}
           </Panel>
