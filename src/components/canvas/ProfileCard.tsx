@@ -262,12 +262,14 @@ function ProfileCard({
     if (!f) return;
     const { publicUrl } = await uploadToStorage(f);
     updateProfile(card.id, { photo: publicUrl });
+    console.log("[PROFILE PHOTO UPLOAD]", { currentUserId, publicUrl });
     if (currentUserId) {
-      createClient()
+      const result = await createClient()
         .from("profiles")
         .update({ avatar_url: publicUrl })
         .eq("user_id", currentUserId)
-        .then();
+        .select();
+      console.log("[PROFILE AVATAR UPDATE RESULT]", result);
     }
     if (photoRef.current) photoRef.current.value = "";
   }
