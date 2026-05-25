@@ -902,40 +902,33 @@ function ProfileCard({
         {/* ────────────────────────────────────────────────────────────────
             CONFIG MENU
         ──────────────────────────────────────────────────────────────── */}
+        {/* style must live outside the conditional — inline <style> inside
+            a toggle causes React insertBefore crashes when the browser
+            moves the <style> node, breaking fiber-to-DOM tracking */}
+        <style>{`
+          .pcfg::-webkit-scrollbar { width: 4px; }
+          .pcfg::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+          .pcfg::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+          .pcfg::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+          .pcfg-inline { background: transparent; border: none; outline: none; }
+          @keyframes pcfg-in {
+            from { opacity: 0; transform: translateX(6px) scale(0.98); }
+            to   { opacity: 1; transform: translateX(0) scale(1); }
+          }
+          .pcfg { animation: pcfg-in 0.14s cubic-bezier(0.2,0.8,0.2,1) both; }
+          @keyframes pcfg-up {
+            from { opacity: 0; transform: translateY(5px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          .pcfg-s { animation: pcfg-up 0.18s cubic-bezier(0.2,0.8,0.2,1) both; }
+          .pcfg-s1 { animation-delay: 0ms; }
+          .pcfg-s2 { animation-delay: 40ms; }
+          .pcfg-s3 { animation-delay: 72ms; }
+          .pcfg-s4 { animation-delay: 104ms; }
+          .pcfg button:active { transform: scale(0.95) !important; transition-duration: 0.06s !important; }
+        `}</style>
+
         {menuOpen && canInteract && (
-          <>
-            <style>{`
-              /* ── Scrollbar ── */
-              .pcfg::-webkit-scrollbar { width: 4px; }
-              .pcfg::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-              .pcfg::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-              .pcfg::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-
-              /* ── Inline edit inputs ── */
-              .pcfg-inline { background: transparent; border: none; outline: none; }
-
-              /* ── Menu enter ── */
-              @keyframes pcfg-in {
-                from { opacity: 0; transform: translateX(6px) scale(0.98); }
-                to   { opacity: 1; transform: translateX(0) scale(1); }
-              }
-              .pcfg { animation: pcfg-in 0.14s cubic-bezier(0.2,0.8,0.2,1) both; }
-
-              /* ── Section stagger ── */
-              @keyframes pcfg-up {
-                from { opacity: 0; transform: translateY(5px); }
-                to   { opacity: 1; transform: translateY(0); }
-              }
-              .pcfg-s { animation: pcfg-up 0.18s cubic-bezier(0.2,0.8,0.2,1) both; }
-              .pcfg-s1 { animation-delay: 0ms; }
-              .pcfg-s2 { animation-delay: 40ms; }
-              .pcfg-s3 { animation-delay: 72ms; }
-              .pcfg-s4 { animation-delay: 104ms; }
-
-              /* ── Menu CmdBtn active ── */
-              .pcfg button:active { transform: scale(0.95) !important; transition-duration: 0.06s !important; }
-            `}</style>
-
             <div
               className="pcfg"
               onMouseDown={e => e.stopPropagation()}
@@ -1369,7 +1362,6 @@ function ProfileCard({
               </div>
 
             </div>
-          </>
         )}
       </div>
 

@@ -994,6 +994,16 @@ export default function CanvasBoard({
   function handleElementClick(id: string, e: React.MouseEvent, canSelect = true) {
     e.stopPropagation();
     if (!canSelect || didDrag.current) return;
+    if (!canInteract) {
+      const imgEl = elements.find(el => el.id === id && el.elementType === "image");
+      if (imgEl?.elementType === "image") {
+        const link = imgEl.linkUrl;
+        if (link && (link.startsWith("https://") || link.startsWith("http://"))) {
+          window.open(link, "_blank", "noopener,noreferrer");
+        }
+      }
+      return;
+    }
     if (e.shiftKey) {
       selChangedRef.current = true;
       setSelectedIds(prev => { const ns = new Set(prev); if (ns.has(id)) ns.delete(id); else ns.add(id); return ns; });
@@ -1283,7 +1293,7 @@ export default function CanvasBoard({
         const isSel=selectedIds.has(img.id);
         const ps=getParallaxStyle(img.layer,img.depth);
         return (
-          <div key={img.id} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100,cursor:img.locked?"default":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform"}}
+          <div key={img.id} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100,cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform"}}
             onMouseDown={e=>{if(!img.locked)onElementMouseDown(img.id,"image",img.x,img.y,e);else e.stopPropagation();}}
             onClick={e=>handleElementClick(img.id,e)}
 
