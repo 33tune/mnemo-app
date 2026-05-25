@@ -206,17 +206,31 @@ export default function PublicCanvas({
 
             {/* Images */}
             {(state.images ?? []).filter(img => !img.src?.startsWith("blob:")).map(img => {
-              const ps      = getParallaxStyle(img.layer, img.depth);
+              const ps       = getParallaxStyle(img.layer, img.depth);
               const isPinned = pinnedIds.has(img.id);
               const count    = pinCounts.get(img.id) ?? 0;
+              const safeLink = img.linkUrl && (img.linkUrl.startsWith("https://") || img.linkUrl.startsWith("http://"))
+                ? img.linkUrl : null;
               return (
-                <div key={img.id} style={{
-                  position: "absolute", left: img.x, top: img.y, width: img.w, height: img.h,
-                  zIndex: img.zIndex + img.layer * 100,
-                  transform: `${ps.transform} rotate(${img.rotation ?? 0}deg)`, willChange: "transform",
-                }}>
+                <div key={img.id}
+                  style={{
+                    position: "absolute", left: img.x, top: img.y, width: img.w, height: img.h,
+                    zIndex: img.zIndex + img.layer * 100,
+                    transform: `${ps.transform} rotate(${img.rotation ?? 0}deg)`, willChange: "transform",
+                    cursor: safeLink ? "pointer" : "default",
+                  }}
+                  onClick={safeLink ? () => window.open(safeLink, "_blank", "noopener,noreferrer") : undefined}
+                >
                   <img src={img.src} draggable={false} alt=""
                     style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: img.isTransparent ? 0 : 8 }} />
+                  {safeLink && (
+                    <div style={{
+                      position: "absolute", bottom: 6, right: 6,
+                      fontFamily: "'Space Mono', monospace", fontSize: 9,
+                      color: "rgba(255,255,255,0.28)", lineHeight: 1,
+                      pointerEvents: "none", userSelect: "none",
+                    }}>↗</div>
+                  )}
                   {!isPreview && (
                     <PinOverlay
                       isPinned={isPinned}

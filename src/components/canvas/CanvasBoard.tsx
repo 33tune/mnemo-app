@@ -1297,6 +1297,21 @@ export default function CanvasBoard({
             {isSel&&canInteract&&!multiSel&&(<LockBtn locked={!!img.locked} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,locked:!e.locked}:e));}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<div onMouseDown={e=>startSingleResize(img.id,"image",e)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.7)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle onMouseDown={e=>{e.stopPropagation();startRotate(img.id,"image",e);}} />)}
+            {isSel&&canInteract&&!multiSel&&(
+              <div onMouseDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}
+                style={{position:"absolute",top:"calc(100% + 8px)",left:"50%",transform:"translateX(-50%)",background:"rgba(8,8,10,0.96)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:7,padding:"7px 10px",backdropFilter:"blur(32px)",WebkitBackdropFilter:"blur(32px)",zIndex:500,display:"flex",flexDirection:"column",gap:4,minWidth:200,boxShadow:"0 8px 28px rgba(0,0,0,0.6)"}}>
+                <span style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.22)",textTransform:"uppercase"}}>LINK</span>
+                <input
+                  type="url"
+                  value={img.linkUrl ?? ""}
+                  placeholder="https://example.com"
+                  onChange={e=>{const v=e.target.value;enqueueOp({type:"update_image",id:img.id,patch:{linkUrl:v||undefined}});}}
+                  onMouseDown={e=>e.stopPropagation()}
+                  onKeyDown={e=>e.stopPropagation()}
+                  style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,padding:"4px 8px",fontFamily:MONO,fontSize:9,letterSpacing:0.5,color:"rgba(255,255,255,0.7)",outline:"none",width:"100%",boxSizing:"border-box",caretColor:"rgba(255,255,255,0.8)"}}
+                />
+              </div>
+            )}
           </div>
         );
       })}
