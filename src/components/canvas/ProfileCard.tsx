@@ -845,6 +845,18 @@ function ProfileCard({
             onClick={e => {
               e.stopPropagation();
               const next = !menuOpen;
+              if (next && cardRef.current) {
+                // Compute position synchronously so portalPos is ready on the
+                // same render that flips menuOpen — no one-frame blank flash.
+                const r = cardRef.current.getBoundingClientRect();
+                const MENU_W = 268, GAP = 10;
+                const left = r.right + GAP + MENU_W > window.innerWidth
+                  ? Math.max(4, r.left - MENU_W - GAP)
+                  : r.right + GAP;
+                setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
+              } else {
+                setPortalPos(null);
+              }
               setMenuOpen(next);
               if (!next) setEditingField(null);
             }}
@@ -981,26 +993,29 @@ function ProfileCard({
           .pcfg button:active { transform: scale(0.95) !important; transition-duration: 0.06s !important; }
         `}</style>
 
-        {menuOpen && canInteract && (
+        {/* Portal: render to document.body so the menu escapes the canvas
+            transform stacking context and always floats above all elements */}
+        {menuOpen && canInteract && portalPos && createPortal(
             <div
               className="pcfg"
               onMouseDown={e => e.stopPropagation()}
               onClick={e => e.stopPropagation()}
+              onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}
               style={{
-                position:      "absolute",
-                top:           0,
-                left:          card.w + 12,
-                width:         252,
+                position:      "fixed",
+                left:          portalPos.left,
+                top:           portalPos.top,
+                width:         268,
                 background:    "#09090b",
-                border:        "1px solid rgba(255,255,255,0.1)",
-                borderRadius:  5,
+                border:        "1px solid rgba(255,255,255,0.12)",
+                borderRadius:  6,
                 padding:       "20px 16px 24px",
-                zIndex:        50,
-                boxShadow:     "0 2px 20px rgba(0,0,0,0.5)",
+                zIndex:        999999,
+                boxShadow:     "0 8px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04)",
                 fontFamily:    SANS,
                 display:       "flex",
                 flexDirection: "column",
-                maxHeight:     "86vh",
+                maxHeight:     `calc(100vh - ${portalPos.top + 8}px)`,
                 overflowY:     "auto",
                 scrollbarWidth:  "thin" as React.CSSProperties["scrollbarWidth"],
                 scrollbarColor:  "rgba(255,255,255,0.1) rgba(255,255,255,0.02)",
@@ -1519,7 +1534,7 @@ function ProfileCard({
               </div>
 
             </div>
-        )}
+        , document.body)}
       </div>
 
       <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />

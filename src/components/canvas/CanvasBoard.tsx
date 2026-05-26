@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
@@ -179,6 +180,7 @@ export default function CanvasBoard({
   const imageRef       = useRef<HTMLInputElement>(null);
   const zCounter       = useRef(10);
   const textElRefs     = useRef<Record<string, HTMLDivElement | null>>({});
+  const imgElRefs      = useRef<Map<string, HTMLDivElement>>(new Map());
   const selChangedRef  = useRef(false);
   const canvasIdRef       = useRef<string | null>(null);
   const savingRef         = useRef(false);
@@ -1293,7 +1295,7 @@ export default function CanvasBoard({
         const isSel=selectedIds.has(img.id);
         const ps=getParallaxStyle(img.layer,img.depth);
         return (
-          <div key={img.id} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100,cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform"}}
+          <div key={img.id} ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100,cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform"}}
             onMouseDown={e=>{if(!img.locked)onElementMouseDown(img.id,"image",img.x,img.y,e);else e.stopPropagation();}}
             onClick={e=>handleElementClick(img.id,e)}
 
@@ -1308,19 +1310,11 @@ export default function CanvasBoard({
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<div onMouseDown={e=>startSingleResize(img.id,"image",e)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.7)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle onMouseDown={e=>{e.stopPropagation();startRotate(img.id,"image",e);}} />)}
             {isSel&&canInteract&&!multiSel&&(
-              <div onMouseDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}
-                style={{position:"absolute",top:"calc(100% + 8px)",left:"50%",transform:"translateX(-50%)",background:"rgba(8,8,10,0.96)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:7,padding:"7px 10px",backdropFilter:"blur(32px)",WebkitBackdropFilter:"blur(32px)",zIndex:500,display:"flex",flexDirection:"column",gap:4,minWidth:200,boxShadow:"0 8px 28px rgba(0,0,0,0.6)"}}>
-                <span style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.22)",textTransform:"uppercase"}}>LINK</span>
-                <input
-                  type="url"
-                  value={img.linkUrl ?? ""}
-                  placeholder="https://example.com"
-                  onChange={e=>{const v=e.target.value;enqueueOp({type:"update_image",id:img.id,patch:{linkUrl:v||undefined}});}}
-                  onMouseDown={e=>e.stopPropagation()}
-                  onKeyDown={e=>e.stopPropagation()}
-                  style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,padding:"4px 8px",fontFamily:MONO,fontSize:9,letterSpacing:0.5,color:"rgba(255,255,255,0.7)",outline:"none",width:"100%",boxSizing:"border-box",caretColor:"rgba(255,255,255,0.8)"}}
-                />
-              </div>
+              <ImageLinkPortal
+                imgEl={imgElRefs.current.get(img.id) ?? null}
+                linkUrl={img.linkUrl}
+                onChange={v=>enqueueOp({type:"update_image",id:img.id,patch:{linkUrl:v||undefined}})}
+              />
             )}
           </div>
         );
@@ -1754,5 +1748,76 @@ function RotateHandle({onMouseDown}:{onMouseDown:(e:React.MouseEvent)=>void}) {
         <path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/>
       </svg>
     </div>
+  );
+}
+
+// ── ImageLinkPortal ────────────────────────────────────────────────────────────
+// Portals the image link editor to document.body so it escapes the canvas
+// overflow:hidden wrapper and the canvas transform stacking context.
+function ImageLinkPortal({
+  imgEl, linkUrl, onChange,
+}: {
+  imgEl: HTMLDivElement | null;
+  linkUrl: string | undefined;
+  onChange: (v: string) => void;
+}) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const MONO_L = "'Space Mono', monospace";
+
+  useEffect(() => {
+    if (!imgEl) return;
+    const compute = () => {
+      const r   = imgEl.getBoundingClientRect();
+      const w   = 200;
+      const top = Math.min(r.bottom + 8, window.innerHeight - 80);
+      const left = Math.max(4, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 4));
+      setPos({ top, left });
+    };
+    compute();
+    window.addEventListener("scroll", compute, true);
+    window.addEventListener("resize", compute);
+    return () => {
+      window.removeEventListener("scroll", compute, true);
+      window.removeEventListener("resize", compute);
+    };
+  }, [imgEl]);
+
+  if (!pos) return null;
+
+  return createPortal(
+    <div
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
+      style={{
+        position:      "fixed",
+        top:           pos.top,
+        left:          pos.left,
+        width:         200,
+        background:    "rgba(8,8,10,0.96)",
+        border:        "1px solid rgba(255,255,255,0.1)",
+        borderRadius:  7,
+        padding:       "8px 10px",
+        backdropFilter:"blur(32px)",
+        WebkitBackdropFilter:"blur(32px)",
+        zIndex:        999999,
+        display:       "flex",
+        flexDirection: "column",
+        gap:           5,
+        boxShadow:     "0 8px 32px rgba(0,0,0,0.65)",
+      }}
+    >
+      <span style={{fontFamily:MONO_L,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.22)",textTransform:"uppercase" as const}}>LINK</span>
+      <input
+        type="url"
+        value={linkUrl ?? ""}
+        placeholder="https://example.com"
+        onChange={e => onChange(e.target.value)}
+        onMouseDown={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        autoFocus
+        style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,padding:"5px 8px",fontFamily:MONO_L,fontSize:9,letterSpacing:0.5,color:"rgba(255,255,255,0.75)",outline:"none",width:"100%",boxSizing:"border-box" as const,caretColor:"rgba(255,255,255,0.8)"}}
+      />
+    </div>,
+    document.body
   );
 }
