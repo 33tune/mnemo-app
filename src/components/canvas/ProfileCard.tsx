@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, memo } from "react";
+import { createPortal } from "react-dom";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, ProfileLink, TextFont } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
@@ -85,7 +86,36 @@ function ProfileCard({
   const [newLinkLabel, setNewLinkLabel] = useState("");
   const [newLinkIcon,  setNewLinkIcon]  = useState("");
   const innerRef    = useRef<HTMLDivElement>(null);
+  const cardRef     = useRef<HTMLDivElement>(null);
   const favTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Portal: track the card's viewport position for the fixed-position config menu.
+  // getBoundingClientRect already accounts for the parent canvas scale transform,
+  // so no manual scale math is needed here.
+  const [portalPos, setPortalPos] = useState<{ left: number; top: number } | null>(null);
+  useEffect(() => {
+    if (!menuOpen) { setPortalPos(null); return; }
+    const compute = () => {
+      if (!cardRef.current) return;
+      const r = cardRef.current.getBoundingClientRect();
+      // Prefer right side; flip to left if it would clip the viewport
+      const MENU_W = 268;
+      const GAP    = 10;
+      const left   = r.right + GAP + MENU_W > window.innerWidth
+        ? Math.max(4, r.left - MENU_W - GAP)
+        : r.right + GAP;
+      const top    = Math.min(Math.max(8, r.top), window.innerHeight - 120);
+      setPortalPos({ left, top });
+    };
+    compute();
+    // Update on scroll (page-level) and resize
+    window.addEventListener("scroll", compute, true);
+    window.addEventListener("resize", compute);
+    return () => {
+      window.removeEventListener("scroll", compute, true);
+      window.removeEventListener("resize", compute);
+    };
+  }, [menuOpen, card.x, card.y, card.w, card.h]);
 
   useEffect(() => {
     if (!isSel) { setMenuOpen(false); setEditingField(null); }
@@ -317,6 +347,7 @@ function ProfileCard({
       `}</style>
 
       <div
+        ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
         onClick={onClick}
         style={{
