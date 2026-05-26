@@ -249,6 +249,7 @@ export default function PublicCanvas({
             {(state.profiles ?? []).map(profile => {
               const ps = getParallaxStyle(profile.layer, profile.depth);
               const hasPhoto = profile.photo && !profile.photo.startsWith("blob:");
+              const links = (profile.links ?? []).filter(l => l.url);
               return (
                 <div key={profile.id} style={{
                   position: "absolute", left: profile.x, top: profile.y, width: profile.w, height: profile.h,
@@ -263,6 +264,16 @@ export default function PublicCanvas({
                   {hasPhoto && <img src={profile.photo} alt="" draggable={false} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />}
                   {profile.name && <span style={{ fontFamily: SANS, fontSize: 14, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>{profile.name}</span>}
                   {profile.status && <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>{profile.status}</span>}
+                  {links.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center", marginTop: 2 }}>
+                      {links.map(link => {
+                        const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
+                        return (
+                          <PublicLinkButton key={link.id} label={link.label} icon={link.icon} href={safeUrl} />
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -272,6 +283,53 @@ export default function PublicCanvas({
       </div>
 
       {toUserId && <AnonymousMessageWidget toUserId={toUserId} />}
+    </div>
+  );
+}
+
+function PublicLinkButton({ label, icon, href }: { label: string; icon?: string; href: string }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={e => { e.stopPropagation(); window.open(href, "_blank", "noopener,noreferrer"); }}
+      style={{
+        display:              "flex",
+        alignItems:           "center",
+        justifyContent:       "center",
+        gap:                  5,
+        padding:              "5px 14px",
+        borderRadius:         100,
+        background:           hov ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)",
+        border:               `1px solid ${hov ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)"}`,
+        cursor:               "pointer",
+        backdropFilter:       "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        transition:           "all 0.15s ease",
+        minWidth:             80,
+        maxWidth:             160,
+        userSelect:           "none",
+        transform:            hov ? "translateY(-1px)" : "translateY(0)",
+        boxShadow:            hov ? "0 4px 16px rgba(0,0,0,0.18)" : "none",
+      }}
+    >
+      {icon && <span style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>{icon}</span>}
+      <span style={{
+        fontFamily:    SANS,
+        fontSize:      9,
+        fontWeight:    600,
+        color:         hov ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.55)",
+        letterSpacing: 1.2,
+        textTransform: "uppercase" as const,
+        whiteSpace:    "nowrap",
+        overflow:      "hidden",
+        textOverflow:  "ellipsis",
+        maxWidth:      110,
+        transition:    "color 0.15s ease",
+      }}>
+        {label || href}
+      </span>
     </div>
   );
 }

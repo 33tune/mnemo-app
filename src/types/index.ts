@@ -106,7 +106,7 @@ export type CanvasGallery = {
 
 export type PhotoSize = "sm" | "md" | "lg";
 
-export type ProfileLink = { id: string; url: string; label: string };
+export type ProfileLink = { id: string; url: string; label: string; icon?: string };
 
 export type MediaType = "spotify" | "youtube" | "soundcloud";
 
@@ -176,6 +176,9 @@ export type ProfileCardData = {
   followScale?:   number;
   messageScale?:  number;
   favoriteScale?: number;
+  linksX?:        number;
+  linksY?:        number;
+  linksScale?:    number;
   bio?:           string;
   links?:         ProfileLink[];
   mood?:          string;

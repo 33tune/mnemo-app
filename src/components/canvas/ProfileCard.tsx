@@ -63,7 +63,7 @@ interface Props {
   onOpenSocialPanel?:   (mode: "followers" | "following") => void;
 }
 
-type DragTarget = "photo" | "text" | "stats" | "follow" | "message" | "favorite";
+type DragTarget = "photo" | "text" | "stats" | "follow" | "message" | "favorite" | "links";
 
 // Shared easing
 const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
@@ -82,6 +82,8 @@ function ProfileCard({
   const [draggingEl,   setDraggingEl]   = useState<DragTarget | null>(null);
   const [editingField, setEditingField] = useState<"name" | "status" | null>(null);
   const [newLinkUrl,   setNewLinkUrl]   = useState("");
+  const [newLinkLabel, setNewLinkLabel] = useState("");
+  const [newLinkIcon,  setNewLinkIcon]  = useState("");
   const innerRef    = useRef<HTMLDivElement>(null);
   const favTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -116,6 +118,9 @@ function ProfileCard({
   const followScale   = card.followScale   ?? 1;
   const messageScale  = card.messageScale  ?? 1;
   const favoriteScale = card.favoriteScale ?? 1;
+  const linksX        = card.linksX        ?? 50;
+  const linksY        = card.linksY        ?? 78;
+  const linksScale    = card.linksScale    ?? 1;
 
   // Social hooks — wired from props
   const targetUserId = card.userId ?? ownerUserId;
@@ -156,6 +161,7 @@ function ProfileCard({
       which === "stats"    ? statsX    :
       which === "follow"   ? followX   :
       which === "message"  ? messageX  :
+      which === "links"    ? linksX    :
                              favoriteX;
     const sy =
       which === "photo"    ? photoY    :
@@ -163,6 +169,7 @@ function ProfileCard({
       which === "stats"    ? statsY    :
       which === "follow"   ? followY   :
       which === "message"  ? messageY  :
+      which === "links"    ? linksY    :
                              favoriteY;
     const mx0 = e.clientX;
     const my0 = e.clientY;
@@ -177,6 +184,7 @@ function ProfileCard({
         which === "stats"    ? { statsX:    nx, statsY:    ny } :
         which === "follow"   ? { followX:   nx, followY:   ny } :
         which === "message"  ? { messageX:  nx, messageY:  ny } :
+        which === "links"    ? { linksX:    nx, linksY:    ny } :
                                { favoriteX: nx, favoriteY: ny };
       updateProfile(card.id, patch);
     }
@@ -230,6 +238,7 @@ function ProfileCard({
       if (which === "favorite") return favoriteScale;
       if (which === "text")     return textScale;
       if (which === "stats")    return statsScale;
+      if (which === "links")    return linksScale;
       return 1;
     };
     const startScale = getScale();
@@ -242,6 +251,7 @@ function ProfileCard({
         if (which === "favorite") updateProfile(card.id, { favoriteScale: newScale });
         if (which === "text")     updateProfile(card.id, { textScale:     newScale });
         if (which === "stats")    updateProfile(card.id, { statsScale:    newScale });
+        if (which === "links")    updateProfile(card.id, { linksScale:    newScale });
       } catch (err) {
         console.error("scale error", err);
       }
@@ -479,40 +489,52 @@ function ProfileCard({
               </div>
             )}
 
-            {(card.links ?? []).length > 0 && (
-              <div style={{
-                marginTop:     4,
-                display:       "flex",
-                flexDirection: "column",
-                gap:           3,
-                alignItems:    "center",
-              }}>
-                {(card.links ?? []).slice(0, 3).map(link => (
-                  <a
-                    key={link.id}
-                    href={link.url.startsWith("http") ? link.url : `https://${link.url}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    style={{
-                      fontFamily:     MONO,
-                      fontSize:       7,
-                      color:          withOpacity(baseColor, 0.35),
-                      letterSpacing:  0.5,
-                      textDecoration: "none",
-                      whiteSpace:     "nowrap",
-                      pointerEvents:  "auto" as React.CSSProperties["pointerEvents"],
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = withOpacity(baseColor, 0.65); }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = withOpacity(baseColor, 0.35); }}
-                  >
-                    → {link.label || link.url}
-                  </a>
-                ))}
-              </div>
-            )}
 
           </div>
+
+          {/* ── Links block ── */}
+          {(card.links ?? []).length > 0 && (
+            <div
+              onMouseDown={e => startElDrag("links", e)}
+              style={{
+                position:      "absolute",
+                left:          `${linksX}%`,
+                top:           `${linksY}%`,
+                transform:     `translate(-50%, -50%) scale(${dragScale("links", linksScale)})`,
+                cursor:        dragCursor("links"),
+                pointerEvents: "auto",
+                filter:        dragFilter("links"),
+                transition:    `filter 0.12s ${EASE}, transform 0.12s ${EASE}`,
+                display:       "flex",
+                flexDirection: "column",
+                gap:           5,
+                alignItems:    "center",
+                zIndex:        5,
+              }}
+            >
+              {menuOpen && (
+                <div style={{
+                  position: "absolute", inset: "-6px -8px", borderRadius: 8,
+                  border: dashBorder("links"), pointerEvents: "none",
+                  transition: "border-color 0.12s",
+                }} />
+              )}
+              {menuOpen && (
+                <div
+                  onMouseDown={e => startScaleDrag("links", e)}
+                  style={{
+                    position: "absolute", bottom: -6, right: -6,
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "rgba(255,255,255,0.7)",
+                    cursor: "ns-resize", zIndex: 10,
+                  }}
+                />
+              )}
+              {(card.links ?? []).map(link => (
+                <LinkButton key={link.id} link={link} baseColor={baseColor} globalFont={globalFont} />
+              ))}
+            </div>
+          )}
 
           {/* ── Stats block ── */}
           <div
@@ -1163,110 +1185,214 @@ function ProfileCard({
 
               <Div />
 
-              {/* ════════════════ ENLACES ════════════════ */}
+              {/* ════════════════ LINKS ════════════════ */}
               <div className="pcfg-s pcfg-s3">
-                <PanelLabel>enlaces</PanelLabel>
+                <PanelLabel>links</PanelLabel>
 
+                {/* Existing links — inline editable */}
                 {(card.links ?? []).length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
                     {(card.links ?? []).map((link, idx) => (
-                      <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{
-                          flex:         1,
-                          fontFamily:   MONO,
-                          fontSize:     9,
-                          color:        "rgba(255,255,255,0.42)",
-                          overflow:     "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace:   "nowrap",
-                        }}>
-                          → {link.label || link.url}
+                      <div key={link.id} style={{
+                        background:   "rgba(255,255,255,0.03)",
+                        border:       "1px solid rgba(255,255,255,0.07)",
+                        borderRadius: 4,
+                        padding:      "8px 9px 7px",
+                      }}>
+                        {/* Row 1: icon + label + delete */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+                          <input
+                            value={link.icon ?? ""}
+                            onChange={e => {
+                              const updated = (card.links ?? []).map((l, i) => i === idx ? { ...l, icon: e.target.value } : l);
+                              updateProfile(card.id, { links: updated });
+                            }}
+                            onMouseDown={e => e.stopPropagation()}
+                            placeholder="🔗"
+                            maxLength={2}
+                            style={{
+                              width:      28, flexShrink: 0,
+                              background: "rgba(255,255,255,0.05)",
+                              border:     "1px solid rgba(255,255,255,0.09)",
+                              borderRadius: 3, padding: "3px 4px",
+                              color: "rgba(255,255,255,0.8)", fontSize: 12,
+                              textAlign: "center", outline: "none",
+                              fontFamily: SANS,
+                            }}
+                          />
+                          <input
+                            value={link.label}
+                            onChange={e => {
+                              const updated = (card.links ?? []).map((l, i) => i === idx ? { ...l, label: e.target.value } : l);
+                              updateProfile(card.id, { links: updated });
+                            }}
+                            onMouseDown={e => e.stopPropagation()}
+                            placeholder="label..."
+                            style={{
+                              flex:          1,
+                              background:    "transparent",
+                              border:        "none",
+                              borderBottom:  "1px solid rgba(255,255,255,0.1)",
+                              outline:       "none",
+                              color:         "rgba(255,255,255,0.75)",
+                              fontFamily:    MONO,
+                              fontSize:      9,
+                              letterSpacing: 1,
+                              textTransform: "uppercase" as const,
+                              padding:       "2px 0 3px",
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              const updated = (card.links ?? []).filter((_, i) => i !== idx);
+                              updateProfile(card.id, { links: updated });
+                            }}
+                            onMouseDown={e => e.stopPropagation()}
+                            style={{
+                              background: "transparent", border: "none",
+                              color: "rgba(255,255,255,0.2)", fontSize: 14,
+                              cursor: "pointer", flexShrink: 0,
+                              lineHeight: 1, padding: "0 2px",
+                              transition: `color 0.1s ${EASE}`,
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = "rgba(220,80,60,0.85)"}
+                            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.2)"}
+                          >×</button>
                         </div>
-                        <button
-                          onClick={() => {
-                            const updated = (card.links ?? []).filter((_, i) => i !== idx);
+                        {/* Row 2: URL */}
+                        <input
+                          value={link.url}
+                          onChange={e => {
+                            const updated = (card.links ?? []).map((l, i) => i === idx ? { ...l, url: e.target.value } : l);
                             updateProfile(card.id, { links: updated });
                           }}
                           onMouseDown={e => e.stopPropagation()}
+                          placeholder="https://..."
+                          type="url"
                           style={{
-                            background:  "transparent",
-                            border:      "1px solid rgba(255,255,255,0.08)",
-                            borderRadius: 2,
-                            color:       "rgba(255,255,255,0.25)",
-                            fontFamily:  MONO,
-                            fontSize:    10,
-                            cursor:      "pointer",
-                            padding:     "0 5px",
-                            lineHeight:  "18px",
-                            flexShrink:  0,
-                            transition:  `color 0.1s ${EASE}`,
+                            width:         "100%",
+                            background:    "rgba(255,255,255,0.03)",
+                            border:        "1px solid rgba(255,255,255,0.07)",
+                            borderRadius:  3,
+                            padding:       "4px 7px",
+                            color:         "rgba(255,255,255,0.38)",
+                            fontFamily:    MONO,
+                            fontSize:      8,
+                            letterSpacing: 0.3,
+                            outline:       "none",
+                            boxSizing:     "border-box" as const,
                           }}
-                          onMouseEnter={e => e.currentTarget.style.color = "rgba(220,80,60,0.8)"}
-                          onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.25)"}
-                        >
-                          ×
-                        </button>
+                        />
                       </div>
                     ))}
                   </div>
                 )}
 
-                {(card.links ?? []).length < 3 && (
-                  <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                    <input
-                      value={newLinkUrl}
-                      onChange={e => setNewLinkUrl(e.target.value)}
-                      onMouseDown={e => e.stopPropagation()}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" && newLinkUrl.trim()) {
+                {/* Add link button */}
+                {(card.links ?? []).length < 5 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      <input
+                        value={newLinkLabel}
+                        onChange={e => setNewLinkLabel(e.target.value)}
+                        onMouseDown={e => e.stopPropagation()}
+                        placeholder="label..."
+                        style={{
+                          flex:          1,
+                          background:    "rgba(255,255,255,0.04)",
+                          border:        "1px solid rgba(255,255,255,0.09)",
+                          borderRadius:  3,
+                          padding:       "5px 8px",
+                          color:         "rgba(255,255,255,0.55)",
+                          fontFamily:    MONO,
+                          fontSize:      9,
+                          outline:       "none",
+                          letterSpacing: 0.5,
+                          textTransform: "uppercase" as const,
+                        }}
+                      />
+                      <input
+                        value={newLinkIcon}
+                        onChange={e => setNewLinkIcon(e.target.value)}
+                        onMouseDown={e => e.stopPropagation()}
+                        placeholder="🔗"
+                        maxLength={2}
+                        style={{
+                          width:      34, flexShrink: 0,
+                          background: "rgba(255,255,255,0.04)",
+                          border:     "1px solid rgba(255,255,255,0.09)",
+                          borderRadius: 3, padding: "5px 4px",
+                          color: "rgba(255,255,255,0.7)", fontSize: 12,
+                          textAlign: "center", outline: "none",
+                          fontFamily: SANS,
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      <input
+                        value={newLinkUrl}
+                        onChange={e => setNewLinkUrl(e.target.value)}
+                        onMouseDown={e => e.stopPropagation()}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && newLinkUrl.trim()) {
+                            updateProfile(card.id, {
+                              links: [...(card.links ?? []), {
+                                id: crypto.randomUUID(),
+                                url: newLinkUrl.trim(),
+                                label: newLinkLabel.trim(),
+                                icon: newLinkIcon.trim() || undefined,
+                              }],
+                            });
+                            setNewLinkUrl(""); setNewLinkLabel(""); setNewLinkIcon("");
+                          }
+                        }}
+                        placeholder="https://..."
+                        type="url"
+                        style={{
+                          flex:          1,
+                          background:    "rgba(255,255,255,0.04)",
+                          border:        "1px solid rgba(255,255,255,0.09)",
+                          borderRadius:  3,
+                          padding:       "5px 8px",
+                          color:         "rgba(255,255,255,0.55)",
+                          fontFamily:    MONO,
+                          fontSize:      9,
+                          outline:       "none",
+                          letterSpacing: 0.3,
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (!newLinkUrl.trim()) return;
                           updateProfile(card.id, {
-                            links: [...(card.links ?? []), { id: crypto.randomUUID(), url: newLinkUrl.trim(), label: "" }],
+                            links: [...(card.links ?? []), {
+                              id: crypto.randomUUID(),
+                              url: newLinkUrl.trim(),
+                              label: newLinkLabel.trim(),
+                              icon: newLinkIcon.trim() || undefined,
+                            }],
                           });
-                          setNewLinkUrl("");
-                        }
-                      }}
-                      placeholder="url..."
-                      style={{
-                        flex:          1,
-                        background:    "rgba(255,255,255,0.04)",
-                        border:        "1px solid rgba(255,255,255,0.09)",
-                        borderRadius:  3,
-                        padding:       "5px 8px",
-                        color:         "rgba(255,255,255,0.55)",
-                        fontFamily:    MONO,
-                        fontSize:      9,
-                        outline:       "none",
-                        letterSpacing: 0.3,
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        if (!newLinkUrl.trim()) return;
-                        updateProfile(card.id, {
-                          links: [...(card.links ?? []), { id: crypto.randomUUID(), url: newLinkUrl.trim(), label: "" }],
-                        });
-                        setNewLinkUrl("");
-                      }}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{
-                        background:    "rgba(255,255,255,0.05)",
-                        border:        "1px solid rgba(255,255,255,0.09)",
-                        borderRadius:  3,
-                        color:         "rgba(255,255,255,0.45)",
-                        fontFamily:    MONO,
-                        fontSize:      8,
-                        letterSpacing: 1,
-                        cursor:        "pointer",
-                        padding:       "5px 10px",
-                        flexShrink:    0,
-                        textTransform: "uppercase" as const,
-                        transition:    `all 0.1s ${EASE}`,
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.75)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.45)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)"; }}
-                    >
-                      add
-                    </button>
+                          setNewLinkUrl(""); setNewLinkLabel(""); setNewLinkIcon("");
+                        }}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{
+                          background:    "rgba(255,255,255,0.05)",
+                          border:        "1px solid rgba(255,255,255,0.09)",
+                          borderRadius:  3,
+                          color:         "rgba(255,255,255,0.45)",
+                          fontFamily:    MONO,
+                          fontSize:      8,
+                          letterSpacing: 1,
+                          cursor:        "pointer",
+                          padding:       "5px 10px",
+                          flexShrink:    0,
+                          textTransform: "uppercase" as const,
+                          transition:    `all 0.1s ${EASE}`,
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.75)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.45)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)"; }}
+                      >+ add</button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1515,6 +1641,65 @@ function PanelLabel({ children, inline }: { children: React.ReactNode; inline?: 
 function Div() {
   return (
     <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "22px 0" }} />
+  );
+}
+
+// ── LinkButton ────────────────────────────────────────────────────────────────
+
+function LinkButton({ link, baseColor, globalFont }: {
+  link: import("@/types").ProfileLink;
+  baseColor: string;
+  globalFont: string;
+}) {
+  const [hov, setHov] = useState(false);
+  const safeUrl =
+    !link.url ? null :
+    link.url.startsWith("http") ? link.url : `https://${link.url}`;
+  if (!link.label && !safeUrl) return null;
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={e => { e.stopPropagation(); if (safeUrl) window.open(safeUrl, "_blank", "noopener,noreferrer"); }}
+      style={{
+        display:              "flex",
+        alignItems:           "center",
+        justifyContent:       "center",
+        gap:                  5,
+        padding:              "5px 14px",
+        borderRadius:         100,
+        background:           hov ? withOpacity(baseColor, 0.14) : withOpacity(baseColor, 0.07),
+        border:               `1px solid ${hov ? withOpacity(baseColor, 0.28) : withOpacity(baseColor, 0.12)}`,
+        cursor:               safeUrl ? "pointer" : "default",
+        backdropFilter:       "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        transition:           "all 0.15s ease",
+        minWidth:             80,
+        maxWidth:             160,
+        userSelect:           "none",
+        transform:            hov ? "translateY(-1px)" : "translateY(0)",
+        boxShadow:            hov ? `0 4px 16px ${withOpacity(baseColor, 0.12)}` : "none",
+      }}
+    >
+      {link.icon && (
+        <span style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>{link.icon}</span>
+      )}
+      <span style={{
+        fontFamily:    globalFont,
+        fontSize:      9,
+        fontWeight:    600,
+        color:         hov ? withOpacity(baseColor, 0.9) : withOpacity(baseColor, 0.6),
+        letterSpacing: 1.2,
+        textTransform: "uppercase" as const,
+        whiteSpace:    "nowrap",
+        overflow:      "hidden",
+        textOverflow:  "ellipsis",
+        maxWidth:      110,
+        transition:    "color 0.15s ease",
+      }}>
+        {link.label || safeUrl}
+      </span>
+    </div>
   );
 }
 
