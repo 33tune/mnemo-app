@@ -38,11 +38,11 @@ function parseMediaUrl(raw: string): ParsedMedia | null {
 
     if (u.hostname === "youtube.com" || u.hostname === "www.youtube.com") {
       const id = u.searchParams.get("v");
-      if (id) return { embedUrl: `https://www.youtube.com/embed/${id}`, mediaType: "youtube",    label: "YOUTUBE",    defaultW: 320, defaultH: 180 };
+      if (id) return { embedUrl: `https://www.youtube.com/embed/${id}?playsinline=1`, mediaType: "youtube", label: "YOUTUBE", defaultW: 320, defaultH: 180 };
     }
     if (u.hostname === "youtu.be") {
       const id = u.pathname.slice(1);
-      if (id) return { embedUrl: `https://www.youtube.com/embed/${id}`, mediaType: "youtube",    label: "YOUTUBE",    defaultW: 320, defaultH: 180 };
+      if (id) return { embedUrl: `https://www.youtube.com/embed/${id}?playsinline=1`, mediaType: "youtube", label: "YOUTUBE", defaultW: 320, defaultH: 180 };
     }
     if (u.hostname.includes("soundcloud.com")) {
       return {
@@ -207,7 +207,8 @@ function MediaCardWidget({
               style={{ border: "none", display: "block" }}
               allow={iframeAllow(parsed!.mediaType)}
               allowFullScreen
-              loading="lazy"
+              loading="eager"
+              referrerPolicy="no-referrer-when-downgrade"
               onMouseDown={e => e.stopPropagation()}
             />
           ) : canInteract ? (

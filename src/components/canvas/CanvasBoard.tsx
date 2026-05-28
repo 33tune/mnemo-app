@@ -1614,7 +1614,7 @@ export default function CanvasBoard({
         const ps=getParallaxStyle(txt.layer,txt.depth);
         return (
           <div key={txt.id} ref={el=>{textElRefs.current[txt.id]=el;}}
-            style={{position:"absolute",left:txt.x,top:txt.y,zIndex:txt.zIndex+txt.layer*100,transform:`${ps.transform} rotate(${txt.rotation}deg)`,willChange:"transform",userSelect:isEdit?"text":"none",cursor:txt.locked?"default":dragging?.id===txt.id?"grabbing":isEdit?"text":"grab",display:"inline-block"}}
+            style={{position:"absolute",left:txt.x,top:txt.y,zIndex:txt.zIndex+txt.layer*100,transform:`${ps.transform} rotate(${txt.rotation}deg)`,willChange:"transform",userSelect:isEdit?"text":"none",cursor:txt.locked?"default":dragging?.id===txt.id?"grabbing":isEdit?"text":"grab",display:"inline-block",maxWidth:Math.max(80,effectiveW-txt.x-8)}}
             onMouseDown={e=>{if(txt.locked){e.stopPropagation();return;}if(!isEdit)onElementMouseDown(txt.id,"text",txt.x,txt.y,e);}}
             onClick={e=>handleElementClick(txt.id,e)}
             onDoubleClick={e=>{e.stopPropagation();setEditingTextId(txt.id);}}>
@@ -1626,7 +1626,7 @@ export default function CanvasBoard({
               onInput={canInteract ? (e=>{updateText(txt.id,{content:(e.currentTarget as HTMLDivElement).innerText});}) : undefined}
               onClick={e=>{if(isEdit)e.stopPropagation();}}
               onMouseDown={e=>{if(isEdit)e.stopPropagation();}}
-              style={{fontFamily:getFontStyle(txt.font),fontSize:txt.size,color:txt.color,opacity:txt.opacity,letterSpacing:txt.letterSpacing,textTransform:txt.uppercase?"uppercase":"none",lineHeight:1.15,whiteSpace:"pre",outline:isEdit?"1px dashed rgba(255,255,255,0.2)":"none",outlineOffset:6,padding:"2px 0",cursor:isEdit?"text":"grab",minWidth:4} as React.CSSProperties}
+              style={{fontFamily:getFontStyle(txt.font),fontSize:txt.size,color:txt.color,opacity:txt.opacity,letterSpacing:txt.letterSpacing,textTransform:txt.uppercase?"uppercase":"none",lineHeight:1.15,whiteSpace:"pre-wrap",wordBreak:"break-word",overflowWrap:"break-word",outline:isEdit?"1px dashed rgba(255,255,255,0.2)":"none",outlineOffset:6,padding:"2px 0",cursor:isEdit?"text":"grab",minWidth:4} as React.CSSProperties}
               dangerouslySetInnerHTML={isEdit ? undefined : { __html: txt.content }}
               ref={el=>{if(el&&isEdit&&el.innerText!==txt.content){el.innerText=txt.content;}}}
             />

@@ -181,12 +181,13 @@ export default function PublicCanvas({
                   zIndex: txt.zIndex + txt.layer * 100,
                   transform: `${ps.transform} rotate(${txt.rotation ?? 0}deg)`,
                   willChange: "transform",
+                  maxWidth: Math.max(80, LOGICAL_WIDTH - txt.x - 8),
                 }}>
                   <div style={{
                     fontFamily: FONT_MAP[txt.font] ?? SANS, fontSize: txt.size, color: txt.color,
                     opacity: txt.opacity, letterSpacing: txt.letterSpacing,
                     textTransform: txt.uppercase ? "uppercase" : "none",
-                    cursor: "default", whiteSpace: "pre-wrap", userSelect: "none",
+                    cursor: "default", whiteSpace: "pre-wrap", wordBreak: "break-word", overflowWrap: "break-word", userSelect: "none",
                   }}>
                     {txt.content}
                   </div>
@@ -200,6 +201,51 @@ export default function PublicCanvas({
                       }}
                     />
                   )}
+                </div>
+              );
+            })}
+
+            {/* Media embeds */}
+            {(state.medias ?? []).map(media => {
+              const url = media.url?.trim();
+              if (!url) return null;
+              let embedUrl = "";
+              let allow = "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+              try {
+                const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+                if (u.hostname === "open.spotify.com") {
+                  embedUrl = `https://open.spotify.com/embed${u.pathname}?utm_source=generator&theme=0`;
+                } else if (u.hostname === "youtube.com" || u.hostname === "www.youtube.com") {
+                  const id = u.searchParams.get("v");
+                  if (id) { embedUrl = `https://www.youtube.com/embed/${id}?playsinline=1`; allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"; }
+                } else if (u.hostname === "youtu.be") {
+                  const id = u.pathname.slice(1);
+                  if (id) { embedUrl = `https://www.youtube.com/embed/${id}?playsinline=1`; allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"; }
+                } else if (u.hostname.includes("soundcloud.com")) {
+                  embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23888888&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false`;
+                  allow = "autoplay";
+                }
+              } catch { return null; }
+              if (!embedUrl) return null;
+              const ps = getParallaxStyle(media.layer, media.depth);
+              return (
+                <div key={media.id} style={{
+                  position: "absolute", left: media.x, top: media.y, width: media.w, height: media.h,
+                  zIndex: media.zIndex + media.layer * 100,
+                  transform: `${ps.transform} rotate(${media.rotation ?? 0}deg)`, willChange: "transform",
+                  borderRadius: 4, overflow: "hidden",
+                  background: "#0b0b0d", border: "1px solid rgba(255,255,255,0.09)",
+                }}>
+                  <iframe
+                    src={embedUrl}
+                    width="100%"
+                    height="100%"
+                    style={{ border: "none", display: "block" }}
+                    allow={allow}
+                    allowFullScreen
+                    loading="eager"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
                 </div>
               );
             })}

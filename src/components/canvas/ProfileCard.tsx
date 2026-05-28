@@ -562,7 +562,7 @@ function ProfileCard({
                 />
               )}
               {(card.links ?? []).map(link => (
-                <LinkButton key={link.id} link={link} baseColor={baseColor} globalFont={globalFont} />
+                <LinkButton key={link.id} link={link} baseColor={baseColor} globalFont={globalFont} editMode={menuOpen} />
               ))}
             </div>
           )}
@@ -1692,10 +1692,11 @@ function Div() {
 
 // ── LinkButton ────────────────────────────────────────────────────────────────
 
-function LinkButton({ link, baseColor, globalFont }: {
+function LinkButton({ link, baseColor, globalFont, editMode }: {
   link: import("@/types").ProfileLink;
   baseColor: string;
   globalFont: string;
+  editMode?: boolean;
 }) {
   const [hov, setHov] = useState(false);
   const safeUrl =
@@ -1706,7 +1707,7 @@ function LinkButton({ link, baseColor, globalFont }: {
     <div
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      onClick={e => { e.stopPropagation(); if (safeUrl) window.open(safeUrl, "_blank", "noopener,noreferrer"); }}
+      onClick={e => { e.stopPropagation(); if (!editMode && safeUrl) window.open(safeUrl, "_blank", "noopener,noreferrer"); }}
       style={{
         display:              "flex",
         alignItems:           "center",

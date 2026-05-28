@@ -165,6 +165,50 @@ export default function MobilePublicCanvas({
             </div>
           ))}
 
+          {/* Media embeds */}
+          {(state.medias ?? []).map(media => {
+            const url = media.url?.trim();
+            if (!url) return null;
+            let embedUrl = "";
+            let allow = "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+            try {
+              const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+              if (u.hostname === "open.spotify.com") {
+                embedUrl = `https://open.spotify.com/embed${u.pathname}?utm_source=generator&theme=0`;
+              } else if (u.hostname === "youtube.com" || u.hostname === "www.youtube.com") {
+                const id = u.searchParams.get("v");
+                if (id) { embedUrl = `https://www.youtube.com/embed/${id}?playsinline=1`; allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"; }
+              } else if (u.hostname === "youtu.be") {
+                const id = u.pathname.slice(1);
+                if (id) { embedUrl = `https://www.youtube.com/embed/${id}?playsinline=1`; allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"; }
+              } else if (u.hostname.includes("soundcloud.com")) {
+                embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23888888&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false`;
+                allow = "autoplay";
+              }
+            } catch { return null; }
+            if (!embedUrl) return null;
+            return (
+              <div key={media.id} style={{
+                position: "absolute", left: media.x, top: media.y, width: media.w, height: media.h,
+                zIndex: media.zIndex + media.layer * 100,
+                transform: `rotate(${media.rotation ?? 0}deg)`,
+                borderRadius: 4, overflow: "hidden",
+                background: "#0b0b0d", border: "1px solid rgba(255,255,255,0.09)",
+              }}>
+                <iframe
+                  src={embedUrl}
+                  width="100%"
+                  height="100%"
+                  style={{ border: "none", display: "block" }}
+                  allow={allow}
+                  allowFullScreen
+                  loading="eager"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+            );
+          })}
+
           {/* Images */}
           {(state.images ?? []).filter(img => !img.src?.startsWith("blob:")).map(img => {
             const safeLink = img.linkUrl && (img.linkUrl.startsWith("https://") || img.linkUrl.startsWith("http://"))
