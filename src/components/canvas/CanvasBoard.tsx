@@ -33,6 +33,19 @@ import { analytics } from "@/lib/analytics";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
+
+// Returns true when focus is inside an editable field — used to suppress
+// keyboard shortcuts that would conflict with text input.
+function isEditingInput(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
+  if (el.isContentEditable) return true;
+  return false;
+}
+
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB per image
 const LAYER_NAMES = ["Back", "Mid", "Front"] as const;
 
 const CANVAS_H = 3000;
@@ -182,6 +195,16 @@ export default function CanvasBoard({
   const textElRefs     = useRef<Record<string, HTMLDivElement | null>>({});
   const imgElRefs      = useRef<Map<string, HTMLDivElement>>(new Map());
   const selChangedRef  = useRef(false);
+  // ── Keyboard / clipboard / drag ──────────────────────────────────────────────
+  const internalClipboard = useRef<CanvasElement[]>([]);
+  const lastMousePosRef   = useRef({ x: 0, y: 0 });
+  const dragCounterRef    = useRef(0);
+  // Live refs updated each render so [] effects always see current values
+  const elementsRef       = useRef(elements);
+  const selIdsRef         = useRef(selectedIds);
+  const canInteractRef    = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enqueueOpRef      = useRef<(op: any) => void>(() => {});
   const canvasIdRef       = useRef<string | null>(null);
   const savingRef         = useRef(false);
   const lastSavedStateRef = useRef<CanvasState | null>(null);
@@ -203,6 +226,12 @@ export default function CanvasBoard({
   const isReadOnly   = !canEdit;
   // Block pointer interactions on touch-only devices — drag/resize/rotate require mouse
   const canInteract  = canEdit && !isMobile;
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Live ref assignments — always current by the time any event handler fires
+  elementsRef.current    = elements;
+  selIdsRef.current      = selectedIds;
+  canInteractRef.current = canInteract;
 
   // Performance debug — enable in browser: window.__MNEMO_DEBUG_PERF = true
   const _perfRenderCount = useRef(0);
@@ -478,6 +507,96 @@ export default function CanvasBoard({
 
     flushOps();
   }
+  enqueueOpRef.current = enqueueOp;
+
+  // ── Keyboard shortcuts (DELETE / Ctrl+C / Ctrl+V) ────────────────────────────
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (!canInteractRef.current) return;
+      if (isEditingInput()) return;
+
+      // DELETE / BACKSPACE — delete selected elements
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const ids = selIdsRef.current;
+        if (!ids.size) return;
+        elementsRef.current.forEach(el => {
+          if (!ids.has(el.id)) return;
+          if (el.elementType === "image")   enqueueOpRef.current({ type: "delete_image",   id: el.id });
+          else if (el.elementType === "card")    enqueueOpRef.current({ type: "delete_card",    id: el.id });
+          else if (el.elementType === "text")    enqueueOpRef.current({ type: "delete_text",    id: el.id });
+          else if (el.elementType === "gallery") enqueueOpRef.current({ type: "delete_gallery", id: el.id });
+          else if (el.elementType === "profile") enqueueOpRef.current({ type: "delete_profile", id: el.id });
+          else if (el.elementType === "media")   enqueueOpRef.current({ type: "delete_media",   id: el.id });
+        });
+        setSelectedIds(new Set());
+        return;
+      }
+
+      // Ctrl+C — copy selected elements to internal clipboard
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        const ids = selIdsRef.current;
+        if (!ids.size) return;
+        internalClipboard.current = structuredClone(
+          elementsRef.current.filter(el => ids.has(el.id))
+        );
+        return;
+      }
+
+      // Ctrl+V — paste from internal clipboard (canvas elements, not files)
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        const items = internalClipboard.current;
+        if (!items.length) return;
+        const OFFSET = 20;
+        const newIds = new Set<string>();
+        items.forEach(el => {
+          const newId = crypto.randomUUID();
+          newIds.add(newId);
+          zCounter.current += 1;
+          const base = { ...el, id: newId, x: (el as { x: number }).x + OFFSET, y: (el as { y: number }).y + OFFSET, zIndex: zCounter.current };
+          if (el.elementType === "card")    enqueueOpRef.current({ type: "add_card",    card:    { ...base } as CanvasCard });
+          else if (el.elementType === "image")   enqueueOpRef.current({ type: "add_image",   image:   { ...base } as CanvasImageType });
+          else if (el.elementType === "text")    enqueueOpRef.current({ type: "add_text",    text:    { ...base } as CanvasText });
+          else if (el.elementType === "gallery") enqueueOpRef.current({ type: "add_gallery", gallery: { ...base } as CanvasGallery });
+          else if (el.elementType === "profile") enqueueOpRef.current({ type: "add_profile", profile: { ...base } as ProfileCardData });
+          else if (el.elementType === "media")   enqueueOpRef.current({ type: "add_media",   media:   { ...base } as CanvasMedia });
+        });
+        setSelectedIds(newIds);
+        return;
+      }
+
+      // Escape — deselect
+      if (e.key === "Escape") {
+        setSelectedIds(new Set());
+      }
+    }
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Paste image from clipboard (screenshots, Discord, etc.) ──────────────────
+  useEffect(() => {
+    function handler(e: ClipboardEvent) {
+      if (!canInteractRef.current) return;
+      if (isEditingInput()) return;
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const imageFiles = items
+        .filter(item => item.kind === "file" && item.type.startsWith("image/"))
+        .map(item => item.getAsFile())
+        .filter((f): f is File => f !== null);
+      if (!imageFiles.length) return;
+      e.preventDefault();
+      const { x, y } = lastMousePosRef.current;
+      const pos = canvasWrapperRef.current
+        ? { x: x - canvasWrapperRef.current.getBoundingClientRect().left, y: y - canvasWrapperRef.current.getBoundingClientRect().top + (canvasWrapperRef.current.parentElement?.scrollTop ?? 0) }
+        : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      processImageFiles(imageFiles, pos);
+    }
+    document.addEventListener("paste", handler);
+    return () => document.removeEventListener("paste", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function flushOps() {
     if (flushingRef.current) return;
@@ -1016,6 +1135,7 @@ export default function CanvasBoard({
   }
 
   function onGlobalMouseMove(e: React.MouseEvent) {
+    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
     handleMouseMoveParallax(e);
     if(creatingCard&&drawingRect){const cc=toCanvasCoords(e.clientX,e.clientY);setDrawingRect(p=>p?{...p,currentX:cc.x,currentY:cc.y}:null);return;}
     if(selRect&&!dragging&&!resizing&&!rotating){setSelRect(p=>p?{...p,currentX:e.clientX,currentY:e.clientY}:null);return;}
@@ -1148,53 +1268,47 @@ export default function CanvasBoard({
     }
   }
 
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!canInteract) return;
-    if (!canvasIdRef.current) return;
-    const files = Array.from(e.target.files || []);
+  function processImageFiles(files: File[], dropPos?: { x: number; y: number }) {
     for (const f of files) {
+      if (f.size > MAX_FILE_BYTES) continue;
       const localUrl = URL.createObjectURL(f);
       const id = crypto.randomUUID();
       const isGif = f.type === "image/gif";
-
-      // Mostrar inmediatamente con URL local mientras sube en background
       const el = new Image();
       el.onload = () => {
         const maxW = Math.min(el.naturalWidth, 420), ratio = el.naturalHeight / el.naturalWidth;
+        const cx = dropPos?.x ?? (window.innerWidth / 2 + (Math.random() - 0.5) * 400);
+        const cy = dropPos?.y ?? (window.innerHeight / 2 + (Math.random() - 0.5) * 200);
         zCounter.current += 1;
         const newImg: CanvasImageType = {
           id, src: localUrl, isLocal: true,
-          ...clampToViewport(window.innerWidth / 2 + (Math.random() - 0.5) * 400, window.innerHeight / 2 + (Math.random() - 0.5) * 200, maxW, Math.round(maxW * ratio)),
-          w: maxW, h: Math.round(maxW*ratio),
+          ...clampToViewport(cx - maxW / 2, cy - Math.round(maxW * ratio) / 2, maxW, Math.round(maxW * ratio)),
+          w: maxW, h: Math.round(maxW * ratio),
           naturalW: el.naturalWidth, naturalH: el.naturalHeight,
           isTransparent: f.type !== "image/jpeg",
           zIndex: zCounter.current, layer: isGif ? 1 : 0,
           depth: 0.5, rotation: 0,
           isPublic: canvasModeRef.current === "space" ? true : undefined,
         };
-        enqueueOp({ type: "add_image", image: newImg });
-
+        enqueueOpRef.current({ type: "add_image", image: newImg });
         const uploadSession = sessionIdRef.current;
         uploadToStorage(f)
           .then(({ publicUrl, storagePath }) => {
-            if (!publicUrl) {
-              enqueueOp({ type: "delete_image", id });
-              return;
-            }
-            if (uploadSession !== sessionIdRef.current) {
-              URL.revokeObjectURL(localUrl);
-              return;
-            }
-            enqueueOp({ type: "update_image", id, patch: { src: publicUrl, isLocal: false, storage_path: storagePath } });
+            if (!publicUrl) { enqueueOpRef.current({ type: "delete_image", id }); return; }
+            if (uploadSession !== sessionIdRef.current) { URL.revokeObjectURL(localUrl); return; }
+            enqueueOpRef.current({ type: "update_image", id, patch: { src: publicUrl, isLocal: false, storage_path: storagePath } });
             URL.revokeObjectURL(localUrl);
           })
-          .catch(() => {
-            enqueueOp({ type: "delete_image", id });
-            URL.revokeObjectURL(localUrl);
-          });
+          .catch(() => { enqueueOpRef.current({ type: "delete_image", id }); URL.revokeObjectURL(localUrl); });
       };
       el.src = localUrl;
     }
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!canInteract) return;
+    if (!canvasIdRef.current) return;
+    processImageFiles(Array.from(e.target.files || []));
     setMenuOpen(false);
     if (imageRef.current) imageRef.current.value = "";
   }
@@ -1268,7 +1382,37 @@ export default function CanvasBoard({
 
       {/* ── Canvas content wrapper ── */}
       {view === "canvas" && (
-      <div ref={canvasWrapperRef} suppressHydrationWarning style={{ position: "relative", width: logicalW.current, minHeight: CANVAS_H, zIndex: 1, overflow: "hidden", flexShrink: 0 }}>
+      <div ref={canvasWrapperRef} suppressHydrationWarning style={{ position: "relative", width: logicalW.current, minHeight: CANVAS_H, zIndex: 1, overflow: "hidden", flexShrink: 0 }}
+        onDragEnter={e => {
+          if (!canInteract) return;
+          e.preventDefault();
+          dragCounterRef.current += 1;
+          setIsDragOver(true);
+        }}
+        onDragOver={e => {
+          if (!canInteract) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }}
+        onDragLeave={() => {
+          if (!canInteract) return;
+          dragCounterRef.current -= 1;
+          if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setIsDragOver(false); }
+        }}
+        onDrop={e => {
+          if (!canInteract) return;
+          e.preventDefault();
+          dragCounterRef.current = 0;
+          setIsDragOver(false);
+          const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+          if (!files.length) return;
+          const rect = canvasWrapperRef.current?.getBoundingClientRect();
+          const pos = rect
+            ? { x: e.clientX - rect.left, y: e.clientY - rect.top + (canvasWrapperRef.current?.parentElement?.scrollTop ?? 0) }
+            : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+          processImageFiles(files, pos);
+        }}
+      >
 
       {/* Grid overlay */}
 
@@ -1480,6 +1624,18 @@ export default function CanvasBoard({
       {view==="canvas"&&groupBounds&&!dragging&&!resizing&&!rotating&&(
         <div style={{position:"absolute",left:groupBounds.x-4,top:groupBounds.y-4,width:groupBounds.w+8,height:groupBounds.h+8,border:"1px dashed rgba(255,255,255,0.1)",borderRadius:6,pointerEvents:"none",zIndex:900}}>
           <div onMouseDown={e=>startGroupResize(e,groupBounds)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.6)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",pointerEvents:"all"}} />
+        </div>
+      )}
+
+      {/* Drop overlay */}
+      {isDragOver && (
+        <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,background:"rgba(8,8,10,0.82)",backdropFilter:"blur(8px)",pointerEvents:"none"}}>
+          <div style={{width:72,height:72,borderRadius:20,border:"2px dashed rgba(212,240,196,0.5)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 40px rgba(212,240,196,0.12)"}}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(212,240,196,0.7)" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:3,color:"rgba(212,240,196,0.6)",textTransform:"uppercase"}}>DROP IMAGES</span>
         </div>
       )}
 
