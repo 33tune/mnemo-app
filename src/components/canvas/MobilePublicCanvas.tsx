@@ -230,7 +230,8 @@ export default function MobilePublicCanvas({
 
           {/* Profiles */}
           {(state.profiles ?? []).map(profile => {
-            const hasPhoto = profile.photo && !profile.photo.startsWith("blob:");
+            const hasPhoto  = profile.photo   && !profile.photo.startsWith("blob:");
+            const hasBgImg  = profile.bgImage && !profile.bgImage.startsWith("blob:");
             const links = (profile.links ?? []).filter(l => l.url);
             return (
               <div key={profile.id} style={{
@@ -238,10 +239,13 @@ export default function MobilePublicCanvas({
                 zIndex: profile.zIndex + profile.layer * 100,
                 transform: `rotate(${profile.rotation ?? 0}deg)`,
                 borderRadius: profile.borderRadius, opacity: profile.opacity, cursor: "default",
-                background: profile.bgColor || "rgba(255,255,255,0.04)",
+                ...(hasBgImg
+                  ? bgImageStyle(profile.bgImage, profile.bgMode)
+                  : { background: profile.bgColor || "rgba(255,255,255,0.04)" }),
                 border: "1px solid rgba(255,255,255,0.06)",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 gap: 8, padding: 16,
+                overflow: "hidden",
               }}>
                 {hasPhoto && <img src={profile.photo} alt="" draggable={false} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />}
                 {profile.name && <span style={{ fontFamily: SANS, fontSize: 14, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>{profile.name}</span>}
