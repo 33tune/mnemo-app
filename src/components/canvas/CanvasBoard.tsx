@@ -509,19 +509,61 @@ export default function CanvasBoard({
   }
   enqueueOpRef.current = enqueueOp;
 
-  // ── Keyboard shortcuts (DELETE / Ctrl+C / Ctrl+V) ────────────────────────────
+  // ── Keyboard shortcuts (DELETE / Ctrl+C / Ctrl+V / Ctrl+D) ──────────────────
   useEffect(() => {
+    // Viewport → canvas coordinate conversion (accounts for scroll)
+    function toCanvasPos(clientX: number, clientY: number) {
+      const rect   = canvasWrapperRef.current?.getBoundingClientRect();
+      const scroll = canvasWrapperRef.current?.parentElement?.scrollTop ?? 0;
+      if (!rect) return null;
+      return { x: clientX - rect.left, y: clientY - rect.top + scroll };
+    }
+
+    // Paste items centered on mousePos, or offset by +24 if no valid mouse pos
+    function pasteItems(items: CanvasElement[], mousePos: { x: number; y: number } | null) {
+      if (!items.length) return;
+      let dx = 24, dy = 24;
+      if (mousePos) {
+        const xs = items.map(el => (el as { x: number }).x);
+        const ys = items.map(el => (el as { y: number }).y);
+        const ws = items.map(el => (el as { w?: number }).w ?? 0);
+        const hs = items.map(el => (el as { h?: number }).h ?? 0);
+        const cx = (Math.min(...xs) + Math.max(...xs.map((x, i) => x + ws[i]))) / 2;
+        const cy = (Math.min(...ys) + Math.max(...ys.map((y, i) => y + hs[i]))) / 2;
+        dx = mousePos.x - cx;
+        dy = mousePos.y - cy;
+      }
+      const newIds = new Set<string>();
+      items.forEach(el => {
+        const newId = crypto.randomUUID();
+        newIds.add(newId);
+        zCounter.current += 1;
+        const base = {
+          ...el, id: newId,
+          x: (el as { x: number }).x + dx,
+          y: (el as { y: number }).y + dy,
+          zIndex: zCounter.current,
+        };
+        if      (el.elementType === "card")    enqueueOpRef.current({ type: "add_card",    card:    base as CanvasCard });
+        else if (el.elementType === "image")   enqueueOpRef.current({ type: "add_image",   image:   base as CanvasImageType });
+        else if (el.elementType === "text")    enqueueOpRef.current({ type: "add_text",    text:    base as CanvasText });
+        else if (el.elementType === "gallery") enqueueOpRef.current({ type: "add_gallery", gallery: base as CanvasGallery });
+        else if (el.elementType === "media")   enqueueOpRef.current({ type: "add_media",   media:   base as CanvasMedia });
+      });
+      setSelectedIds(newIds);
+    }
+
     function handler(e: KeyboardEvent) {
       if (!canInteractRef.current) return;
       if (isEditingInput()) return;
 
-      // DELETE / BACKSPACE — delete selected elements
+      // DELETE / BACKSPACE — same path as trash: enqueueOp handles storage + DB cleanup
       if (e.key === "Delete" || e.key === "Backspace") {
         const ids = selIdsRef.current;
         if (!ids.size) return;
         elementsRef.current.forEach(el => {
           if (!ids.has(el.id)) return;
-          if (el.elementType === "image")   enqueueOpRef.current({ type: "delete_image",   id: el.id });
+          if      (el.elementType === "image")   enqueueOpRef.current({ type: "delete_image",   id: el.id });
           else if (el.elementType === "card")    enqueueOpRef.current({ type: "delete_card",    id: el.id });
           else if (el.elementType === "text")    enqueueOpRef.current({ type: "delete_text",    id: el.id });
           else if (el.elementType === "gallery") enqueueOpRef.current({ type: "delete_gallery", id: el.id });
@@ -532,39 +574,41 @@ export default function CanvasBoard({
         return;
       }
 
-      // Ctrl+C — copy selected elements to internal clipboard
+      // Ctrl+C — deep-clone selection into internal clipboard (ProfileCards excluded)
       if ((e.ctrlKey || e.metaKey) && e.key === "c") {
         const ids = selIdsRef.current;
         if (!ids.size) return;
         internalClipboard.current = structuredClone(
-          elementsRef.current.filter(el => ids.has(el.id))
+          elementsRef.current.filter(el => ids.has(el.id) && el.elementType !== "profile")
         );
         return;
       }
 
-      // Ctrl+V — paste from internal clipboard (canvas elements, not files)
+      // Ctrl+V — paste clipboard elements centered at current mouse position
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
         const items = internalClipboard.current;
         if (!items.length) return;
-        const OFFSET = 20;
-        const newIds = new Set<string>();
-        items.forEach(el => {
-          const newId = crypto.randomUUID();
-          newIds.add(newId);
-          zCounter.current += 1;
-          const base = { ...el, id: newId, x: (el as { x: number }).x + OFFSET, y: (el as { y: number }).y + OFFSET, zIndex: zCounter.current };
-          if (el.elementType === "card")    enqueueOpRef.current({ type: "add_card",    card:    { ...base } as CanvasCard });
-          else if (el.elementType === "image")   enqueueOpRef.current({ type: "add_image",   image:   { ...base } as CanvasImageType });
-          else if (el.elementType === "text")    enqueueOpRef.current({ type: "add_text",    text:    { ...base } as CanvasText });
-          else if (el.elementType === "gallery") enqueueOpRef.current({ type: "add_gallery", gallery: { ...base } as CanvasGallery });
-          else if (el.elementType === "profile") enqueueOpRef.current({ type: "add_profile", profile: { ...base } as ProfileCardData });
-          else if (el.elementType === "media")   enqueueOpRef.current({ type: "add_media",   media:   { ...base } as CanvasMedia });
-        });
-        setSelectedIds(newIds);
+        e.preventDefault();
+        const m = lastMousePosRef.current;
+        pasteItems(items, m.x || m.y ? toCanvasPos(m.x, m.y) : null);
         return;
       }
 
-      // Escape — deselect
+      // Ctrl+D — duplicate selection centered at current mouse position
+      if ((e.ctrlKey || e.metaKey) && e.key === "d") {
+        e.preventDefault();
+        const ids = selIdsRef.current;
+        if (!ids.size) return;
+        const toDup = structuredClone(
+          elementsRef.current.filter(el => ids.has(el.id) && el.elementType !== "profile")
+        );
+        if (!toDup.length) return;
+        const m = lastMousePosRef.current;
+        pasteItems(toDup, m.x || m.y ? toCanvasPos(m.x, m.y) : null);
+        return;
+      }
+
+      // Escape — clear selection
       if (e.key === "Escape") {
         setSelectedIds(new Set());
       }
