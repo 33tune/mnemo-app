@@ -106,7 +106,15 @@ export type CanvasGallery = {
 
 export type PhotoSize = "sm" | "md" | "lg";
 
-export type ProfileLink = { id: string; url: string; label: string; icon?: string };
+export type ProfileLink = {
+  id:     string;
+  url:    string;
+  label:  string;
+  icon?:  string;
+  x?:     number;  // % position within card
+  y?:     number;
+  scale?: number;
+};
 
 export type MediaType = "spotify" | "youtube" | "soundcloud";
 
@@ -179,6 +187,19 @@ export type ProfileCardData = {
   linksX?:        number;
   linksY?:        number;
   linksScale?:    number;
+  // Per-element identity positions (independent of the legacy textX/Y block)
+  nameX?:         number;
+  nameY?:         number;
+  nameScale?:     number;
+  statusX?:       number;
+  statusY?:       number;
+  statusScale?:   number;
+  handleX?:       number;
+  handleY?:       number;
+  handleScale?:   number;
+  bioX?:          number;
+  bioY?:          number;
+  bioScale?:      number;
   bio?:           string;
   links?:         ProfileLink[];
   mood?:          string;

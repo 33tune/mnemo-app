@@ -64,7 +64,7 @@ interface Props {
   onOpenSocialPanel?:   (mode: "followers" | "following") => void;
 }
 
-type DragTarget = "photo" | "text" | "stats" | "follow" | "message" | "favorite" | "links";
+type DragTarget = "photo" | "name" | "bio" | "status" | "handle" | "stats" | "follow" | "message" | "favorite";
 
 // Shared easing
 const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
@@ -80,8 +80,9 @@ function ProfileCard({
   const [msgHover,     setMsgHover]     = useState(false);
   const [favHover,     setFavHover]     = useState(false);
   const [favAnimating, setFavAnimating] = useState(false);
-  const [draggingEl,   setDraggingEl]   = useState<DragTarget | null>(null);
-  const [editingField, setEditingField] = useState<"name" | "status" | null>(null);
+  const [draggingEl,     setDraggingEl]     = useState<DragTarget | null>(null);
+  const [draggingLinkId, setDraggingLinkId] = useState<string | null>(null);
+  const [editingField,   setEditingField]   = useState<"name" | "status" | null>(null);
   const [newLinkUrl,   setNewLinkUrl]   = useState("");
   const [newLinkLabel, setNewLinkLabel] = useState("");
   const [newLinkIcon,  setNewLinkIcon]  = useState("");
@@ -131,8 +132,9 @@ function ProfileCard({
   // Positions — backward compat defaults
   const photoX    = card.photoX    ?? 50;
   const photoY    = card.photoY    ?? 34;
-  const textX     = card.textX     ?? 50;
-  const textY     = card.textY     ?? 72;
+  // Legacy block anchor (kept as fallback for new per-element positions)
+  const _textX    = card.textX     ?? 50;
+  const _textY    = card.textY     ?? 72;
   const statsX    = card.statsX    ?? 50;
   const statsY    = card.statsY    ?? 85;
   const followX   = card.followX   ?? 30;
@@ -142,8 +144,21 @@ function ProfileCard({
   const favoriteX = card.favoriteX ?? 70;
   const favoriteY = card.favoriteY ?? 92;
 
+  // Per-element identity positions — fall back to legacy textX/Y block anchor
+  const nameX     = card.nameX     ?? _textX;
+  const nameY     = card.nameY     ?? _textY;
+  const statusX   = card.statusX   ?? _textX;
+  const statusY   = card.statusY   ?? (_textY + 8);
+  const handleX   = card.handleX   ?? _textX;
+  const handleY   = card.handleY   ?? (_textY + 13);
+  const bioX      = card.bioX      ?? _textX;
+  const bioY      = card.bioY      ?? (_textY + 19);
+
   const photoScale    = card.photoScale    ?? 1;
-  const textScale     = card.textScale     ?? 1;
+  const nameScale     = card.nameScale     ?? (card.textScale ?? 1);
+  const statusScale   = card.statusScale   ?? 1;
+  const handleScale   = card.handleScale   ?? 1;
+  const bioScale      = card.bioScale      ?? 1;
   const statsScale    = card.statsScale    ?? 1;
   const followScale   = card.followScale   ?? 1;
   const messageScale  = card.messageScale  ?? 1;
@@ -186,21 +201,25 @@ function ProfileCard({
     setDraggingEl(which);
 
     const sx =
-      which === "photo"    ? photoX    :
-      which === "text"     ? textX     :
-      which === "stats"    ? statsX    :
-      which === "follow"   ? followX   :
-      which === "message"  ? messageX  :
-      which === "links"    ? linksX    :
-                             favoriteX;
+      which === "photo"   ? photoX   :
+      which === "name"    ? nameX    :
+      which === "status"  ? statusX  :
+      which === "handle"  ? handleX  :
+      which === "bio"     ? bioX     :
+      which === "stats"   ? statsX   :
+      which === "follow"  ? followX  :
+      which === "message" ? messageX :
+                            favoriteX;
     const sy =
-      which === "photo"    ? photoY    :
-      which === "text"     ? textY     :
-      which === "stats"    ? statsY    :
-      which === "follow"   ? followY   :
-      which === "message"  ? messageY  :
-      which === "links"    ? linksY    :
-                             favoriteY;
+      which === "photo"   ? photoY   :
+      which === "name"    ? nameY    :
+      which === "status"  ? statusY  :
+      which === "handle"  ? handleY  :
+      which === "bio"     ? bioY     :
+      which === "stats"   ? statsY   :
+      which === "follow"  ? followY  :
+      which === "message" ? messageY :
+                            favoriteY;
     const mx0 = e.clientX;
     const my0 = e.clientY;
 
@@ -209,13 +228,15 @@ function ProfileCard({
       const nx = Math.max(5, Math.min(95, sx + ((ev.clientX - mx0) / r.width)  * 100));
       const ny = Math.max(5, Math.min(95, sy + ((ev.clientY - my0) / r.height) * 100));
       const patch: Partial<ProfileCardData> =
-        which === "photo"    ? { photoX:    nx, photoY:    ny } :
-        which === "text"     ? { textX:     nx, textY:     ny } :
-        which === "stats"    ? { statsX:    nx, statsY:    ny } :
-        which === "follow"   ? { followX:   nx, followY:   ny } :
-        which === "message"  ? { messageX:  nx, messageY:  ny } :
-        which === "links"    ? { linksX:    nx, linksY:    ny } :
-                               { favoriteX: nx, favoriteY: ny };
+        which === "photo"   ? { photoX:    nx, photoY:    ny } :
+        which === "name"    ? { nameX:     nx, nameY:     ny } :
+        which === "status"  ? { statusX:   nx, statusY:   ny } :
+        which === "handle"  ? { handleX:   nx, handleY:   ny } :
+        which === "bio"     ? { bioX:      nx, bioY:      ny } :
+        which === "stats"   ? { statsX:    nx, statsY:    ny } :
+        which === "follow"  ? { followX:   nx, followY:   ny } :
+        which === "message" ? { messageX:  nx, messageY:  ny } :
+                              { favoriteX: nx, favoriteY: ny };
       updateProfile(card.id, patch);
     }
 
@@ -230,11 +251,11 @@ function ProfileCard({
   }
 
   // ── Scale photo / text / stats ────────────────────────────────────────────
-  function startElResize(which: "photo" | "text" | "stats", e: React.MouseEvent) {
+  function startElResize(which: "photo" | "stats", e: React.MouseEvent) {
     if (!menuOpen) return;
     e.stopPropagation();
     e.preventDefault();
-    const s0  = which === "photo" ? photoScale : which === "text" ? textScale : statsScale;
+    const s0  = which === "photo" ? photoScale : statsScale;
     const mx0 = e.clientX;
     const my0 = e.clientY;
 
@@ -242,9 +263,7 @@ function ProfileCard({
       const delta = (ev.clientX - mx0 + ev.clientY - my0) / 100;
       const ns    = Math.max(0.3, Math.min(4, s0 + delta));
       const patch: Partial<ProfileCardData> =
-        which === "photo" ? { photoScale: ns } :
-        which === "text"  ? { textScale:  ns } :
-                            { statsScale: ns };
+        which === "photo" ? { photoScale: ns } : { statsScale: ns };
       updateProfile(card.id, patch);
     }
 
@@ -266,9 +285,11 @@ function ProfileCard({
       if (which === "follow")   return followScale;
       if (which === "message")  return messageScale;
       if (which === "favorite") return favoriteScale;
-      if (which === "text")     return textScale;
+      if (which === "name")     return nameScale;
+      if (which === "status")   return statusScale;
+      if (which === "handle")   return handleScale;
+      if (which === "bio")      return bioScale;
       if (which === "stats")    return statsScale;
-      if (which === "links")    return linksScale;
       return 1;
     };
     const startScale = getScale();
@@ -279,9 +300,11 @@ function ProfileCard({
         if (which === "follow")   updateProfile(card.id, { followScale:   newScale });
         if (which === "message")  updateProfile(card.id, { messageScale:  newScale });
         if (which === "favorite") updateProfile(card.id, { favoriteScale: newScale });
-        if (which === "text")     updateProfile(card.id, { textScale:     newScale });
+        if (which === "name")     updateProfile(card.id, { nameScale:     newScale });
+        if (which === "status")   updateProfile(card.id, { statusScale:   newScale });
+        if (which === "handle")   updateProfile(card.id, { handleScale:   newScale });
+        if (which === "bio")      updateProfile(card.id, { bioScale:      newScale });
         if (which === "stats")    updateProfile(card.id, { statsScale:    newScale });
-        if (which === "links")    updateProfile(card.id, { linksScale:    newScale });
       } catch (err) {
         console.error("scale error", err);
       }
@@ -292,6 +315,52 @@ function ProfileCard({
       document.removeEventListener("mouseup",   onUp);
     }
 
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup",   onUp);
+  }
+
+  function startLinkDrag(linkId: string, lx: number, ly: number, e: React.MouseEvent) {
+    if (!menuOpen) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = innerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDraggingLinkId(linkId);
+    const mx0 = e.clientX;
+    const my0 = e.clientY;
+    const links0 = card.links ?? [];
+    function onMove(ev: MouseEvent) {
+      const r  = innerRef.current?.getBoundingClientRect() ?? rect;
+      const nx = Math.max(5, Math.min(95, lx + ((ev.clientX - mx0) / r.width)  * 100));
+      const ny = Math.max(5, Math.min(95, ly + ((ev.clientY - my0) / r.height) * 100));
+      updateProfile(card.id, {
+        links: links0.map(l => l.id === linkId ? { ...l, x: nx, y: ny } : l),
+      });
+    }
+    function onUp() {
+      setDraggingLinkId(null);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup",   onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup",   onUp);
+  }
+
+  function startLinkScale(linkId: string, s0: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    const startY = e.clientY;
+    const links0 = card.links ?? [];
+    function onMove(ev: MouseEvent) {
+      const ns = Math.max(0.4, Math.min(2.5, s0 + (ev.clientY - startY) * 0.004));
+      updateProfile(card.id, {
+        links: links0.map(l => l.id === linkId ? { ...l, scale: ns } : l),
+      });
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup",   onUp);
+    }
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup",   onUp);
   }
@@ -445,39 +514,29 @@ function ProfileCard({
             </div>
           </div>
 
-          {/* ── Text block ── */}
+          {/* ── Name ── */}
+          {(card.name || menuOpen) && (
           <div
-            onMouseDown={e => startElDrag("text", e)}
+            onMouseDown={e => startElDrag("name", e)}
             style={{
               position:      "absolute",
-              left:          `${textX}%`,
-              top:           `${textY}%`,
-              transform:     `translate(-50%, -50%) scale(${dragScale("text", textScale)})`,
-              cursor:        dragCursor("text"),
+              left:          `${nameX}%`,
+              top:           `${nameY}%`,
+              transform:     `translate(-50%, -50%) scale(${dragScale("name", nameScale)})`,
+              cursor:        dragCursor("name"),
               pointerEvents: menuOpen ? "auto" : "none",
               textAlign:     "center",
               whiteSpace:    "nowrap",
-              filter:        dragFilter("text"),
+              filter:        dragFilter("name"),
               transition:    `filter 0.12s ${EASE}, transform 0.12s ${EASE}`,
             }}
           >
             {menuOpen && (
               <div style={{
                 position: "absolute", inset: "-6px -12px", borderRadius: 7,
-                border: dashBorder("text"), pointerEvents: "none",
+                border: dashBorder("name"), pointerEvents: "none",
                 transition: "border-color 0.12s",
               }} />
-            )}
-            {menuOpen && (
-              <div
-                onMouseDown={e => startElResize("text", e)}
-                style={{
-                  position: "absolute", bottom: -4, right: -4,
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: "rgba(255,255,255,0.7)",
-                  cursor: "nwse-resize", zIndex: 10,
-                }}
-              />
             )}
             <div style={{
               fontFamily: globalFont, fontSize: nameFontSize,
@@ -485,87 +544,156 @@ function ProfileCard({
             }}>
               {card.name || (menuOpen ? "nombre" : "")}
             </div>
-
-            {(card.status || menuOpen) && (
-              <div style={{
-                fontFamily: globalFont, fontSize: statusFontSize,
-                fontWeight: 500, color: secondaryColor, marginTop: 4,
-              }}>
-                {card.status || (menuOpen ? "estado" : "")}
-              </div>
-            )}
-
-            {(card.handle || menuOpen) && (
-              <div style={{
-                fontFamily: globalFont, fontSize: 9,
-                color: faintColor, marginTop: 5,
-              }}>
-                {card.handle ? `@${card.handle}` : (menuOpen ? "@handle" : "")}
-              </div>
-            )}
-
-            {card.bio && (
-              <div style={{
-                fontFamily: MONO,
-                fontSize:   7.5,
-                color:      withOpacity(baseColor, 0.42),
-                marginTop:  5,
-                maxWidth:   "110px",
-                whiteSpace: "normal" as React.CSSProperties["whiteSpace"],
-                lineHeight: 1.55,
-                textAlign:  "center" as React.CSSProperties["textAlign"],
-                wordBreak:  "break-word" as React.CSSProperties["wordBreak"],
-              }}>
-                {card.bio}
-              </div>
-            )}
-
-
           </div>
-
-          {/* ── Links block ── */}
-          {(card.links ?? []).length > 0 && (
-            <div
-              onMouseDown={e => startElDrag("links", e)}
-              style={{
-                position:      "absolute",
-                left:          `${linksX}%`,
-                top:           `${linksY}%`,
-                transform:     `translate(-50%, -50%) scale(${dragScale("links", linksScale)})`,
-                cursor:        dragCursor("links"),
-                pointerEvents: "auto",
-                filter:        dragFilter("links"),
-                transition:    `filter 0.12s ${EASE}, transform 0.12s ${EASE}`,
-                display:       "flex",
-                flexDirection: "column",
-                gap:           5,
-                alignItems:    "center",
-                zIndex:        5,
-              }}
-            >
-              {menuOpen && (
-                <div style={{
-                  position: "absolute", inset: "-6px -8px", borderRadius: 8,
-                  border: dashBorder("links"), pointerEvents: "none",
-                  transition: "border-color 0.12s",
-                }} />
-              )}
-              {menuOpen && (
-                <div
-                  onMouseDown={e => startScaleDrag("links", e)}
-                  style={{
-                    position: "absolute", bottom: -6, right: -6,
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: "rgba(255,255,255,0.7)",
-                    cursor: "ns-resize", zIndex: 10,
-                  }}
-                />
-              )}
-              {(card.links ?? []).map(link => (
-                <LinkButton key={link.id} link={link} baseColor={baseColor} globalFont={globalFont} editMode={menuOpen} />
-              ))}
-            </div>
           )}
+
+          {/* ── Status ── */}
+          {(card.status || menuOpen) && (
+          <div
+            onMouseDown={e => startElDrag("status", e)}
+            style={{
+              position:      "absolute",
+              left:          `${statusX}%`,
+              top:           `${statusY}%`,
+              transform:     `translate(-50%, -50%) scale(${dragScale("status", statusScale)})`,
+              cursor:        dragCursor("status"),
+              pointerEvents: menuOpen ? "auto" : "none",
+              textAlign:     "center",
+              whiteSpace:    "nowrap",
+              filter:        dragFilter("status"),
+              transition:    `filter 0.12s ${EASE}, transform 0.12s ${EASE}`,
+            }}
+          >
+            {menuOpen && (
+              <div style={{
+                position: "absolute", inset: "-6px -12px", borderRadius: 7,
+                border: dashBorder("status"), pointerEvents: "none",
+                transition: "border-color 0.12s",
+              }} />
+            )}
+            <div style={{
+              fontFamily: globalFont, fontSize: statusFontSize,
+              fontWeight: 500, color: secondaryColor,
+            }}>
+              {card.status || (menuOpen ? "estado" : "")}
+            </div>
+          </div>
+          )}
+
+          {/* ── Handle ── */}
+          {(card.handle || menuOpen) && (
+          <div
+            onMouseDown={e => startElDrag("handle", e)}
+            style={{
+              position:      "absolute",
+              left:          `${handleX}%`,
+              top:           `${handleY}%`,
+              transform:     `translate(-50%, -50%) scale(${dragScale("handle", handleScale)})`,
+              cursor:        dragCursor("handle"),
+              pointerEvents: menuOpen ? "auto" : "none",
+              textAlign:     "center",
+              whiteSpace:    "nowrap",
+              filter:        dragFilter("handle"),
+              transition:    `filter 0.12s ${EASE}, transform 0.12s ${EASE}`,
+            }}
+          >
+            {menuOpen && (
+              <div style={{
+                position: "absolute", inset: "-6px -12px", borderRadius: 7,
+                border: dashBorder("handle"), pointerEvents: "none",
+                transition: "border-color 0.12s",
+              }} />
+            )}
+            <div style={{
+              fontFamily: globalFont, fontSize: 9, color: faintColor,
+            }}>
+              {card.handle ? `@${card.handle}` : (menuOpen ? "@handle" : "")}
+            </div>
+          </div>
+          )}
+
+          {/* ── Bio ── */}
+          {card.bio && (
+          <div
+            onMouseDown={e => startElDrag("bio", e)}
+            style={{
+              position:      "absolute",
+              left:          `${bioX}%`,
+              top:           `${bioY}%`,
+              transform:     `translate(-50%, -50%) scale(${dragScale("bio", bioScale)})`,
+              cursor:        dragCursor("bio"),
+              pointerEvents: menuOpen ? "auto" : "none",
+              textAlign:     "center",
+              filter:        dragFilter("bio"),
+              transition:    `filter 0.12s ${EASE}, transform 0.12s ${EASE}`,
+            }}
+          >
+            {menuOpen && (
+              <div style={{
+                position: "absolute", inset: "-6px -12px", borderRadius: 7,
+                border: dashBorder("bio"), pointerEvents: "none",
+                transition: "border-color 0.12s",
+              }} />
+            )}
+            <div style={{
+              fontFamily: MONO,
+              fontSize:   7.5,
+              color:      withOpacity(baseColor, 0.42),
+              maxWidth:   "110px",
+              whiteSpace: "normal" as React.CSSProperties["whiteSpace"],
+              lineHeight: 1.55,
+              textAlign:  "center" as React.CSSProperties["textAlign"],
+              wordBreak:  "break-word" as React.CSSProperties["wordBreak"],
+            }}>
+              {card.bio}
+            </div>
+          </div>
+          )}
+
+          {/* ── Links (individually positioned) ── */}
+          {(card.links ?? []).filter(l => l.url).map((link, idx) => {
+            const lx = link.x ?? linksX;
+            const ly = link.y ?? (linksY + idx * 8);
+            const ls = link.scale ?? linksScale;
+            return (
+              <div
+                key={link.id}
+                onMouseDown={e => startLinkDrag(link.id, lx, ly, e)}
+                style={{
+                  position:      "absolute",
+                  left:          `${lx}%`,
+                  top:           `${ly}%`,
+                  transform:     `translate(-50%, -50%) scale(${draggingLinkId === link.id ? ls * 1.02 : ls})`,
+                  cursor:        draggingLinkId === link.id ? "grabbing" : menuOpen ? "grab" : "default",
+                  pointerEvents: "auto",
+                  filter:        draggingLinkId === link.id ? "drop-shadow(0 0 10px rgba(255,255,255,0.15))" : "none",
+                  transition:    `filter 0.12s ${EASE}, transform 0.12s ${EASE}`,
+                  zIndex:        5,
+                }}
+              >
+                {menuOpen && (
+                  <div style={{
+                    position: "absolute", inset: "-6px -8px", borderRadius: 8,
+                    border: `1px dashed rgba(255,255,255,${draggingLinkId === link.id ? 0.52 : 0.22})`,
+                    pointerEvents: "none",
+                    transition: "border-color 0.12s",
+                  }} />
+                )}
+                {menuOpen && (
+                  <div
+                    onMouseDown={e => startLinkScale(link.id, ls, e)}
+                    style={{
+                      position: "absolute", bottom: -6, right: -6,
+                      width: 8, height: 8, borderRadius: "50%",
+                      background: "rgba(255,255,255,0.7)",
+                      cursor: "ns-resize", zIndex: 10,
+                    }}
+                  />
+                )}
+                <LinkButton link={link} baseColor={baseColor} globalFont={globalFont} editMode={menuOpen} />
+              </div>
+            );
+          })}
 
           {/* ── Stats block ── */}
           <div
