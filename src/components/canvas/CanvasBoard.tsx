@@ -197,6 +197,7 @@ export default function CanvasBoard({
   const selChangedRef  = useRef(false);
   // ── Keyboard / clipboard / drag ──────────────────────────────────────────────
   const internalClipboard = useRef<CanvasElement[]>([]);
+  const undoStackRef      = useRef<Array<() => void>>([]);
   const lastMousePosRef   = useRef({ x: 0, y: 0 });
   const dragCounterRef    = useRef(0);
   // Live refs updated each render so [] effects always see current values
@@ -226,7 +227,8 @@ export default function CanvasBoard({
   const isReadOnly   = !canEdit;
   // Block pointer interactions on touch-only devices — drag/resize/rotate require mouse
   const canInteract  = canEdit && !isMobile;
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [isDragOver,  setIsDragOver]  = useState(false);
+  const [linkEditId,  setLinkEditId]  = useState<string | null>(null);
 
   // Live ref assignments — always current by the time any event handler fires
   elementsRef.current    = elements;
@@ -509,7 +511,12 @@ export default function CanvasBoard({
   }
   enqueueOpRef.current = enqueueOp;
 
-  // ── Keyboard shortcuts (DELETE / Ctrl+C / Ctrl+V / Ctrl+D) ──────────────────
+  // Close link editor when its image is deselected
+  useEffect(() => {
+    if (linkEditId !== null && !selectedIds.has(linkEditId)) setLinkEditId(null);
+  }, [selectedIds, linkEditId]);
+
+  // ── Keyboard shortcuts (DELETE / Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+Z) ──────────
   useEffect(() => {
     // Viewport → canvas coordinate conversion (accounts for scroll)
     function toCanvasPos(clientX: number, clientY: number) {
@@ -519,7 +526,15 @@ export default function CanvasBoard({
       return { x: clientX - rect.left, y: clientY - rect.top + scroll };
     }
 
-    // Paste items centered on mousePos, or offset by +24 if no valid mouse pos
+    const MAX_UNDO = 50;
+
+    function pushUndo(fn: () => void) {
+      undoStackRef.current.push(fn);
+      if (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift();
+    }
+
+    // Paste items centered on mousePos (or +24px offset).
+    // Pushes an undo entry that deletes the newly created elements.
     function pasteItems(items: CanvasElement[], mousePos: { x: number; y: number } | null) {
       if (!items.length) return;
       let dx = 24, dy = 24;
@@ -533,16 +548,19 @@ export default function CanvasBoard({
         dx = mousePos.x - cx;
         dy = mousePos.y - cy;
       }
-      const newIds = new Set<string>();
+      const newIds: string[] = [];
       items.forEach(el => {
         const newId = crypto.randomUUID();
-        newIds.add(newId);
+        newIds.push(newId);
         zCounter.current += 1;
         const base = {
           ...el, id: newId,
           x: (el as { x: number }).x + dx,
           y: (el as { y: number }).y + dy,
           zIndex: zCounter.current,
+          // Don't inherit storage_path: pasted images share the src URL with the
+          // original; if the copy is deleted we must not remove the shared file.
+          ...(el.elementType === "image" ? { storage_path: undefined, isLocal: false } : {}),
         };
         if      (el.elementType === "card")    enqueueOpRef.current({ type: "add_card",    card:    base as CanvasCard });
         else if (el.elementType === "image")   enqueueOpRef.current({ type: "add_image",   image:   base as CanvasImageType });
@@ -550,7 +568,20 @@ export default function CanvasBoard({
         else if (el.elementType === "gallery") enqueueOpRef.current({ type: "add_gallery", gallery: base as CanvasGallery });
         else if (el.elementType === "media")   enqueueOpRef.current({ type: "add_media",   media:   base as CanvasMedia });
       });
-      setSelectedIds(newIds);
+      setSelectedIds(new Set(newIds));
+      // Undo: delete everything we just added
+      pushUndo(() => {
+        newIds.forEach(id => {
+          const el = elementsRef.current.find(e => e.id === id);
+          if (!el) return;
+          if      (el.elementType === "card")    enqueueOpRef.current({ type: "delete_card",    id });
+          else if (el.elementType === "image")   enqueueOpRef.current({ type: "delete_image",   id });
+          else if (el.elementType === "text")    enqueueOpRef.current({ type: "delete_text",    id });
+          else if (el.elementType === "gallery") enqueueOpRef.current({ type: "delete_gallery", id });
+          else if (el.elementType === "media")   enqueueOpRef.current({ type: "delete_media",   id });
+        });
+        setSelectedIds(new Set());
+      });
     }
 
     function handler(e: KeyboardEvent) {
@@ -561,8 +592,9 @@ export default function CanvasBoard({
       if (e.key === "Delete" || e.key === "Backspace") {
         const ids = selIdsRef.current;
         if (!ids.size) return;
-        elementsRef.current.forEach(el => {
-          if (!ids.has(el.id)) return;
+        // Snapshot before deleting so the undo fn can re-add them
+        const snapshot = structuredClone(elementsRef.current.filter(el => ids.has(el.id)));
+        snapshot.forEach(el => {
           if      (el.elementType === "image")   enqueueOpRef.current({ type: "delete_image",   id: el.id });
           else if (el.elementType === "card")    enqueueOpRef.current({ type: "delete_card",    id: el.id });
           else if (el.elementType === "text")    enqueueOpRef.current({ type: "delete_text",    id: el.id });
@@ -571,6 +603,18 @@ export default function CanvasBoard({
           else if (el.elementType === "media")   enqueueOpRef.current({ type: "delete_media",   id: el.id });
         });
         setSelectedIds(new Set());
+        // Undo: re-add everything that was deleted
+        pushUndo(() => {
+          snapshot.forEach(el => {
+            if      (el.elementType === "card")    enqueueOpRef.current({ type: "add_card",    card:    el as CanvasCard });
+            else if (el.elementType === "image")   enqueueOpRef.current({ type: "add_image",   image:   el as CanvasImageType });
+            else if (el.elementType === "text")    enqueueOpRef.current({ type: "add_text",    text:    el as CanvasText });
+            else if (el.elementType === "gallery") enqueueOpRef.current({ type: "add_gallery", gallery: el as CanvasGallery });
+            else if (el.elementType === "profile") enqueueOpRef.current({ type: "add_profile", profile: el as ProfileCardData });
+            else if (el.elementType === "media")   enqueueOpRef.current({ type: "add_media",   media:   el as CanvasMedia });
+          });
+          setSelectedIds(new Set(snapshot.map(e => e.id)));
+        });
         return;
       }
 
@@ -605,6 +649,13 @@ export default function CanvasBoard({
         if (!toDup.length) return;
         const m = lastMousePosRef.current;
         pasteItems(toDup, m.x || m.y ? toCanvasPos(m.x, m.y) : null);
+        return;
+      }
+
+      // Ctrl+Z — undo last tracked action
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        undoStackRef.current.pop()?.();
         return;
       }
 
@@ -771,8 +822,10 @@ export default function CanvasBoard({
       savingRef.current = false;
       lastSavedStateRef.current = null;
       userInteractedRef.current = false;
-      opsQueueRef.current = [];
-      canvasIdRef.current = null;
+      opsQueueRef.current   = [];
+      undoStackRef.current  = [];
+      canvasIdRef.current   = null;
+      setLinkEditId(null);
 
       // Read-only mode: load from initialState
       if (!canEdit) {
@@ -1497,13 +1550,26 @@ export default function CanvasBoard({
             {isSel&&canInteract&&!multiSel&&(<LockBtn locked={!!img.locked} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,locked:!e.locked}:e));}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<div onMouseDown={e=>startSingleResize(img.id,"image",e)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.7)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle onMouseDown={e=>{e.stopPropagation();startRotate(img.id,"image",e);}} />)}
-            {isSel&&canInteract&&!multiSel&&(
-              <ImageLinkPortal
-                imgEl={imgElRefs.current.get(img.id) ?? null}
-                linkUrl={img.linkUrl}
-                onChange={v=>enqueueOp({type:"update_image",id:img.id,patch:{linkUrl:v||undefined}})}
-              />
-            )}
+            {isSel&&canInteract&&!multiSel&&(<>
+              {/* Link toggle button */}
+              <div
+                onMouseDown={e=>e.stopPropagation()}
+                onClick={e=>{e.stopPropagation();setLinkEditId(id=>id===img.id?null:img.id);}}
+                title={img.linkUrl?"Edit link":"Add link"}
+                style={{position:"absolute",bottom:-22,left:"50%",transform:"translateX(-50%)",display:"flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,cursor:"pointer",zIndex:20,background:linkEditId===img.id?"rgba(212,240,196,0.1)":"rgba(10,10,12,0.94)",border:`1px solid ${linkEditId===img.id?"rgba(212,240,196,0.3)":img.linkUrl?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.1)"}`,backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)"}}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={img.linkUrl||linkEditId===img.id?"rgba(212,240,196,0.8)":"rgba(255,255,255,0.35)"} strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span style={{fontFamily:MONO,fontSize:8,letterSpacing:1.5,color:img.linkUrl||linkEditId===img.id?"rgba(212,240,196,0.8)":"rgba(255,255,255,0.35)",textTransform:"uppercase" as const}}>LINK</span>
+              </div>
+              {linkEditId===img.id&&(
+                <ImageLinkPortal
+                  imgEl={imgElRefs.current.get(img.id)??null}
+                  linkUrl={img.linkUrl}
+                  onChange={v=>enqueueOp({type:"update_image",id:img.id,patch:{linkUrl:v||undefined}})}
+                  onClose={()=>setLinkEditId(null)}
+                />
+              )}
+            </>)}
           </div>
         );
       })}
@@ -1955,11 +2021,12 @@ function RotateHandle({onMouseDown}:{onMouseDown:(e:React.MouseEvent)=>void}) {
 // Portals the image link editor to document.body so it escapes the canvas
 // overflow:hidden wrapper and the canvas transform stacking context.
 function ImageLinkPortal({
-  imgEl, linkUrl, onChange,
+  imgEl, linkUrl, onChange, onClose,
 }: {
   imgEl: HTMLDivElement | null;
   linkUrl: string | undefined;
   onChange: (v: string) => void;
+  onClose?: () => void;
 }) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const MONO_L = "'Space Mono', monospace";
@@ -2013,7 +2080,7 @@ function ImageLinkPortal({
         placeholder="https://example.com"
         onChange={e => onChange(e.target.value)}
         onMouseDown={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
+        onKeyDown={e => { e.stopPropagation(); if (e.key === "Escape") onClose?.(); }}
         autoFocus
         style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,padding:"5px 8px",fontFamily:MONO_L,fontSize:9,letterSpacing:0.5,color:"rgba(255,255,255,0.75)",outline:"none",width:"100%",boxSizing:"border-box" as const,caretColor:"rgba(255,255,255,0.8)"}}
       />
