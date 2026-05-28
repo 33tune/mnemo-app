@@ -70,8 +70,9 @@ export default function Topbar({
 
   const tabs: { key: string; label: string; active: boolean; onClick: () => void }[] = [];
   if (onModeChange && canvasMode) {
-    tabs.push({ key: "home",  label: "HOME",     active: canvasMode === "home"  && !isBrowse && !isChats, onClick: () => onModeChange("home") });
-    tabs.push({ key: "space", label: "MY SPACE", active: canvasMode === "space" && !isBrowse && !isChats, onClick: () => onModeChange("space") });
+    tabs.push({ key: "home",         label: "HOME",     active: canvasMode === "home"         && !isBrowse && !isChats, onClick: () => onModeChange("home") });
+    tabs.push({ key: "space",        label: "MY SPACE", active: canvasMode === "space"        && !isBrowse && !isChats, onClick: () => onModeChange("space") });
+    tabs.push({ key: "space_mobile", label: "MOBILE",   active: canvasMode === "space_mobile" && !isBrowse && !isChats, onClick: () => onModeChange("space_mobile") });
   }
   if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats, onClick: onChats });
 

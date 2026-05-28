@@ -49,6 +49,11 @@ const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB per image
 const LAYER_NAMES = ["Back", "Mid", "Front"] as const;
 
 const CANVAS_H = 3000;
+const MOBILE_CANVAS_W = 390;
+
+function isSpaceCanvas(mode: CanvasMode): boolean {
+  return mode === "space" || mode === "space_mobile";
+}
 
 const TEXT_FONTS: { key: TextFont; label: string; style: string }[] = [
   { key: "DM Sans",          label: "DM Sans",    style: "'DM Sans', sans-serif" },
@@ -211,8 +216,8 @@ export default function CanvasBoard({
   const lastSavedStateRef = useRef<CanvasState | null>(null);
   // ── Mode switching ───────────────────────────────────────────────────────────
   const canvasModeRef  = useRef<CanvasMode>("home");
-  const canvasIds      = useRef<Record<CanvasMode, string | null>>({ home: null, space: null });
-  const modeStates     = useRef<Record<CanvasMode, CanvasState | null>>({ home: null, space: null });
+  const canvasIds      = useRef<Record<CanvasMode, string | null>>({ home: null, space: null, space_mobile: null });
+  const modeStates     = useRef<Record<CanvasMode, CanvasState | null>>({ home: null, space: null, space_mobile: null });
   // ── Ops queue ────────────────────────────────────────────────────────────────
   const hasLoadedRef       = useRef(false);
   const sessionIdRef       = useRef(0);
@@ -229,6 +234,9 @@ export default function CanvasBoard({
   const canInteract  = canEdit && !isMobile;
   const [isDragOver,  setIsDragOver]  = useState(false);
   const [linkEditId,  setLinkEditId]  = useState<string | null>(null);
+
+  // Mobile canvas uses a fixed 390px logical width; desktop uses the screen width
+  const effectiveW = canvasMode === "space_mobile" ? MOBILE_CANVAS_W : logicalW.current;
 
   // Live ref assignments — always current by the time any event handler fires
   elementsRef.current    = elements;
@@ -257,7 +265,7 @@ export default function CanvasBoard({
 
   function clampToViewport(x: number, y: number, w: number, _h: number) {
     return {
-      x: Math.max(0, Math.min(logicalW.current - w, x)),
+      x: Math.max(0, Math.min(effectiveW - w, x)),
       y: Math.max(44, y), // no upper clamp — canvas scrolls vertically
     };
   }
@@ -272,7 +280,7 @@ export default function CanvasBoard({
   } = useDragDrop({
     elements, setElements,
     trashRef,
-    canvasBounds: { w: logicalW.current, h: CANVAS_H, topOffset: 44 },
+    canvasBounds: { w: effectiveW, h: CANVAS_H, topOffset: 44 },
   });
 
   // ── Auth — fetch once on mount so MESSAGE handler and chat hooks have userId ──
@@ -291,6 +299,7 @@ export default function CanvasBoard({
     urlViewInitRef.current = true;
     const v = new URLSearchParams(window.location.search).get("view");
     if (v === "space") handleModeChange("space");
+    else if (v === "space_mobile") handleModeChange("space_mobile");
     else if (v === "chats") setView("chats");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authResolved]);
@@ -309,8 +318,8 @@ export default function CanvasBoard({
 
   const { showOnboarding, dismissOnboarding } = useOnboarding(canEdit, authResolved);
 
-  // ── Elementos visibles (en space, solo isPublic:true) ────────────────────────
-  const inSpace      = canvasMode === "space";
+  // ── Elementos visibles (en space/space_mobile, solo isPublic:true) ──────────
+  const inSpace      = isSpaceCanvas(canvasMode);
   const visCards     = useMemo(() => inSpace ? cards.filter(c => c.isPublic)              : cards,        [inSpace, cards]);
   const visImages    = useMemo(() => (inSpace ? images.filter(i => i.isPublic) : images).filter(img => img.src && (img.src.startsWith("http") || img.src.startsWith("blob:"))), [inSpace, images]);
   const visTexts     = useMemo(() => inSpace ? texts.filter(t => t.isPublic)              : texts,        [inSpace, texts]);
@@ -502,10 +511,10 @@ export default function CanvasBoard({
     }
     applyOp(op);
     opsQueueRef.current.push({ op, canvas_type: canvasModeRef.current });
-    if (canvasModeRef.current === "space") {
+    if (isSpaceCanvas(canvasModeRef.current)) {
       setPublishState(s => (s === "publishing" ? s : "pending"));
     }
-    markActive(op.type === "update_profile" || canvasModeRef.current === "space");
+    markActive(op.type === "update_profile" || isSpaceCanvas(canvasModeRef.current));
 
     flushOps();
   }
@@ -1385,7 +1394,7 @@ export default function CanvasBoard({
           isTransparent: f.type !== "image/jpeg",
           zIndex: zCounter.current, layer: isGif ? 1 : 0,
           depth: 0.5, rotation: 0,
-          isPublic: canvasModeRef.current === "space" ? true : undefined,
+          isPublic: isSpaceCanvas(canvasModeRef.current) ? true : undefined,
         };
         enqueueOpRef.current({ type: "add_image", image: newImg });
         const uploadSession = sessionIdRef.current;
@@ -1457,9 +1466,9 @@ export default function CanvasBoard({
         handle={userHandle}
         onLogout={canEdit ? handleLogout : undefined}
         canvasMode={canEdit ? canvasMode : (viewerLoggedIn ? "home" : undefined)}
-        onModeChange={canEdit ? handleModeChange : (viewerLoggedIn ? async (mode: CanvasMode) => { router.push(mode === "space" ? "/dashboard?view=space" : "/dashboard"); } : undefined)}
-        publishState={canEdit && canvasMode === "space" && view === "canvas" ? publishState : undefined}
-        onPublish={canEdit && canvasMode === "space" && view === "canvas" ? publishSpace : undefined}
+        onModeChange={canEdit ? handleModeChange : (viewerLoggedIn ? async (mode: CanvasMode) => { router.push(isSpaceCanvas(mode) ? `/dashboard?view=${mode}` : "/dashboard"); } : undefined)}
+        publishState={canEdit && isSpaceCanvas(canvasMode) && view === "canvas" ? publishState : undefined}
+        onPublish={canEdit && isSpaceCanvas(canvasMode) && view === "canvas" ? publishSpace : undefined}
         isChats={view === "chats"}
         onChats={canEdit ? () => setView("chats") : (viewerLoggedIn ? () => router.push("/dashboard?view=chats") : undefined)}
         unreadChats={totalUnread}
@@ -1479,7 +1488,31 @@ export default function CanvasBoard({
 
       {/* ── Canvas content wrapper ── */}
       {view === "canvas" && (
-      <div ref={canvasWrapperRef} suppressHydrationWarning style={{ position: "relative", width: logicalW.current, minHeight: CANVAS_H, zIndex: 1, overflow: "hidden", flexShrink: 0 }}
+      <div suppressHydrationWarning style={{
+        position: "relative", zIndex: 1, flexShrink: 0,
+        ...(canvasMode === "space_mobile" ? {
+          display: "flex", flexDirection: "column", alignItems: "center",
+          paddingTop: 16,
+          width: "100%",
+        } : {}),
+      }}>
+      {/* Phone chrome shown in space_mobile editor */}
+      {canvasMode === "space_mobile" && canEdit && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          width: MOBILE_CANVAS_W, padding: "6px 12px", marginBottom: 0,
+          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+          borderBottom: "none", borderRadius: "16px 16px 0 0",
+          fontFamily: MONO, fontSize: 8, letterSpacing: 1.5, color: "rgba(255,255,255,0.3)",
+        }}>
+          <span>390px</span>
+          <span style={{ width: 32, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.12)", display: "block", margin: "0 auto" }} />
+          <span>MOBILE</span>
+        </div>
+      )}
+      <div ref={canvasWrapperRef} suppressHydrationWarning style={{ position: "relative", width: effectiveW, minHeight: CANVAS_H, zIndex: 1, overflow: "hidden", flexShrink: 0,
+        ...(canvasMode === "space_mobile" && canEdit ? { border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 16px 16px" } : {}),
+      }}
         onDragEnter={e => {
           if (!canInteract) return;
           e.preventDefault();
@@ -1749,6 +1782,7 @@ export default function CanvasBoard({
         </div>
       )}
 
+      </div>
       </div>
       )}
 

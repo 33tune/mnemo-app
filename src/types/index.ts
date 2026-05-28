@@ -1,4 +1,4 @@
-export type CanvasMode = 'home' | 'space';
+export type CanvasMode = 'home' | 'space' | 'space_mobile';
 
 export type CanvasImage = {
   id: string;

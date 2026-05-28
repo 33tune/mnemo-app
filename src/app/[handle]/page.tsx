@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
+import MobilePublicCanvas from "@/components/canvas/MobilePublicCanvas";
 import ProfileViewTracker from "@/components/analytics/ProfileViewTracker";
 import type { CanvasState } from "@/types";
 
@@ -31,16 +33,41 @@ export default async function PublicPage({
     notFound();
   }
 
-  const { data: canvas } = await supabase
-    .from("canvases")
-    .select("id, data, name, is_public")
-    .eq("user_id", profile.user_id)
-    .eq("type", "space")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // Detect mobile via UA header — no flash, server-side
+  const headersList = await headers();
+  const ua = headersList.get("user-agent") ?? "";
+  const isMobileUA = /android|iphone|ipad|ipod|mobile|blackberry|windows phone/i.test(ua);
+
+  const [{ data: canvas }, { data: mobileCanvas }] = await Promise.all([
+    supabase
+      .from("canvases")
+      .select("id, data, name, is_public")
+      .eq("user_id", profile.user_id)
+      .eq("type", "space")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("canvases")
+      .select("id, data")
+      .eq("user_id", profile.user_id)
+      .eq("type", "space_mobile")
+      .maybeSingle(),
+  ]);
 
   if (!canvas) notFound();
+
+  // Use mobile canvas if: device is mobile AND mobile canvas has content
+  const mobileState = mobileCanvas?.data as CanvasState | undefined;
+  const hasMobileContent = !!(mobileState && (
+    (mobileState.cards?.length ?? 0) > 0 ||
+    (mobileState.images?.length ?? 0) > 0 ||
+    (mobileState.texts?.length ?? 0) > 0 ||
+    (mobileState.profiles?.length ?? 0) > 0 ||
+    (mobileState.galleries?.length ?? 0) > 0 ||
+    (mobileState.medias?.length ?? 0) > 0
+  ));
+  const showMobile = isMobileUA && hasMobileContent;
 
   // Track view — fire-and-forget, don't block render
   if (!viewer || viewer.id !== profile.user_id) {
@@ -58,13 +85,21 @@ export default async function PublicPage({
         handle={profile.handle}
         viewerId={viewer?.id}
       />
-      <CanvasBoard
-        canEdit={false}
-        viewerLoggedIn={!!viewer && viewer.id !== profile.user_id}
-        userHandle={profile.handle}
-        initialState={state}
-        ownerUserId={profile.user_id}
-      />
+      {showMobile ? (
+        <MobilePublicCanvas
+          state={mobileState}
+          handle={profile.handle}
+          name={profile.display_name ?? ""}
+        />
+      ) : (
+        <CanvasBoard
+          canEdit={false}
+          viewerLoggedIn={!!viewer && viewer.id !== profile.user_id}
+          userHandle={profile.handle}
+          initialState={state}
+          ownerUserId={profile.user_id}
+        />
+      )}
     </>
   );
 }
