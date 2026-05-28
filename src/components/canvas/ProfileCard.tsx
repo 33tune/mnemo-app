@@ -251,11 +251,17 @@ function ProfileCard({
   }
 
   // ── Scale photo / text / stats ────────────────────────────────────────────
-  function startElResize(which: "photo" | "stats", e: React.MouseEvent) {
+  function startElResize(which: "photo" | "stats" | "name" | "status" | "handle" | "bio", e: React.MouseEvent) {
     if (!menuOpen) return;
     e.stopPropagation();
     e.preventDefault();
-    const s0  = which === "photo" ? photoScale : statsScale;
+    const s0 =
+      which === "photo"  ? photoScale  :
+      which === "name"   ? nameScale   :
+      which === "status" ? statusScale :
+      which === "handle" ? handleScale :
+      which === "bio"    ? bioScale    :
+                           statsScale;
     const mx0 = e.clientX;
     const my0 = e.clientY;
 
@@ -263,7 +269,12 @@ function ProfileCard({
       const delta = (ev.clientX - mx0 + ev.clientY - my0) / 100;
       const ns    = Math.max(0.3, Math.min(4, s0 + delta));
       const patch: Partial<ProfileCardData> =
-        which === "photo" ? { photoScale: ns } : { statsScale: ns };
+        which === "photo"  ? { photoScale:  ns } :
+        which === "name"   ? { nameScale:   ns } :
+        which === "status" ? { statusScale: ns } :
+        which === "handle" ? { handleScale: ns } :
+        which === "bio"    ? { bioScale:    ns } :
+                             { statsScale:  ns };
       updateProfile(card.id, patch);
     }
 
@@ -538,6 +549,17 @@ function ProfileCard({
                 transition: "border-color 0.12s",
               }} />
             )}
+            {menuOpen && (
+              <div
+                onMouseDown={e => startElResize("name", e)}
+                style={{
+                  position: "absolute", bottom: -4, right: -4,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.7)",
+                  cursor: "nwse-resize", zIndex: 10,
+                }}
+              />
+            )}
             <div style={{
               fontFamily: globalFont, fontSize: nameFontSize,
               fontWeight: 700, color: primaryColor, lineHeight: 1.2,
@@ -570,6 +592,17 @@ function ProfileCard({
                 border: dashBorder("status"), pointerEvents: "none",
                 transition: "border-color 0.12s",
               }} />
+            )}
+            {menuOpen && (
+              <div
+                onMouseDown={e => startElResize("status", e)}
+                style={{
+                  position: "absolute", bottom: -4, right: -4,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.7)",
+                  cursor: "nwse-resize", zIndex: 10,
+                }}
+              />
             )}
             <div style={{
               fontFamily: globalFont, fontSize: statusFontSize,
@@ -604,6 +637,17 @@ function ProfileCard({
                 transition: "border-color 0.12s",
               }} />
             )}
+            {menuOpen && (
+              <div
+                onMouseDown={e => startElResize("handle", e)}
+                style={{
+                  position: "absolute", bottom: -4, right: -4,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.7)",
+                  cursor: "nwse-resize", zIndex: 10,
+                }}
+              />
+            )}
             <div style={{
               fontFamily: globalFont, fontSize: 9, color: faintColor,
             }}>
@@ -634,6 +678,17 @@ function ProfileCard({
                 border: dashBorder("bio"), pointerEvents: "none",
                 transition: "border-color 0.12s",
               }} />
+            )}
+            {menuOpen && (
+              <div
+                onMouseDown={e => startElResize("bio", e)}
+                style={{
+                  position: "absolute", bottom: -4, right: -4,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.7)",
+                  cursor: "nwse-resize", zIndex: 10,
+                }}
+              />
             )}
             <div style={{
               fontFamily: MONO,
