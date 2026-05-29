@@ -3,6 +3,8 @@ import { useState, useRef, memo } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { CanvasGallery, GalleryImage } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
+import ResizeHandles from "./ResizeHandles";
+import type { ResizeHandle } from "@/hooks/useDragDrop";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -14,7 +16,7 @@ interface Props {
   draggingId:        string | null;
   onMouseDown:       (id: string, type: "image"|"card"|"text"|"gallery", x: number, y: number, e: React.MouseEvent) => void;
   onClick:           (e: React.MouseEvent) => void;
-  onResizeMD:        (id: string, type: "image"|"card"|"text"|"gallery", e: React.MouseEvent) => void;
+  onResizeMD:        (handle: ResizeHandle, e: React.MouseEvent) => void;
   onRotateMD:        (id: string, type: "image"|"card"|"text"|"gallery", e: React.MouseEvent, cx?: number, cy?: number) => void;
   updateGallery:     (id: string, patch: Partial<CanvasGallery>) => void;
   onDropToCanvas:    (src: string, x: number, y: number) => void;
@@ -364,17 +366,9 @@ function GalleryWidget({
                 )}
               </div>
             )}
-            {/* Resize handle */}
+            {/* Resize handles */}
             {!locked && (
-              <div
-                onMouseDown={e => onResizeMD(gallery.id, "gallery", e)}
-                style={{
-                  position: "absolute", bottom: -5, right: -5,
-                  width: 10, height: 10, borderRadius: "50%",
-                  background: "rgba(255,255,255,0.65)", cursor: "nwse-resize",
-                  border: "1.5px solid rgba(0,0,0,0.2)", zIndex: 30,
-                }}
-              />
+              <ResizeHandles onResizeMD={onResizeMD} />
             )}
           </>
         )}

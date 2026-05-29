@@ -231,6 +231,8 @@ export type GuestbookCardData = {
   locked?:       boolean;
   isPublic?:     boolean;
   bgColor?:      string;
+  bgImage?:      string;
+  bgMode?:       "cover" | "repeat";
   borderRadius?: number;
   opacity?:      number;
 };

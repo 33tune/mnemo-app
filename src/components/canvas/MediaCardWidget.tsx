@@ -2,6 +2,8 @@
 import { useState, memo } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { CanvasMedia, MediaType } from "@/types";
+import ResizeHandles from "./ResizeHandles";
+import type { ResizeHandle } from "@/hooks/useDragDrop";
 
 const MONO = "'Space Mono', monospace";
 const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
@@ -81,7 +83,7 @@ interface Props {
   parallaxTransform: string;
   onMouseDown:       (e: React.MouseEvent) => void;
   onClick:           (e: React.MouseEvent) => void;
-  onResizeMD:        (e: React.MouseEvent) => void;
+  onResizeMD:        (handle: ResizeHandle, e: React.MouseEvent) => void;
   onRotateMD:        (e: React.MouseEvent) => void;
   updateMedia:       (id: string, patch: Partial<CanvasMedia>) => void;
   locked?:           boolean;
@@ -236,20 +238,9 @@ function MediaCardWidget({
         </div>
       </div>
 
-      {/* ── Resize handle ── */}
+      {/* ── Resize handles ── */}
       {isSel && canInteract && !locked && (
-        <div
-          onMouseDown={e => { e.stopPropagation(); onResizeMD(e); }}
-          style={{
-            position:   "absolute", bottom: -5, right: -5,
-            width: 10, height: 10, borderRadius: "50%",
-            background: "rgba(255,255,255,0.65)", cursor: "nwse-resize",
-            border: "1.5px solid rgba(0,0,0,0.2)", zIndex: 10,
-            transition: `transform 0.1s ${EASE}`,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.3)"; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-        />
+        <ResizeHandles onResizeMD={onResizeMD} />
       )}
 
       {/* ── Rotate handle ── */}

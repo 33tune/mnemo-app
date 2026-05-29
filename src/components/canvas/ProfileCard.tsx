@@ -12,6 +12,8 @@ import { useProfileViews } from "@/hooks/useProfileViews";
 import type { PresenceState } from "@/types";
 import { UIButton, UISlider } from "@/components/ui";
 import { trackLinkClick } from "@/lib/trackLinkClick";
+import ResizeHandles from "./ResizeHandles";
+import type { ResizeHandle } from "@/hooks/useDragDrop";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -52,7 +54,7 @@ interface Props {
   parallaxTransform: string;
   onMouseDown:       (e: React.MouseEvent) => void;
   onClick:           (e: React.MouseEvent) => void;
-  onResizeMD:        (e: React.MouseEvent) => void;
+  onResizeMD:        (handle: ResizeHandle, e: React.MouseEvent) => void;
   onRotateMD:        (e: React.MouseEvent) => void;
   updateProfile:     (id: string, patch: Partial<ProfileCardData>) => void;
   locked?:           boolean;
@@ -1132,20 +1134,9 @@ function ProfileCard({
           </div>
         )}
 
-        {/* ── Resize handle ── */}
+        {/* ── Resize handles ── */}
         {isSel && canInteract && !locked && (
-          <div
-            onMouseDown={e => { e.stopPropagation(); onResizeMD(e); }}
-            style={{
-              position: "absolute", bottom: -5, right: -5,
-              width: 10, height: 10, borderRadius: "50%",
-              background: isLight ? "rgba(20,20,20,0.5)" : "rgba(255,255,255,0.65)",
-              cursor: "nwse-resize", border: "1.5px solid rgba(0,0,0,0.2)", zIndex: 10,
-              transition: `transform 0.1s ${EASE}`,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.3)"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-          />
+          <ResizeHandles onResizeMD={onResizeMD} light={isLight} />
         )}
 
         {/* ────────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
 import GuestbookWidget from "./GuestbookWidget";
 import MediaCardWidget from "./MediaCardWidget";
+import ResizeHandles from "./ResizeHandles";
 import { SocialDock } from "./SocialDock";
 import Topbar from "./Topbar";
 import CardMenu from "./CardMenu";
@@ -14,6 +15,7 @@ import ProfileCard from "./ProfileCard";
 import { renderContent, textColor, isLight } from "./CardContent";
 import { useParallax } from "@/hooks/useParallax";
 import { useDragDrop } from "@/hooks/useDragDrop";
+import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { uploadToStorage } from "@/lib/storage";
 import { queueOrphanedAssets } from "@/lib/storage/queueOrphanedAssets";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
@@ -1407,12 +1409,15 @@ export default function CanvasBoard({
           const w = safeNum(dims.w, 1);
           const h = safeNum(dims.h, 1);
           if (w !== undefined && h !== undefined) {
-            if (type === "image")   enqueueOp({ type: "update_image",   id, patch: { w, h } });
-            else if (type === "card")    enqueueOp({ type: "update_card",    id, patch: { w, h } });
-            else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch: { w, h } });
-            else if (type === "profile") enqueueOp({ type: "update_profile", id, patch: { w, h } });
-            else if (type === "media")      enqueueOp({ type: "update_media",     id, patch: { w, h } });
-            else if (type === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: { w, h } });
+            const xPatch = safeNum(dims.x, -100_000);
+            const yPatch = safeNum(dims.y, -100_000);
+            const posPatch = (xPatch !== undefined && yPatch !== undefined) ? { x: xPatch, y: yPatch } : {};
+            if (type === "image")        enqueueOp({ type: "update_image",      id, patch: { w, h, ...posPatch } });
+            else if (type === "card")    enqueueOp({ type: "update_card",       id, patch: { w, h, ...posPatch } });
+            else if (type === "gallery") enqueueOp({ type: "update_gallery",    id, patch: { w, h, ...posPatch } });
+            else if (type === "profile") enqueueOp({ type: "update_profile",    id, patch: { w, h, ...posPatch } });
+            else if (type === "media")   enqueueOp({ type: "update_media",      id, patch: { w, h, ...posPatch } });
+            else if (type === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: { w, h, ...posPatch } });
           }
         }
       }
@@ -1630,7 +1635,7 @@ export default function CanvasBoard({
               {([0,8,20,999] as const).map(r=>{const cur=img.borderRadius??(img.isTransparent?0:8);const active=r===999?cur>=50:cur===r;const vr=r===0?"2px":r===8?"4px":r===20?"7px":"50%";return(<div key={r} title={r===0?"Square":r===8?"Slight":r===20?"Rounded":"Circle"} onClick={e=>{e.stopPropagation();setElements(p=>p.map(el=>el.elementType==="image"&&el.id===img.id?{...el,borderRadius:r}:el));enqueueOp({type:"update_image",id:img.id,patch:{borderRadius:r}});}} onMouseDown={e=>e.stopPropagation()} style={{width:14,height:14,borderRadius:vr,border:`1px solid ${active?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.3)"}`,background:active?"rgba(255,255,255,0.2)":"transparent",cursor:"pointer",flexShrink:0}} />);})}
             </div>)}
             {isSel&&canInteract&&!multiSel&&(<LockBtn locked={!!img.locked} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,locked:!e.locked}:e));}} />)}
-            {isSel&&canInteract&&!multiSel&&!img.locked&&(<div onMouseDown={e=>startSingleResize(img.id,"image",e)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.7)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
+            {isSel&&canInteract&&!multiSel&&!img.locked&&(<ResizeHandles onResizeMD={(h,e)=>startSingleResize(img.id,"image",h,e)} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle onMouseDown={e=>{e.stopPropagation();startRotate(img.id,"image",e);}} />)}
             {isSel&&canInteract&&!multiSel&&(<>
               {/* Link toggle button */}
@@ -1684,7 +1689,7 @@ export default function CanvasBoard({
             </div>)}
             {isSel&&canInteract&&!isEdit&&(<LockBtn locked={!!txt.locked} onClick={e=>{e.stopPropagation();updateText(txt.id,{locked:!txt.locked});}} />)}
             {isSel&&canInteract&&!isEdit&&!txt.locked&&(<RotateHandle onMouseDown={e=>onRotateText(txt.id,e)} />)}
-            {isSel&&canInteract&&!isEdit&&!txt.locked&&(<div onMouseDown={e=>startSingleResize(txt.id,"text",e)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.65)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
+            {isSel&&canInteract&&!isEdit&&!txt.locked&&(<div onMouseDown={e=>{e.stopPropagation();startSingleResize(txt.id,"text","se",e);}} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.65)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
             {isSel&&canInteract&&!isEdit&&(
               <div onMouseDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}
                 style={{position:"absolute",top:"calc(100% + 14px)",left:"50%",transform:"translateX(-50%)",background:"rgba(10,10,12,0.97)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"10px 12px",backdropFilter:"blur(40px)",WebkitBackdropFilter:"blur(40px)",zIndex:500,boxShadow:"0 12px 40px rgba(0,0,0,0.7)",display:"flex",flexDirection:"column",gap:10,whiteSpace:"nowrap",minWidth:220}}>
@@ -1724,7 +1729,7 @@ export default function CanvasBoard({
         return (
           <WidgetBoundary key={gallery.id} label="gallery">
             <GalleryWidget gallery={gallery} isSel={selectedIds.has(gallery.id)} multiSel={multiSel} draggingId={dragging?.id??null} locked={!!gallery.locked} onMouseDown={gallery.locked?(id,t,x,y,e)=>e.stopPropagation():onElementMouseDown} onClick={e=>handleElementClick(gallery.id,e)}
- onResizeMD={gallery.locked?(id,t,e)=>e.stopPropagation():startSingleResize} onRotateMD={gallery.locked?(id,t,e)=>e.stopPropagation():startRotate} updateGallery={updateGallery} onDropToCanvas={addGalleryImageToCanvas} parallaxTransform={ps.transform as string} onToggleLock={()=>updateGallery(gallery.id,{locked:!gallery.locked} as any)} canInteract={canInteract} />
+ onResizeMD={gallery.locked?(h,e)=>e.stopPropagation():(h,e)=>startSingleResize(gallery.id,"gallery",h,e)} onRotateMD={gallery.locked?(id,t,e)=>e.stopPropagation():startRotate} updateGallery={updateGallery} onDropToCanvas={addGalleryImageToCanvas} parallaxTransform={ps.transform as string} onToggleLock={()=>updateGallery(gallery.id,{locked:!gallery.locked} as any)} canInteract={canInteract} />
           </WidgetBoundary>
         );
       })}
@@ -1737,7 +1742,7 @@ export default function CanvasBoard({
           onMouseDown={prof.locked?e=>e.stopPropagation():e=>onElementMouseDown(prof.id,"profile",prof.x,prof.y,e)}
           onClick={e=>handleElementClick(prof.id,e)}
 
-          onResizeMD={prof.locked?e=>e.stopPropagation():e=>startSingleResize(prof.id,"profile",e)}
+          onResizeMD={prof.locked?(_h:ResizeHandle,e:React.MouseEvent)=>e.stopPropagation():(h,e)=>startSingleResize(prof.id,"profile",h,e)}
           onRotateMD={prof.locked?e=>e.stopPropagation():e=>{const el=document.querySelector(`[data-profile-id="${prof.id}"]`) as HTMLElement;if(el){const r=el.getBoundingClientRect();startRotate(prof.id,"profile",e,r.left+r.width/2,r.top+r.height/2);}else startRotate(prof.id,"profile",e,prof.x+prof.w/2,prof.y+prof.h/2);}}
           updateProfile={updateProfile}
           onToggleLock={()=>setElements(p=>p.map(e=>e.elementType==="profile"&&e.id===prof.id?{...e,locked:!e.locked}:e))}
@@ -1766,7 +1771,7 @@ export default function CanvasBoard({
               locked={!!gb.locked}
               onMouseDown={gb.locked ? e => e.stopPropagation() : e => onElementMouseDown(gb.id, "guestbook", gb.x, gb.y, e)}
               onClick={e => handleElementClick(gb.id, e)}
-              onResizeMD={gb.locked ? e => e.stopPropagation() : e => startSingleResize(gb.id, "guestbook", e)}
+              onResizeMD={gb.locked ? (_h:ResizeHandle,e:React.MouseEvent)=>e.stopPropagation() : (h,e)=>startSingleResize(gb.id,"guestbook",h,e)}
               onRotateMD={gb.locked ? e => e.stopPropagation() : e => startRotate(gb.id, "guestbook", e, gb.x + gb.w / 2, gb.y + gb.h / 2)}
               updateGuestbook={updateGuestbook}
               onToggleLock={() => setElements(p => p.map(e => e.elementType === "guestbook" && e.id === gb.id ? { ...e, locked: !e.locked } : e))}
@@ -1809,7 +1814,7 @@ export default function CanvasBoard({
             {isSel&&canInteract&&!multiSel&&!isEdit&&(<div onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();if(showMenu){setCardMenuId(null);setCardMenuRect(null);}else{const el=cardDivRefs.current[card.id];if(el)setCardMenuRect(el.getBoundingClientRect());setCardMenuId(card.id);setCardMenuTab("type");};}} style={{position:"absolute",top:-10,left:-10,width:20,height:20,borderRadius:"50%",background:"rgba(12,12,14,0.96)",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",zIndex:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.4)"}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>)}
             {isSel&&canInteract&&!multiSel&&(<LockBtn locked={!!card.locked} onClick={e=>{e.stopPropagation();updateCard(card.id,{locked:!card.locked});}} />)}
             {isSel&&canInteract&&!multiSel&&!isEdit&&!card.locked&&(<RotateHandle onMouseDown={e=>{e.stopPropagation();const el=e.currentTarget.parentElement;if(el){const r=el.getBoundingClientRect();startRotate(card.id,"card",e,r.left+r.width/2,r.top+r.height/2);}else{startRotate(card.id,"card",e,card.x+card.w/2,card.y+card.h/2);}}} />)}
-            {isSel&&canInteract&&!multiSel&&!card.locked&&(<div onMouseDown={e=>startSingleResize(card.id,"card",e)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:light?"rgba(20,20,20,0.5)":"rgba(255,255,255,0.65)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
+            {isSel&&canInteract&&!multiSel&&!card.locked&&(<ResizeHandles onResizeMD={(h,e)=>startSingleResize(card.id,"card",h,e)} light={light} />)}
           </div>
         );
       })}
@@ -1826,7 +1831,7 @@ export default function CanvasBoard({
               parallaxTransform={ps.transform as string}
               onMouseDown={media.locked ? e => e.stopPropagation() : e => onElementMouseDown(media.id, "media", media.x, media.y, e)}
               onClick={e => handleElementClick(media.id, e)}
-              onResizeMD={media.locked ? e => e.stopPropagation() : e => startSingleResize(media.id, "media", e)}
+              onResizeMD={media.locked ? (_h:ResizeHandle,e:React.MouseEvent)=>e.stopPropagation() : (h,e)=>startSingleResize(media.id,"media",h,e)}
               onRotateMD={media.locked ? e => e.stopPropagation() : e => startRotate(media.id, "media", e, media.x + media.w / 2, media.y + media.h / 2)}
               updateMedia={updateMedia}
               locked={!!media.locked}
