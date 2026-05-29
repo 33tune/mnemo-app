@@ -25,7 +25,7 @@ const LOGICAL_HEIGHT = 3000;
 
 const EMPTY: CanvasState = {
   cards: [], images: [], texts: [], galleries: [],
-  profiles: [], medias: [], bgColor: "#0a0a0c", wallpaper: "",
+  profiles: [], medias: [], guestbooks: [], bgColor: "#0a0a0c", wallpaper: "",
 };
 
 export default function PublicCanvas({

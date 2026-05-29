@@ -207,26 +207,56 @@ export type ProfileCardData = {
 };
 
 
-export type CanvasState = {
-  cards:      CanvasCard[];
-  images:     CanvasImage[];
-  texts:      CanvasText[];
-  galleries:  CanvasGallery[];
-  profiles:   ProfileCardData[];
-  medias:     CanvasMedia[];
-  bgColor:    string;
-  wallpaper:  string;
+export type GuestbookMessage = {
+  id:            string;
+  profile_id:    string;
+  author_id:     string | null;
+  author_name:   string;
+  author_avatar: string;
+  message:       string;
+  anonymous:     boolean;
+  created_at:    string;
 };
 
-export type ElementType = "card" | "image" | "text" | "gallery" | "profile" | "media";
+export type GuestbookCardData = {
+  id:            string;
+  x:             number;
+  y:             number;
+  w:             number;
+  h:             number;
+  zIndex:        number;
+  layer:         0 | 1 | 2;
+  depth:         number;
+  rotation:      number;
+  locked?:       boolean;
+  isPublic?:     boolean;
+  bgColor?:      string;
+  borderRadius?: number;
+  opacity?:      number;
+};
+
+export type CanvasState = {
+  cards:       CanvasCard[];
+  images:      CanvasImage[];
+  texts:       CanvasText[];
+  galleries:   CanvasGallery[];
+  profiles:    ProfileCardData[];
+  medias:      CanvasMedia[];
+  guestbooks:  GuestbookCardData[];
+  bgColor:     string;
+  wallpaper:   string;
+};
+
+export type ElementType = "card" | "image" | "text" | "gallery" | "profile" | "media" | "guestbook";
 
 export type CanvasElement =
-  | (CanvasCard      & { elementType: "card" })
-  | (CanvasImage     & { elementType: "image" })
-  | (CanvasText      & { elementType: "text" })
-  | (CanvasGallery   & { elementType: "gallery" })
-  | (ProfileCardData & { elementType: "profile" })
-  | (CanvasMedia     & { elementType: "media" });
+  | (CanvasCard          & { elementType: "card" })
+  | (CanvasImage         & { elementType: "image" })
+  | (CanvasText          & { elementType: "text" })
+  | (CanvasGallery       & { elementType: "gallery" })
+  | (ProfileCardData     & { elementType: "profile" })
+  | (CanvasMedia         & { elementType: "media" })
+  | (GuestbookCardData   & { elementType: "guestbook" });
 
 export type PublishState = "idle" | "pending" | "publishing" | "success";
 

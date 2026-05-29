@@ -3,7 +3,8 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
+import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
+import GuestbookWidget from "./GuestbookWidget";
 import MediaCardWidget from "./MediaCardWidget";
 import { SocialDock } from "./SocialDock";
 import Topbar from "./Topbar";
@@ -106,10 +107,13 @@ type CanvasOp =
   | { type: "add_profile";    profile: ProfileCardData }
   | { type: "update_profile"; id: string; patch: Partial<ProfileCardData> }
   | { type: "delete_profile"; id: string }
-  | { type: "add_media";       media:      CanvasMedia }
-  | { type: "update_media";    id: string; patch: Partial<CanvasMedia> }
-  | { type: "delete_media";    id: string }
-  | { type: "set_bg";          value: string }
+  | { type: "add_media";          media:      CanvasMedia }
+  | { type: "update_media";       id: string; patch: Partial<CanvasMedia> }
+  | { type: "delete_media";       id: string }
+  | { type: "add_guestbook";      guestbook:  GuestbookCardData }
+  | { type: "update_guestbook";   id: string; patch: Partial<GuestbookCardData> }
+  | { type: "delete_guestbook";   id: string }
+  | { type: "set_bg";             value: string }
   | { type: "set_wallpaper";   value: string }
   | { type: "move_elements";   moves: Array<{ id: string; elementType: string; x: number; y: number }> };
 
@@ -133,10 +137,13 @@ function reduceOp(els: CanvasElement[], op: CanvasOp): CanvasElement[] {
     case "add_profile":    return [...els, { ...op.profile, elementType: "profile" as const }];
     case "update_profile": return els.map(e => e.elementType==="profile" && e.id===op.id ? { ...e, ...op.patch } : e);
     case "delete_profile": return els.filter(e => !(e.elementType==="profile" && e.id===op.id));
-    case "add_media":       return [...els, { ...op.media,      elementType: "media"     as const }];
-    case "update_media":    return els.map(e => e.elementType==="media"     && e.id===op.id ? { ...e, ...op.patch } : e);
-    case "delete_media":    return els.filter(e => !(e.elementType==="media"     && e.id===op.id));
-    case "move_elements":   return els.map(e => { const m = op.moves.find(m => m.id===e.id); return m ? { ...e, x: m.x, y: m.y } as CanvasElement : e; });
+    case "add_media":          return [...els, { ...op.media,      elementType: "media"     as const }];
+    case "update_media":       return els.map(e => e.elementType==="media"     && e.id===op.id ? { ...e, ...op.patch } : e);
+    case "delete_media":       return els.filter(e => !(e.elementType==="media"     && e.id===op.id));
+    case "add_guestbook":      return els.some(e => e.id === op.guestbook.id) ? els : [...els, { ...op.guestbook, elementType: "guestbook" as const }];
+    case "update_guestbook":   return els.map(e => e.elementType==="guestbook"  && e.id===op.id ? { ...e, ...op.patch } : e);
+    case "delete_guestbook":   return els.filter(e => !(e.elementType==="guestbook"  && e.id===op.id));
+    case "move_elements":      return els.map(e => { const m = op.moves.find(m => m.id===e.id); return m ? { ...e, x: m.x, y: m.y } as CanvasElement : e; });
     default:                return els;
   }
 }
@@ -189,6 +196,7 @@ export default function CanvasBoard({
   const galleries    = useMemo(() => elements.filter(e => e.elementType === "gallery")     as (CanvasGallery     & { elementType: "gallery" })[], [elements]);
   const profiles     = useMemo(() => elements.filter(e => e.elementType === "profile")     as (ProfileCardData   & { elementType: "profile" })[], [elements]);
   const medias       = useMemo(() => elements.filter(e => e.elementType === "media")       as (CanvasMedia       & { elementType: "media" })[], [elements]);
+  const guestbooks   = useMemo(() => elements.filter(e => e.elementType === "guestbook")   as (GuestbookCardData & { elementType: "guestbook" })[], [elements]);
 
   const trashRef          = useRef<HTMLDivElement>(null);
   const canvasWrapperRef  = useRef<HTMLDivElement>(null);
@@ -327,7 +335,8 @@ export default function CanvasBoard({
   const visTexts     = useMemo(() => inSpace ? texts.filter(t => t.isPublic)              : texts,        [inSpace, texts]);
   const visGalleries = useMemo(() => inSpace ? galleries.filter(g => g.isPublic)          : galleries,    [inSpace, galleries]);
   const visProfiles  = useMemo(() => inSpace ? profiles.filter(p => p.isPublic)           : profiles,     [inSpace, profiles]);
-  const visMedias      = useMemo(() => inSpace ? medias.filter(m => m.isPublic)           : medias,       [inSpace, medias]);
+  const visMedias      = useMemo(() => inSpace ? medias.filter(m => m.isPublic)             : medias,       [inSpace, medias]);
+  const visGuestbooks  = useMemo(() => inSpace ? guestbooks.filter(g => g.isPublic)         : guestbooks,   [inSpace, guestbooks]);
 
   // ── Persistencia ─────────────────────────────────────────────────────────────
 
@@ -356,19 +365,21 @@ export default function CanvasBoard({
   // Always pass an explicit snapshot; never reads from live state.
   async function buildSaveState(snapshot: CanvasElement[]): Promise<CanvasState> {
     const safe = (url: string) => blobToBase64(url);
-    const sCards     = snapshot.filter(e => e.elementType === "card")    as (CanvasCard        & { elementType: "card" })[];
-    const sImages    = snapshot.filter(e => e.elementType === "image")   as (CanvasImageType   & { elementType: "image" })[];
-    const sTexts     = snapshot.filter(e => e.elementType === "text")    as (CanvasText        & { elementType: "text" })[];
-    const sGalleries = snapshot.filter(e => e.elementType === "gallery") as (CanvasGallery     & { elementType: "gallery" })[];
-    const sProfiles  = snapshot.filter(e => e.elementType === "profile") as (ProfileCardData   & { elementType: "profile" })[];
-    const sMedias      = snapshot.filter(e => e.elementType === "media")     as (CanvasMedia     & { elementType: "media" })[];
+    const sCards      = snapshot.filter(e => e.elementType === "card")      as (CanvasCard        & { elementType: "card" })[];
+    const sImages     = snapshot.filter(e => e.elementType === "image")     as (CanvasImageType   & { elementType: "image" })[];
+    const sTexts      = snapshot.filter(e => e.elementType === "text")      as (CanvasText        & { elementType: "text" })[];
+    const sGalleries  = snapshot.filter(e => e.elementType === "gallery")   as (CanvasGallery     & { elementType: "gallery" })[];
+    const sProfiles   = snapshot.filter(e => e.elementType === "profile")   as (ProfileCardData   & { elementType: "profile" })[];
+    const sMedias     = snapshot.filter(e => e.elementType === "media")     as (CanvasMedia       & { elementType: "media" })[];
+    const sGuestbooks = snapshot.filter(e => e.elementType === "guestbook") as (GuestbookCardData & { elementType: "guestbook" })[];
     return {
-      cards:        await Promise.all(sCards.map(async c => ({ ...c, bgImage: await safe(c.bgImage) }))),
-      images:       await Promise.all(sImages.map(async i => ({ ...i, src: await safe(i.src) }))),
-      texts:        sTexts,
-      galleries:    await Promise.all(sGalleries.map(async g => ({ ...g, images: await Promise.all(g.images.map(async gi => ({ ...gi, src: await safe(gi.src) }))) }))),
-      profiles:     await Promise.all(sProfiles.map(async p => ({ ...p, photo: await safe(p.photo), bgImage: await safe(p.bgImage) }))),
-      medias:       sMedias,
+      cards:      await Promise.all(sCards.map(async c => ({ ...c, bgImage: await safe(c.bgImage) }))),
+      images:     await Promise.all(sImages.map(async i => ({ ...i, src: await safe(i.src) }))),
+      texts:      sTexts,
+      galleries:  await Promise.all(sGalleries.map(async g => ({ ...g, images: await Promise.all(g.images.map(async gi => ({ ...gi, src: await safe(gi.src) }))) }))),
+      profiles:   await Promise.all(sProfiles.map(async p => ({ ...p, photo: await safe(p.photo), bgImage: await safe(p.bgImage) }))),
+      medias:     sMedias,
+      guestbooks: sGuestbooks,
       bgColor,
       wallpaper: await safe(wallpaper),
     };
@@ -419,6 +430,13 @@ export default function CanvasBoard({
         setElements(p => p.map(e => e.elementType === "media" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
       case "delete_media":
         setElements(p => p.filter(e => !(e.elementType === "media" && e.id === op.id))); break;
+
+      case "add_guestbook":
+        setElements(p => p.some(e => e.id === op.guestbook.id) ? p : [...p, { ...op.guestbook, elementType: "guestbook" as const }]); break;
+      case "update_guestbook":
+        setElements(p => p.map(e => e.elementType === "guestbook" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
+      case "delete_guestbook":
+        setElements(p => p.filter(e => !(e.elementType === "guestbook" && e.id === op.id))); break;
 
       case "set_bg":
         setBgColor(op.value);
@@ -846,8 +864,9 @@ export default function CanvasBoard({
             ...(initialState.images       ?? []).map(i => ({ ...i, elementType: "image"   as const })),
             ...(initialState.texts        ?? []).map(t => ({ ...t, elementType: "text"    as const })),
             ...(initialState.galleries    ?? []).map(g => ({ ...g, elementType: "gallery" as const })),
-            ...(initialState.profiles     ?? []).map(p => ({ ...p, elementType: "profile" as const })),
-            ...(initialState.medias       ?? []).map(m => ({ ...m, elementType: "media"    as const })),
+            ...(initialState.profiles     ?? []).map(p => ({ ...p, elementType: "profile"   as const })),
+            ...(initialState.medias       ?? []).map(m => ({ ...m, elementType: "media"     as const })),
+            ...(initialState.guestbooks   ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
           ]);
           if (initialState.bgColor)   setBgColor(initialState.bgColor);
           if (initialState.wallpaper) { setWallpaper(initialState.wallpaper); setWallpaperLoaded(true); }
@@ -898,8 +917,9 @@ export default function CanvasBoard({
           ...(s.images       ?? []).map(i => ({ ...i, elementType: "image"   as const })),
           ...(s.texts        ?? []).map(t => ({ ...t, elementType: "text"    as const })),
           ...(s.galleries    ?? []).map(g => ({ ...g, elementType: "gallery" as const })),
-          ...(s.profiles     ?? []).map(p => ({ ...p, elementType: "profile" as const })),
-          ...(s.medias       ?? []).map(m => ({ ...m, elementType: "media"    as const })),
+          ...(s.profiles     ?? []).map(p => ({ ...p, elementType: "profile"   as const })),
+          ...(s.medias       ?? []).map(m => ({ ...m, elementType: "media"     as const })),
+          ...(s.guestbooks   ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
         ].filter(el => el.elementType !== "image" || (el.src && el.src !== ""));
         newElements = newElements.map(e => {
           if (e.elementType === "image" && e.src?.includes("/canvas-assets/") && !e.storage_path) {
@@ -1077,7 +1097,7 @@ export default function CanvasBoard({
     return hits;
   }
 
-  function findElementById(id: string): { id: string; type: "image"|"card"|"text"|"gallery"|"profile"; x: number; y: number } | null {
+  function findElementById(id: string): { id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"; x: number; y: number } | null {
     const img = images.find(i => i.id === id); if (img) return { id: img.id, type: "image", x: img.x, y: img.y };
     const card = cards.find(c => c.id === id); if (card) return { id: card.id, type: "card", x: card.x, y: card.y };
     const txt = texts.find(t => t.id === id); if (txt) return { id: txt.id, type: "text", x: txt.x, y: txt.y };
@@ -1101,6 +1121,7 @@ export default function CanvasBoard({
   function updateGallery(id: string, patch: Partial<CanvasGallery>) { enqueueOp({ type: "update_gallery", id, patch }); }
   function updateProfile(id: string, patch: Partial<ProfileCardData>) { enqueueOp({ type: "update_profile", id, patch }); }
   function updateMedia(id: string, patch: Partial<CanvasMedia>) { enqueueOp({ type: "update_media", id, patch }); }
+  function updateGuestbook(id: string, patch: Partial<GuestbookCardData>) { enqueueOp({ type: "update_guestbook", id, patch }); }
 
   function addMedia() {
     if (!canInteract) return;
@@ -1153,6 +1174,23 @@ export default function CanvasBoard({
     setMenuOpen(false);
   }
 
+  function addGuestbook() {
+    if (!canInteract) return;
+    if (guestbooks.length > 0) return;
+    zCounter.current += 1;
+    const vc = viewCenter();
+    const { x: gx, y: gy } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 300, 420);
+    const g: GuestbookCardData = {
+      id: crypto.randomUUID(), x: gx, y: gy,
+      w: 300, h: 420, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
+      borderRadius: 16, opacity: 1,
+      isPublic: inSpace ? true : undefined,
+    };
+    enqueueOp({ type: "add_guestbook", guestbook: g });
+    setSelectedIds(new Set([g.id]));
+    setMenuOpen(false);
+  }
+
   function addGallery() {
     if (!canInteract) return;
     zCounter.current += 1;
@@ -1180,7 +1218,7 @@ export default function CanvasBoard({
     return {x:minX,y:minY,w:maxX-minX,h:maxY-minY,items:all};
   }
 
-  function onElementMouseDown(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media", x: number, y: number, e: React.MouseEvent) {
+  function onElementMouseDown(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook", x: number, y: number, e: React.MouseEvent) {
     if (!canInteract) return;
     userInteractedRef.current = true;
     if (creatingCard||addingText) return;
@@ -1300,8 +1338,9 @@ export default function CanvasBoard({
         visCards.forEach(c => { if(hit(c.x,c.y,c.w,c.h)) ns.add(c.id); });
         visTexts.forEach(t => { const tw=(t.content?.length??4)*t.size*0.55; const th=t.size*1.6; if(hit(t.x,t.y,tw,th)) ns.add(t.id); });
         visGalleries.forEach(g => { if(hit(g.x,g.y,g.w,g.h)) ns.add(g.id); });
-        visProfiles.forEach(p => { if(hit(p.x,p.y,p.w,p.h)) ns.add(p.id); });
-        visMedias.forEach(m    => { if(hit(m.x,m.y,m.w,m.h)) ns.add(m.id); });
+        visProfiles.forEach(p    => { if(hit(p.x,p.y,p.w,p.h)) ns.add(p.id); });
+        visMedias.forEach(m      => { if(hit(m.x,m.y,m.w,m.h)) ns.add(m.id); });
+        visGuestbooks.forEach(g  => { if(hit(g.x,g.y,g.w,g.h)) ns.add(g.id); });
         setSelectedIds(ns);
       } else setSelectedIds(new Set());
       setSelRect(null);
@@ -1309,14 +1348,15 @@ export default function CanvasBoard({
     }
 
     // Capture what's about to be deleted before handleDragUp removes them
-    const toDelete: Array<{ id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media" }> = [];
+    const toDelete: Array<{ id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook" }> = [];
     if (dragging && overTrash) {
       images.forEach(i  => { if (selectedIds.has(i.id))  toDelete.push({ id: i.id,  type: "image"   }); });
       cards.forEach(c   => { if (selectedIds.has(c.id))  toDelete.push({ id: c.id,  type: "card"    }); });
       texts.forEach(t   => { if (selectedIds.has(t.id))  toDelete.push({ id: t.id,  type: "text"    }); });
       galleries.forEach(g => { if (selectedIds.has(g.id)) toDelete.push({ id: g.id, type: "gallery" }); });
       profiles.forEach(p  => { if (selectedIds.has(p.id)) toDelete.push({ id: p.id, type: "profile" }); });
-      medias.forEach(m      => { if (selectedIds.has(m.id))  toDelete.push({ id: m.id,  type: "media"     }); });
+      medias.forEach(m        => { if (selectedIds.has(m.id))  toDelete.push({ id: m.id,  type: "media"     }); });
+      guestbooks.forEach(g    => { if (selectedIds.has(g.id)) toDelete.push({ id: g.id, type: "guestbook" }); });
     }
 
     if (dragging && overTrash) setSelectedIds(new Set());
@@ -1333,7 +1373,8 @@ export default function CanvasBoard({
           else if (type === "text")    enqueueOp({ type: "delete_text",    id });
           else if (type === "gallery") enqueueOp({ type: "delete_gallery", id });
           else if (type === "profile") enqueueOp({ type: "delete_profile", id });
-          else if (type === "media")   enqueueOp({ type: "delete_media",   id });
+          else if (type === "media")      enqueueOp({ type: "delete_media",     id });
+          else if (type === "guestbook") enqueueOp({ type: "delete_guestbook", id });
         });
       } else if (result.moved.length === 1) {
         const { id, type, x, y } = result.moved[0];
@@ -1352,7 +1393,8 @@ export default function CanvasBoard({
         else if (type === "text")    enqueueOp({ type: "update_text",    id, patch });
         else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch });
         else if (type === "profile") enqueueOp({ type: "update_profile", id, patch });
-        else if (type === "media")     enqueueOp({ type: "update_media",     id, patch });
+        else if (type === "media")      enqueueOp({ type: "update_media",     id, patch });
+        else if (type === "guestbook") enqueueOp({ type: "update_guestbook", id, patch });
       } else if (result.resized) {
         const { id, type, ...dims } = result.resized;
         // Guard: never persist NaN/Infinity/zero — these make elements invisible on reload
@@ -1369,7 +1411,8 @@ export default function CanvasBoard({
             else if (type === "card")    enqueueOp({ type: "update_card",    id, patch: { w, h } });
             else if (type === "gallery") enqueueOp({ type: "update_gallery", id, patch: { w, h } });
             else if (type === "profile") enqueueOp({ type: "update_profile", id, patch: { w, h } });
-            else if (type === "media")     enqueueOp({ type: "update_media",     id, patch: { w, h } });
+            else if (type === "media")      enqueueOp({ type: "update_media",     id, patch: { w, h } });
+            else if (type === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: { w, h } });
           }
         }
       }
@@ -1710,6 +1753,31 @@ export default function CanvasBoard({
       })}
 
 
+      {/* ── GUESTBOOK ── */}
+      {visGuestbooks.map(gb => {
+        const ps = getParallaxStyle(gb.layer, gb.depth);
+        return (
+          <WidgetBoundary key={gb.id} label="guestbook">
+            <GuestbookWidget
+              guestbook={gb}
+              isSel={selectedIds.has(gb.id)}
+              draggingId={dragging?.id ?? null}
+              parallaxTransform={ps.transform as string}
+              locked={!!gb.locked}
+              onMouseDown={gb.locked ? e => e.stopPropagation() : e => onElementMouseDown(gb.id, "guestbook", gb.x, gb.y, e)}
+              onClick={e => handleElementClick(gb.id, e)}
+              onResizeMD={gb.locked ? e => e.stopPropagation() : e => startSingleResize(gb.id, "guestbook", e)}
+              onRotateMD={gb.locked ? e => e.stopPropagation() : e => startRotate(gb.id, "guestbook", e, gb.x + gb.w / 2, gb.y + gb.h / 2)}
+              updateGuestbook={updateGuestbook}
+              onToggleLock={() => setElements(p => p.map(e => e.elementType === "guestbook" && e.id === gb.id ? { ...e, locked: !e.locked } : e))}
+              canInteract={canInteract}
+              ownerUserId={ownerUserId ?? currentUserId}
+              currentUserId={currentUserId}
+            />
+          </WidgetBoundary>
+        );
+      })}
+
       {/* ── CARDS ── */}
       {visCards.map(card=>{
         const isSel=selectedIds.has(card.id);
@@ -1867,6 +1935,7 @@ export default function CanvasBoard({
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
             {label:"Media",         fn:()=>{addMedia();               setMenuOpen(false);}},
+            {label:"Guestbook",     fn:()=>{addGuestbook();           setMenuOpen(false);}},
           ].map(item=>(
             <button key={item.label} onClick={item.fn}
               style={{display:"block",width:"100%",padding:"7px 11px",borderRadius:4,border:"none",background:"transparent",color:"rgba(255,255,255,0.55)",fontSize:9,letterSpacing:1.5,cursor:"pointer",textAlign:"left",fontFamily:MONO,textTransform:"uppercase",transition:"background 0.08s ease, color 0.08s ease"}}

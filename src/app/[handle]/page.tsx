@@ -65,7 +65,8 @@ export default async function PublicPage({
     (mobileState.texts?.length ?? 0) > 0 ||
     (mobileState.profiles?.length ?? 0) > 0 ||
     (mobileState.galleries?.length ?? 0) > 0 ||
-    (mobileState.medias?.length ?? 0) > 0
+    (mobileState.medias?.length ?? 0) > 0 ||
+    (mobileState.guestbooks?.length ?? 0) > 0
   ));
   const showMobile = isMobileUA && hasMobileContent;
 
@@ -91,6 +92,7 @@ export default async function PublicPage({
           state={mobileState}
           handle={profile.handle}
           name={profile.display_name ?? ""}
+          userId={profile.user_id}
         />
       ) : (
         <CanvasBoard

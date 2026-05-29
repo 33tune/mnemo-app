@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type React from "react";
-import type { CanvasState, TextFont } from "@/types";
+import type { CanvasState, TextFont, GuestbookMessage } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { createClient } from "@/lib/supabase/client";
 
@@ -22,7 +22,7 @@ const LOGICAL_HEIGHT = 3000;
 
 const EMPTY: CanvasState = {
   cards: [], images: [], texts: [], galleries: [],
-  profiles: [], medias: [], bgColor: "#0a0a0c", wallpaper: "",
+  profiles: [], medias: [], guestbooks: [], bgColor: "#0a0a0c", wallpaper: "",
 };
 
 export default function MobilePublicCanvas({
@@ -228,41 +228,255 @@ export default function MobilePublicCanvas({
             );
           })}
 
-          {/* Profiles */}
+          {/* Guestbooks */}
+          {(state.guestbooks ?? []).map(gb => (
+            <MobileGuestbookWidget
+              key={gb.id}
+              gb={gb}
+              profileId={userId}
+            />
+          ))}
+
+          {/* Profiles — use stored % positions, same as ProfileCard desktop */}
           {(state.profiles ?? []).map(profile => {
-            const hasPhoto  = profile.photo   && !profile.photo.startsWith("blob:");
-            const hasBgImg  = profile.bgImage && !profile.bgImage.startsWith("blob:");
-            const links = (profile.links ?? []).filter(l => l.url);
+            const hasPhoto = profile.photo && !profile.photo.startsWith("blob:");
+            const hasBgImg = profile.bgImage && !profile.bgImage.startsWith("blob:");
+            const links    = (profile.links ?? []).filter(l => l.url);
+
+            // Replicate ProfileCard's position/scale defaults exactly
+            const photoX  = profile.photoX ?? 50;
+            const photoY  = profile.photoY ?? 34;
+            const _textX  = profile.textX  ?? 50;
+            const _textY  = profile.textY  ?? 72;
+            const nameX   = profile.nameX   ?? _textX;
+            const nameY   = profile.nameY   ?? _textY;
+            const statusX = profile.statusX ?? _textX;
+            const statusY = profile.statusY ?? (_textY + 8);
+            const handleX = profile.handleX ?? _textX;
+            const handleY = profile.handleY ?? (_textY + 13);
+            const bioX    = profile.bioX    ?? _textX;
+            const bioY    = profile.bioY    ?? (_textY + 19);
+            const linksX  = profile.linksX  ?? 50;
+            const linksY  = profile.linksY  ?? 78;
+
+            const photoScale  = profile.photoScale  ?? 1;
+            const nameScale   = profile.nameScale   ?? (profile.textScale ?? 1);
+            const statusScale = profile.statusScale ?? 1;
+            const handleScale = profile.handleScale ?? 1;
+            const bioScale    = profile.bioScale    ?? 1;
+            const linksScale  = profile.linksScale  ?? 1;
+
+            const PHOTO_SIZES: Record<string, number> = { sm: 52, md: 80, lg: 112 };
+            const photoSizePx = PHOTO_SIZES[profile.photoSize ?? "md"] ?? 80;
+
+            const nameFontSize   = profile.nameFontSize   ?? 18;
+            const statusFontSize = profile.statusFontSize ?? 10;
+
+            const textColor = profile.textColor ?? "rgba(255,255,255,0.92)";
+
             return (
               <div key={profile.id} style={{
-                position: "absolute", left: profile.x, top: profile.y, width: profile.w, height: profile.h,
+                position: "absolute", left: profile.x, top: profile.y,
+                width: profile.w, height: profile.h,
                 zIndex: profile.zIndex + profile.layer * 100,
                 transform: `rotate(${profile.rotation ?? 0}deg)`,
-                borderRadius: profile.borderRadius, opacity: profile.opacity, cursor: "default",
+                borderRadius: profile.borderRadius, opacity: profile.opacity,
                 ...(hasBgImg
                   ? bgImageStyle(profile.bgImage, profile.bgMode)
                   : { background: profile.bgColor || "rgba(255,255,255,0.04)" }),
                 border: "1px solid rgba(255,255,255,0.06)",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                gap: 8, padding: 16,
                 overflow: "hidden",
               }}>
-                {hasPhoto && <img src={profile.photo} alt="" draggable={false} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />}
-                {profile.name && <span style={{ fontFamily: SANS, fontSize: 14, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>{profile.name}</span>}
-                {profile.status && <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>{profile.status}</span>}
-                {links.length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center", marginTop: 2 }}>
-                    {links.map(link => {
-                      const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
-                      return (
-                        <MobileLinkButton key={link.id} label={link.label} icon={link.icon} href={safeUrl} />
-                      );
-                    })}
+                {/* Photo */}
+                {hasPhoto && (
+                  <div style={{
+                    position: "absolute",
+                    left: `${photoX}%`, top: `${photoY}%`,
+                    transform: `translate(-50%, -50%) scale(${photoScale})`,
+                  }}>
+                    <div style={{ width: photoSizePx, height: photoSizePx, borderRadius: "50%", overflow: "hidden" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={profile.photo} alt="" draggable={false}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </div>
                   </div>
                 )}
+
+                {/* Name */}
+                {profile.name && (
+                  <div style={{
+                    position: "absolute",
+                    left: `${nameX}%`, top: `${nameY}%`,
+                    transform: `translate(-50%, -50%) scale(${nameScale})`,
+                    textAlign: "center", whiteSpace: "nowrap",
+                  }}>
+                    <span style={{ fontFamily: SANS, fontSize: nameFontSize, fontWeight: 700, color: textColor }}>
+                      {profile.name}
+                    </span>
+                  </div>
+                )}
+
+                {/* Status */}
+                {profile.status && (
+                  <div style={{
+                    position: "absolute",
+                    left: `${statusX}%`, top: `${statusY}%`,
+                    transform: `translate(-50%, -50%) scale(${statusScale})`,
+                    textAlign: "center", whiteSpace: "nowrap",
+                  }}>
+                    <span style={{ fontFamily: SANS, fontSize: statusFontSize, fontWeight: 500, color: textColor, opacity: 0.82 }}>
+                      {profile.status}
+                    </span>
+                  </div>
+                )}
+
+                {/* Handle */}
+                {profile.handle && (
+                  <div style={{
+                    position: "absolute",
+                    left: `${handleX}%`, top: `${handleY}%`,
+                    transform: `translate(-50%, -50%) scale(${handleScale})`,
+                    textAlign: "center", whiteSpace: "nowrap",
+                  }}>
+                    <span style={{ fontFamily: SANS, fontSize: 9, color: textColor, opacity: 0.65 }}>
+                      @{profile.handle}
+                    </span>
+                  </div>
+                )}
+
+                {/* Bio */}
+                {profile.bio && (
+                  <div style={{
+                    position: "absolute",
+                    left: `${bioX}%`, top: `${bioY}%`,
+                    transform: `translate(-50%, -50%) scale(${bioScale})`,
+                    textAlign: "center",
+                  }}>
+                    <span style={{ fontFamily: MONO, fontSize: 7.5, color: textColor, opacity: 0.42,
+                      maxWidth: 110, display: "block", wordBreak: "break-word", lineHeight: 1.55 }}>
+                      {profile.bio}
+                    </span>
+                  </div>
+                )}
+
+                {/* Links — each individually positioned */}
+                {links.map((link, idx) => {
+                  const lx = link.x ?? linksX;
+                  const ly = link.y ?? (linksY + idx * 8);
+                  const ls = link.scale ?? linksScale;
+                  const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
+                  return (
+                    <div key={link.id} style={{
+                      position: "absolute",
+                      left: `${lx}%`, top: `${ly}%`,
+                      transform: `translate(-50%, -50%) scale(${ls})`,
+                    }}>
+                      <MobileLinkButton label={link.label} icon={link.icon} href={safeUrl} />
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileGuestbookWidget({
+  gb,
+  profileId,
+}: {
+  gb: { id: string; x: number; y: number; w: number; h: number; zIndex: number; layer: 0|1|2; rotation?: number; borderRadius?: number; opacity?: number };
+  profileId: string | undefined;
+}) {
+  const [messages,    setMessages]    = useState<GuestbookMessage[]>([]);
+  const [draft,       setDraft]       = useState("");
+  const [sending,     setSending]     = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+
+  useEffect(() => {
+    const sb = createClient();
+    sb.auth.getUser().then(({ data: { user } }) => setCurrentUserId(user?.id ?? null));
+    if (!profileId) return;
+    sb.from("guestbook_messages")
+      .select("*").eq("profile_id", profileId)
+      .order("created_at", { ascending: false }).limit(50)
+      .then(({ data }) => setMessages((data as GuestbookMessage[]) ?? []));
+
+    channelRef.current = sb.channel(`gb_mobile:${profileId}:${crypto.randomUUID()}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "guestbook_messages", filter: `profile_id=eq.${profileId}` }, payload => {
+        if (payload.eventType === "INSERT") setMessages(p => [payload.new as GuestbookMessage, ...p]);
+        else if (payload.eventType === "DELETE") setMessages(p => p.filter(m => m.id !== (payload.old as { id: string }).id));
+      }).subscribe();
+
+    return () => { if (channelRef.current) sb.removeChannel(channelRef.current); };
+  }, [profileId]);
+
+  async function handleSend() {
+    if (!draft.trim() || draft.length > 280 || !profileId) return;
+    setSending(true);
+    const sb = createClient();
+    await sb.from("guestbook_messages").insert({
+      profile_id:   profileId,
+      author_id:    currentUserId,
+      author_name:  "anon",
+      author_avatar: "",
+      message:      draft.trim(),
+      anonymous:    true,
+    });
+    setDraft("");
+    setSending(false);
+  }
+
+  return (
+    <div style={{
+      position: "absolute", left: gb.x, top: gb.y, width: gb.w, height: gb.h,
+      zIndex: gb.zIndex + gb.layer * 100,
+      transform: `rotate(${gb.rotation ?? 0}deg)`,
+      borderRadius: gb.borderRadius ?? 16, opacity: gb.opacity ?? 1,
+      background: "rgba(12,12,16,0.92)",
+      border: "1px solid rgba(255,255,255,0.07)",
+      display: "flex", flexDirection: "column", overflow: "hidden",
+    }}>
+      <div style={{ padding: "8px 12px 6px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 2, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>GUESTBOOK</span>
+        <span style={{ fontFamily: MONO, fontSize: 6, color: "rgba(255,255,255,0.18)" }}>{messages.length}</span>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "6px 10px", display: "flex", flexDirection: "column", gap: 6, scrollbarWidth: "none" }}>
+        {messages.length === 0 && (
+          <div style={{ fontFamily: MONO, fontSize: 7, color: "rgba(255,255,255,0.2)", textAlign: "center", paddingTop: 16 }}>no entries yet</div>
+        )}
+        {messages.map(msg => (
+          <div key={msg.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 6, padding: "6px 8px" }}>
+            <div style={{ fontFamily: MONO, fontSize: 6, color: "rgba(255,255,255,0.35)", marginBottom: 3 }}>
+              {msg.anonymous ? "anon" : (msg.author_name || "anon")}
+            </div>
+            <p style={{ fontFamily: SANS, fontSize: 10, color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.4, wordBreak: "break-word" }}>
+              {msg.message}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "6px 10px 8px", display: "flex", flexDirection: "column", gap: 4 }}>
+        <textarea
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          placeholder="leave a note..."
+          rows={2}
+          maxLength={280}
+          style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 5, padding: "5px 7px", fontFamily: SANS, fontSize: 10, color: "rgba(255,255,255,0.75)", resize: "none", outline: "none", boxSizing: "border-box" }}
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button
+            onClick={handleSend}
+            disabled={!draft.trim() || draft.length > 280 || sending || !profileId}
+            style={{ background: "rgba(232,224,212,0.1)", border: "1px solid rgba(232,224,212,0.25)", borderRadius: 4, padding: "3px 10px", fontFamily: MONO, fontSize: 7, letterSpacing: 1.5, color: "rgba(232,224,212,0.8)", cursor: "pointer", textTransform: "uppercase" }}
+          >
+            {sending ? "..." : "send"}
+          </button>
         </div>
       </div>
     </div>
