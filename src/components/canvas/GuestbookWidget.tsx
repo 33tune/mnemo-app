@@ -318,10 +318,8 @@ export default function GuestbookWidget({
 
   const isDragging = draggingId === guestbook.id;
   const br         = guestbook.borderRadius ?? 14;
-
-  const cardBgStyle = guestbook.bgImage
-    ? bgImageStyle(guestbook.bgImage, guestbook.bgMode)
-    : { background: guestbook.bgColor || "rgba(14,13,18,0.96)" };
+  const blur       = guestbook.blur ?? 28;
+  const brightness = guestbook.brightness ?? 100;
 
   return (
     <div
@@ -340,7 +338,6 @@ export default function GuestbookWidget({
         userSelect: "none",
         transform:  `${parallaxTransform} rotate(${guestbook.rotation ?? 0}deg)`,
         willChange: "transform",
-        opacity:    guestbook.opacity ?? 1,
       }}
     >
       {/* Card shell */}
@@ -348,17 +345,33 @@ export default function GuestbookWidget({
         position:             "absolute",
         inset:                0,
         borderRadius:         br,
-        ...cardBgStyle,
         border:               isSel
           ? `1px solid ${T.accentBorder}`
           : "1px solid rgba(255,255,255,0.06)",
-        backdropFilter:       `blur(${guestbook.blur ?? 28}px)`,
-        WebkitBackdropFilter: `blur(${guestbook.blur ?? 28}px)`,
+        backdropFilter:       !guestbook.bgImage ? `blur(${blur}px)` : undefined,
+        WebkitBackdropFilter: !guestbook.bgImage ? `blur(${blur}px)` : undefined,
         boxShadow:            "0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
         overflow:             "hidden",
         display:              "flex",
         flexDirection:        "column",
       }}>
+
+        {/* Background layer — opacity/blur/brightness isolated here, never affects content */}
+        <div style={{
+          position:      "absolute",
+          inset:         0,
+          borderRadius:  br,
+          ...(guestbook.bgImage
+            ? bgImageStyle(guestbook.bgImage, guestbook.bgMode)
+            : { background: guestbook.bgColor || "rgba(14,13,18,0.96)" }
+          ),
+          opacity:       guestbook.opacity ?? 1,
+          filter:        guestbook.bgImage
+            ? `blur(${blur}px) brightness(${brightness}%)`
+            : `brightness(${brightness}%)`,
+          pointerEvents: "none",
+          zIndex:        0,
+        }} />
 
         {/* Paper texture overlay */}
         {(preset === "notebook" || preset === "sticky") && (

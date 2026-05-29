@@ -239,6 +239,7 @@ export type GuestbookCardData = {
   borderRadius?: number;
   opacity?:      number;
   blur?:         number;
+  brightness?:   number;
 };
 
 export type CanvasState = {

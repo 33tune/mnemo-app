@@ -278,6 +278,16 @@ export default function GuestbookMenu({ guestbook, menuRect, updateGuestbook, on
             onMouseDown={e => e.stopPropagation()}
           />
 
+          {/* Brightness */}
+          <UISlider
+            label="Brillo de fondo"
+            value={guestbook.brightness ?? 100}
+            unit="%"
+            min={0} max={200}
+            onChange={v => updateGuestbook(guestbook.id, { brightness: v })}
+            onMouseDown={e => e.stopPropagation()}
+          />
+
           {/* Border radius */}
           <UISlider
             label="Redondeado"
