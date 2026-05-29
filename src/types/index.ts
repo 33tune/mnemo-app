@@ -238,6 +238,7 @@ export type GuestbookCardData = {
   bgMode?:       "cover" | "repeat";
   borderRadius?: number;
   opacity?:      number;
+  blur?:         number;
 };
 
 export type CanvasState = {

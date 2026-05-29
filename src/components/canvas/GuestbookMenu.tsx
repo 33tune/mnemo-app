@@ -268,6 +268,16 @@ export default function GuestbookMenu({ guestbook, menuRect, updateGuestbook, on
             onMouseDown={e => e.stopPropagation()}
           />
 
+          {/* Blur */}
+          <UISlider
+            label="Blur de fondo"
+            value={guestbook.blur ?? 28}
+            unit="px"
+            min={0} max={60}
+            onChange={v => updateGuestbook(guestbook.id, { blur: v })}
+            onMouseDown={e => e.stopPropagation()}
+          />
+
           {/* Border radius */}
           <UISlider
             label="Redondeado"
