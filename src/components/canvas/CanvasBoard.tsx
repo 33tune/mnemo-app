@@ -30,6 +30,7 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
+import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -157,7 +158,7 @@ export default function CanvasBoard({
   const [wallpaperLoaded,  setWallpaperLoaded]  = useState(true);
   const [bgColor,          setBgColor]          = useState("#0a0a0c");
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
-  const [view,             setView]             = useState<"canvas" | "browse" | "chats">("canvas");
+  const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "analytics">("analytics");
   const [totalUnread,      setTotalUnread]      = useState(0);
   const [homeBg,           setHomeBg]           = useState<{ color: string; wallpaper: string; wallpaperLoaded: boolean }>({ color: "#0a0a0c", wallpaper: "", wallpaperLoaded: false });
   const [currentUserId,    setCurrentUserId]    = useState<string | undefined>(undefined);
@@ -298,9 +299,10 @@ export default function CanvasBoard({
     if (!authResolved || urlViewInitRef.current) return;
     urlViewInitRef.current = true;
     const v = new URLSearchParams(window.location.search).get("view");
-    if (v === "space") handleModeChange("space");
-    else if (v === "space_mobile") handleModeChange("space_mobile");
+    if (v === "space") { setView("canvas"); handleModeChange("space"); }
+    else if (v === "space_mobile") { setView("canvas"); handleModeChange("space_mobile"); }
     else if (v === "chats") setView("chats");
+    else if (v === "analytics") setView("analytics");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authResolved]);
 
@@ -1465,8 +1467,10 @@ export default function CanvasBoard({
         wallpaper={wallpaper}
         handle={userHandle}
         onLogout={canEdit ? handleLogout : undefined}
-        canvasMode={canEdit ? canvasMode : (viewerLoggedIn ? "home" : undefined)}
-        onModeChange={canEdit ? handleModeChange : (viewerLoggedIn ? async (mode: CanvasMode) => { router.push(isSpaceCanvas(mode) ? `/dashboard?view=${mode}` : "/dashboard"); } : undefined)}
+        canvasMode={canEdit ? canvasMode : undefined}
+        onModeChange={canEdit
+          ? async (mode: CanvasMode) => { setView("canvas"); await handleModeChange(mode); }
+          : (viewerLoggedIn ? async (mode: CanvasMode) => { router.push(isSpaceCanvas(mode) ? `/dashboard?view=${mode}` : "/dashboard"); } : undefined)}
         publishState={canEdit && isSpaceCanvas(canvasMode) && view === "canvas" ? publishState : undefined}
         onPublish={canEdit && isSpaceCanvas(canvasMode) && view === "canvas" ? publishSpace : undefined}
         isChats={view === "chats"}
@@ -1474,6 +1478,8 @@ export default function CanvasBoard({
         unreadChats={totalUnread}
         unreadSignals={canEdit ? unreadCount : undefined}
         onSignals={canEdit ? () => { if (!showSignals) markAllRead(); setShowSignals(s => !s); } : undefined}
+        isAnalytics={view === "analytics"}
+        onAnalytics={canEdit ? () => setView("analytics") : undefined}
       />
 
       {view==="canvas"&&(creatingCard||rotating||addingText)&&(
@@ -1956,6 +1962,17 @@ export default function CanvasBoard({
       {/* ── First-visit onboarding ── */}
       {showOnboarding && (
         <OnboardingOverlay onDone={dismissOnboarding} />
+      )}
+
+      {/* Analytics view */}
+      {view === "analytics" && canEdit && (
+        <WidgetBoundary label="analytics-view">
+          <AnalyticsCanvas
+            userId={currentUserId}
+            bgColor={homeBg.color || "#0a0a0c"}
+            wallpaper={homeBg.wallpaper && homeBg.wallpaperLoaded ? homeBg.wallpaper : undefined}
+          />
+        </WidgetBoundary>
       )}
 
       {/* Social hub view */}

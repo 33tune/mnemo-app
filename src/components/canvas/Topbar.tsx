@@ -19,6 +19,8 @@ export default function Topbar({
   unreadChats,
   unreadSignals,
   onSignals,
+  isAnalytics,
+  onAnalytics,
 }: {
   wallpaper: string;
   handle?: string;
@@ -34,6 +36,8 @@ export default function Topbar({
   unreadChats?:   number;
   unreadSignals?: number;
   onSignals?:     () => void;
+  isAnalytics?:   boolean;
+  onAnalytics?:   () => void;
 }) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
@@ -69,12 +73,14 @@ export default function Topbar({
   }, []);
 
   const tabs: { key: string; label: string; active: boolean; onClick: () => void }[] = [];
-  if (onModeChange && canvasMode) {
-    tabs.push({ key: "home",         label: "HOME",     active: canvasMode === "home"         && !isBrowse && !isChats, onClick: () => onModeChange("home") });
-    tabs.push({ key: "space",        label: "MY SPACE", active: canvasMode === "space"        && !isBrowse && !isChats, onClick: () => onModeChange("space") });
-    tabs.push({ key: "space_mobile", label: "MOBILE",   active: canvasMode === "space_mobile" && !isBrowse && !isChats, onClick: () => onModeChange("space_mobile") });
+  if (onAnalytics) {
+    tabs.push({ key: "analytics", label: "ANALYTICS", active: !!isAnalytics && !isBrowse && !isChats, onClick: onAnalytics });
   }
-  if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats, onClick: onChats });
+  if (onModeChange && canvasMode) {
+    tabs.push({ key: "space",        label: "MY SPACE", active: canvasMode === "space"        && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space") });
+    tabs.push({ key: "space_mobile", label: "MOBILE",   active: canvasMode === "space_mobile" && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space_mobile") });
+  }
+  if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats && !isAnalytics, onClick: onChats });
 
   return (
     <>

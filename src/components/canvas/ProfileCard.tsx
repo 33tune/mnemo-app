@@ -11,6 +11,7 @@ import { usePresence } from "@/hooks/usePresence";
 import { useProfileViews } from "@/hooks/useProfileViews";
 import type { PresenceState } from "@/types";
 import { UIButton, UISlider } from "@/components/ui";
+import { trackLinkClick } from "@/lib/trackLinkClick";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -745,7 +746,7 @@ function ProfileCard({
                     }}
                   />
                 )}
-                <LinkButton link={link} baseColor={baseColor} globalFont={globalFont} editMode={menuOpen} />
+                <LinkButton link={link} baseColor={baseColor} globalFont={globalFont} editMode={menuOpen} ownerUserId={card.userId} />
               </div>
             );
           })}
@@ -1875,11 +1876,12 @@ function Div() {
 
 // ── LinkButton ────────────────────────────────────────────────────────────────
 
-function LinkButton({ link, baseColor, globalFont, editMode }: {
+function LinkButton({ link, baseColor, globalFont, editMode, ownerUserId }: {
   link: import("@/types").ProfileLink;
   baseColor: string;
   globalFont: string;
   editMode?: boolean;
+  ownerUserId?: string;
 }) {
   const [hov, setHov] = useState(false);
   const safeUrl =
@@ -1890,7 +1892,13 @@ function LinkButton({ link, baseColor, globalFont, editMode }: {
     <div
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      onClick={e => { e.stopPropagation(); if (!editMode && safeUrl) window.open(safeUrl, "_blank", "noopener,noreferrer"); }}
+      onClick={e => {
+        e.stopPropagation();
+        if (!editMode && safeUrl) {
+          if (ownerUserId) trackLinkClick(ownerUserId, link.label, safeUrl);
+          window.open(safeUrl, "_blank", "noopener,noreferrer");
+        }
+      }}
       style={{
         display:              "flex",
         alignItems:           "center",

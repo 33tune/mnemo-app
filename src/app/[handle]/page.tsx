@@ -74,6 +74,7 @@ export default async function PublicPage({
     supabase.from("profile_views").insert({
       profile_user_id: profile.user_id,
       viewer_user_id:  viewer?.id ?? null,
+      device_type:     isMobileUA ? "mobile" : "desktop",
     }).then();
   }
 
