@@ -158,7 +158,7 @@ export default function CanvasBoard({
   const [wallpaperLoaded,  setWallpaperLoaded]  = useState(true);
   const [bgColor,          setBgColor]          = useState("#0a0a0c");
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
-  const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "analytics">("analytics");
+  const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "analytics">(canEdit ? "analytics" : "canvas");
   const [totalUnread,      setTotalUnread]      = useState(0);
   const [homeBg,           setHomeBg]           = useState<{ color: string; wallpaper: string; wallpaperLoaded: boolean }>({ color: "#0a0a0c", wallpaper: "", wallpaperLoaded: false });
   const [currentUserId,    setCurrentUserId]    = useState<string | undefined>(undefined);
@@ -1467,7 +1467,7 @@ export default function CanvasBoard({
         wallpaper={wallpaper}
         handle={userHandle}
         onLogout={canEdit ? handleLogout : undefined}
-        canvasMode={canEdit ? canvasMode : undefined}
+        canvasMode={canEdit ? canvasMode : (viewerLoggedIn ? "space" : undefined)}
         onModeChange={canEdit
           ? async (mode: CanvasMode) => { setView("canvas"); await handleModeChange(mode); }
           : (viewerLoggedIn ? async (mode: CanvasMode) => { router.push(isSpaceCanvas(mode) ? `/dashboard?view=${mode}` : "/dashboard"); } : undefined)}
