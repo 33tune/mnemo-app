@@ -441,8 +441,13 @@ function MobileGuestbookWidget({
 
     channelRef.current = sb.channel(`gb_mobile:${profileId}:${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "guestbook_messages", filter: `profile_id=eq.${profileId}` }, payload => {
-        if (payload.eventType === "INSERT") setMessages(p => [payload.new as GuestbookMessage, ...p]);
-        else if (payload.eventType === "DELETE") setMessages(p => p.filter(m => m.id !== (payload.old as { id: string }).id));
+        if (payload.eventType === "INSERT") {
+          const newMsg = payload.new as GuestbookMessage;
+          if (pendingRef.current.has(newMsg.id)) { pendingRef.current.delete(newMsg.id); return; }
+          setMessages(p => [newMsg, ...p]);
+        } else if (payload.eventType === "DELETE") {
+          setMessages(p => p.filter(m => m.id !== (payload.old as { id: string }).id));
+        }
       }).subscribe();
 
     // Cooldown tick
@@ -464,21 +469,38 @@ function MobileGuestbookWidget({
   const sendName   = isLoggedIn ? (viewerName || "anon") : (anonName.trim() || "anon");
   const canSend    = draft.trim().length > 0 && draft.length <= 280 && !sending && !!profileId && cooldownLeft === 0;
 
+  const pendingRef = useRef<Set<string>>(new Set());
+
   async function handleSend() {
     if (!canSend || !profileId) return;
     setSending(true);
     setError("");
+
+    // Optimistic insert
+    const tempId  = crypto.randomUUID();
+    const tempMsg: GuestbookMessage = {
+      id: tempId, profile_id: profileId, author_id: currentUserId,
+      author_name: sendName, author_avatar: isLoggedIn ? viewerAvatar : "",
+      message: draft.trim(), anonymous: !isLoggedIn,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(p => [tempMsg, ...p]);
+
     const sb = createClient();
-    const { error: err } = await sb.from("guestbook_messages").insert({
-      profile_id:    profileId,
-      author_id:     currentUserId,
-      author_name:   sendName,
-      author_avatar: isLoggedIn ? viewerAvatar : "",
-      message:       draft.trim(),
-      anonymous:     !isLoggedIn,
-    });
+    const { data, error: err } = await sb.from("guestbook_messages")
+      .insert({ profile_id: profileId, author_id: currentUserId, author_name: sendName, author_avatar: isLoggedIn ? viewerAvatar : "", message: draft.trim(), anonymous: !isLoggedIn })
+      .select().single();
+
     setSending(false);
-    if (err) { setError("couldn't send"); return; }
+    if (err) {
+      setMessages(p => p.filter(m => m.id !== tempId));
+      setError("couldn't send");
+      return;
+    }
+    if (data) {
+      pendingRef.current.add(data.id);
+      setMessages(p => p.map(m => m.id === tempId ? { ...m, id: data.id, created_at: data.created_at } : m));
+    }
     setDraft("");
     gbSetCd(profileId);
     setCooldownLeft(GB_COOLDOWN_MS);

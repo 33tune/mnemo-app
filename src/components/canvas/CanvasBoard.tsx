@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState } from "@/types";
 import GuestbookWidget from "./GuestbookWidget";
+import GuestbookMenu from "./GuestbookMenu";
 import MediaCardWidget from "./MediaCardWidget";
 import ResizeHandles from "./ResizeHandles";
 import { SocialDock } from "./SocialDock";
@@ -185,6 +186,10 @@ export default function CanvasBoard({
   const [cardMenuId,    setCardMenuId]    = useState<string | null>(null);
   const [cardMenuRect,  setCardMenuRect]  = useState<DOMRect | null>(null);
   const [cardMenuTab,   setCardMenuTab]   = useState<"type"|"style"|"layer">("type");
+  const [gbMenuId,      setGbMenuId]      = useState<string | null>(null);
+  const [gbMenuRect,    setGbMenuRect]    = useState<DOMRect | null>(null);
+  const gbBgFileRef   = useRef<HTMLInputElement>(null);
+  const gbBgIdRef     = useRef<string | null>(null);
   const [editingId,     setEditingId]     = useState<string | null>(null);
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [wallpaperMenuOpen, setWallpaperMenuOpen] = useState(false);
@@ -1037,6 +1042,7 @@ export default function CanvasBoard({
     // Limpiar selección y menús
     setSelectedIds(new Set());
     setCardMenuId(null); setCardMenuRect(null);
+    setGbMenuId(null);   setGbMenuRect(null);
     setEditingId(null);  setEditingTextId(null);
     setCreatingCard(false); setAddingText(false);
 
@@ -1225,7 +1231,7 @@ export default function CanvasBoard({
     userInteractedRef.current = true;
     if (creatingCard||addingText) return;
     e.preventDefault(); e.stopPropagation();
-    setSelRect(null); setCardMenuId(null); setCardMenuRect(null); setEditingId(null);
+    setSelRect(null); setCardMenuId(null); setCardMenuRect(null); setGbMenuId(null); setGbMenuRect(null); setEditingId(null);
     selChangedRef.current = false;
 
     if (e.shiftKey) {
@@ -1610,7 +1616,7 @@ export default function CanvasBoard({
           if(creatingCard){e.preventDefault();const cc=toCanvasCoords(e.clientX,e.clientY);setDrawingRect({startX:cc.x,startY:cc.y,currentX:cc.x,currentY:cc.y});return;}
           e.preventDefault();
           selChangedRef.current = false;
-          setSelectedIds(new Set());setMenuOpen(false);setCardMenuId(null);setCardMenuRect(null);setEditingId(null);setEditingTextId(null);
+          setSelectedIds(new Set());setMenuOpen(false);setCardMenuId(null);setCardMenuRect(null);setGbMenuId(null);setGbMenuRect(null);setEditingId(null);setEditingTextId(null);
           setSelRect({startX:e.clientX,startY:e.clientY,currentX:e.clientX,currentY:e.clientY});
         }} />
 
@@ -1778,6 +1784,7 @@ export default function CanvasBoard({
               canInteract={canInteract}
               ownerUserId={ownerUserId ?? currentUserId}
               currentUserId={currentUserId}
+              onOpenMenu={rect => { setGbMenuId(gb.id); setGbMenuRect(rect); }}
             />
           </WidgetBoundary>
         );
@@ -1895,13 +1902,45 @@ export default function CanvasBoard({
         </WidgetBoundary>
       ))}
 
-      {/* ── CARD MENU — fuera de cualquier div con transform para que position:fixed funcione ── */}
+      {/* ── CARD MENU ── */}
       {view==="canvas"&&(()=>{
         if(!cardMenuId||!cardMenuRect)return null;
         const mc=cards.find(c=>c.id===cardMenuId);
         if(!mc)return null;
         return(<CardMenu card={mc} cardMenuTab={cardMenuTab} setCardMenuTab={setCardMenuTab} updateCard={updateCard} bgCardId={bgCardId} bgImageRef={bgImageRef} cardRect={cardMenuRect}/>);
       })()}
+
+      {/* ── GUESTBOOK MENU ── */}
+      {view==="canvas"&&(()=>{
+        if(!gbMenuId||!gbMenuRect)return null;
+        const gb=guestbooks.find(g=>g.id===gbMenuId);
+        if(!gb)return null;
+        return(
+          <GuestbookMenu
+            guestbook={gb}
+            menuRect={gbMenuRect}
+            updateGuestbook={updateGuestbook}
+            onUploadBg={()=>{ gbBgIdRef.current=gb.id; gbBgFileRef.current?.click(); }}
+            onClose={()=>{ setGbMenuId(null); setGbMenuRect(null); }}
+          />
+        );
+      })()}
+
+      {/* Hidden file input for guestbook bg image */}
+      <input
+        ref={gbBgFileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={async e => {
+          const f = e.target.files?.[0];
+          if (!f || !gbBgIdRef.current) return;
+          const { uploadToStorage } = await import("@/lib/storage");
+          const { publicUrl } = await uploadToStorage(f);
+          updateGuestbook(gbBgIdRef.current, { bgImage: publicUrl, bgMode: "cover" });
+          e.target.value = "";
+        }}
+      />
 
       {/* ── Social dock — persistent across all views ── */}
       {canEdit && (

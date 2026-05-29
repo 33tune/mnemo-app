@@ -218,6 +218,8 @@ export type GuestbookMessage = {
   created_at:    string;
 };
 
+export type GuestbookPreset = "default" | "notebook" | "ambient" | "minimal" | "old-internet" | "sticky";
+
 export type GuestbookCardData = {
   id:            string;
   x:             number;
@@ -230,6 +232,7 @@ export type GuestbookCardData = {
   rotation:      number;
   locked?:       boolean;
   isPublic?:     boolean;
+  preset?:       GuestbookPreset;
   bgColor?:      string;
   bgImage?:      string;
   bgMode?:       "cover" | "repeat";
