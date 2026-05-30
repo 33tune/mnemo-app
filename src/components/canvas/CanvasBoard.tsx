@@ -1050,7 +1050,7 @@ export default function CanvasBoard({
     setCanvasMode(newMode);
   }
 
-  // Wrapper: exiting browse/chats mode when switching HOME/MY SPACE
+  // Wrapper: exiting browse/chats mode when switching HOME/MY LAND
   async function handleModeChange(newMode: CanvasMode) {
     setView("canvas");
     await switchMode(newMode);

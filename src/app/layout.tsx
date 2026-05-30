@@ -3,7 +3,7 @@ import "./globals.css";
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 
 export const metadata: Metadata = {
-  title: "mnemo",
+  title: "myLand",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

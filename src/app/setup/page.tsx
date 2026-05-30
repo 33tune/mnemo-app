@@ -39,7 +39,7 @@ export default async function SetupPage() {
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(232,224,212,0.55)" }} />
-          <span style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 4, color: "rgba(255,255,255,0.55)", textTransform: "uppercase" }}>MNEMO</span>
+          <span style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 4, color: "rgba(255,255,255,0.55)", textTransform: "none" }}>myLand</span>
         </div>
         <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 2.5, color: "rgba(255,255,255,0.18)", textTransform: "uppercase" }}>
           SETUP

@@ -226,7 +226,7 @@ function StepHandle({
 
       {/* Preview */}
       <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1, color: handle ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.1)", marginBottom: 6, transition: "color 0.15s ease" }}>
-        mnemo.app/{handle || "your-handle"}
+        myland.lol/{handle || "your-handle"}
       </div>
 
       {/* Status */}
@@ -257,7 +257,7 @@ function StepDisplayName({
         YOUR NAME
       </div>
       <div style={{ fontFamily: SANS, fontSize: 13, color: "rgba(255,255,255,0.32)", marginBottom: 24, lineHeight: 1.5 }}>
-        Optional. How people see you in Mnemo.
+        Optional. How people see you in myLand.
       </div>
 
       <input
@@ -320,7 +320,7 @@ function StepConfirm({
           {name}
         </div>
         <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1, color: "rgba(255,255,255,0.28)" }}>
-          mnemo.app/{handle}
+          myland.lol/{handle}
         </div>
       </div>
 

@@ -104,7 +104,7 @@ export default function MobilePublicCanvas({
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(232,224,212,0.9)" }} />
-            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2.5, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>MNEMO</span>
+            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1, color: "rgba(255,255,255,0.4)" }}>myLand</span>
           </div>
           <div style={{ width: 1, height: 12, background: "rgba(255,255,255,0.07)" }} />
           <span style={{ fontFamily: SANS, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{name}</span>

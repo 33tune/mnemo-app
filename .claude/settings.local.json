@@ -26,7 +26,14 @@
       "Bash(xargs grep -l \"dedup\\\\|dedupl\\\\|idempotent\\\\|request.*ID\")",
       "Bash(xargs grep -l \"\\\\[handle\\\\]\")",
       "Bash(Write-Output \"done\")",
-      "PowerShell(Remove-Item *)"
+      "PowerShell(Remove-Item *)",
+      "Bash(dir public *)",
+      "Bash(ls -la public/)",
+      "Bash(cat .env.local)",
+      "Bash(cat .env)",
+      "Bash(cat .env.production)",
+      "Bash(cat middleware.ts)",
+      "Bash(cat src/middleware.ts)"
     ]
   }
 }

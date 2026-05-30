@@ -120,7 +120,7 @@ export default function PublicCanvas({
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(232,224,212,0.9)", boxShadow: "0 0 8px rgba(232,224,212,0.4)" }} />
-          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: 3, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>MNEMO</span>
+          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: 1, color: "rgba(255,255,255,0.5)" }}>myLand</span>
         </div>
         <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.07)" }} />
         <span style={{ fontFamily: SANS, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>{name}</span>

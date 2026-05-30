@@ -24,14 +24,14 @@ const STEPS = [
   {
     num:      "03",
     title:    "PEOPLE CAN VISIT YOUR WORLD",
-    body:     "Switch to MY SPACE in the topbar, then hit Publish. Your canvas becomes a shareable URL.",
+    body:     "Switch to MY LAND in the topbar, then hit Publish. Your canvas becomes a shareable URL.",
     hint:     "topbar-space" as const,
     cta:      null,
   },
   {
     num:      "04",
     title:    "OPEN SOCIAL TO CONNECT",
-    body:     "Follow people. Send messages. Find others building in Mnemo. Start by uploading an image, adding a text block, or setting a wallpaper.",
+    body:     "Follow people. Send messages. Find others building in myLand. Start by uploading an image, adding a text block, or setting a wallpaper.",
     hint:     "topbar-social" as const,
     cta:      "Start building →",
   },
@@ -137,7 +137,7 @@ export default function OnboardingOverlay({ onDone }: Props) {
       {(step.hint === "topbar-space" || step.hint === "topbar-social") && (
         <TopbarHint
           visible={hintIn}
-          label={step.hint === "topbar-social" ? "SOCIAL" : "MY SPACE"}
+          label={step.hint === "topbar-social" ? "SOCIAL" : "MY LAND"}
         />
       )}
 

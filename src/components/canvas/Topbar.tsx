@@ -77,7 +77,7 @@ export default function Topbar({
     tabs.push({ key: "analytics", label: "ANALYTICS", active: !!isAnalytics && !isBrowse && !isChats, onClick: onAnalytics });
   }
   if (onModeChange && canvasMode) {
-    tabs.push({ key: "space",        label: "MY SPACE", active: canvasMode === "space"        && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space") });
+    tabs.push({ key: "space",        label: "MY LAND",  active: canvasMode === "space"        && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space") });
     tabs.push({ key: "space_mobile", label: "MOBILE",   active: canvasMode === "space_mobile" && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space_mobile") });
   }
   if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats && !isAnalytics, onClick: onChats });
@@ -119,12 +119,11 @@ export default function Topbar({
           <span style={{
             fontFamily:    MONO,
             fontSize:      10,
-            letterSpacing: 3.5,
+            letterSpacing: 1.5,
             color:         "rgba(255,255,255,0.55)",
-            textTransform: "uppercase",
             userSelect:    "none",
           }}>
-            MNEMO
+            myLand
           </span>
         </div>
 
