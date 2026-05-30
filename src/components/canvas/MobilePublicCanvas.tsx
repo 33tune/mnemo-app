@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import type React from "react";
-import type { CanvasState, TextFont, GuestbookMessage } from "@/types";
+import type { CanvasState, TextFont, GuestbookMessage, GuestbookCardData } from "@/types";
+import { THEMES as GB_THEMES } from "./GuestbookWidget";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { createClient } from "@/lib/supabase/client";
 
@@ -397,13 +398,11 @@ function gbTimeAgo(iso: string) {
   const h = Math.floor(m/60); if (h < 24) return `${h}h`; return `${Math.floor(h/24)}d`;
 }
 
-const GB_SERIF = "'Playfair Display', serif";
-
 function MobileGuestbookWidget({
   gb,
   profileId,
 }: {
-  gb: { id: string; x: number; y: number; w: number; h: number; zIndex: number; layer: 0|1|2; rotation?: number; borderRadius?: number; opacity?: number };
+  gb: GuestbookCardData;
   profileId: string | undefined;
 }) {
   const [messages,      setMessages]      = useState<GuestbookMessage[]>([]);
@@ -418,6 +417,7 @@ function MobileGuestbookWidget({
   const channelRef  = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
   const cdTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const listRef     = useRef<HTMLDivElement>(null);
+  const pendingRef  = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const sb = createClient();
@@ -450,7 +450,6 @@ function MobileGuestbookWidget({
         }
       }).subscribe();
 
-    // Cooldown tick
     const left = gbCdLeft(profileId);
     if (left > 0) setCooldownLeft(left);
     cdTimerRef.current = setInterval(() => {
@@ -469,14 +468,10 @@ function MobileGuestbookWidget({
   const sendName   = isLoggedIn ? (viewerName || "anon") : (anonName.trim() || "anon");
   const canSend    = draft.trim().length > 0 && draft.length <= 280 && !sending && !!profileId && cooldownLeft === 0;
 
-  const pendingRef = useRef<Set<string>>(new Set());
-
   async function handleSend() {
     if (!canSend || !profileId) return;
     setSending(true);
     setError("");
-
-    // Optimistic insert
     const tempId  = crypto.randomUUID();
     const tempMsg: GuestbookMessage = {
       id: tempId, profile_id: profileId, author_id: currentUserId,
@@ -492,11 +487,7 @@ function MobileGuestbookWidget({
       .select().single();
 
     setSending(false);
-    if (err) {
-      setMessages(p => p.filter(m => m.id !== tempId));
-      setError("couldn't send");
-      return;
-    }
+    if (err) { setMessages(p => p.filter(m => m.id !== tempId)); setError("couldn't send"); return; }
     if (data) {
       pendingRef.current.add(data.id);
       setMessages(p => p.map(m => m.id === tempId ? { ...m, id: data.id, created_at: data.created_at } : m));
@@ -507,95 +498,131 @@ function MobileGuestbookWidget({
     if (listRef.current) listRef.current.scrollTop = 0;
   }
 
-  const br = gb.borderRadius ?? 14;
+  const preset     = gb.preset ?? "default";
+  const T          = GB_THEMES[preset] ?? GB_THEMES.default;
+  const br         = gb.borderRadius ?? 14;
+  const blur       = gb.blur ?? 28;
+  const brightness = gb.brightness ?? 100;
 
   return (
     <div style={{
       position: "absolute", left: gb.x, top: gb.y, width: gb.w, height: gb.h,
       zIndex: gb.zIndex + gb.layer * 100,
       transform: `rotate(${gb.rotation ?? 0}deg)`,
-      borderRadius: br, opacity: gb.opacity ?? 1,
-      background: "rgba(14,13,18,0.96)",
-      border: "1px solid rgba(232,224,212,0.08)",
-      backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)",
-      boxShadow: "0 12px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(232,224,212,0.06)",
-      display: "flex", flexDirection: "column", overflow: "hidden",
     }}>
-      {/* Header */}
-      <div style={{ padding: "10px 13px 8px", borderBottom: "1px solid rgba(232,224,212,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, rgba(232,224,212,0.8), rgba(180,160,130,0.4))", boxShadow: "0 1px 3px rgba(0,0,0,0.5)" }} />
-          <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 3, color: "rgba(232,224,212,0.4)", textTransform: "uppercase" }}>guestbook</span>
-        </div>
-        <span style={{ fontFamily: MONO, fontSize: 6, color: "rgba(232,224,212,0.2)" }}>{messages.length} {messages.length === 1 ? "entry" : "entries"}</span>
-      </div>
+      {/* Card shell */}
+      <div style={{
+        position: "absolute", inset: 0,
+        borderRadius: br,
+        border: "1px solid rgba(255,255,255,0.06)",
+        backdropFilter:       !gb.bgImage ? `blur(${blur}px)` : undefined,
+        WebkitBackdropFilter: !gb.bgImage ? `blur(${blur}px)` : undefined,
+        boxShadow: "0 12px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        {/* Background layer — opacity/blur/brightness isolated here */}
+        <div style={{
+          position: "absolute", inset: 0,
+          borderRadius: br,
+          ...(gb.bgImage
+            ? bgImageStyle(gb.bgImage, gb.bgMode)
+            : { background: gb.bgColor || "rgba(14,13,18,0.96)" }
+          ),
+          opacity: gb.opacity ?? 1,
+          filter: gb.bgImage
+            ? `blur(${blur}px) brightness(${brightness}%)`
+            : `brightness(${brightness}%)`,
+          pointerEvents: "none",
+          zIndex: 0,
+        }} />
 
-      {/* Messages */}
-      <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "8px 11px 6px", display: "flex", flexDirection: "column", gap: 7, scrollbarWidth: "none" }}>
-        {messages.length === 0 && (
-          <div style={{ fontFamily: GB_SERIF, fontSize: 9, fontStyle: "italic", color: "rgba(232,224,212,0.2)", textAlign: "center", paddingTop: 20 }}>be the first to sign</div>
+        {/* Paper texture for notebook/sticky */}
+        {(preset === "notebook" || preset === "sticky") && (
+          <div style={{
+            position: "absolute", inset: 0,
+            backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E\")",
+            borderRadius: br, pointerEvents: "none", zIndex: 0,
+          }} />
         )}
-        {messages.map((msg, idx) => (
-          <div key={msg.id} style={{ background: idx === 0 ? "rgba(232,224,212,0.05)" : "rgba(232,224,212,0.025)", border: `1px solid ${idx === 0 ? "rgba(232,224,212,0.10)" : "rgba(232,224,212,0.05)"}`, borderRadius: 7, padding: "8px 9px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                {!msg.anonymous && msg.author_avatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={msg.author_avatar} alt="" style={{ width: 12, height: 12, borderRadius: "50%", objectFit: "cover" }} />
-                ) : (
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", border: "1px solid rgba(232,224,212,0.15)" }} />
-                )}
-                <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 1, color: "rgba(232,224,212,0.45)", textTransform: "lowercase" }}>
-                  {msg.anonymous ? "anon" : (msg.author_name || "anon")}
-                </span>
-              </div>
-              <span style={{ fontFamily: MONO, fontSize: 6, color: "rgba(232,224,212,0.2)" }}>{gbTimeAgo(msg.created_at)}</span>
-            </div>
-            <p style={{ fontFamily: SANS, fontSize: 11, color: "rgba(232,224,212,0.78)", margin: 0, lineHeight: 1.5, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
-              {msg.message}
-            </p>
+
+        {/* Header */}
+        <div style={{ position: "relative", zIndex: 1, padding: "10px 13px 8px", borderBottom: `1px solid ${T.inputBorder}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.sealBg, boxShadow: "0 1px 3px rgba(0,0,0,0.5)" }} />
+            <span style={{ fontFamily: T.labelFont, fontSize: 7, letterSpacing: 3, color: T.headerLabel, textTransform: "uppercase" }}>guestbook</span>
           </div>
-        ))}
-      </div>
+          <span style={{ fontFamily: T.labelFont, fontSize: 6, color: T.headerCount }}>{messages.length} {messages.length === 1 ? "entry" : "entries"}</span>
+        </div>
 
-      {/* Divider */}
-      <div style={{ margin: "0 11px", height: 1, background: "linear-gradient(to right, transparent, rgba(232,224,212,0.10), transparent)", flexShrink: 0 }} />
+        {/* Messages */}
+        <div ref={listRef} style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: "8px 11px 6px", display: "flex", flexDirection: "column", gap: 7, scrollbarWidth: "none" }}>
+          {messages.length === 0 && (
+            <div style={{ fontFamily: T.labelFont, fontSize: 9, fontStyle: "italic", color: T.dimText, textAlign: "center", paddingTop: 20 }}>
+              {preset === "old-internet" ? "_ no entries yet" : "be the first to sign"}
+            </div>
+          )}
+          {messages.map((msg, idx) => (
+            <div key={msg.id} style={{ background: idx === 0 ? T.bubbleBg0 : T.bubbleBg, border: `1px solid ${idx === 0 ? T.bubbleBorder0 : T.bubbleBorder}`, borderRadius: Math.max(4, br * 0.5), padding: "8px 9px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  {!msg.anonymous && msg.author_avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={msg.author_avatar} alt="" style={{ width: 12, height: 12, borderRadius: "50%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", border: `1px solid ${T.dimText}` }} />
+                  )}
+                  <span style={{ fontFamily: T.labelFont, fontSize: 7, letterSpacing: 1, color: T.mutedText, textTransform: "lowercase" }}>
+                    {msg.anonymous ? "anon" : (msg.author_name || "anon")}
+                  </span>
+                </div>
+                <span style={{ fontFamily: T.labelFont, fontSize: 6, color: T.dimText }}>{gbTimeAgo(msg.created_at)}</span>
+              </div>
+              <p style={{ fontFamily: T.msgFont, fontStyle: T.msgFontStyle, fontSize: 11, color: T.bodyText, margin: 0, lineHeight: 1.5, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
+                {msg.message}
+              </p>
+            </div>
+          ))}
+        </div>
 
-      {/* Compose */}
-      <div style={{ padding: "7px 11px 10px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 5 }}>
-        {!isLoggedIn && (
-          <input
-            type="text"
-            value={anonName}
-            onChange={e => setAnonName(e.target.value)}
-            placeholder="your name (optional)"
-            maxLength={40}
-            style={{ width: "100%", background: "rgba(232,224,212,0.04)", border: "1px solid rgba(232,224,212,0.09)", borderRadius: 5, padding: "4px 8px", fontFamily: MONO, fontSize: 8, letterSpacing: 0.5, color: "rgba(232,224,212,0.55)", outline: "none", boxSizing: "border-box" }}
+        {/* Divider */}
+        <div style={{ position: "relative", zIndex: 1, margin: "0 11px", height: 1, background: T.divider, flexShrink: 0 }} />
+
+        {/* Compose */}
+        <div style={{ position: "relative", zIndex: 1, padding: "7px 11px 10px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 5 }}>
+          {!isLoggedIn && (
+            <input
+              type="text"
+              value={anonName}
+              onChange={e => setAnonName(e.target.value)}
+              placeholder="your name (optional)"
+              maxLength={40}
+              style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: Math.max(3, br * 0.35), padding: "4px 8px", fontFamily: T.labelFont, fontSize: 8, letterSpacing: 0.5, color: T.mutedText, outline: "none", boxSizing: "border-box" }}
+            />
+          )}
+          <textarea
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            placeholder="leave a note..."
+            rows={2}
+            maxLength={280}
+            style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: Math.max(4, br * 0.4), padding: "6px 8px", fontFamily: T.msgFont, fontSize: 11, fontStyle: T.msgFontStyle, color: T.inputText, resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }}
           />
-        )}
-        <textarea
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          placeholder="leave a note..."
-          rows={2}
-          maxLength={280}
-          style={{ width: "100%", background: "rgba(232,224,212,0.04)", border: "1px solid rgba(232,224,212,0.09)", borderRadius: 6, padding: "6px 8px", fontFamily: GB_SERIF, fontSize: 11, fontStyle: "italic", color: "rgba(232,224,212,0.8)", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }}
-        />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontFamily: MONO, fontSize: 7, color: "rgba(220,80,80,0.7)" }}>{error}</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontFamily: MONO, fontSize: 7, color: 280 - draft.length < 40 ? "rgba(220,160,80,0.75)" : "rgba(232,224,212,0.18)" }}>{280 - draft.length}</span>
-            {cooldownLeft > 0 ? (
-              <span style={{ fontFamily: MONO, fontSize: 7, color: "rgba(232,224,212,0.22)" }}>{Math.ceil(cooldownLeft / 1000)}s</span>
-            ) : (
-              <button
-                onClick={handleSend}
-                disabled={!canSend}
-                style={{ background: canSend ? "rgba(232,224,212,0.08)" : "transparent", border: `1px solid ${canSend ? "rgba(232,224,212,0.22)" : "rgba(232,224,212,0.06)"}`, borderRadius: 4, padding: "3px 10px", fontFamily: MONO, fontSize: 7, letterSpacing: 1.5, color: canSend ? "rgba(232,224,212,0.75)" : "rgba(232,224,212,0.18)", cursor: canSend ? "pointer" : "default", textTransform: "uppercase" }}
-              >
-                {sending ? "…" : "sign"}
-              </button>
-            )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontFamily: T.labelFont, fontSize: 7, color: "rgba(220,80,80,0.7)" }}>{error}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontFamily: T.labelFont, fontSize: 7, color: 280 - draft.length < 40 ? "rgba(220,160,80,0.75)" : T.dimText }}>{280 - draft.length}</span>
+              {cooldownLeft > 0 ? (
+                <span style={{ fontFamily: T.labelFont, fontSize: 7, color: T.dimText }}>{Math.ceil(cooldownLeft / 1000)}s</span>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={!canSend}
+                  style={{ background: canSend ? T.accentBtn : "transparent", border: `1px solid ${canSend ? T.accentBorder : T.dimText}`, borderRadius: Math.max(3, br * 0.28), padding: "3px 10px", fontFamily: T.labelFont, fontSize: 7, letterSpacing: 1.5, color: canSend ? T.accentText : T.dimText, cursor: canSend ? "pointer" : "default", textTransform: "uppercase" }}
+                >
+                  {sending ? "…" : "sign"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

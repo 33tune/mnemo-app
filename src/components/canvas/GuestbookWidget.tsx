@@ -40,7 +40,7 @@ const SANS  = "'DM Sans', sans-serif";
 const MONO  = "'Space Mono', monospace";
 const SERIF = "'Playfair Display', serif";
 
-const THEMES: Record<GuestbookPreset, Theme> = {
+export const THEMES: Record<GuestbookPreset, Theme> = {
   default: {
     headerLabel:  "rgba(232,224,212,0.45)",
     headerCount:  "rgba(232,224,212,0.2)",
