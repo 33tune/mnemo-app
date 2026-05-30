@@ -252,6 +252,9 @@ export type CanvasState = {
   guestbooks:  GuestbookCardData[];
   bgColor:     string;
   wallpaper:   string;
+  wallpaperBlur?:       number;
+  wallpaperBrightness?: number;
+  wallpaperVignette?:   number;
 };
 
 export type ElementType = "card" | "image" | "text" | "gallery" | "profile" | "media" | "guestbook";

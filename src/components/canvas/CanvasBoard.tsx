@@ -116,8 +116,11 @@ type CanvasOp =
   | { type: "add_guestbook";      guestbook:  GuestbookCardData }
   | { type: "update_guestbook";   id: string; patch: Partial<GuestbookCardData> }
   | { type: "delete_guestbook";   id: string }
-  | { type: "set_bg";             value: string }
-  | { type: "set_wallpaper";   value: string }
+  | { type: "set_bg";                    value: string }
+  | { type: "set_wallpaper";            value: string }
+  | { type: "set_wallpaper_blur";       value: number }
+  | { type: "set_wallpaper_brightness"; value: number }
+  | { type: "set_wallpaper_vignette";   value: number }
   | { type: "move_elements";   moves: Array<{ id: string; elementType: string; x: number; y: number }> };
 
 type QueuedOp = { op: CanvasOp; canvas_type: CanvasMode };
@@ -164,8 +167,11 @@ export default function CanvasBoard({
   initialState?: CanvasState;
   ownerUserId?: string;
 }) {
-  const [wallpaper,        setWallpaper]        = useState("");
-  const [wallpaperLoaded,  setWallpaperLoaded]  = useState(true);
+  const [wallpaper,            setWallpaper]            = useState("");
+  const [wallpaperLoaded,      setWallpaperLoaded]      = useState(true);
+  const [wallpaperBlur,        setWallpaperBlur]        = useState(0);
+  const [wallpaperBrightness,  setWallpaperBrightness]  = useState(100);
+  const [wallpaperVignette,    setWallpaperVignette]    = useState(0);
   const [bgColor,          setBgColor]          = useState("#0a0a0c");
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
   const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "analytics">(canEdit ? "analytics" : "canvas");
@@ -388,7 +394,10 @@ export default function CanvasBoard({
       medias:     sMedias,
       guestbooks: sGuestbooks,
       bgColor,
-      wallpaper: await safe(wallpaper),
+      wallpaper:            await safe(wallpaper),
+      wallpaperBlur,
+      wallpaperBrightness,
+      wallpaperVignette,
     };
   }
 
@@ -453,6 +462,9 @@ export default function CanvasBoard({
         setWallpaper(op.value); setWallpaperLoaded(true);
         if (canvasModeRef.current === "home") setHomeBg(h => ({ ...h, wallpaper: op.value, wallpaperLoaded: true }));
         break;
+      case "set_wallpaper_blur":       setWallpaperBlur(op.value);       break;
+      case "set_wallpaper_brightness": setWallpaperBrightness(op.value); break;
+      case "set_wallpaper_vignette":   setWallpaperVignette(op.value);   break;
       case "move_elements":
         setElements(p => p.map(e => {
           const m = op.moves.find(m => m.id === e.id);
@@ -877,6 +889,9 @@ export default function CanvasBoard({
           ]);
           if (initialState.bgColor)   setBgColor(initialState.bgColor);
           if (initialState.wallpaper) { setWallpaper(initialState.wallpaper); setWallpaperLoaded(true); }
+          if (initialState.wallpaperBlur       != null) setWallpaperBlur(initialState.wallpaperBlur);
+          if (initialState.wallpaperBrightness != null) setWallpaperBrightness(initialState.wallpaperBrightness);
+          if (initialState.wallpaperVignette   != null) setWallpaperVignette(initialState.wallpaperVignette);
         }
         hasLoadedRef.current = true;
         setIsLoading(false);
@@ -936,6 +951,9 @@ export default function CanvasBoard({
         });
         if (s.bgColor)   setBgColor(s.bgColor);
         if (s.wallpaper) { setWallpaper(s.wallpaper); setWallpaperLoaded(true); }
+        if (s.wallpaperBlur       != null) setWallpaperBlur(s.wallpaperBlur);
+        if (s.wallpaperBrightness != null) setWallpaperBrightness(s.wallpaperBrightness);
+        if (s.wallpaperVignette   != null) setWallpaperVignette(s.wallpaperVignette);
       }
 
       // Keep homeBg in sync — always reflects the HOME canvas background
@@ -1491,15 +1509,10 @@ export default function CanvasBoard({
 
   const drawRectVis = drawingRect?{x:Math.min(drawingRect.startX,drawingRect.currentX),y:Math.min(drawingRect.startY,drawingRect.currentY),w:Math.abs(drawingRect.currentX-drawingRect.startX),h:Math.abs(drawingRect.currentY-drawingRect.startY)}:null;
   const selRectVis  = selRect?{x:Math.min(selRect.startX,selRect.currentX),y:Math.min(selRect.startY,selRect.currentY),w:Math.abs(selRect.currentX-selRect.startX),h:Math.abs(selRect.currentY-selRect.startY)}:null;
-  const bgStyle = {
-    backgroundColor: bgColor,
-    ...(wallpaper && wallpaperLoaded ? {
-      backgroundImage: `url(${wallpaper})`,
-      backgroundSize: "auto",
-      backgroundRepeat: "repeat",
-      transition: "background-image 0.2s ease",
-    } : {}),
-  };
+  const wallpaperFilter = [
+    wallpaperBlur > 0        ? `blur(${wallpaperBlur}px)`             : "",
+    wallpaperBrightness !== 100 ? `brightness(${wallpaperBrightness}%)` : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <div className="grain" style={{
@@ -1512,11 +1525,26 @@ export default function CanvasBoard({
       fontFamily: SANS,
     }}
       onMouseMove={onGlobalMouseMove} onMouseUp={onGlobalMouseUp} onClick={onCanvasClick}>
-      {/* ── Fixed background layer ── */}
-      <div style={{
-        position: "fixed", inset: 0, zIndex: 0,
-        ...bgStyle,
-      }} />
+      {/* ── Fixed background layers ── */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, backgroundColor: bgColor }}>
+        {wallpaper && wallpaperLoaded && (
+          <div style={{
+            position: "absolute",
+            inset: wallpaperBlur > 0 ? `-${wallpaperBlur * 2}px` : 0,
+            backgroundImage: `url(${wallpaper})`,
+            backgroundSize: "auto",
+            backgroundRepeat: "repeat",
+            filter: wallpaperFilter || undefined,
+            transition: "background-image 0.2s ease",
+          }} />
+        )}
+        {wallpaperVignette > 0 && (
+          <div style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 85 - wallpaperVignette * 0.7)}%, rgba(0,0,0,${(wallpaperVignette / 100) * 0.92}) 100%)`,
+          }} />
+        )}
+      </div>
       <Topbar
         wallpaper={wallpaper}
         handle={userHandle}
@@ -2012,7 +2040,11 @@ export default function CanvasBoard({
           </div>
           <WallpaperMenuBtn label="UPLOAD WALLPAPER" onClick={()=>wallpaperRef.current?.click()} />
           {wallpaper&&(<WallpaperMenuBtn label="REMOVE WALLPAPER" onClick={()=>enqueueOp({type:"set_wallpaper",value:""})} />)}
-          {(wallpaper||bgColor!=="#0a0a0c")&&(<WallpaperMenuBtn label="RESET TO DEFAULT" onClick={()=>{enqueueOp({type:"set_wallpaper",value:""});enqueueOp({type:"set_bg",value:"#0a0a0c"});}} dim />)}
+          {(wallpaper||bgColor!=="#0a0a0c")&&(<WallpaperMenuBtn label="RESET TO DEFAULT" onClick={()=>{enqueueOp({type:"set_wallpaper",value:""});enqueueOp({type:"set_bg",value:"#0a0a0c"});enqueueOp({type:"set_wallpaper_blur",value:0});enqueueOp({type:"set_wallpaper_brightness",value:100});enqueueOp({type:"set_wallpaper_vignette",value:0});}} dim />)}
+          <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
+          <WallpaperSlider label="BLUR" value={wallpaperBlur} min={0} max={40} unit="px" onChange={v=>enqueueOp({type:"set_wallpaper_blur",value:v})} />
+          <WallpaperSlider label="BRILLO" value={wallpaperBrightness} min={0} max={200} unit="%" onChange={v=>enqueueOp({type:"set_wallpaper_brightness",value:v})} />
+          <WallpaperSlider label="VIÑETADO" value={wallpaperVignette} min={0} max={100} unit="" onChange={v=>enqueueOp({type:"set_wallpaper_vignette",value:v})} />
         </div>
       )}
 
@@ -2112,6 +2144,19 @@ export default function CanvasBoard({
         </WidgetBoundary>
       )}
 
+    </div>
+  );
+}
+
+function WallpaperSlider({label,value,min,max,unit,onChange}:{label:string;value:number;min:number;max:number;unit:string;onChange:(v:number)=>void}) {
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:3}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{fontFamily:"'Space Mono',monospace",fontSize:7,letterSpacing:1.5,color:"rgba(255,255,255,0.35)",textTransform:"uppercase"}}>{label}</span>
+        <span style={{fontFamily:"'Space Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.25)"}}>{value}{unit}</span>
+      </div>
+      <input type="range" min={min} max={max} value={value} onChange={e=>onChange(Number(e.target.value))} onMouseDown={e=>e.stopPropagation()}
+        style={{width:"100%",accentColor:"rgba(232,224,212,0.6)",cursor:"pointer",height:3}} />
     </div>
   );
 }

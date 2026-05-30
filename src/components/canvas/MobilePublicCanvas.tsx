@@ -71,15 +71,13 @@ export default function MobilePublicCanvas({
   }, []);
 
   const hasWallpaper = !!(state.wallpaper && !state.wallpaper.startsWith("blob:"));
-  const bgStyle: React.CSSProperties = {
-    backgroundColor: state.bgColor || "#0a0a0c",
-    ...(hasWallpaper ? {
-      backgroundImage: `url(${state.wallpaper})`,
-      backgroundRepeat: "repeat",
-      backgroundSize: "auto",
-      backgroundPosition: "top left",
-    } : {}),
-  };
+  const wpBlur       = state.wallpaperBlur       ?? 0;
+  const wpBrightness = state.wallpaperBrightness ?? 100;
+  const wpVignette   = state.wallpaperVignette   ?? 0;
+  const wpFilter     = [
+    wpBlur > 0           ? `blur(${wpBlur}px)`             : "",
+    wpBrightness !== 100 ? `brightness(${wpBrightness}%)` : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <div
@@ -90,9 +88,29 @@ export default function MobilePublicCanvas({
         overflowX: "hidden",
         overflowY: "auto",
         fontFamily: SANS,
-        ...bgStyle,
+        backgroundColor: state.bgColor || "#0a0a0c",
       }}
     >
+      {/* Background layers — wallpaper + effects */}
+      {hasWallpaper && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
+          <div style={{
+            position: "absolute",
+            inset: wpBlur > 0 ? `-${wpBlur * 2}px` : 0,
+            backgroundImage: `url(${state.wallpaper})`,
+            backgroundRepeat: "repeat",
+            backgroundSize: "auto",
+            backgroundPosition: "top left",
+            filter: wpFilter || undefined,
+          }} />
+          {wpVignette > 0 && (
+            <div style={{
+              position: "absolute", inset: 0,
+              background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 85 - wpVignette * 0.7)}%, rgba(0,0,0,${(wpVignette / 100) * 0.92}) 100%)`,
+            }} />
+          )}
+        </div>
+      )}
       {/* Topbar */}
       {!isPreview && (
         <div style={{
