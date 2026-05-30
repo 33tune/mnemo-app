@@ -282,6 +282,7 @@ export default function PublicCanvas({
                     zIndex: img.zIndex + img.layer * 100,
                     transform: `${ps.transform} rotate(${img.rotation ?? 0}deg)`, willChange: "transform",
                     cursor: safeLink ? "pointer" : "default",
+                    pointerEvents: safeLink ? "auto" : "none",
                   }}
                   onClick={safeLink ? () => window.open(safeLink, "_blank", "noopener,noreferrer") : undefined}
                 >

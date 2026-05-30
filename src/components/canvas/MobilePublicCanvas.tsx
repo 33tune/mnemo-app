@@ -238,6 +238,7 @@ export default function MobilePublicCanvas({
                 zIndex: img.zIndex + img.layer * 100,
                 transform: `rotate(${img.rotation ?? 0}deg)`,
                 cursor: safeLink ? "pointer" : "default",
+                pointerEvents: safeLink ? "auto" : "none",
               }}
                 onClick={safeLink ? () => window.open(safeLink, "_blank", "noopener,noreferrer") : undefined}
               >

@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
 import MobilePublicCanvas from "@/components/canvas/MobilePublicCanvas";
-import ProfileViewTracker from "@/components/analytics/ProfileViewTracker";
 import type { CanvasState } from "@/types";
 
 const RESERVED = new Set(["login", "dashboard", "space", "auth", "api", "admin", "settings"]);
@@ -76,17 +75,15 @@ export default async function PublicPage({
       profile_user_id: profile.user_id,
       viewer_user_id:  viewer?.id ?? null,
       device_type:     isMobileUA ? "mobile" : "desktop",
-    }).then();
+    }).then(({ error }) => {
+      if (error) console.error("[analytics] profile_views insert failed:", error.message, error.code);
+    });
   }
 
   const state = (canvas.data ?? {}) as CanvasState;
 
   return (
     <>
-      <ProfileViewTracker
-        handle={profile.handle}
-        viewerId={viewer?.id}
-      />
       {showMobile ? (
         <MobilePublicCanvas
           state={mobileState}

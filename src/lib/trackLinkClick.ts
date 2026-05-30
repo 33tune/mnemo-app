@@ -14,5 +14,7 @@ export function trackLinkClick(
     link_label:      linkLabel,
     link_url:        linkUrl,
     device_type:     deviceType,
-  }).then(); // fire and forget
+  }).then(({ error }) => {
+    if (error) console.error("[analytics] link_clicks insert failed:", error.message, error.code);
+  });
 }
