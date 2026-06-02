@@ -91,6 +91,15 @@ export default function MobilePublicCanvas({
         backgroundColor: state.bgColor || "#0a0a0c",
       }}
     >
+      <style>{`
+        @keyframes land-reveal {
+          from { opacity: 0; transform: scale(0.97); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes land-reveal { from { opacity: 0; } to { opacity: 1; } }
+        }
+      `}</style>
       {/* Background layers — wallpaper + effects */}
       {hasWallpaper && (
         <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
@@ -139,6 +148,7 @@ export default function MobilePublicCanvas({
         margin: "0 auto",
         overflow: "hidden",
         flexShrink: 0,
+        animation: "land-reveal 0.65s cubic-bezier(0.22,1,0.36,1) 0.1s both",
       }}>
         {/* Logical fixed world */}
         <div style={{

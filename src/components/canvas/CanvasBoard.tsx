@@ -1575,6 +1575,17 @@ export default function CanvasBoard({
       <input ref={bgImageRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleBgImage} />
 
       {/* ── Canvas content wrapper ── */}
+      {!canEdit && (
+        <style>{`
+          @keyframes land-reveal {
+            from { opacity: 0; transform: scale(0.97); }
+            to   { opacity: 1; transform: scale(1); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            @keyframes land-reveal { from { opacity: 0; } to { opacity: 1; } }
+          }
+        `}</style>
+      )}
       {view === "canvas" && (
       <div suppressHydrationWarning style={{
         position: "relative", zIndex: 1, flexShrink: 0,
@@ -1600,6 +1611,7 @@ export default function CanvasBoard({
       )}
       <div ref={canvasWrapperRef} suppressHydrationWarning style={{ position: "relative", width: effectiveW, minHeight: CANVAS_H, zIndex: 1, overflow: "hidden", flexShrink: 0,
         ...(canvasMode === "space_mobile" && canEdit ? { border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 16px 16px" } : {}),
+        ...(!canEdit ? { animation: "land-reveal 0.65s cubic-bezier(0.22,1,0.36,1) 0.08s both" } : {}),
       }}
         onDragEnter={e => {
           if (!canInteract) return;
