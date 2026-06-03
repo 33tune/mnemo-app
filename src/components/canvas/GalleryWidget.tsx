@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, memo } from "react";
+import { useState, useRef, memo, type CSSProperties } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { CanvasGallery, GalleryImage } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
@@ -24,12 +24,14 @@ interface Props {
   locked?:           boolean;
   onToggleLock?:     () => void;
   canInteract?:      boolean;
+  entryAnimStyle?:   CSSProperties;
 }
 
 function GalleryWidget({
   gallery, isSel, multiSel, draggingId,
   onMouseDown, onClick, onResizeMD, onRotateMD,
   updateGallery, onDropToCanvas, parallaxTransform, locked, onToggleLock, canInteract,
+  entryAnimStyle = {},
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("GalleryWidget");
   const [lightbox, setLightbox] = useState<GalleryImage | null>(null);
@@ -63,6 +65,7 @@ function GalleryWidget({
           willChange: "transform",
           userSelect: "none",
           cursor: draggingId === gallery.id ? "grabbing" : "grab",
+          ...entryAnimStyle,
         }}
         onMouseDown={e => onMouseDown(gallery.id, "gallery", gallery.x, gallery.y, e)}
         onClick={onClick}

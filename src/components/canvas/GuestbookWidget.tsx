@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useGuestbook } from "@/hooks/useGuestbook";
 import { bgImageStyle } from "@/lib/bgStyle";
@@ -226,6 +226,7 @@ export default function GuestbookWidget({
   ownerUserId,
   currentUserId,
   onOpenMenu,
+  entryAnimStyle = {},
 }: {
   guestbook:       GuestbookCardData;
   isSel:           boolean;
@@ -242,6 +243,7 @@ export default function GuestbookWidget({
   ownerUserId:     string | undefined;
   currentUserId:   string | undefined;
   onOpenMenu:      (rect: DOMRect) => void;
+  entryAnimStyle?: CSSProperties;
 }) {
   const profileId = ownerUserId;
   const { messages, loading, addMessage, deleteMessage } = useGuestbook(profileId);
@@ -338,6 +340,7 @@ export default function GuestbookWidget({
         userSelect: "none",
         transform:  `${parallaxTransform} rotate(${guestbook.rotation ?? 0}deg)`,
         willChange: "transform",
+        ...entryAnimStyle,
       }}
     >
       {/* Card shell */}

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, useEffect, memo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, ProfileLink, TextFont } from "@/types";
@@ -65,6 +65,7 @@ interface Props {
   ownerUserId?:         string;
   authResolved?:        boolean;
   onOpenSocialPanel?:   (mode: "followers" | "following") => void;
+  entryAnimStyle?:      CSSProperties;
 }
 
 type DragTarget = "photo" | "name" | "bio" | "status" | "handle" | "stats" | "follow" | "message" | "favorite";
@@ -76,6 +77,7 @@ function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, onRotateMD, updateProfile, locked, onToggleLock, canInteract,
   onMessage, currentUserId, ownerUserId, authResolved = false, onOpenSocialPanel,
+  entryAnimStyle = {},
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
   const [menuOpen,     setMenuOpen]     = useState(false);
@@ -444,6 +446,7 @@ function ProfileCard({
           willChange: "transform",
           userSelect: "none",
           cursor:     draggingId === card.id ? "grabbing" : menuOpen ? "default" : "grab",
+          ...entryAnimStyle,
         }}
       >
         {/* ── Background ── */}

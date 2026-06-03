@@ -1,5 +1,5 @@
 "use client";
-import { useState, memo } from "react";
+import { useState, memo, type CSSProperties } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { CanvasMedia, MediaType } from "@/types";
 import ResizeHandles from "./ResizeHandles";
@@ -89,12 +89,14 @@ interface Props {
   locked?:           boolean;
   onToggleLock?:     () => void;
   canInteract?:      boolean;
+  entryAnimStyle?:   CSSProperties;
 }
 
 function MediaCardWidget({
   media, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, onRotateMD,
   updateMedia, locked, onToggleLock, canInteract,
+  entryAnimStyle = {},
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("MediaCardWidget");
   const [inputVal,   setInputVal]   = useState("");
@@ -134,6 +136,7 @@ function MediaCardWidget({
         transform:  `${parallaxTransform} rotate(${media.rotation}deg)`,
         willChange: "transform",
         userSelect: "none",
+        ...entryAnimStyle,
         cursor:     isDragging ? "grabbing" : (canInteract && !locked) ? "grab" : "default",
       }}
     >

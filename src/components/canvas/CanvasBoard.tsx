@@ -1577,11 +1577,16 @@ export default function CanvasBoard({
       {/* ── Canvas content wrapper ── */}
       {!canEdit && (
         <style>{`
+          @keyframes el-reveal {
+            from { opacity: 0; translate: var(--from-x, 0px) var(--from-y, 0px); scale: 0.78; }
+            to   { opacity: 1; translate: 0px 0px; scale: 1; }
+          }
           @keyframes land-reveal {
-            from { opacity: 0; transform: scale(0.97); }
-            to   { opacity: 1; transform: scale(1); }
+            from { opacity: 0; }
+            to   { opacity: 1; }
           }
           @media (prefers-reduced-motion: reduce) {
+            @keyframes el-reveal   { from { opacity: 0; } to { opacity: 1; } }
             @keyframes land-reveal { from { opacity: 0; } to { opacity: 1; } }
           }
         `}</style>
@@ -1611,7 +1616,7 @@ export default function CanvasBoard({
       )}
       <div ref={canvasWrapperRef} suppressHydrationWarning style={{ position: "relative", width: effectiveW, minHeight: CANVAS_H, zIndex: 1, overflow: "hidden", flexShrink: 0,
         ...(canvasMode === "space_mobile" && canEdit ? { border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 16px 16px" } : {}),
-        ...(!canEdit ? { animation: "land-reveal 0.65s cubic-bezier(0.22,1,0.36,1) 0.08s both" } : {}),
+        ...(!canEdit ? { animation: "land-reveal 0.18s ease both" } : {}),
       }}
         onDragEnter={e => {
           if (!canInteract) return;
@@ -1665,11 +1670,15 @@ export default function CanvasBoard({
       {view==="canvas"&&selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
       {/* ── IMAGES ── */}
-      {visImages.map(img=>{
+      {visImages.map((img,i)=>{
         const isSel=selectedIds.has(img.id);
         const ps=getParallaxStyle(img.layer,img.depth);
+        const _cx=effectiveW/2,_cy=500;
+        const _fx=!canEdit?Math.round((_cx-(img.x+img.w/2))*0.40):0;
+        const _fy=!canEdit?Math.round((_cy-(img.y+img.h/2))*0.40):0;
+        const _fd=!canEdit?Math.min(i*22,200):0;
         return (
-          <div key={img.id} ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100,cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform"}}
+          <div key={img.id} ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100,cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
             onMouseDown={e=>{if(!img.locked)onElementMouseDown(img.id,"image",img.x,img.y,e);else e.stopPropagation();}}
             onClick={e=>handleElementClick(img.id,e)}
 
@@ -1708,13 +1717,17 @@ export default function CanvasBoard({
       })}
 
       {/* ── TEXTS ── */}
-      {visTexts.map(txt=>{
+      {visTexts.map((txt,i)=>{
         const isSel=selectedIds.has(txt.id);
         const isEdit=editingTextId===txt.id;
         const ps=getParallaxStyle(txt.layer,txt.depth);
+        const _cx=effectiveW/2,_cy=500;
+        const _fx=!canEdit?Math.round((_cx-(txt.x+50))*0.40):0;
+        const _fy=!canEdit?Math.round((_cy-(txt.y+20))*0.40):0;
+        const _fd=!canEdit?Math.min(i*22,200):0;
         return (
           <div key={txt.id} ref={el=>{textElRefs.current[txt.id]=el;}}
-            style={{position:"absolute",left:txt.x,top:txt.y,zIndex:txt.zIndex+txt.layer*100,transform:`${ps.transform} rotate(${txt.rotation}deg)`,willChange:"transform",userSelect:isEdit?"text":"none",cursor:txt.locked?"default":dragging?.id===txt.id?"grabbing":isEdit?"text":"grab",display:"inline-block",maxWidth:Math.max(80,effectiveW-txt.x-8)}}
+            style={{position:"absolute",left:txt.x,top:txt.y,zIndex:txt.zIndex+txt.layer*100,transform:`${ps.transform} rotate(${txt.rotation}deg)`,willChange:"transform",userSelect:isEdit?"text":"none",cursor:txt.locked?"default":dragging?.id===txt.id?"grabbing":isEdit?"text":"grab",display:"inline-block",maxWidth:Math.max(80,effectiveW-txt.x-8),...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
             onMouseDown={e=>{if(txt.locked){e.stopPropagation();return;}if(!isEdit)onElementMouseDown(txt.id,"text",txt.x,txt.y,e);}}
             onClick={e=>handleElementClick(txt.id,e)}
             onDoubleClick={e=>{e.stopPropagation();setEditingTextId(txt.id);}}>
@@ -1770,20 +1783,30 @@ export default function CanvasBoard({
       })}
 
       {/* ── GALLERIES ── */}
-      {visGalleries.map(gallery=>{
+      {visGalleries.map((gallery,i)=>{
         const ps=getParallaxStyle(gallery.layer,gallery.depth);
+        const _cx=effectiveW/2,_cy=500;
+        const _fx=!canEdit?Math.round((_cx-(gallery.x+(gallery.w??300)/2))*0.40):0;
+        const _fy=!canEdit?Math.round((_cy-(gallery.y+125))*0.40):0;
+        const _fd=!canEdit?Math.min(80+i*22,240):0;
+        const _entry=!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`} as any:undefined;
         return (
           <WidgetBoundary key={gallery.id} label="gallery">
             <GalleryWidget gallery={gallery} isSel={selectedIds.has(gallery.id)} multiSel={multiSel} draggingId={dragging?.id??null} locked={!!gallery.locked} onMouseDown={gallery.locked?(id,t,x,y,e)=>e.stopPropagation():onElementMouseDown} onClick={e=>handleElementClick(gallery.id,e)}
- onResizeMD={gallery.locked?(h,e)=>e.stopPropagation():(h,e)=>startSingleResize(gallery.id,"gallery",h,e)} onRotateMD={gallery.locked?(id,t,e)=>e.stopPropagation():startRotate} updateGallery={updateGallery} onDropToCanvas={addGalleryImageToCanvas} parallaxTransform={ps.transform as string} onToggleLock={()=>updateGallery(gallery.id,{locked:!gallery.locked} as any)} canInteract={canInteract} />
+ onResizeMD={gallery.locked?(h,e)=>e.stopPropagation():(h,e)=>startSingleResize(gallery.id,"gallery",h,e)} onRotateMD={gallery.locked?(id,t,e)=>e.stopPropagation():startRotate} updateGallery={updateGallery} onDropToCanvas={addGalleryImageToCanvas} parallaxTransform={ps.transform as string} onToggleLock={()=>updateGallery(gallery.id,{locked:!gallery.locked} as any)} canInteract={canInteract} entryAnimStyle={_entry} />
           </WidgetBoundary>
         );
       })}
 
       {/* ── PROFILES ── */}
-      {visProfiles.map(prof=>{
+      {visProfiles.map((prof,i)=>{
         const ps=getParallaxStyle(prof.layer,prof.depth);
-        return (<ProfileCard key={prof.id} card={prof} isSel={selectedIds.has(prof.id)} draggingId={dragging?.id??null} parallaxTransform={ps.transform as string}
+        const _cx=effectiveW/2,_cy=500;
+        const _fx=!canEdit?Math.round((_cx-(prof.x+prof.w/2))*0.40):0;
+        const _fy=!canEdit?Math.round((_cy-(prof.y+prof.h/2))*0.40):0;
+        const _fd=!canEdit?Math.min(80+i*22,240):0;
+        const _entry=!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`} as any:undefined;
+        return (<ProfileCard key={prof.id} card={prof} isSel={selectedIds.has(prof.id)} draggingId={dragging?.id??null} parallaxTransform={ps.transform as string} entryAnimStyle={_entry}
           locked={!!prof.locked}
           onMouseDown={prof.locked?e=>e.stopPropagation():e=>onElementMouseDown(prof.id,"profile",prof.x,prof.y,e)}
           onClick={e=>handleElementClick(prof.id,e)}
@@ -1805,8 +1828,13 @@ export default function CanvasBoard({
 
 
       {/* ── GUESTBOOK ── */}
-      {visGuestbooks.map(gb => {
+      {visGuestbooks.map((gb, i) => {
         const ps = getParallaxStyle(gb.layer, gb.depth);
+        const _cx=effectiveW/2,_cy=500;
+        const _fx=!canEdit?Math.round((_cx-(gb.x+gb.w/2))*0.40):0;
+        const _fy=!canEdit?Math.round((_cy-(gb.y+gb.h/2))*0.40):0;
+        const _fd=!canEdit?Math.min(160+i*22,280):0;
+        const _entry=!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`} as any:undefined;
         return (
           <WidgetBoundary key={gb.id} label="guestbook">
             <GuestbookWidget
@@ -1814,6 +1842,7 @@ export default function CanvasBoard({
               isSel={selectedIds.has(gb.id)}
               draggingId={dragging?.id ?? null}
               parallaxTransform={ps.transform as string}
+              entryAnimStyle={_entry}
               locked={!!gb.locked}
               onMouseDown={gb.locked ? e => e.stopPropagation() : e => onElementMouseDown(gb.id, "guestbook", gb.x, gb.y, e)}
               onClick={e => handleElementClick(gb.id, e)}
@@ -1831,7 +1860,7 @@ export default function CanvasBoard({
       })}
 
       {/* ── CARDS ── */}
-      {visCards.map(card=>{
+      {visCards.map((card,i)=>{
         const isSel=selectedIds.has(card.id);
         const showMenu=cardMenuId===card.id;
         const isEdit=editingId===card.id;
@@ -1840,6 +1869,10 @@ export default function CanvasBoard({
         const light=isLight(card.bgColor);
         const pad=adaptivePad(card.borderRadius);
         const ps=getParallaxStyle(card.layer,card.depth);
+        const _cx=effectiveW/2,_cy=500;
+        const _fx=!canEdit?Math.round((_cx-(card.x+card.w/2))*0.40):0;
+        const _fy=!canEdit?Math.round((_cy-(card.y+card.h/2))*0.40):0;
+        const _fd=!canEdit?Math.min(25+i*22,220):0;
         return (
           <div key={card.id}
             ref={el=>{cardDivRefs.current[card.id]=el;}}
@@ -1847,7 +1880,7 @@ export default function CanvasBoard({
             onClick={e=>handleElementClick(card.id,e)}
 
             onDoubleClick={e=>{e.stopPropagation();zCounter.current++;setElements(p=>p.map(e=>e.elementType==="card"&&e.id===card.id?{...e,zIndex:zCounter.current}:e));}}
-            style={{position:"absolute",left:card.x,top:card.y,width:card.w,height:card.h,zIndex:card.zIndex+card.layer*100,cursor:card.locked?"default":dragging?.id===card.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${card.rotation}deg)`,willChange:"transform"}}>
+            style={{position:"absolute",left:card.x,top:card.y,width:card.w,height:card.h,zIndex:card.zIndex+card.layer*100,cursor:card.locked?"default":dragging?.id===card.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${card.rotation}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}>
             <div style={{position:"absolute",inset:0,borderRadius:card.borderRadius,border:isSel?`1px solid ${light?"rgba(0,0,0,0.2)":"rgba(255,255,255,0.22)"}`:`1px solid ${light?"rgba(0,0,0,0.07)":"rgba(255,255,255,0.06)"}`,...(card.bgImage?bgImageStyle(card.bgImage,card.bgMode):{background:card.bgColor||"rgba(255,255,255,0.045)"}),backdropFilter:card.bgColor?"none":"blur(18px)",WebkitBackdropFilter:card.bgColor?"none":"blur(18px)",boxShadow:isNote?"0 8px 28px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.12)":"0 2px 14px rgba(0,0,0,0.18)",opacity:card.opacity}} />
             {isNote&&card.bgColor&&(<div style={{position:"absolute",top:-6,left:"50%",transform:"translateX(-50%)",width:32,height:10,borderRadius:3,background:"rgba(0,0,0,0.08)",backdropFilter:"blur(2px)",zIndex:2}} />)}
             {card.type!=="empty"&&(<div style={{position:"absolute",top:isNote&&card.bgColor?pad+6:pad,bottom:pad,left:pad,right:pad,overflow:"hidden",pointerEvents:isEdit?"auto":"none"}}>{renderContent(card,tc,isEdit,updateCard)}</div>)}
@@ -1867,8 +1900,13 @@ export default function CanvasBoard({
       })}
 
       {/* ── MEDIA CARDS ── */}
-      {visMedias.map(media => {
+      {visMedias.map((media, i) => {
         const ps = getParallaxStyle(media.layer, media.depth);
+        const _cx=effectiveW/2,_cy=500;
+        const _fx=!canEdit?Math.round((_cx-(media.x+media.w/2))*0.40):0;
+        const _fy=!canEdit?Math.round((_cy-(media.y+media.h/2))*0.40):0;
+        const _fd=!canEdit?Math.min(80+i*22,240):0;
+        const _entry=!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`} as any:undefined;
         return (
           <WidgetBoundary key={media.id} label="media">
             <MediaCardWidget
@@ -1876,6 +1914,7 @@ export default function CanvasBoard({
               isSel={selectedIds.has(media.id)}
               draggingId={dragging?.id ?? null}
               parallaxTransform={ps.transform as string}
+              entryAnimStyle={_entry}
               onMouseDown={media.locked ? e => e.stopPropagation() : e => onElementMouseDown(media.id, "media", media.x, media.y, e)}
               onClick={e => handleElementClick(media.id, e)}
               onResizeMD={media.locked ? (_h:ResizeHandle,e:React.MouseEvent)=>e.stopPropagation() : (h,e)=>startSingleResize(media.id,"media",h,e)}
