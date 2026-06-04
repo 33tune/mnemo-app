@@ -260,17 +260,25 @@ export default function CanvasBoard({
   // Mobile canvas uses a fixed 390px logical width; desktop uses the screen width
   const effectiveW = canvasMode === "space_mobile" ? MOBILE_CANVAS_W : logicalW.current;
 
-  // ── Viewer scale — fits all content horizontally in any viewport ─────────────
+  // ── Viewer scale — fits horizontally-visible content without global zoom-out ──
   const [viewerScale,    setViewerScale]    = useState(1);
   const [viewerContentW, setViewerContentW] = useState(0);
   useEffect(() => {
     if (canEdit) return;
     const compute = () => {
-      if (elements.length === 0) { setViewerScale(1); setViewerContentW(window.innerWidth); return; }
-      const maxX = elements.reduce((m, el) => Math.max(m, (el as any).x + ((el as any).w ?? 200)), 0);
-      const contentW = maxX + 40; // 40px right breathing room
+      const vw = window.innerWidth;
+      if (elements.length === 0) { setViewerScale(1); setViewerContentW(vw); return; }
+      // Only account for elements whose LEFT edge is within the viewport.
+      // Elements at x >= vw were placed off-screen (legacy screen.width sizing bug)
+      // and should not force a global zoom-out — they stay hidden.
+      const candidates = elements.filter(el => (el as any).x < vw);
+      const maxRight = candidates.length > 0
+        ? candidates.reduce((m, el) => Math.max(m, (el as any).x + ((el as any).w ?? 200)), 0)
+        : vw;
+      // Canvas is at least as wide as the viewport so nothing shifts left
+      const contentW = Math.max(maxRight + 20, vw);
       setViewerContentW(contentW);
-      setViewerScale(Math.min(window.innerWidth / contentW, 1));
+      setViewerScale(Math.min(vw / contentW, 1));
     };
     compute();
     window.addEventListener("resize", compute);
