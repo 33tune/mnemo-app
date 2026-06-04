@@ -260,6 +260,25 @@ export default function CanvasBoard({
   // Mobile canvas uses a fixed 390px logical width; desktop uses the screen width
   const effectiveW = canvasMode === "space_mobile" ? MOBILE_CANVAS_W : logicalW.current;
 
+  // ── Viewer scale — fits all content horizontally in any viewport ─────────────
+  const [viewerScale,    setViewerScale]    = useState(1);
+  const [viewerContentW, setViewerContentW] = useState(0);
+  useEffect(() => {
+    if (canEdit) return;
+    const compute = () => {
+      if (elements.length === 0) { setViewerScale(1); setViewerContentW(window.innerWidth); return; }
+      const maxX = elements.reduce((m, el) => Math.max(m, (el as any).x + ((el as any).w ?? 200)), 0);
+      const contentW = maxX + 40; // 40px right breathing room
+      setViewerContentW(contentW);
+      setViewerScale(Math.min(window.innerWidth / contentW, 1));
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, [canEdit, elements]);
+  // The effective canvas width for edit mode and animation center calculations
+  const viewerW = !canEdit && viewerContentW > 0 ? viewerContentW : effectiveW;
+
   // Live ref assignments — always current by the time any event handler fires
   elementsRef.current    = elements;
   selIdsRef.current      = selectedIds;
@@ -1614,7 +1633,24 @@ export default function CanvasBoard({
           <span>MOBILE</span>
         </div>
       )}
-      <div ref={canvasWrapperRef} suppressHydrationWarning style={{ position: "relative", width: effectiveW, minHeight: CANVAS_H, zIndex: 1, overflow: "hidden", flexShrink: 0,
+      {/* ── Viewer scale wrapper: reserves correct document-flow dimensions while canvas is CSS-scaled ── */}
+      <div suppressHydrationWarning style={!canEdit ? {
+        width: viewerContentW > 0 ? viewerW * viewerScale : "100%",
+        minHeight: CANVAS_H * viewerScale,
+        position: "relative",
+        flexShrink: 0,
+        overflow: "visible",
+      } : { display: "contents" }}>
+      <div ref={canvasWrapperRef} suppressHydrationWarning style={{
+        position: !canEdit ? "absolute" : "relative",
+        top: 0, left: 0,
+        width: !canEdit ? viewerW : effectiveW,
+        minHeight: CANVAS_H,
+        zIndex: 1,
+        overflow: "hidden",
+        flexShrink: 0,
+        transform: !canEdit ? `scale(${viewerScale})` : undefined,
+        transformOrigin: "top left",
         ...(canvasMode === "space_mobile" && canEdit ? { border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 16px 16px" } : {}),
         ...(!canEdit ? { animation: "land-reveal 0.18s ease both" } : {}),
       }}
@@ -1673,7 +1709,7 @@ export default function CanvasBoard({
       {visImages.map((img,i)=>{
         const isSel=selectedIds.has(img.id);
         const ps=getParallaxStyle(img.layer,img.depth);
-        const _cx=effectiveW/2,_cy=500;
+        const _cx=viewerW/2,_cy=500;
         const _fx=!canEdit?Math.round((_cx-(img.x+img.w/2))*0.40):0;
         const _fy=!canEdit?Math.round((_cy-(img.y+img.h/2))*0.40):0;
         const _fd=!canEdit?Math.min(i*22,200):0;
@@ -1721,13 +1757,13 @@ export default function CanvasBoard({
         const isSel=selectedIds.has(txt.id);
         const isEdit=editingTextId===txt.id;
         const ps=getParallaxStyle(txt.layer,txt.depth);
-        const _cx=effectiveW/2,_cy=500;
+        const _cx=viewerW/2,_cy=500;
         const _fx=!canEdit?Math.round((_cx-(txt.x+50))*0.40):0;
         const _fy=!canEdit?Math.round((_cy-(txt.y+20))*0.40):0;
         const _fd=!canEdit?Math.min(i*22,200):0;
         return (
           <div key={txt.id} ref={el=>{textElRefs.current[txt.id]=el;}}
-            style={{position:"absolute",left:txt.x,top:txt.y,zIndex:txt.zIndex+txt.layer*100,transform:`${ps.transform} rotate(${txt.rotation}deg)`,willChange:"transform",userSelect:isEdit?"text":"none",cursor:txt.locked?"default":dragging?.id===txt.id?"grabbing":isEdit?"text":"grab",display:"inline-block",maxWidth:Math.max(80,effectiveW-txt.x-8),...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
+            style={{position:"absolute",left:txt.x,top:txt.y,zIndex:txt.zIndex+txt.layer*100,transform:`${ps.transform} rotate(${txt.rotation}deg)`,willChange:"transform",userSelect:isEdit?"text":"none",cursor:txt.locked?"default":dragging?.id===txt.id?"grabbing":isEdit?"text":"grab",display:"inline-block",maxWidth:Math.max(80,viewerW-txt.x-8),...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
             onMouseDown={e=>{if(txt.locked){e.stopPropagation();return;}if(!isEdit)onElementMouseDown(txt.id,"text",txt.x,txt.y,e);}}
             onClick={e=>handleElementClick(txt.id,e)}
             onDoubleClick={e=>{e.stopPropagation();setEditingTextId(txt.id);}}>
@@ -1785,7 +1821,7 @@ export default function CanvasBoard({
       {/* ── GALLERIES ── */}
       {visGalleries.map((gallery,i)=>{
         const ps=getParallaxStyle(gallery.layer,gallery.depth);
-        const _cx=effectiveW/2,_cy=500;
+        const _cx=viewerW/2,_cy=500;
         const _fx=!canEdit?Math.round((_cx-(gallery.x+(gallery.w??300)/2))*0.40):0;
         const _fy=!canEdit?Math.round((_cy-(gallery.y+125))*0.40):0;
         const _fd=!canEdit?Math.min(80+i*22,240):0;
@@ -1801,7 +1837,7 @@ export default function CanvasBoard({
       {/* ── PROFILES ── */}
       {visProfiles.map((prof,i)=>{
         const ps=getParallaxStyle(prof.layer,prof.depth);
-        const _cx=effectiveW/2,_cy=500;
+        const _cx=viewerW/2,_cy=500;
         const _fx=!canEdit?Math.round((_cx-(prof.x+prof.w/2))*0.40):0;
         const _fy=!canEdit?Math.round((_cy-(prof.y+prof.h/2))*0.40):0;
         const _fd=!canEdit?Math.min(80+i*22,240):0;
@@ -1830,7 +1866,7 @@ export default function CanvasBoard({
       {/* ── GUESTBOOK ── */}
       {visGuestbooks.map((gb, i) => {
         const ps = getParallaxStyle(gb.layer, gb.depth);
-        const _cx=effectiveW/2,_cy=500;
+        const _cx=viewerW/2,_cy=500;
         const _fx=!canEdit?Math.round((_cx-(gb.x+gb.w/2))*0.40):0;
         const _fy=!canEdit?Math.round((_cy-(gb.y+gb.h/2))*0.40):0;
         const _fd=!canEdit?Math.min(160+i*22,280):0;
@@ -1869,7 +1905,7 @@ export default function CanvasBoard({
         const light=isLight(card.bgColor);
         const pad=adaptivePad(card.borderRadius);
         const ps=getParallaxStyle(card.layer,card.depth);
-        const _cx=effectiveW/2,_cy=500;
+        const _cx=viewerW/2,_cy=500;
         const _fx=!canEdit?Math.round((_cx-(card.x+card.w/2))*0.40):0;
         const _fy=!canEdit?Math.round((_cy-(card.y+card.h/2))*0.40):0;
         const _fd=!canEdit?Math.min(25+i*22,220):0;
@@ -1902,7 +1938,7 @@ export default function CanvasBoard({
       {/* ── MEDIA CARDS ── */}
       {visMedias.map((media, i) => {
         const ps = getParallaxStyle(media.layer, media.depth);
-        const _cx=effectiveW/2,_cy=500;
+        const _cx=viewerW/2,_cy=500;
         const _fx=!canEdit?Math.round((_cx-(media.x+media.w/2))*0.40):0;
         const _fy=!canEdit?Math.round((_cy-(media.y+media.h/2))*0.40):0;
         const _fd=!canEdit?Math.min(80+i*22,240):0;
@@ -1948,6 +1984,7 @@ export default function CanvasBoard({
       )}
 
       </div>
+      </div>{/* end viewer scale wrapper */}
       </div>
       )}
 
@@ -2194,6 +2231,7 @@ export default function CanvasBoard({
           </div>
         </WidgetBoundary>
       )}
+
 
     </div>
   );
