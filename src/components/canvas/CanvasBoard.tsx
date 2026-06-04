@@ -1518,9 +1518,9 @@ export default function CanvasBoard({
     <div className="grain" style={{
       position: "relative",
       minHeight: "100vh",
-      minWidth: "100vw",
+      width: "100%",
       overflowX: "hidden",
-      display: "flex", justifyContent: "center", alignItems: "flex-start",
+      display: "flex", alignItems: "flex-start",
       cursor: addingText?"text":rotating?"crosshair":creatingCard?"crosshair":dragging?"grabbing":"default",
       fontFamily: SANS,
     }}
