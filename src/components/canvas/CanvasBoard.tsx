@@ -247,7 +247,7 @@ export default function CanvasBoard({
   const opsQueueRef  = useRef<QueuedOp[]>([]);
   const flushingRef  = useRef(false);
   const clientIdRef       = useRef(crypto.randomUUID());
-  const logicalW          = useRef(typeof window !== "undefined" ? window.screen.width : 1920);
+  const logicalW          = useRef(typeof window !== "undefined" ? window.innerWidth : 1920);
   const firstEditRef = useRef(false); // fires analytics.canvasEdit once per session
 
   const isMobile     = useIsMobile();
