@@ -33,7 +33,9 @@
       "Bash(cat .env)",
       "Bash(cat .env.production)",
       "Bash(cat middleware.ts)",
-      "Bash(cat src/middleware.ts)"
+      "Bash(cat src/middleware.ts)",
+      "Bash(dir landing-import *)",
+      "PowerShell(New-Item *)"
     ]
   }
 }
