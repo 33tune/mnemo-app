@@ -190,6 +190,7 @@ export type ProfileCardData = {
   font?:           TextFont;
   nameFont?:       TextFont;
   nameFontSize?:   number;
+  bioFontSize?:    number;
   statusFont?:     TextFont;
   statusFontSize?: number;
   textColor?:      string;

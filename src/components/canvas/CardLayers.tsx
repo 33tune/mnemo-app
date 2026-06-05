@@ -3,6 +3,9 @@ import React, { useEffect, type CSSProperties } from "react";
 import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 
+// Shared epoch so all floating cards stay in phase with each other.
+const FLOAT_EPOCH = typeof window !== "undefined" ? Date.now() : 0;
+
 function useCardAnimations(cardId: string, effects: CardEffects | undefined) {
   useEffect(() => {
     if (!effects?.animations?.floating) return;
@@ -81,10 +84,13 @@ export default function CardLayers({
   const spotlightSize  = effects?.interactions?.spotlightSize  ?? 65;
   const spotOn         = effects?.interactions?.spotlight       ?? false;
 
-  // Wrapper animation
+  // Wrapper animation — negative delay syncs all cards to the same global phase
   const wrapperAnimStyle: CSSProperties = {};
   if (anim?.floating) {
-    wrapperAnimStyle.animation = `mnemo-float-${cardId} ${anim.floatSpeed ?? 3}s ease-in-out infinite`;
+    const speed   = anim.floatSpeed ?? 3;
+    const periodMs = speed * 1000;
+    const phase    = (Date.now() - FLOAT_EPOCH) % periodMs;
+    wrapperAnimStyle.animation = `mnemo-float-${cardId} ${speed}s ease-in-out -${phase}ms infinite`;
   }
 
   return (
@@ -98,7 +104,7 @@ export default function CardLayers({
       willChange: "transform",
     }}>
 
-      {/* ── Layer 0: Background ── */}
+      {/* ── Layer 0a: Background fill (opacity-affected) ── */}
       <div style={{
         position: "absolute", inset: 0, borderRadius: rad,
         ...(bg?.image ? bgImageStyle(bg.image, bg.imageMode) : { background: bgColor }),
@@ -106,8 +112,13 @@ export default function CardLayers({
         filter:               bgBlur > 0 ? `blur(${bgBlur}px)` : undefined,
         backdropFilter:       isGlass ? "blur(20px)" : undefined,
         WebkitBackdropFilter: isGlass ? "blur(20px)" : undefined,
+      }} />
+      {/* ── Layer 0b: Border + shadow (always full opacity) ── */}
+      <div style={{
+        position: "absolute", inset: 0, borderRadius: rad,
         border,
         boxShadow,
+        pointerEvents: "none",
       }} />
 
       {/* ── Layer 1: Gradient Overlay ── */}

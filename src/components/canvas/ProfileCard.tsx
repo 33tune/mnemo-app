@@ -346,7 +346,7 @@ function ProfileCard({
   }
 
   function StarEl({ style }: { style?: CSSProperties }) {
-    const showStar = !isSelf && (canInteract === false || !canInteract);
+    const showStar = !isSelf;
     if (!showStar) return null;
     return (
       <button
@@ -438,10 +438,9 @@ function ProfileCard({
         )}
         {card.bio && (
           <div style={{
-            fontFamily: MONO, fontSize: 8, color: withOpacity(baseColor, 0.42),
+            fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
             maxWidth: "100%", textAlign: "center", lineHeight: 1.6,
-            overflow: "hidden", display: "-webkit-box",
-            WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+            whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
           } as CSSProperties}>{card.bio}</div>
         )}
         {variant !== "minimal" && (
@@ -473,9 +472,8 @@ function ProfileCard({
           )}
           {card.bio && (
             <div style={{
-              fontFamily: MONO, fontSize: 8, color: withOpacity(baseColor, 0.42),
-              lineHeight: 1.6, overflow: "hidden", display: "-webkit-box",
-              WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+              fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
+              lineHeight: 1.6, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
             } as CSSProperties}>{card.bio}</div>
           )}
           <StarEl />
@@ -507,8 +505,9 @@ function ProfileCard({
         {card.bio && (
           <FreeWrap elemKey="bio">
             <div style={{
-              fontFamily: MONO, fontSize: 8, color: withOpacity(baseColor, 0.42),
+              fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
               lineHeight: 1.6, maxWidth: 160, textAlign: "center",
+              whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
             }}>{card.bio}</div>
           </FreeWrap>
         )}
@@ -555,7 +554,7 @@ function ProfileCard({
       >
         <CardLayers
           cardId={card.id} effects={effectiveEffects} isSel={isSel}
-          borderRadius={rad} style={{ opacity: effectiveEffects.opacity ?? 1 }}
+          borderRadius={rad}
         >
           <div style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden" }}>
             {/* bg overlay tint for image cards */}
@@ -743,6 +742,28 @@ function ProfileCard({
                 )}
 
                 <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "8px 0 10px" }} />
+
+                {/* Name size */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={MICRO}>tamaño nombre</span>
+                  <input type="range" min={10} max={32} step={1}
+                    value={card.nameFontSize ?? 15}
+                    onChange={e => updateProfile(card.id, { nameFontSize: Number(e.target.value) })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
+                  <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", minWidth: 22 }}>{card.nameFontSize ?? 15}</span>
+                </div>
+
+                {/* Bio size */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={MICRO}>tamaño bio</span>
+                  <input type="range" min={7} max={18} step={1}
+                    value={card.bioFontSize ?? 8}
+                    onChange={e => updateProfile(card.id, { bioFontSize: Number(e.target.value) })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
+                  <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", minWidth: 22 }}>{card.bioFontSize ?? 8}</span>
+                </div>
 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

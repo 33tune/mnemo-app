@@ -240,8 +240,9 @@ export function useDragDrop({
       }
 
       // Minimums per element type
-      const minW = resizing.type==="image"?40 : resizing.type==="card"?80 : resizing.type==="gallery"?160 : resizing.type==="media"?200 : resizing.type==="guestbook"?200 : 160;
-      const minH = resizing.type==="image"?1  : resizing.type==="card"?60  : resizing.type==="gallery"?120 : resizing.type==="media"?60  : resizing.type==="guestbook"?260 : 120;
+      const isModule = resizing.type==="social"||resizing.type==="music"||resizing.type==="links"||resizing.type==="stats";
+      const minW = resizing.type==="image"?40 : resizing.type==="card"?80 : resizing.type==="gallery"?160 : resizing.type==="media"?200 : resizing.type==="guestbook"?200 : isModule?48 : 160;
+      const minH = resizing.type==="image"?1  : resizing.type==="card"?60  : resizing.type==="gallery"?120 : resizing.type==="media"?60  : resizing.type==="guestbook"?260 : isModule?20 : 120;
 
       const { nx, ny, nw, nh } = computeResize(handle, dx, dy, w, h, ex, ey, ratio, resizing.type === "image", minW, minH);
 

@@ -439,6 +439,34 @@ function SocialCardWidget({
                 <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", width: 24, textAlign: "right" }}>{card.iconSize ?? 16}</span>
               </div>
 
+              {/* Background quick controls */}
+              <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "2px 0" }} />
+              <div>
+                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>fondo</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ position: "relative", width: 28, height: 22, borderRadius: 4, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer", flexShrink: 0 }}>
+                    {effectiveEffects.bg?.color && <div style={{ position: "absolute", inset: 0, background: effectiveEffects.bg.color }} />}
+                    <input type="color"
+                      value={effectiveEffects.bg?.color?.startsWith("#") ? effectiveEffects.bg.color : "#141416"}
+                      onChange={e => updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, color: e.target.value } } })}
+                      onMouseDown={e => e.stopPropagation()}
+                      style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
+                  </div>
+                  <input type="range" min={0} max={1} step={0.05} value={effectiveEffects.bg?.opacity ?? 1}
+                    onChange={e => updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, opacity: Number(e.target.value) } } })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
+                  <span style={{ fontFamily: MONO, fontSize: 7, color: "rgba(255,255,255,0.3)", minWidth: 24, textAlign: "right" }}>
+                    {Math.round((effectiveEffects.bg?.opacity ?? 1) * 100)}%
+                  </span>
+                  {effectiveEffects.bg?.color && (
+                    <button onClick={() => updateCard(card.id, { bgColor: "", effects: { ...card.effects, bg: { ...card.effects?.bg, color: undefined } } })}
+                      onMouseDown={e => e.stopPropagation()}
+                      style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
+                  )}
+                </div>
+              </div>
+
               {/* Personalizar button */}
               <button
                 onMouseDown={e => e.stopPropagation()}

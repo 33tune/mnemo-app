@@ -5,6 +5,10 @@ import type { CardEffects } from "@/types";
 type Tab = "fondo" | "efectos" | "interaccion";
 
 const MONO = "'Space Mono', monospace";
+const SANS = "'DM Sans', sans-serif";
+const GREEN = "rgba(212,240,196,0.85)";
+const GREEN_DIM = "rgba(212,240,196,0.12)";
+const GREEN_BRD = "rgba(212,240,196,0.25)";
 
 interface PersonalizePanelProps {
   effects?:       CardEffects;
@@ -12,53 +16,85 @@ interface PersonalizePanelProps {
   isProfileCard?: boolean;
 }
 
-// ── Small UI helpers ──────────────────────────────────────────────────────────
-
-function Row({ children, gap = 6 }: { children: React.ReactNode; gap?: number }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap, flexWrap: "wrap" as const }}>
-      {children}
-    </div>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1.5, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const, userSelect: "none", flexShrink: 0 }}>
-      {children}
-    </span>
-  );
-}
-
-function SectionHead({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 8, userSelect: "none" }}>
-      {children}
-    </div>
-  );
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function Divider() {
-  return <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "12px 0" }} />;
+  return <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "10px 0" }} />;
 }
 
-function Toggle({
-  active, onClick, children,
+function SectionTitle({ icon, children }: { icon: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+      <span style={{ fontSize: 12 }}>{icon}</span>
+      <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" as const, userSelect: "none" as const }}>
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function SliderRow({
+  label, min, max, step = 1, value, onChange, unit = "", fmt,
 }: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  label: string; min: number; max: number; step?: number;
+  value: number; onChange: (v: number) => void; unit?: string; fmt?: (v: number) => string;
 }) {
+  const display = fmt ? fmt(value) : `${Math.round(value * (unit === "%" ? 100 : 1))}${unit}`;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: 1, color: "rgba(255,255,255,0.32)", textTransform: "uppercase" as const }}>
+          {label}
+        </span>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: GREEN, minWidth: 30, textAlign: "right" }}>
+          {display}
+        </span>
+      </div>
+      <input
+        type="range" min={min} max={max} step={step}
+        value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        onMouseDown={e => e.stopPropagation()}
+        style={{ width: "100%", accentColor: "rgba(212,240,196,0.75)", cursor: "pointer" }}
+      />
+    </div>
+  );
+}
+
+function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {label && <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: 1, color: "rgba(255,255,255,0.32)", textTransform: "uppercase" as const, minWidth: 32 }}>{label}</span>}
+      <div style={{
+        position: "relative", width: 32, height: 26, borderRadius: 5,
+        overflow: "hidden", border: "1px solid rgba(255,255,255,0.15)",
+        cursor: "pointer", flexShrink: 0,
+        boxShadow: `0 0 0 2px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.05)`,
+      }}>
+        <div style={{ position: "absolute", inset: 0, background: value || "rgba(255,255,255,0.12)", borderRadius: 4 }} />
+        <input
+          type="color"
+          value={value?.startsWith("#") ? value : "#a855f7"}
+          onChange={e => onChange(e.target.value)}
+          onMouseDown={e => e.stopPropagation()}
+          style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onMouseDown={e => e.stopPropagation()}
       onClick={e => { e.stopPropagation(); onClick(); }}
       style={{
-        padding: "5px 10px", borderRadius: 20,
-        border: active ? "1px solid rgba(212,240,196,0.28)" : "1px solid rgba(255,255,255,0.1)",
-        background: active ? "rgba(212,240,196,0.12)" : "rgba(255,255,255,0.04)",
-        color: active ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.38)",
-        fontFamily: MONO, fontSize: 8, letterSpacing: 0.8,
+        padding: "5px 12px", borderRadius: 20,
+        border: active ? `1px solid ${GREEN_BRD}` : "1px solid rgba(255,255,255,0.1)",
+        background: active ? GREEN_DIM : "rgba(255,255,255,0.04)",
+        color: active ? GREEN : "rgba(255,255,255,0.38)",
+        fontFamily: MONO, fontSize: 8, letterSpacing: 0.5,
         cursor: "pointer", transition: "all 0.12s ease",
         whiteSpace: "nowrap" as const, userSelect: "none" as const,
       }}
@@ -66,67 +102,32 @@ function Toggle({
   );
 }
 
-function ThreeLevel({
-  labels, values, current, onSelect,
-}: {
-  labels: [string, string, string];
-  values: [number, number, number];
-  current: number | undefined;
-  onSelect: (v: number) => void;
-}) {
+function ClearBtn({ onClick }: { onClick: () => void }) {
   return (
-    <div style={{ display: "flex", gap: 3 }}>
-      {labels.map((lbl, i) => {
-        const v = values[i];
-        const isActive = current !== undefined && Math.abs(current - v) < 0.001;
-        return (
-          <button
-            key={lbl}
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => { e.stopPropagation(); onSelect(v); }}
-            style={{
-              padding: "4px 8px", borderRadius: 4, fontSize: 8,
-              fontFamily: MONO, letterSpacing: 0.5, cursor: "pointer",
-              border: isActive ? "1px solid rgba(212,240,196,0.35)" : "1px solid rgba(255,255,255,0.08)",
-              background: isActive ? "rgba(212,240,196,0.1)" : "rgba(255,255,255,0.03)",
-              color: isActive ? "rgba(212,240,196,0.9)" : "rgba(255,255,255,0.35)",
-              transition: "all 0.1s ease", userSelect: "none" as const,
-            }}
-          >{lbl}</button>
-        );
-      })}
-    </div>
+    <button
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => { e.stopPropagation(); onClick(); }}
+      style={{
+        background: "transparent", border: "none", padding: "2px 6px",
+        color: "rgba(255,255,255,0.22)", fontSize: 11, cursor: "pointer",
+        fontFamily: MONO, lineHeight: 1, borderRadius: 3,
+        transition: "color 0.1s ease",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,80,80,0.7)"; }}
+      onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.22)"; }}
+    >×</button>
   );
 }
 
-function ColorSwatch({ value, onChange, size = 22 }: { value: string; onChange: (v: string) => void; size?: number }) {
-  return (
-    <div style={{
-      position: "relative", width: size, height: size, borderRadius: 4,
-      overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)",
-      cursor: "pointer", flexShrink: 0,
-    }}>
-      <div style={{ position: "absolute", inset: 0, background: value || "rgba(255,255,255,0.12)" }} />
-      <input
-        type="color"
-        value={value?.startsWith("#") ? value : "#a855f7"}
-        onChange={e => onChange(e.target.value)}
-        onMouseDown={e => e.stopPropagation()}
-        style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
-      />
-    </div>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export default function PersonalizePanel({ effects, onChange, isProfileCard }: PersonalizePanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("fondo");
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: "fondo",      label: "Fondo" },
-    { key: "efectos",    label: "Efectos" },
-    { key: "interaccion", label: "Interacción" },
+  const TABS: { key: Tab; icon: string; label: string }[] = [
+    { key: "fondo",       icon: "◻",  label: "Fondo" },
+    { key: "efectos",     icon: "✦",  label: "Efectos" },
+    { key: "interaccion", icon: "⟡",  label: "Interact" },
   ];
 
   function patchBg(patch: Partial<NonNullable<CardEffects["bg"]>>) {
@@ -158,335 +159,258 @@ export default function PersonalizePanel({ effects, onChange, isProfileCard }: P
   const grad  = effects?.gradient;
   const inter = effects?.interactions;
   const anim  = effects?.animations;
+  const sh    = effects?.shadow;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
       {/* Tab row */}
-      <div style={{
-        display: "flex", gap: 2, paddingBottom: 8, marginBottom: 4,
-        scrollbarWidth: "none" as CSSProperties["scrollbarWidth"],
-      }}>
+      <div style={{ display: "flex", gap: 3, marginBottom: 10 }}>
         {TABS.map(t => (
           <button
             key={t.key}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); setActiveTab(t.key); }}
             style={{
-              padding: "4px 9px", borderRadius: 5, fontSize: 8,
-              fontFamily: MONO, letterSpacing: 0.6, whiteSpace: "nowrap" as const,
-              cursor: "pointer", flexShrink: 0, userSelect: "none" as const,
-              border: activeTab === t.key ? "1px solid rgba(212,240,196,0.3)" : "1px solid rgba(255,255,255,0.07)",
-              background: activeTab === t.key ? "rgba(212,240,196,0.08)" : "transparent",
-              color: activeTab === t.key ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.32)",
+              flex: 1, padding: "6px 4px", borderRadius: 6, fontSize: 7.5,
+              fontFamily: MONO, letterSpacing: 0.5,
+              cursor: "pointer", userSelect: "none" as const,
+              border: activeTab === t.key ? `1px solid ${GREEN_BRD}` : "1px solid rgba(255,255,255,0.07)",
+              background: activeTab === t.key ? GREEN_DIM : "rgba(255,255,255,0.02)",
+              color: activeTab === t.key ? GREEN : "rgba(255,255,255,0.3)",
               transition: "all 0.1s ease",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
             }}
-          >{t.label}</button>
+          >
+            <span style={{ fontSize: 11, lineHeight: 1 }}>{t.icon}</span>
+            <span>{t.label}</span>
+          </button>
         ))}
       </div>
 
-      <div style={{ height: 1, background: "rgba(255,255,255,0.07)", marginBottom: 12 }} />
+      <div style={{ height: 1, background: "rgba(255,255,255,0.07)", marginBottom: 14 }} />
 
-      {/* ══════════════════════════════════════════
-          TAB: FONDO
-      ══════════════════════════════════════════ */}
+      {/* ══════════ TAB: FONDO ══════════ */}
       {activeTab === "fondo" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
+          {/* Color */}
           <div>
-            <SectionHead>Color de fondo</SectionHead>
-            <Row>
+            <SectionTitle icon="🎨">Color de fondo</SectionTitle>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <ColorSwatch value={bg?.color ?? "#141416"} onChange={v => patchBg({ color: v })} />
-              {bg?.color && (
-                <button
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); patchBg({ color: undefined }); }}
-                  style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 12, cursor: "pointer", padding: 0, fontFamily: MONO }}
-                >× limpiar</button>
-              )}
-            </Row>
-          </div>
-
-          <div>
-            <Label>Opacidad fondo</Label>
-            <div style={{ marginTop: 6 }}>
-              <input
-                type="range" min={0} max={1} step={0.05}
-                value={bg?.opacity ?? 1}
-                onChange={e => patchBg({ opacity: Number(e.target.value) })}
-                onMouseDown={e => e.stopPropagation()}
-                style={{ width: "100%", accentColor: "rgba(212,240,196,0.8)" }}
-              />
-              <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)" }}>
-                {Math.round((bg?.opacity ?? 1) * 100)}%
-              </span>
+              <div style={{ flex: 1, height: 26, borderRadius: 5, overflow: "hidden", border: "1px dashed rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: MONO, fontSize: 7.5, color: "rgba(255,255,255,0.2)", letterSpacing: 0.5 }}>
+                  {bg?.color?.toUpperCase() ?? "AUTO"}
+                </span>
+              </div>
+              {bg?.color && <ClearBtn onClick={() => patchBg({ color: undefined })} />}
             </div>
           </div>
 
-          <div>
-            <Label>Blur</Label>
-            <div style={{ marginTop: 6 }}>
-              <ThreeLevel
-                labels={["Ninguno", "Sutil", "Intenso"]}
-                values={[0, 8, 20]}
-                current={bg?.blur}
-                onSelect={v => patchBg({ blur: v || undefined })}
-              />
-            </div>
-          </div>
+          {/* Opacidad */}
+          <SliderRow
+            label="Opacidad fondo" min={0} max={1} step={0.01}
+            value={bg?.opacity ?? 1}
+            onChange={v => patchBg({ opacity: v })}
+            fmt={v => `${Math.round(v * 100)}%`}
+          />
 
-          <Toggle active={!!bg?.glass} onClick={() => patchBg({ glass: !bg?.glass })}>
-            Glass (glassmorphism)
-          </Toggle>
+          {/* Blur */}
+          <SliderRow
+            label="Blur" min={0} max={24} step={1}
+            value={bg?.blur ?? 0}
+            onChange={v => patchBg({ blur: v || undefined })}
+            unit="px"
+          />
+
+          {/* Glass */}
+          <Pill active={!!bg?.glass} onClick={() => patchBg({ glass: !bg?.glass })}>
+            {bg?.glass ? "✓ Glass (blur)" : "Glass (blur)"}
+          </Pill>
 
           <Divider />
 
+          {/* Gradiente */}
           <div>
-            <SectionHead>Gradiente</SectionHead>
-            <Toggle active={!!grad} onClick={() => {
+            <SectionTitle icon="🌈">Gradiente</SectionTitle>
+            <Pill active={!!grad} onClick={() => {
               if (grad) onChange({ ...effects, gradient: undefined });
               else onChange({ ...effects, gradient: { from: "#0f0f0f", to: "#1a1a2e", angle: 135, opacity: 0.6 } });
             }}>
-              {grad ? "Gradiente activo" : "Activar gradiente"}
-            </Toggle>
+              {grad ? "✓ Activo" : "Activar"}
+            </Pill>
 
             {grad && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
-                <Row>
-                  <Label>De</Label>
-                  <ColorSwatch value={grad.from} onChange={v => patchGradient({ from: v })} />
-                  <Label>A</Label>
-                  <ColorSwatch value={grad.to} onChange={v => patchGradient({ to: v })} />
-                </Row>
-                <Row>
-                  <Label>Ángulo</Label>
-                  <input
-                    type="range" min={0} max={360} step={15}
-                    value={grad.angle}
-                    onChange={e => patchGradient({ angle: Number(e.target.value) })}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
-                  />
-                  <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", minWidth: 28, textAlign: "right" }}>{grad.angle}°</span>
-                </Row>
-                <Row>
-                  <Label>Opacidad</Label>
-                  <input
-                    type="range" min={0} max={1} step={0.05}
-                    value={grad.opacity}
-                    onChange={e => patchGradient({ opacity: Number(e.target.value) })}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
-                  />
-                  <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", minWidth: 28, textAlign: "right" }}>{Math.round(grad.opacity * 100)}%</span>
-                </Row>
-              </div>
-            )}
-          </div>
-
-          <Divider />
-
-          <div>
-            <Label>Opacidad global</Label>
-            <div style={{ marginTop: 6 }}>
-              <input
-                type="range" min={0} max={1} step={0.05}
-                value={effects?.opacity ?? 1}
-                onChange={e => onChange({ ...effects, opacity: Number(e.target.value) })}
-                onMouseDown={e => e.stopPropagation()}
-                style={{ width: "100%", accentColor: "rgba(212,240,196,0.8)" }}
-              />
-              <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)" }}>
-                {Math.round((effects?.opacity ?? 1) * 100)}%
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════
-          TAB: EFECTOS
-      ══════════════════════════════════════════ */}
-      {activeTab === "efectos" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-          <div>
-            <SectionHead>Glow</SectionHead>
-            <Row gap={6}>
-              <Toggle active={!!glow?.outer} onClick={() => patchGlow({ outer: !glow?.outer })}>Exterior</Toggle>
-              <Toggle active={!!glow?.inner} onClick={() => patchGlow({ inner: !glow?.inner })}>Interior</Toggle>
-            </Row>
-            {(glow?.outer || glow?.inner) && (
-              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                <Row>
-                  <Label>Color</Label>
-                  <ColorSwatch value={glow?.color ?? "#a855f7"} onChange={v => patchGlow({ color: v })} />
-                </Row>
-                <div>
-                  <Label>Intensidad</Label>
-                  <div style={{ marginTop: 6 }}>
-                    <ThreeLevel
-                      labels={["Suave", "Normal", "Intenso"]}
-                      values={[0.3, 0.6, 1.0]}
-                      current={glow?.intensity}
-                      onSelect={v => patchGlow({ intensity: v })}
-                    />
-                  </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <ColorSwatch label="De" value={grad.from} onChange={v => patchGradient({ from: v })} />
+                  <ColorSwatch label="A" value={grad.to} onChange={v => patchGradient({ to: v })} />
                 </div>
+                <SliderRow
+                  label="Ángulo" min={0} max={360} step={5}
+                  value={grad.angle} onChange={v => patchGradient({ angle: v })}
+                  fmt={v => `${v}°`}
+                />
+                <SliderRow
+                  label="Opacidad" min={0} max={1} step={0.01}
+                  value={grad.opacity} onChange={v => patchGradient({ opacity: v })}
+                  fmt={v => `${Math.round(v * 100)}%`}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ TAB: EFECTOS ══════════ */}
+      {activeTab === "efectos" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Glow */}
+          <div>
+            <SectionTitle icon="✨">Glow</SectionTitle>
+            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+              <Pill active={!!glow?.outer} onClick={() => patchGlow({ outer: !glow?.outer })}>Exterior</Pill>
+              <Pill active={!!glow?.inner} onClick={() => patchGlow({ inner: !glow?.inner })}>Interior</Pill>
+            </div>
+            {(glow?.outer || glow?.inner) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <ColorSwatch label="Color" value={glow?.color ?? "#a855f7"} onChange={v => patchGlow({ color: v })} />
+                <SliderRow
+                  label="Intensidad" min={0} max={1} step={0.01}
+                  value={glow?.intensity ?? 0}
+                  onChange={v => patchGlow({ intensity: v, outer: (glow?.outer || v > 0) })}
+                  fmt={v => `${Math.round(v * 100)}%`}
+                />
               </div>
             )}
           </div>
 
           <Divider />
 
+          {/* Sombra */}
           <div>
-            <SectionHead>Sombra</SectionHead>
-            <Row>
-              <Label>Color</Label>
-              <ColorSwatch
-                value={effects?.shadow?.color ?? "#000000"}
-                onChange={v => patchShadow({ color: v })}
+            <SectionTitle icon="🌑">Sombra</SectionTitle>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <ColorSwatch label="Color" value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} />
+              <SliderRow
+                label="Intensidad" min={0} max={1} step={0.01}
+                value={sh?.intensity ?? 0}
+                onChange={v => patchShadow({ intensity: v })}
+                fmt={v => `${Math.round(v * 100)}%`}
               />
-            </Row>
-            <div style={{ marginTop: 8 }}>
-              <Label>Intensidad</Label>
-              <div style={{ marginTop: 6 }}>
-                <ThreeLevel
-                  labels={["Suave", "Normal", "Intensa"]}
-                  values={[0.25, 0.5, 1.0]}
-                  current={effects?.shadow?.intensity}
-                  onSelect={v => patchShadow({ intensity: v })}
-                />
-              </div>
             </div>
           </div>
 
           <Divider />
 
+          {/* Borde */}
           <div>
-            <SectionHead>Borde</SectionHead>
-            <Row gap={8}>
-              <Label>Color</Label>
-              <ColorSwatch value={bord?.color ?? "#ffffff"} onChange={v => patchBorder({ color: v })} />
-              {bord?.color && (
-                <button
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); patchBorder({ color: undefined }); }}
-                  style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 12, cursor: "pointer", padding: 0 }}
-                >×</button>
-              )}
-            </Row>
-            <div style={{ marginTop: 8 }}>
-              <Label>Grosor</Label>
-              <div style={{ marginTop: 6 }}>
-                <ThreeLevel
-                  labels={["Fino", "Normal", "Grueso"]}
-                  values={[1, 2, 4]}
-                  current={bord?.width}
-                  onSelect={v => patchBorder({ width: v })}
-                />
+            <SectionTitle icon="⬜">Borde</SectionTitle>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ColorSwatch label="Color" value={bord?.color ?? "#ffffff"} onChange={v => patchBorder({ color: v })} />
+                {bord?.color && <ClearBtn onClick={() => patchBorder({ color: undefined })} />}
               </div>
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <Label>Radio</Label>
-              <div style={{ marginTop: 6 }}>
-                <input
-                  type="range" min={0} max={60} step={2}
-                  value={bord?.radius ?? 14}
-                  onChange={e => patchBorder({ radius: Number(e.target.value) })}
-                  onMouseDown={e => e.stopPropagation()}
-                  style={{ width: "100%", accentColor: "rgba(212,240,196,0.8)" }}
-                />
-                <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)" }}>
-                  {bord?.radius ?? 14}px
-                </span>
-              </div>
+              <SliderRow
+                label="Grosor" min={0} max={6} step={0.5}
+                value={bord?.width ?? 1}
+                onChange={v => patchBorder({ width: v })}
+                fmt={v => `${v}px`}
+              />
+              <SliderRow
+                label="Radio" min={0} max={60} step={1}
+                value={bord?.radius ?? 14}
+                onChange={v => patchBorder({ radius: v })}
+                fmt={v => `${v}px`}
+              />
             </div>
           </div>
         </div>
       )}
 
-      {/* ══════════════════════════════════════════
-          TAB: INTERACCIÓN
-      ══════════════════════════════════════════ */}
+      {/* ══════════ TAB: INTERACCIÓN ══════════ */}
       {activeTab === "interaccion" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
+          {/* Tilt 3D */}
           <div>
-            <SectionHead>Tilt 3D</SectionHead>
-            <Toggle active={!!inter?.tilt3d} onClick={() => patchInteractions({ tilt3d: !inter?.tilt3d })}>
-              {inter?.tilt3d ? "Activado" : "Desactivado"}
-            </Toggle>
+            <SectionTitle icon="↗">Tilt 3D</SectionTitle>
+            <Pill active={!!inter?.tilt3d} onClick={() => patchInteractions({ tilt3d: !inter?.tilt3d })}>
+              {inter?.tilt3d ? "✓ Activado" : "Activar"}
+            </Pill>
             {inter?.tilt3d && (
               <div style={{ marginTop: 10 }}>
-                <Label>Intensidad</Label>
-                <div style={{ marginTop: 6 }}>
-                  <ThreeLevel
-                    labels={["Suave", "Normal", "Intenso"]}
-                    values={isProfileCard ? [5, 10, 18] : [3, 6, 12]}
-                    current={inter?.tiltIntensity}
-                    onSelect={v => patchInteractions({ tiltIntensity: v })}
-                  />
-                </div>
+                <SliderRow
+                  label="Intensidad" min={1} max={isProfileCard ? 20 : 15} step={0.5}
+                  value={inter?.tiltIntensity ?? (isProfileCard ? 10 : 6)}
+                  onChange={v => patchInteractions({ tiltIntensity: v })}
+                  fmt={v => `${v}°`}
+                />
               </div>
             )}
           </div>
 
           <Divider />
 
+          {/* Spotlight */}
           <div>
-            <SectionHead>Spotlight</SectionHead>
-            <Toggle active={!!inter?.spotlight} onClick={() => patchInteractions({ spotlight: !inter?.spotlight })}>
-              {inter?.spotlight ? "Activado" : "Desactivado"}
-            </Toggle>
+            <SectionTitle icon="💡">Spotlight</SectionTitle>
+            <Pill active={!!inter?.spotlight} onClick={() => patchInteractions({ spotlight: !inter?.spotlight })}>
+              {inter?.spotlight ? "✓ Activado" : "Activar"}
+            </Pill>
             {inter?.spotlight && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
-                <Row>
-                  <Label>Color</Label>
-                  <ColorSwatch
-                    value={inter?.spotlightColor?.startsWith("#") ? inter.spotlightColor : "#ffffff"}
-                    onChange={v => patchInteractions({ spotlightColor: v })}
-                  />
-                </Row>
-                <div>
-                  <Label>Tamaño</Label>
-                  <div style={{ marginTop: 6 }}>
-                    <ThreeLevel
-                      labels={["Pequeño", "Normal", "Grande"]}
-                      values={[40, 65, 90]}
-                      current={inter?.spotlightSize}
-                      onSelect={v => patchInteractions({ spotlightSize: v })}
-                    />
-                  </div>
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+                <ColorSwatch
+                  label="Color"
+                  value={inter?.spotlightColor?.startsWith("#") ? inter.spotlightColor : "#ffffff"}
+                  onChange={v => patchInteractions({ spotlightColor: v })}
+                />
+                <SliderRow
+                  label="Tamaño" min={20} max={100} step={1}
+                  value={inter?.spotlightSize ?? 65}
+                  onChange={v => patchInteractions({ spotlightSize: v })}
+                  fmt={v => `${v}%`}
+                />
               </div>
             )}
           </div>
 
           <Divider />
 
+          {/* Flotando */}
           <div>
-            <SectionHead>Otros</SectionHead>
-            <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>
-              <Toggle active={!!inter?.hoverGlow} onClick={() => patchInteractions({ hoverGlow: !inter?.hoverGlow })}>
-                Hover Glow
-              </Toggle>
-              <Toggle active={!!anim?.floating} onClick={() => patchAnimations({ floating: !anim?.floating })}>
-                Flotando
-              </Toggle>
-            </div>
+            <SectionTitle icon="〜">Flotando</SectionTitle>
+            <Pill active={!!anim?.floating} onClick={() => patchAnimations({ floating: !anim?.floating })}>
+              {anim?.floating ? "✓ Activado" : "Activar"}
+            </Pill>
             {anim?.floating && (
-              <div style={{ marginTop: 10 }}>
-                <Label>Altura flotación</Label>
-                <div style={{ marginTop: 6 }}>
-                  <ThreeLevel
-                    labels={["Suave", "Normal", "Intenso"]}
-                    values={[4, 8, 16]}
-                    current={anim?.floatHeight}
-                    onSelect={v => patchAnimations({ floatHeight: v })}
-                  />
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+                <SliderRow
+                  label="Altura" min={2} max={24} step={1}
+                  value={anim?.floatHeight ?? 8}
+                  onChange={v => patchAnimations({ floatHeight: v })}
+                  fmt={v => `${v}px`}
+                />
+                <SliderRow
+                  label="Velocidad" min={1} max={8} step={0.5}
+                  value={anim?.floatSpeed ?? 3}
+                  onChange={v => patchAnimations({ floatSpeed: v })}
+                  fmt={v => `${v}s`}
+                />
               </div>
             )}
+          </div>
+
+          <Divider />
+
+          {/* Otros */}
+          <div>
+            <SectionTitle icon="◈">Otros</SectionTitle>
+            <Pill active={!!inter?.hoverGlow} onClick={() => patchInteractions({ hoverGlow: !inter?.hoverGlow })}>
+              {inter?.hoverGlow ? "✓ Hover Glow" : "Hover Glow"}
+            </Pill>
           </div>
         </div>
       )}
