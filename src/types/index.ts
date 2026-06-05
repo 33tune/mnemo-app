@@ -112,12 +112,18 @@ export type ProfileLink = {
   url:   string;
   label: string;
   icon?: string;
+  x?:    number;
+  y?:    number;
+  scale?: number;
 };
 
 export type SocialLink = {
   id:       string;
   platform: string;
   url:      string;
+  x?:       number;
+  y?:       number;
+  scale?:   number;
 };
 
 export type MediaType = "spotify" | "youtube" | "soundcloud";
@@ -196,6 +202,8 @@ export type ProfileCardData = {
   accentColor?:    string;
   glowIntensity?:  number;
   glowColor?:      string;
+  borderColor?:    string;
+  borderWidth?:    number;
   bgOverlayOpacity?: number;
   // State
   locked?:         boolean;
@@ -227,6 +235,12 @@ export type SocialCardData = {
   borderRadius?: number;
   opacity?:      number;
   variant?:      ProfileCardVariant;
+  borderColor?:  string;
+  borderWidth?:  number;
+  glowColor?:    string;
+  glowIntensity?: number;
+  textColor?:    string;
+  iconSize?:     number;
 };
 
 export type MusicCardData = {
@@ -250,6 +264,12 @@ export type MusicCardData = {
   borderRadius?: number;
   opacity?:      number;
   variant?:      ProfileCardVariant;
+  borderColor?:  string;
+  borderWidth?:  number;
+  glowColor?:    string;
+  glowIntensity?: number;
+  textColor?:    string;
+  font?:         TextFont;
 };
 
 export type LinksCardData = {
@@ -272,6 +292,12 @@ export type LinksCardData = {
   borderRadius?: number;
   opacity?:      number;
   variant?:      ProfileCardVariant;
+  borderColor?:  string;
+  borderWidth?:  number;
+  glowColor?:    string;
+  glowIntensity?: number;
+  textColor?:    string;
+  font?:         TextFont;
 };
 
 // ── Guestbook ────────────────────────────────────────────────────────────────

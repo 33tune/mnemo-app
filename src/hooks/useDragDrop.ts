@@ -97,12 +97,20 @@ export function useDragDrop({
     type: WidgetType,
     x: number, y: number,
     e: React.MouseEvent,
-    selectedIds: Set<string>
+    selectedIds: Set<string>,
+    followerIds?: string[]
   ) {
     didDrag.current = false;
     dragOffset.current = { x: e.clientX - x, y: e.clientY - y };
     const pos: Record<string, { x: number; y: number }> = {};
     elements.forEach(el => { if (selectedIds.has(el.id)) pos[el.id] = { x: el.x, y: el.y }; });
+    // Add follower starting positions so they co-move during drag
+    followerIds?.forEach(fId => {
+      if (!pos[fId]) {
+        const fEl = elements.find(el => el.id === fId);
+        if (fEl) pos[fId] = { x: fEl.x, y: fEl.y };
+      }
+    });
     dragStartPos.current = pos;
     setDragging({ type, id });
   }

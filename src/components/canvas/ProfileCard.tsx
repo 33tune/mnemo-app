@@ -256,10 +256,14 @@ function ProfileCard({
             ? "blur(20px)" : "none",
           WebkitBackdropFilter: (variant === "glass" || (!card.bgColor && !card.bgImage))
             ? "blur(20px)" : "none",
-          border:               isSel
-            ? `1px solid ${isLight ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.22)"}`
-            : `1px solid ${isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.08)"}`,
-          boxShadow:            "0 8px 32px rgba(0,0,0,0.25)",
+          border:               card.borderColor
+            ? `${card.borderWidth ?? 1}px solid ${card.borderColor}`
+            : isSel
+              ? `1px solid ${isLight ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.22)"}`
+              : `1px solid ${isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.08)"}`,
+          boxShadow:            card.glowIntensity && card.glowIntensity > 0 && card.glowColor
+            ? `0 8px 32px rgba(0,0,0,0.25), 0 0 ${Math.round(card.glowIntensity * 30)}px ${card.glowColor}, 0 0 ${Math.round(card.glowIntensity * 60)}px ${card.glowColor}40`
+            : "0 8px 32px rgba(0,0,0,0.25)",
           opacity:              card.opacity * (menuOpen ? 0.96 : 1),
           transition:           `opacity 0.2s ${EASE}`,
         }} />
@@ -931,6 +935,56 @@ function ProfileCard({
                     {v.label}
                   </button>
                 ))}
+              </div>
+
+              {/* Border color + width */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, flexShrink: 0 }}>border</span>
+                <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
+                  {card.borderColor && <div style={{ position: "absolute", inset: 0, background: card.borderColor }} />}
+                  <input type="color"
+                    value={card.borderColor?.startsWith("#") ? card.borderColor : "#ffffff"}
+                    onChange={e => updateProfile(card.id, { borderColor: e.target.value })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                  />
+                </div>
+                <input
+                  type="range" min={0} max={8} step={1} value={card.borderWidth ?? 1}
+                  onChange={e => updateProfile(card.id, { borderWidth: Number(e.target.value) })}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
+                />
+                {card.borderColor && (
+                  <button onClick={() => updateProfile(card.id, { borderColor: "", borderWidth: 1 })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
+                )}
+              </div>
+
+              {/* Glow color + intensity */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, flexShrink: 0 }}>glow</span>
+                <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
+                  {card.glowColor && <div style={{ position: "absolute", inset: 0, background: card.glowColor }} />}
+                  <input type="color"
+                    value={card.glowColor?.startsWith("#") ? card.glowColor : "#a855f7"}
+                    onChange={e => updateProfile(card.id, { glowColor: e.target.value })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                  />
+                </div>
+                <input
+                  type="range" min={0} max={1} step={0.05} value={card.glowIntensity ?? 0}
+                  onChange={e => updateProfile(card.id, { glowIntensity: Number(e.target.value) })}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
+                />
+                {(card.glowIntensity ?? 0) > 0 && (
+                  <button onClick={() => updateProfile(card.id, { glowIntensity: 0 })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
+                )}
               </div>
 
               {/* Bg color picker */}

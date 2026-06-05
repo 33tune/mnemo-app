@@ -1402,11 +1402,23 @@ export default function CanvasBoard({
     setSelRect(null); setCardMenuId(null); setCardMenuRect(null); setGbMenuId(null); setGbMenuRect(null); setEditingId(null);
     selChangedRef.current = false;
 
+    // Helper: gather follower IDs for a stack anchor
+    function getFollowerIds(dragId: string, dragType: string): string[] | undefined {
+      if (dragType !== "profile") return undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const profEl = elements.find(e => e.elementType === "profile" && e.id === dragId) as any;
+      if (profEl?.isStackAnchor && profEl.stackId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return elements.filter(e => (e as any).stackId === profEl.stackId && e.id !== dragId).map(e => e.id);
+      }
+      return undefined;
+    }
+
     if (e.shiftKey) {
       const cur=new Set(selectedIds);
       if(cur.has(id))cur.delete(id);else cur.add(id);
       setSelectedIds(cur);
-      startDrag(id,type,x,y,e,cur);
+      startDrag(id,type,x,y,e,cur,getFollowerIds(id,type));
       return;
     }
 
@@ -1416,7 +1428,7 @@ export default function CanvasBoard({
       const selHit = hits.find(h => selectedIds.has(h.id));
       if (selHit) {
         const sel = findElementById(selHit.id);
-        if (sel) { startDrag(sel.id, sel.type, sel.x, sel.y, e, selectedIds); return; }
+        if (sel) { startDrag(sel.id, sel.type, sel.x, sel.y, e, selectedIds, getFollowerIds(sel.id, sel.type)); return; }
       }
     }
 
@@ -1424,7 +1436,7 @@ export default function CanvasBoard({
     const newSel = new Set([id]);
     setSelectedIds(newSel);
     selChangedRef.current = true;
-    startDrag(id, type, x, y, e, newSel);
+    startDrag(id, type, x, y, e, newSel, getFollowerIds(id, type));
   }
 
   function onRotateText(id: string, e: React.MouseEvent) {
@@ -1562,26 +1574,6 @@ export default function CanvasBoard({
         const { id, type, x, y, startX, startY } = result.moved[0];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         enqueueOp({ type: `update_${type}` as any, id, patch: { x, y } });
-        // Stack anchor: propagate delta to all module cards in same stack
-        if (type === "profile") {
-          const anchorEl = elements.find(e => e.elementType === "profile" && e.id === id) as (ProfileCardData & { elementType: "profile" }) | undefined;
-          if (anchorEl?.isStackAnchor && anchorEl.stackId) {
-            const dx = x - startX, dy = y - startY;
-            if (dx !== 0 || dy !== 0) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const stackMoves = elements.filter(e => (e as any).stackId === anchorEl.stackId && e.id !== id)
-                .map(e => ({ id: e.id, elementType: e.elementType, x: e.x + dx, y: e.y + dy }));
-              if (stackMoves.length > 0) {
-                setElements(p => p.map(el => {
-                  const m = stackMoves.find(s => s.id === el.id);
-                  return m ? { ...el, x: m.x, y: m.y } as CanvasElement : el;
-                }));
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                enqueueOp({ type: "move_elements", moves: stackMoves.map(m => ({ id: m.id, elementType: m.elementType as any, x: m.x, y: m.y })) });
-              }
-            }
-          }
-        }
       } else if (result.moved.length > 1) {
         enqueueOp({
           type: "move_elements",
