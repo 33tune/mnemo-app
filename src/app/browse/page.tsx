@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type {
   CanvasState, CanvasCard, CanvasImage, CanvasText,
   CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData,
-  SocialCardData, MusicCardData, LinksCardData,
+  SocialCardData, MusicCardData, LinksCardData, StatsCardData,
 } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 
@@ -40,6 +40,7 @@ function parseCanvas(raw: unknown): CanvasState | null {
     socialCards: Array.isArray(d.socialCards) ? d.socialCards as SocialCardData[]    : [],
     musicCards:  Array.isArray(d.musicCards)  ? d.musicCards  as MusicCardData[]     : [],
     linksCards:  Array.isArray(d.linksCards)  ? d.linksCards  as LinksCardData[]     : [],
+    statsCards:  Array.isArray(d.statsCards)  ? d.statsCards  as StatsCardData[]     : [],
     bgColor:   typeof d.bgColor   === "string" ? d.bgColor   : "#0a0a0c",
     wallpaper: typeof d.wallpaper === "string" ? d.wallpaper : "",
   };

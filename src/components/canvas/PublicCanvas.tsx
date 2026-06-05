@@ -10,6 +10,7 @@ import AnonymousMessageWidget from "./AnonymousMessageWidget";
 import SocialCardWidget from "./SocialCardWidget";
 import MusicCardWidget from "./MusicCardWidget";
 import LinksCardWidget from "./LinksCardWidget";
+import StatsCardWidget from "./StatsCardWidget";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -29,7 +30,7 @@ const LOGICAL_HEIGHT = 3000;
 const EMPTY: CanvasState = {
   cards: [], images: [], texts: [], galleries: [],
   profiles: [], medias: [], guestbooks: [],
-  socialCards: [], musicCards: [], linksCards: [],
+  socialCards: [], musicCards: [], linksCards: [], statsCards: [],
   bgColor: "#0a0a0c", wallpaper: "",
 };
 
@@ -397,6 +398,29 @@ export default function PublicCanvas({
                   canInteract={false}
                   ownerUserId={ownerUserId}
                   entryAnimStyle={{ animation: `el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${Math.min(220+i*22,340)}ms both` }}
+                />
+              );
+            })}
+
+            {/* Stats Cards */}
+            {(state.statsCards ?? []).map((sc, i) => {
+              const ps = getParallaxStyle(sc.layer, sc.depth);
+              const anchor = (state.profiles ?? []).find(p => p.stackId === sc.stackId && p.isStackAnchor);
+              return (
+                <StatsCardWidget
+                  key={sc.id}
+                  card={sc}
+                  isSel={false}
+                  draggingId={null}
+                  parallaxTransform={ps.transform}
+                  onMouseDown={() => {}}
+                  onClick={() => {}}
+                  onResizeMD={() => {}}
+                  onRotateMD={() => {}}
+                  updateCard={() => {}}
+                  canInteract={false}
+                  ownerUserId={anchor?.userId ?? ownerUserId}
+                  entryAnimStyle={{ animation: `el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${Math.min(240+i*22,360)}ms both` }}
                 />
               );
             })}

@@ -206,6 +206,11 @@ export type ProfileCardData = {
   borderColor?:    string;
   borderWidth?:    number;
   bgOverlayOpacity?: number;
+  // Layout mode
+  layout?:         "vertical" | "horizontal" | "free";
+  // Free layout per-element positions (% of card size, 0–100)
+  starX?:          number;
+  starY?:          number;
   // State
   locked?:         boolean;
   isPublic?:       boolean;
@@ -303,6 +308,42 @@ export type LinksCardData = {
   glowIntensity?: number;
   textColor?:    string;
   font?:         TextFont;
+  effects?:      CardEffects;
+};
+
+// ── Stats module ─────────────────────────────────────────────────────────────
+
+export type StatBlock = {
+  id:       "views" | "favorites" | string;
+  label?:   string;
+  visible:  boolean;
+};
+
+export type StatsCardData = {
+  id:            string;
+  x:             number;
+  y:             number;
+  w:             number;
+  h:             number;
+  zIndex:        number;
+  layer:         0 | 1 | 2;
+  depth:         number;
+  rotation:      number;
+  locked?:       boolean;
+  isPublic?:     boolean;
+  stackId?:      string;
+  stats?:        StatBlock[];
+  displayLayout?: "grid" | "list" | "compact";
+  bgColor?:      string;
+  bgImage?:      string;
+  bgMode?:       "cover" | "repeat";
+  borderRadius?: number;
+  opacity?:      number;
+  borderColor?:  string;
+  borderWidth?:  number;
+  glowColor?:    string;
+  glowIntensity?: number;
+  textColor?:    string;
   effects?:      CardEffects;
 };
 
@@ -406,6 +447,7 @@ export type CanvasState = {
   socialCards:  SocialCardData[];
   musicCards:   MusicCardData[];
   linksCards:   LinksCardData[];
+  statsCards:   StatsCardData[];
   bgColor:      string;
   wallpaper:    string;
   wallpaperBlur?:       number;
@@ -416,7 +458,7 @@ export type CanvasState = {
 export type ElementType =
   | "card" | "image" | "text" | "gallery"
   | "profile" | "media" | "guestbook"
-  | "social" | "music" | "links";
+  | "social" | "music" | "links" | "stats";
 
 export type CanvasElement =
   | (CanvasCard          & { elementType: "card" })
@@ -428,7 +470,8 @@ export type CanvasElement =
   | (GuestbookCardData   & { elementType: "guestbook" })
   | (SocialCardData      & { elementType: "social" })
   | (MusicCardData       & { elementType: "music" })
-  | (LinksCardData       & { elementType: "links" });
+  | (LinksCardData       & { elementType: "links" })
+  | (StatsCardData       & { elementType: "stats" });
 
 export type PublishState = "idle" | "pending" | "publishing" | "success";
 

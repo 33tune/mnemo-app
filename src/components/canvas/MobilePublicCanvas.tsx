@@ -24,7 +24,7 @@ const LOGICAL_HEIGHT = 3000;
 const EMPTY: CanvasState = {
   cards: [], images: [], texts: [], galleries: [],
   profiles: [], medias: [], guestbooks: [],
-  socialCards: [], musicCards: [], linksCards: [],
+  socialCards: [], musicCards: [], linksCards: [], statsCards: [],
   bgColor: "#0a0a0c", wallpaper: "",
 };
 

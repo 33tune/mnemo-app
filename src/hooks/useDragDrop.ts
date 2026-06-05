@@ -4,7 +4,7 @@ import type { CanvasElement } from "@/types";
 
 export type ResizeHandle = "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w";
 
-type WidgetType = "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links";
+type WidgetType = "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links"|"stats";
 
 export type DragTarget   = { type: WidgetType; id: string };
 export type ResizeTarget =

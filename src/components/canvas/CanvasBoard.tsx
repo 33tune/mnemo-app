@@ -3,12 +3,13 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant } from "@/types";
+import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant } from "@/types";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
 import MusicCardWidget from "./MusicCardWidget";
 import LinksCardWidget from "./LinksCardWidget";
+import StatsCardWidget from "./StatsCardWidget";
 import MediaCardWidget from "./MediaCardWidget";
 import ResizeHandles from "./ResizeHandles";
 import { SocialDock } from "./SocialDock";
@@ -128,6 +129,9 @@ type CanvasOp =
   | { type: "add_links";        links:     LinksCardData }
   | { type: "update_links";     id: string; patch: Partial<LinksCardData> }
   | { type: "delete_links";     id: string }
+  | { type: "add_stats";        stats:     StatsCardData }
+  | { type: "update_stats";     id: string; patch: Partial<StatsCardData> }
+  | { type: "delete_stats";     id: string }
   | { type: "set_bg";                    value: string }
   | { type: "set_wallpaper";            value: string }
   | { type: "set_wallpaper_blur";       value: number }
@@ -170,6 +174,9 @@ function reduceOp(els: CanvasElement[], op: CanvasOp): CanvasElement[] {
     case "add_links":          return els.some(e => e.id === op.links.id) ? els : [...els, { ...op.links, elementType: "links" as const }];
     case "update_links":       return els.map(e => e.elementType==="links"      && e.id===op.id ? { ...e, ...op.patch } : e);
     case "delete_links":       return els.filter(e => !(e.elementType==="links"      && e.id===op.id));
+    case "add_stats":          return els.some(e => e.id === op.stats.id) ? els : [...els, { ...op.stats, elementType: "stats" as const }];
+    case "update_stats":       return els.map(e => e.elementType==="stats"      && e.id===op.id ? { ...e, ...op.patch } : e);
+    case "delete_stats":       return els.filter(e => !(e.elementType==="stats"      && e.id===op.id));
     case "move_elements":      return els.map(e => { const m = op.moves.find(m => m.id===e.id); return m ? { ...e, x: m.x, y: m.y } as CanvasElement : e; });
     default:                return els;
   }
@@ -234,6 +241,7 @@ export default function CanvasBoard({
   const socialCards  = useMemo(() => elements.filter(e => e.elementType === "social")      as (SocialCardData    & { elementType: "social" })[], [elements]);
   const musicCards   = useMemo(() => elements.filter(e => e.elementType === "music")       as (MusicCardData     & { elementType: "music" })[], [elements]);
   const linksCards   = useMemo(() => elements.filter(e => e.elementType === "links")       as (LinksCardData     & { elementType: "links" })[], [elements]);
+  const statsCards   = useMemo(() => elements.filter(e => e.elementType === "stats")       as (StatsCardData     & { elementType: "stats" })[], [elements]);
 
   const trashRef          = useRef<HTMLDivElement>(null);
   const canvasWrapperRef  = useRef<HTMLDivElement>(null);
@@ -404,6 +412,7 @@ export default function CanvasBoard({
   const visSocialCards = useMemo(() => inSpace ? socialCards.filter(c => c.isPublic)        : socialCards,  [inSpace, socialCards]);
   const visMusicCards  = useMemo(() => inSpace ? musicCards.filter(c => c.isPublic)         : musicCards,   [inSpace, musicCards]);
   const visLinksCards  = useMemo(() => inSpace ? linksCards.filter(c => c.isPublic)         : linksCards,   [inSpace, linksCards]);
+  const visStatsCards  = useMemo(() => inSpace ? statsCards.filter(c => c.isPublic)         : statsCards,   [inSpace, statsCards]);
 
   // ── Persistencia ─────────────────────────────────────────────────────────────
 
@@ -442,6 +451,7 @@ export default function CanvasBoard({
     const sSocialCards = snapshot.filter(e => e.elementType === "social")    as (SocialCardData    & { elementType: "social" })[];
     const sMusicCards  = snapshot.filter(e => e.elementType === "music")     as (MusicCardData     & { elementType: "music" })[];
     const sLinksCards  = snapshot.filter(e => e.elementType === "links")     as (LinksCardData     & { elementType: "links" })[];
+    const sStatsCards  = snapshot.filter(e => e.elementType === "stats")     as (StatsCardData     & { elementType: "stats" })[];
     return {
       cards:       await Promise.all(sCards.map(async c => ({ ...c, bgImage: await safe(c.bgImage) }))),
       images:      await Promise.all(sImages.map(async i => ({ ...i, src: await safe(i.src) }))),
@@ -453,6 +463,7 @@ export default function CanvasBoard({
       socialCards: sSocialCards,
       musicCards:  sMusicCards,
       linksCards:  sLinksCards,
+      statsCards:  sStatsCards,
       bgColor,
       wallpaper:            await safe(wallpaper),
       wallpaperBlur,
@@ -534,6 +545,13 @@ export default function CanvasBoard({
         setElements(p => p.map(e => e.elementType === "links" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
       case "delete_links":
         setElements(p => p.filter(e => !(e.elementType === "links" && e.id === op.id))); break;
+
+      case "add_stats":
+        setElements(p => p.some(e => e.id === op.stats.id) ? p : [...p, { ...op.stats, elementType: "stats" as const }]); break;
+      case "update_stats":
+        setElements(p => p.map(e => e.elementType === "stats" && e.id === op.id ? { ...e, ...op.patch } : e)); break;
+      case "delete_stats":
+        setElements(p => p.filter(e => !(e.elementType === "stats" && e.id === op.id))); break;
 
       case "set_bg":
         setBgColor(op.value);
@@ -970,6 +988,7 @@ export default function CanvasBoard({
             ...(initialState.socialCards  ?? []).map(c => ({ ...c, elementType: "social"    as const })),
             ...(initialState.musicCards   ?? []).map(c => ({ ...c, elementType: "music"     as const })),
             ...(initialState.linksCards   ?? []).map(c => ({ ...c, elementType: "links"     as const })),
+            ...(initialState.statsCards  ?? []).map(c => ({ ...c, elementType: "stats"     as const })),
           ]);
           if (initialState.bgColor)   setBgColor(initialState.bgColor);
           if (initialState.wallpaper) { setWallpaper(initialState.wallpaper); setWallpaperLoaded(true); }
@@ -1029,6 +1048,7 @@ export default function CanvasBoard({
           ...(s.socialCards  ?? []).map(c => ({ ...c, elementType: "social"    as const })),
           ...(s.musicCards   ?? []).map(c => ({ ...c, elementType: "music"     as const })),
           ...(s.linksCards   ?? []).map(c => ({ ...c, elementType: "links"     as const })),
+          ...(s.statsCards   ?? []).map(c => ({ ...c, elementType: "stats"     as const })),
         ].filter(el => el.elementType !== "image" || ((el as { src?: string }).src && (el as { src?: string }).src !== ""));
         newElements = newElements.map(e => {
           if (e.elementType === "image" && e.src?.includes("/canvas-assets/") && !e.storage_path) {
@@ -1238,6 +1258,7 @@ export default function CanvasBoard({
   function updateSocialCard(id: string, patch: Partial<SocialCardData>) { enqueueOp({ type: "update_social", id, patch }); }
   function updateMusicCard(id: string, patch: Partial<MusicCardData>) { enqueueOp({ type: "update_music", id, patch }); }
   function updateLinksCard(id: string, patch: Partial<LinksCardData>) { enqueueOp({ type: "update_links", id, patch }); }
+  function updateStatsCard(id: string, patch: Partial<StatsCardData>) { enqueueOp({ type: "update_stats", id, patch }); }
 
   function resolveModuleStyle<T extends { stackId?: string; bgColor?: string; bgImage?: string; bgMode?: "cover" | "repeat"; borderRadius?: number; variant?: ProfileCardVariant; opacity?: number; effects?: import("@/types").CardEffects }>(card: T): T {
     if (!card.stackId) return card;
@@ -1271,7 +1292,7 @@ export default function CanvasBoard({
     };
   }
 
-  function handleAddModule(profileId: string, moduleType: "social" | "music" | "links") {
+  function handleAddModule(profileId: string, moduleType: "social" | "music" | "links" | "stats") {
     if (!canInteract) return;
     const prof = elements.find(e => e.elementType === "profile" && e.id === profileId) as (ProfileCardData & { elementType: "profile" }) | undefined;
     if (!prof) return;
@@ -1309,10 +1330,17 @@ export default function CanvasBoard({
       const m: MusicCardData = { ...base, h: 72, musicUrl: "" };
       enqueueOp({ type: "add_music", music: m });
       setSelectedIds(new Set([m.id]));
-    } else {
+    } else if (moduleType === "links") {
       const l: LinksCardData = { ...base, h: 120, links: [] };
       enqueueOp({ type: "add_links", links: l });
       setSelectedIds(new Set([l.id]));
+    } else {
+      const st: StatsCardData = {
+        ...base, h: 72,
+        stats: [{ id: "views", visible: true }, { id: "favorites", visible: true }],
+      };
+      enqueueOp({ type: "add_stats", stats: st });
+      setSelectedIds(new Set([st.id]));
     }
   }
 
@@ -1411,7 +1439,7 @@ export default function CanvasBoard({
     return {x:minX,y:minY,w:maxX-minX,h:maxY-minY,items:all};
   }
 
-  function onElementMouseDown(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links", x: number, y: number, e: React.MouseEvent) {
+  function onElementMouseDown(id: string, type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links"|"stats", x: number, y: number, e: React.MouseEvent) {
     if (!canInteract) return;
     userInteractedRef.current = true;
     if (creatingCard||addingText) return;
@@ -1553,7 +1581,7 @@ export default function CanvasBoard({
     }
 
     // Capture what's about to be deleted before handleDragUp removes them
-    const toDelete: Array<{ id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links" }> = [];
+    const toDelete: Array<{ id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links"|"stats" }> = [];
     if (dragging && overTrash) {
       images.forEach(i      => { if (selectedIds.has(i.id))  toDelete.push({ id: i.id,  type: "image"     }); });
       cards.forEach(c       => { if (selectedIds.has(c.id))  toDelete.push({ id: c.id,  type: "card"      }); });
@@ -1565,6 +1593,7 @@ export default function CanvasBoard({
       socialCards.forEach(s => { if (selectedIds.has(s.id)) toDelete.push({ id: s.id,  type: "social"    }); });
       musicCards.forEach(m  => { if (selectedIds.has(m.id)) toDelete.push({ id: m.id,  type: "music"     }); });
       linksCards.forEach(l  => { if (selectedIds.has(l.id)) toDelete.push({ id: l.id,  type: "links"     }); });
+      statsCards.forEach(s  => { if (selectedIds.has(s.id)) toDelete.push({ id: s.id,  type: "stats"     }); });
     }
 
     if (dragging && overTrash) setSelectedIds(new Set());
@@ -1586,6 +1615,7 @@ export default function CanvasBoard({
           else if (type === "social")    enqueueOp({ type: "delete_social",    id });
           else if (type === "music")     enqueueOp({ type: "delete_music",     id });
           else if (type === "links")     enqueueOp({ type: "delete_links",     id });
+          else if (type === "stats")     enqueueOp({ type: "delete_stats",     id });
         });
       } else if (result.moved.length === 1) {
         const { id, type, x, y, startX, startY } = result.moved[0];
@@ -1609,6 +1639,7 @@ export default function CanvasBoard({
         else if (type === "social")    enqueueOp({ type: "update_social",    id, patch });
         else if (type === "music")     enqueueOp({ type: "update_music",     id, patch });
         else if (type === "links")     enqueueOp({ type: "update_links",     id, patch });
+        else if (type === "stats")     enqueueOp({ type: "update_stats",     id, patch });
       } else if (result.resized) {
         const { id, type, ...dims } = result.resized;
         // Guard: never persist NaN/Infinity/zero — these make elements invisible on reload
@@ -1633,6 +1664,7 @@ export default function CanvasBoard({
             else if (type === "social")    enqueueOp({ type: "update_social",    id, patch: { w, h, ...posPatch } });
             else if (type === "music")     enqueueOp({ type: "update_music",     id, patch: { w, h, ...posPatch } });
             else if (type === "links")     enqueueOp({ type: "update_links",     id, patch: { w, h, ...posPatch } });
+            else if (type === "stats")     enqueueOp({ type: "update_stats",     id, patch: { w, h, ...posPatch } });
           }
         }
       }
@@ -2073,13 +2105,7 @@ export default function CanvasBoard({
           canInteract={canInteract}
           currentUserId={currentUserId}
           ownerUserId={ownerUserId}
-          authResolved={authResolved}
-          onMessage={(handle) => handleMessage(handle)}
-          onAddModule={(moduleType) => handleAddModule(prof.id, moduleType)}
-          onOpenSocialPanel={(mode) => {
-            const uid = prof.userId ?? ownerUserId;
-            if (uid) openSocialPanel(uid, prof.handle || userHandle, mode);
-          }} />);
+          onAddModule={(moduleType) => handleAddModule(prof.id, moduleType)} />);
       })}
 
 
@@ -2189,6 +2215,34 @@ export default function CanvasBoard({
               onToggleLock={() => setElements(p => p.map(e => e.elementType === "links" && e.id === lc.id ? { ...e, locked: !e.locked } : e))}
               canInteract={canInteract}
               ownerUserId={ownerUserId ?? currentUserId}
+            />
+          </WidgetBoundary>
+        );
+      })}
+
+      {/* ── STATS CARDS ── */}
+      {visStatsCards.map((sc, i) => {
+        const ps = getParallaxStyle(sc.layer, sc.depth);
+        const _entry = !canEdit ? { animation: `el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${Math.min(240+i*22,360)}ms both` } as React.CSSProperties : undefined;
+        const scEff = resolveModuleStyle(sc);
+        const anchor = profiles.find(p => p.stackId === sc.stackId && p.isStackAnchor);
+        return (
+          <WidgetBoundary key={sc.id} label="stats-card">
+            <StatsCardWidget
+              card={scEff}
+              isSel={selectedIds.has(sc.id)}
+              draggingId={dragging?.id ?? null}
+              parallaxTransform={ps.transform as string}
+              entryAnimStyle={_entry}
+              locked={!!sc.locked}
+              onMouseDown={sc.locked ? e => e.stopPropagation() : e => onElementMouseDown(sc.id, "stats", sc.x, sc.y, e)}
+              onClick={e => handleElementClick(sc.id, e)}
+              onResizeMD={sc.locked ? (_h: ResizeHandle, e: React.MouseEvent) => e.stopPropagation() : (h, e) => startSingleResize(sc.id, "stats", h, e)}
+              onRotateMD={sc.locked ? e => e.stopPropagation() : e => startRotate(sc.id, "stats", e, sc.x + sc.w / 2, sc.y + sc.h / 2)}
+              updateCard={updateStatsCard}
+              onToggleLock={() => setElements(p => p.map(e => e.elementType === "stats" && e.id === sc.id ? { ...e, locked: !e.locked } : e))}
+              canInteract={canInteract}
+              ownerUserId={anchor?.userId ?? ownerUserId ?? currentUserId}
             />
           </WidgetBoundary>
         );
