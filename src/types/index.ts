@@ -106,14 +106,22 @@ export type CanvasGallery = {
 
 export type PhotoSize = "sm" | "md" | "lg";
 
+export type ProfileCardVariant = "classic" | "glass" | "guns" | "minimal" | "poster";
+
 export type ProfileLink = {
   id:     string;
   url:    string;
   label:  string;
   icon?:  string;
-  x?:     number;  // % position within card
+  x?:     number;
   y?:     number;
   scale?: number;
+};
+
+export type SocialLink = {
+  id:       string;
+  platform: string;
+  url:      string;
 };
 
 export type MediaType = "spotify" | "youtube" | "soundcloud";
@@ -204,6 +212,9 @@ export type ProfileCardData = {
   links?:         ProfileLink[];
   mood?:          string;
   musicUrl?:      string;
+  variant?:       ProfileCardVariant;
+  accentColor?:   string;
+  socialLinks?:   SocialLink[];
 };
 
 

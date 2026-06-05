@@ -35,7 +35,10 @@
       "Bash(cat middleware.ts)",
       "Bash(cat src/middleware.ts)",
       "Bash(dir landing-import *)",
-      "PowerShell(New-Item *)"
+      "PowerShell(New-Item *)",
+      "Bash(xargs grep -l \"ProfileCard\\\\|profile.*edit\\\\|element.*editor\")",
+      "Bash(xargs grep -l \"LinkButton\\\\|startLinkDrag\\\\|profile.*editor\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ]
   }
 }
