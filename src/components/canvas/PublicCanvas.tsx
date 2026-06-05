@@ -7,6 +7,9 @@ import { useParallax } from "@/hooks/useParallax";
 import { createClient } from "@/lib/supabase/client";
 import { useElementPins } from "@/hooks/useElementPins";
 import AnonymousMessageWidget from "./AnonymousMessageWidget";
+import SocialCardWidget from "./SocialCardWidget";
+import MusicCardWidget from "./MusicCardWidget";
+import LinksCardWidget from "./LinksCardWidget";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -334,6 +337,69 @@ export default function PublicCanvas({
               );
             })}
 
+            {/* Social Cards */}
+            {(state.socialCards ?? []).map((sc, i) => {
+              const ps = getParallaxStyle(sc.layer, sc.depth);
+              return (
+                <SocialCardWidget
+                  key={sc.id}
+                  card={sc}
+                  isSel={false}
+                  draggingId={null}
+                  parallaxTransform={ps.transform}
+                  onMouseDown={() => {}}
+                  onClick={() => {}}
+                  onResizeMD={() => {}}
+                  onRotateMD={() => {}}
+                  updateCard={() => {}}
+                  canInteract={false}
+                  entryAnimStyle={{ animation: `el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${Math.min(180+i*22,300)}ms both` }}
+                />
+              );
+            })}
+
+            {/* Music Cards */}
+            {(state.musicCards ?? []).map((mc, i) => {
+              const ps = getParallaxStyle(mc.layer, mc.depth);
+              return (
+                <MusicCardWidget
+                  key={mc.id}
+                  card={mc}
+                  isSel={false}
+                  draggingId={null}
+                  parallaxTransform={ps.transform}
+                  onMouseDown={() => {}}
+                  onClick={() => {}}
+                  onResizeMD={() => {}}
+                  onRotateMD={() => {}}
+                  updateCard={() => {}}
+                  canInteract={false}
+                  entryAnimStyle={{ animation: `el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${Math.min(200+i*22,320)}ms both` }}
+                />
+              );
+            })}
+
+            {/* Links Cards */}
+            {(state.linksCards ?? []).map((lc, i) => {
+              const ps = getParallaxStyle(lc.layer, lc.depth);
+              return (
+                <LinksCardWidget
+                  key={lc.id}
+                  card={lc}
+                  isSel={false}
+                  draggingId={null}
+                  parallaxTransform={ps.transform}
+                  onMouseDown={() => {}}
+                  onClick={() => {}}
+                  onResizeMD={() => {}}
+                  onRotateMD={() => {}}
+                  updateCard={() => {}}
+                  canInteract={false}
+                  ownerUserId={ownerUserId}
+                  entryAnimStyle={{ animation: `el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${Math.min(220+i*22,340)}ms both` }}
+                />
+              );
+            })}
 
         </div>
       </div>

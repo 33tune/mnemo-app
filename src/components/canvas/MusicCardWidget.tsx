@@ -1,10 +1,12 @@
 "use client";
 import { useState, useRef, useEffect, memo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import type { MusicCardData, TextFont } from "@/types";
-import { bgImageStyle } from "@/lib/bgStyle";
+import type { MusicCardData, TextFont, CardEffects } from "@/types";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
+import { useCardInteractions } from "@/hooks/useCardInteractions";
+import CardLayers from "./CardLayers";
+import PersonalizePanel from "./PersonalizePanel";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -53,40 +55,51 @@ function MusicCardWidget({
   updateCard, locked, onToggleLock, canInteract,
   entryAnimStyle = {},
 }: Props) {
-  const [menuOpen,  setMenuOpen]  = useState(false);
-  const [hov,       setHov]       = useState(false);
-  const [portalPos, setPortalPos] = useState<{ left: number; top: number } | null>(null);
+  const [menuOpen,   setMenuOpen]   = useState(false);
+  const [personalize, setPersonalize] = useState(false);
+  const [hov,        setHov]        = useState(false);
+  const [portalPos,  setPortalPos]  = useState<{ left: number; top: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const borderRadius   = card.borderRadius   ?? 10;
-  const opacity        = card.opacity        ?? 1;
-  const bgColor        = card.bgColor        || "rgba(255,255,255,0.055)";
-  const isGlass        = !card.bgColor && !card.bgImage;
-  const hasUrl         = !!(card.musicUrl?.trim());
-  const href           = hasUrl ? (card.musicUrl!.startsWith("http") ? card.musicUrl! : `https://${card.musicUrl}`) : "";
-  const glowIntensity  = card.glowIntensity  ?? 0;
-  const glowColor      = card.glowColor      || "#a855f7";
-  const cardBorderColor = card.borderColor;
-  const cardBorderWidth = card.borderWidth   ?? 1;
-  const textColor      = card.textColor      || "rgba(255,255,255,0.62)";
-  const fontStyle      = FONTS.find(f => f.key === card.font)?.style ?? MONO;
+  // Build effective effects (backwards compat with flat fields)
+  const effectiveEffects: CardEffects = {
+    ...card.effects,
+    border: {
+      color:  card.effects?.border?.color  ?? card.borderColor,
+      width:  card.effects?.border?.width  ?? card.borderWidth,
+      radius: card.effects?.border?.radius ?? (card.borderRadius ?? 10),
+      ...card.effects?.border,
+    },
+    glow: {
+      color:     card.effects?.glow?.color     ?? card.glowColor,
+      intensity: card.effects?.glow?.intensity ?? card.glowIntensity,
+      outer:     card.effects?.glow?.outer     ?? true,
+      ...card.effects?.glow,
+    },
+    bg: {
+      color:     card.effects?.bg?.color     ?? card.bgColor,
+      image:     card.effects?.bg?.image     ?? card.bgImage,
+      imageMode: card.effects?.bg?.imageMode ?? card.bgMode,
+      ...card.effects?.bg,
+    },
+    opacity: card.effects?.opacity ?? card.opacity,
+  };
 
-  const borderStyle = cardBorderColor
-    ? `${cardBorderWidth}px solid ${cardBorderColor}`
-    : isSel
-      ? "1px solid rgba(255,255,255,0.22)"
-      : "1px solid rgba(255,255,255,0.08)";
+  const borderRadius = effectiveEffects.border?.radius ?? 10;
+  const textColor    = card.textColor || "rgba(255,255,255,0.62)";
+  const fontStyle    = FONTS.find(f => f.key === card.font)?.style ?? MONO;
+  const hasUrl       = !!(card.musicUrl?.trim());
+  const href         = hasUrl ? (card.musicUrl!.startsWith("http") ? card.musicUrl! : `https://${card.musicUrl}`) : "";
 
-  const boxShadow = glowIntensity > 0
-    ? `0 4px 20px rgba(0,0,0,0.2), 0 0 ${Math.round(glowIntensity * 30)}px ${glowColor}, 0 0 ${Math.round(glowIntensity * 60)}px ${glowColor}40`
-    : "0 4px 20px rgba(0,0,0,0.2)";
+  const { onMouseMove: onInteractMove, onMouseLeave: onInteractLeave } =
+    useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>);
 
   useEffect(() => {
     if (!menuOpen) { setPortalPos(null); return; }
     const compute = () => {
       if (!cardRef.current) return;
       const r = cardRef.current.getBoundingClientRect();
-      const MENU_W = 260, GAP = 10;
+      const MENU_W = 272, GAP = 10;
       const left = r.right + GAP + MENU_W > window.innerWidth
         ? Math.max(4, r.left - MENU_W - GAP) : r.right + GAP;
       setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
@@ -100,14 +113,16 @@ function MusicCardWidget({
     };
   }, [menuOpen, card.x, card.y]);
 
-  useEffect(() => { if (!isSel) setMenuOpen(false); }, [isSel]);
+  useEffect(() => { if (!isSel) { setMenuOpen(false); setPersonalize(false); } }, [isSel]);
 
   return (
     <>
-      <style>{`@keyframes mwDot { 0%,100%{opacity:.3;transform:scale(1)} 50%{opacity:1;transform:scale(1.25)} }`}</style>
+      <style>{`@keyframes mwDot{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:1;transform:scale(1.25)}}`}</style>
       <div
         ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
+        onMouseMove={onInteractMove}
+        onMouseLeave={onInteractLeave}
         onClick={onClick}
         style={{
           position:   "absolute",
@@ -123,61 +138,53 @@ function MusicCardWidget({
           ...entryAnimStyle,
         }}
       >
-        {/* Background */}
-        <div style={{
-          position:             "absolute",
-          inset:                0,
-          borderRadius,
-          ...(card.bgImage
-            ? bgImageStyle(card.bgImage, card.bgMode)
-            : { background: bgColor }),
-          backdropFilter:       isGlass ? "blur(20px)" : "none",
-          WebkitBackdropFilter: isGlass ? "blur(20px)" : "none",
-          border:               borderStyle,
-          boxShadow,
-          opacity,
-        }} />
-
-        {/* Content */}
-        <a
-          href={hasUrl ? href : undefined}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={e => { if (menuOpen || !hasUrl) e.preventDefault(); e.stopPropagation(); }}
-          onMouseEnter={() => setHov(true)}
-          onMouseLeave={() => setHov(false)}
-          style={{
-            position:       "absolute",
-            inset:          0,
-            borderRadius,
-            display:        "flex",
-            alignItems:     "center",
-            gap:            10,
-            padding:        "0 14px",
-            textDecoration: "none",
-            cursor:         hasUrl ? "pointer" : "default",
-            opacity:        hov && hasUrl ? 1 : 0.85,
-            transition:     "opacity 0.12s ease",
-          }}
+        <CardLayers
+          cardId={card.id}
+          effects={effectiveEffects}
+          isSel={isSel}
+          borderRadius={borderRadius}
         >
-          <div style={{
-            width: 5, height: 5, borderRadius: "50%",
-            background: "rgba(255,255,255,0.55)",
-            animation: hasUrl ? "mwDot 1.8s ease-in-out infinite" : "none",
-            flexShrink: 0,
-          }} />
-          <div style={{ overflow: "hidden", minWidth: 0 }}>
-            <div style={{ fontFamily: fontStyle, fontSize: 6, letterSpacing: 2, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" as const, lineHeight: 1, marginBottom: 3 }}>
-              NOW PLAYING
+          {/* Content */}
+          <a
+            href={hasUrl ? href : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => { if (menuOpen || !hasUrl) e.preventDefault(); e.stopPropagation(); }}
+            onMouseEnter={() => setHov(true)}
+            onMouseLeave={() => setHov(false)}
+            style={{
+              position:       "absolute",
+              inset:          0,
+              borderRadius,
+              display:        "flex",
+              alignItems:     "center",
+              gap:            10,
+              padding:        "0 14px",
+              textDecoration: "none",
+              cursor:         hasUrl ? "pointer" : "default",
+              opacity:        hov && hasUrl ? 1 : 0.85,
+              transition:     "opacity 0.12s ease",
+            }}
+          >
+            <div style={{
+              width: 5, height: 5, borderRadius: "50%",
+              background: "rgba(255,255,255,0.55)",
+              animation: hasUrl ? "mwDot 1.8s ease-in-out infinite" : "none",
+              flexShrink: 0,
+            }} />
+            <div style={{ overflow: "hidden", minWidth: 0 }}>
+              <div style={{ fontFamily: fontStyle, fontSize: 6, letterSpacing: 2, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" as const, lineHeight: 1, marginBottom: 3 }}>
+                NOW PLAYING
+              </div>
+              <div style={{ fontFamily: fontStyle, fontSize: 8, letterSpacing: 0.5, color: textColor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {hasUrl ? musicLabel(card.musicUrl!) : "paste a url →"}
+              </div>
+              {card.mood && (
+                <div style={{ fontFamily: fontStyle, fontSize: 7, color: "rgba(255,255,255,0.28)", marginTop: 2 }}>{card.mood}</div>
+              )}
             </div>
-            <div style={{ fontFamily: fontStyle, fontSize: 8, letterSpacing: 0.5, color: textColor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {hasUrl ? musicLabel(card.musicUrl!) : "paste a url →"}
-            </div>
-            {card.mood && (
-              <div style={{ fontFamily: fontStyle, fontSize: 7, color: "rgba(255,255,255,0.28)", marginTop: 2 }}>{card.mood}</div>
-            )}
-          </div>
-        </a>
+          </a>
+        </CardLayers>
 
         {/* Gear */}
         {isSel && canInteract && (
@@ -188,11 +195,12 @@ function MusicCardWidget({
               const next = !menuOpen;
               if (next && cardRef.current) {
                 const r = cardRef.current.getBoundingClientRect();
-                const MENU_W = 260, GAP = 10;
+                const MENU_W = 272, GAP = 10;
                 const left = r.right + GAP + MENU_W > window.innerWidth ? Math.max(4, r.left - MENU_W - GAP) : r.right + GAP;
                 setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
               } else setPortalPos(null);
               setMenuOpen(next);
+              if (!next) setPersonalize(false);
             }}
             style={{
               position: "absolute", top: -10, left: -10,
@@ -264,7 +272,7 @@ function MusicCardWidget({
           onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}
           style={{
             position: "fixed", left: portalPos.left, top: portalPos.top,
-            width: 260, background: "#09090b",
+            width: 272, background: "#09090b",
             border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6,
             padding: "18px 14px 22px", zIndex: 999999,
             boxShadow: "0 8px 40px rgba(0,0,0,0.65)",
@@ -272,167 +280,124 @@ function MusicCardWidget({
             maxHeight: `calc(100vh - ${portalPos.top + 8}px)`, overflowY: "auto",
           } as CSSProperties}
         >
-          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>
-            music
-          </div>
+          {/* ── View A: Content ── */}
+          {!personalize && (
+            <>
+              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>
+                music
+              </div>
 
-          {/* URL */}
-          <div>
-            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>url</div>
-            <input
-              value={card.musicUrl ?? ""}
-              onChange={e => updateCard(card.id, { musicUrl: e.target.value })}
-              onMouseDown={e => e.stopPropagation()}
-              placeholder="spotify / youtube / soundcloud..."
-              type="url"
-              style={{
-                display: "block", width: "100%",
-                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)",
-                borderRadius: 3, padding: "6px 8px", color: "rgba(255,255,255,0.55)",
-                fontFamily: MONO, fontSize: 8.5, letterSpacing: 0.3,
-                outline: "none", boxSizing: "border-box" as const,
-              }}
-            />
-          </div>
-
-          {/* Mood */}
-          <div>
-            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>mood</div>
-            <input
-              value={card.mood ?? ""}
-              onChange={e => updateCard(card.id, { mood: e.target.value })}
-              onMouseDown={e => e.stopPropagation()}
-              placeholder="e.g. lofi, dark ambient..."
-              maxLength={32}
-              style={{
-                display: "block", width: "100%",
-                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)",
-                borderRadius: 3, padding: "6px 8px", color: "rgba(255,255,255,0.55)",
-                fontFamily: MONO, fontSize: 8.5, letterSpacing: 0.3,
-                outline: "none", boxSizing: "border-box" as const,
-              }}
-            />
-          </div>
-
-          <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
-
-          {/* Opacity */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, width: 44, flexShrink: 0 }}>opacity</span>
-            <input
-              type="range" min={0} max={1} step={0.05} value={card.opacity ?? 1}
-              onChange={e => updateCard(card.id, { opacity: Number(e.target.value) })}
-              onMouseDown={e => e.stopPropagation()}
-              style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
-            />
-            <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", width: 24, textAlign: "right" }}>{Math.round((card.opacity ?? 1) * 100)}</span>
-          </div>
-
-          {/* Font picker */}
-          <div>
-            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>font</div>
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-              {FONTS.map(f => (
-                <button
-                  key={f.key}
+              {/* URL */}
+              <div>
+                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>url</div>
+                <input
+                  value={card.musicUrl ?? ""}
+                  onChange={e => updateCard(card.id, { musicUrl: e.target.value })}
                   onMouseDown={e => e.stopPropagation()}
-                  onClick={() => updateCard(card.id, { font: f.key })}
+                  placeholder="spotify / youtube / soundcloud..."
+                  type="url"
                   style={{
-                    padding: "4px 8px", borderRadius: 3, cursor: "pointer",
-                    border: card.font === f.key ? "1px solid rgba(212,240,196,0.38)" : "1px solid rgba(255,255,255,0.08)",
-                    background: card.font === f.key ? "rgba(212,240,196,0.1)" : "rgba(255,255,255,0.03)",
-                    color: card.font === f.key ? "rgba(212,240,196,0.9)" : "rgba(255,255,255,0.38)",
-                    fontFamily: f.style, fontSize: 9, letterSpacing: 0.3,
+                    display: "block", width: "100%",
+                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)",
+                    borderRadius: 3, padding: "6px 8px", color: "rgba(255,255,255,0.55)",
+                    fontFamily: MONO, fontSize: 8.5, letterSpacing: 0.3,
+                    outline: "none", boxSizing: "border-box" as const,
                   }}
-                >{f.label}</button>
-              ))}
-            </div>
-          </div>
+                />
+              </div>
 
-          {/* Text color */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, width: 44, flexShrink: 0 }}>text</span>
-            <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-              {card.textColor && <div style={{ position: "absolute", inset: 0, background: card.textColor }} />}
-              <input type="color"
-                value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
-                onChange={e => updateCard(card.id, { textColor: e.target.value })}
-                onMouseDown={e => e.stopPropagation()}
-                style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
-              />
-            </div>
-          </div>
+              {/* Mood */}
+              <div>
+                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>mood</div>
+                <input
+                  value={card.mood ?? ""}
+                  onChange={e => updateCard(card.id, { mood: e.target.value })}
+                  onMouseDown={e => e.stopPropagation()}
+                  placeholder="e.g. lofi, dark ambient..."
+                  maxLength={32}
+                  style={{
+                    display: "block", width: "100%",
+                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)",
+                    borderRadius: 3, padding: "6px 8px", color: "rgba(255,255,255,0.55)",
+                    fontFamily: MONO, fontSize: 8.5, letterSpacing: 0.3,
+                    outline: "none", boxSizing: "border-box" as const,
+                  }}
+                />
+              </div>
 
-          {/* Bg + border radius */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const }}>bg</span>
-            <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}>
-              {card.bgColor && <div style={{ position: "absolute", inset: 0, background: card.bgColor }} />}
-              <input type="color"
-                value={card.bgColor?.startsWith("#") ? card.bgColor : "#141416"}
-                onChange={e => updateCard(card.id, { bgColor: e.target.value })}
-                onMouseDown={e => e.stopPropagation()}
-                style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
-              />
-            </div>
-            <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const }}>r</span>
-            <input
-              type="range" min={0} max={40} value={card.borderRadius ?? 10}
-              onChange={e => updateCard(card.id, { borderRadius: Number(e.target.value) })}
-              onMouseDown={e => e.stopPropagation()}
-              style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
-            />
-          </div>
+              <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
 
-          {/* Border color + width */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, width: 44, flexShrink: 0 }}>border</span>
-            <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-              {card.borderColor && <div style={{ position: "absolute", inset: 0, background: card.borderColor }} />}
-              <input type="color"
-                value={card.borderColor?.startsWith("#") ? card.borderColor : "#ffffff"}
-                onChange={e => updateCard(card.id, { borderColor: e.target.value })}
-                onMouseDown={e => e.stopPropagation()}
-                style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
-              />
-            </div>
-            <input
-              type="range" min={0} max={8} step={1} value={card.borderWidth ?? 1}
-              onChange={e => updateCard(card.id, { borderWidth: Number(e.target.value) })}
-              onMouseDown={e => e.stopPropagation()}
-              style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
-            />
-            {card.borderColor && (
-              <button onClick={() => updateCard(card.id, { borderColor: "", borderWidth: 1 })}
-                onMouseDown={e => e.stopPropagation()}
-                style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
-            )}
-          </div>
+              {/* Font picker */}
+              <div>
+                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>font</div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+                  {FONTS.map(f => (
+                    <button key={f.key} onMouseDown={e => e.stopPropagation()} onClick={() => updateCard(card.id, { font: f.key })}
+                      style={{
+                        padding: "4px 8px", borderRadius: 3, cursor: "pointer",
+                        border: card.font === f.key ? "1px solid rgba(212,240,196,0.38)" : "1px solid rgba(255,255,255,0.08)",
+                        background: card.font === f.key ? "rgba(212,240,196,0.1)" : "rgba(255,255,255,0.03)",
+                        color: card.font === f.key ? "rgba(212,240,196,0.9)" : "rgba(255,255,255,0.38)",
+                        fontFamily: f.style, fontSize: 9, letterSpacing: 0.3,
+                      }}
+                    >{f.label}</button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Glow color + intensity */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, width: 44, flexShrink: 0 }}>glow</span>
-            <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-              {card.glowColor && <div style={{ position: "absolute", inset: 0, background: card.glowColor }} />}
-              <input type="color"
-                value={card.glowColor?.startsWith("#") ? card.glowColor : "#a855f7"}
-                onChange={e => updateCard(card.id, { glowColor: e.target.value })}
+              {/* Text color */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, width: 44, flexShrink: 0 }}>text</span>
+                <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
+                  {card.textColor && <div style={{ position: "absolute", inset: 0, background: card.textColor }} />}
+                  <input type="color"
+                    value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
+                    onChange={e => updateCard(card.id, { textColor: e.target.value })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                  />
+                </div>
+              </div>
+
+              {/* Personalizar button */}
+              <button
                 onMouseDown={e => e.stopPropagation()}
-                style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                onClick={e => { e.stopPropagation(); setPersonalize(true); }}
+                style={{
+                  marginTop: 4, padding: "8px 0", borderRadius: 5, cursor: "pointer",
+                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                  color: "rgba(255,255,255,0.5)", fontFamily: MONO, fontSize: 8, letterSpacing: 1.5,
+                  textTransform: "uppercase" as const, width: "100%", transition: `all 0.12s ${EASE}`,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(212,240,196,0.07)"; e.currentTarget.style.borderColor = "rgba(212,240,196,0.2)"; e.currentTarget.style.color = "rgba(212,240,196,0.7)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
+              >
+                Personalizar →
+              </button>
+            </>
+          )}
+
+          {/* ── View B: PersonalizePanel ── */}
+          {personalize && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <button
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); setPersonalize(false); }}
+                  style={{
+                    background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 4, color: "rgba(255,255,255,0.4)", fontFamily: MONO,
+                    fontSize: 8, letterSpacing: 1, cursor: "pointer", padding: "3px 8px",
+                  }}
+                >← Volver</button>
+                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const }}>personalizar</span>
+              </div>
+              <PersonalizePanel
+                effects={card.effects}
+                onChange={newEffects => updateCard(card.id, { effects: newEffects })}
               />
-            </div>
-            <input
-              type="range" min={0} max={1} step={0.05} value={card.glowIntensity ?? 0}
-              onChange={e => updateCard(card.id, { glowIntensity: Number(e.target.value) })}
-              onMouseDown={e => e.stopPropagation()}
-              style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
-            />
-            {(card.glowIntensity ?? 0) > 0 && (
-              <button onClick={() => updateCard(card.id, { glowIntensity: 0 })}
-                onMouseDown={e => e.stopPropagation()}
-                style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
-            )}
-          </div>
+            </>
+          )}
         </div>,
         document.body
       )}

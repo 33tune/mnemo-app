@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, memo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { trackRender } from "@/lib/perfDebug";
-import type { ProfileCardData, TextFont, ProfileCardVariant } from "@/types";
+import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
 import { useFollow } from "@/hooks/useFollow";
@@ -13,6 +13,8 @@ import type { PresenceState } from "@/types";
 import { UIButton, UISlider } from "@/components/ui";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
+import { useCardInteractions } from "@/hooks/useCardInteractions";
+import PersonalizePanel from "./PersonalizePanel";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -85,6 +87,7 @@ function ProfileCard({
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
   const [menuOpen,     setMenuOpen]     = useState(false);
+  const [personalize,  setPersonalize]  = useState(false);
   const [followHover,  setFollowHover]  = useState(false);
   const [msgHover,     setMsgHover]     = useState(false);
   const [favHover,     setFavHover]     = useState(false);
@@ -94,6 +97,14 @@ function ProfileCard({
   const cardRef     = useRef<HTMLDivElement>(null);
   const innerRef    = useRef<HTMLDivElement>(null);
   const favTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Build effective effects for card interactions (ProfileCard uses isProfileCard=true)
+  const effectiveEffects: CardEffects = {
+    ...card.effects,
+    interactions: card.effects?.interactions,
+  };
+  const { onMouseMove: onInteractMove, onMouseLeave: onInteractLeave } =
+    useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>, true);
 
   const [portalPos, setPortalPos] = useState<{ left: number; top: number } | null>(null);
   useEffect(() => {
@@ -118,7 +129,7 @@ function ProfileCard({
   }, [menuOpen, card.x, card.y, card.w, card.h]);
 
   useEffect(() => {
-    if (!isSel) { setMenuOpen(false); setEditingField(null); }
+    if (!isSel) { setMenuOpen(false); setEditingField(null); setPersonalize(false); }
   }, [isSel]);
 
   useEffect(() => {
@@ -224,12 +235,13 @@ function ProfileCard({
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
         onClick={onClick}
         onMouseMove={e => {
+          onInteractMove(e);
           if (menuOpen || spotlightIntensity === 0) return;
           const r = cardRef.current?.getBoundingClientRect();
           if (!r) return;
           setSpotlightPos({ x: e.clientX - r.left, y: e.clientY - r.top });
         }}
-        onMouseLeave={() => setSpotlightPos(null)}
+        onMouseLeave={e => { onInteractLeave(); setSpotlightPos(null); void e; }}
         style={{
           position:   "absolute",
           left:       card.x,
@@ -712,6 +724,9 @@ function ProfileCard({
             } as React.CSSProperties}
           >
 
+            {/* ── Main view (hidden when personalizing) ── */}
+            {!personalize && <>
+
             {/* ════ FOTO ════ */}
             <div className="pcfg-s pcfg-s1">
               <PanelLabel>foto</PanelLabel>
@@ -1028,7 +1043,9 @@ function ProfileCard({
               </div>
             </div>
 
-            {onAddModule && (
+            </>} {/* end main view */}
+
+            {onAddModule && !personalize && (
               <>
                 <Div />
                 <div>
@@ -1061,30 +1078,76 @@ function ProfileCard({
               </>
             )}
 
-            <Div />
+            {!personalize && (
+              <>
+                <Div />
 
-            {/* ════ DISEÑO ════ */}
-            <div className="pcfg-s pcfg-s5">
-              <PanelLabel>diseño</PanelLabel>
-              <UISlider
-                label="opacity"
-                value={Math.round(card.opacity * 100)}
-                unit="%"
-                min={10} max={100}
-                onChange={v => updateProfile(card.id, { opacity: v / 100 })}
-                onMouseDown={e => e.stopPropagation()}
-              />
-              <div style={{ marginTop: 20 }}>
-                <UISlider
-                  label="radius"
-                  value={card.borderRadius}
-                  unit="px"
-                  min={0} max={60}
-                  onChange={v => updateProfile(card.id, { borderRadius: v })}
+                {/* ════ DISEÑO ════ */}
+                <div className="pcfg-s pcfg-s5">
+                  <PanelLabel>diseño</PanelLabel>
+                  <UISlider
+                    label="opacity"
+                    value={Math.round(card.opacity * 100)}
+                    unit="%"
+                    min={10} max={100}
+                    onChange={v => updateProfile(card.id, { opacity: v / 100 })}
+                    onMouseDown={e => e.stopPropagation()}
+                  />
+                  <div style={{ marginTop: 20 }}>
+                    <UISlider
+                      label="radius"
+                      value={card.borderRadius}
+                      unit="px"
+                      min={0} max={60}
+                      onChange={v => updateProfile(card.id, { borderRadius: v })}
+                      onMouseDown={e => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+
+                <Div />
+
+                {/* ════ PERSONALIZAR ════ */}
+                <button
                   onMouseDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); setPersonalize(true); }}
+                  style={{
+                    padding: "9px 0", borderRadius: 6, cursor: "pointer",
+                    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                    color: "rgba(255,255,255,0.5)", fontFamily: MONO, fontSize: 8, letterSpacing: 1.5,
+                    textTransform: "uppercase" as const, width: "100%",
+                    transition: "all 0.12s ease",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(212,240,196,0.07)"; e.currentTarget.style.borderColor = "rgba(212,240,196,0.2)"; e.currentTarget.style.color = "rgba(212,240,196,0.7)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
+                >
+                  Personalizar efectos →
+                </button>
+              </>
+            )}
+
+            {/* ── View B: PersonalizePanel ── */}
+            {personalize && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <button
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); setPersonalize(false); }}
+                    style={{
+                      background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 4, color: "rgba(255,255,255,0.4)", fontFamily: MONO,
+                      fontSize: 8, letterSpacing: 1, cursor: "pointer", padding: "3px 8px",
+                    }}
+                  >← Volver</button>
+                  <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const }}>personalizar</span>
+                </div>
+                <PersonalizePanel
+                  effects={card.effects}
+                  onChange={newEffects => updateProfile(card.id, { effects: newEffects })}
+                  isProfileCard
                 />
-              </div>
-            </div>
+              </>
+            )}
 
           </div>
         , document.body)}

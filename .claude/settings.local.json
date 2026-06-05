@@ -38,7 +38,8 @@
       "PowerShell(New-Item *)",
       "Bash(xargs grep -l \"ProfileCard\\\\|profile.*edit\\\\|element.*editor\")",
       "Bash(xargs grep -l \"LinkButton\\\\|startLinkDrag\\\\|profile.*editor\")",
-      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(echo \"EXIT:$?\")"
     ]
   }
 }

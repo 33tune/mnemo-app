@@ -1239,12 +1239,30 @@ export default function CanvasBoard({
   function updateMusicCard(id: string, patch: Partial<MusicCardData>) { enqueueOp({ type: "update_music", id, patch }); }
   function updateLinksCard(id: string, patch: Partial<LinksCardData>) { enqueueOp({ type: "update_links", id, patch }); }
 
-  function resolveModuleStyle<T extends { stackId?: string; bgColor?: string; bgImage?: string; bgMode?: "cover" | "repeat"; borderRadius?: number; variant?: ProfileCardVariant; opacity?: number }>(card: T): T {
+  function resolveModuleStyle<T extends { stackId?: string; bgColor?: string; bgImage?: string; bgMode?: "cover" | "repeat"; borderRadius?: number; variant?: ProfileCardVariant; opacity?: number; effects?: import("@/types").CardEffects }>(card: T): T {
     if (!card.stackId) return card;
     const anchor = profiles.find(p => p.stackId === card.stackId && p.isStackAnchor);
     if (!anchor) return card;
+
+    // Inherit effects from anchor if card has no own effects
+    const inheritedEffects: import("@/types").CardEffects | undefined = card.effects
+      ? card.effects
+      : anchor.effects
+        ? {
+            bg:     anchor.effects.bg,
+            border: anchor.effects.border,
+            layers: anchor.effects.layers,
+            glow:   anchor.effects.glow
+              ? { ...anchor.effects.glow, intensity: (anchor.effects.glow.intensity ?? 0) * 0.6 }
+              : undefined,
+            typography: anchor.effects.typography,
+            // Do NOT inherit animations or interactions from anchor
+          }
+        : undefined;
+
     return {
       ...card,
+      effects:      inheritedEffects,
       bgColor:      card.bgColor      !== undefined ? card.bgColor      : anchor.bgColor,
       bgImage:      card.bgImage      !== undefined ? card.bgImage      : anchor.bgImage,
       bgMode:       card.bgMode       !== undefined ? card.bgMode       : anchor.bgMode,
