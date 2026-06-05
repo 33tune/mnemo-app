@@ -116,23 +116,23 @@ function LinksCardWidget({
   // Build effective effects (backwards compat with flat fields)
   const effectiveEffects: CardEffects = {
     ...card.effects,
+    bg: {
+      color:     card.bgColor,
+      image:     card.bgImage,
+      imageMode: card.bgMode,
+      ...card.effects?.bg,
+    },
     border: {
-      color:  card.effects?.border?.color  ?? card.borderColor,
-      width:  card.effects?.border?.width  ?? card.borderWidth,
-      radius: card.effects?.border?.radius ?? (card.borderRadius ?? 14),
+      color:  card.borderColor,
+      width:  card.borderWidth,
+      radius: card.borderRadius ?? 14,
       ...card.effects?.border,
     },
     glow: {
-      color:     card.effects?.glow?.color     ?? card.glowColor,
-      intensity: card.effects?.glow?.intensity ?? card.glowIntensity,
-      outer:     card.effects?.glow?.outer     ?? true,
+      color:     card.glowColor,
+      intensity: card.glowIntensity,
+      outer:     true,
       ...card.effects?.glow,
-    },
-    bg: {
-      color:     card.effects?.bg?.color     ?? card.bgColor,
-      image:     card.effects?.bg?.image     ?? card.bgImage,
-      imageMode: card.effects?.bg?.imageMode ?? card.bgMode,
-      ...card.effects?.bg,
     },
     opacity: card.effects?.opacity ?? card.opacity,
   };

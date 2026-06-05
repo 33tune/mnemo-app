@@ -347,78 +347,50 @@ export type GuestbookCardData = {
 // ── Card Effects System ───────────────────────────────────────────────────────
 
 export type CardEffects = {
-  // Appearance
   bg?: {
     color?: string;
     image?: string;
     imageMode?: "cover" | "repeat";
-    opacity?: number;       // 0–1, only the bg layer
-    blur?: number;          // px
-    brightness?: number;    // 0–2, 1 = normal
-    saturation?: number;    // 0–2, 1 = normal
+    opacity?: number;   // 0–1
+    blur?: number;      // 0–20 backdrop blur px
+    glass?: boolean;
   };
   border?: {
     color?: string;
-    width?: number;         // 0–8px
-    radius?: number;        // 0–60px
-    animated?: boolean;     // rotating neon border
-    animSpeed?: number;     // seconds for full rotation, default 3
+    width?: number;     // 0–6px
+    radius?: number;    // 0–60px
   };
   glow?: {
     color?: string;
-    intensity?: number;     // 0–1
+    intensity?: number; // 0–1
     inner?: boolean;
     outer?: boolean;
-    animated?: boolean;     // breathing glow
-    animSpeed?: number;     // seconds, default 2.5
   };
   shadow?: {
     color?: string;
-    blur?: number;
-    x?: number;
-    y?: number;
+    intensity?: number; // 0–1
   };
-  layers?: {
-    glass?: boolean;
-    glassBlur?: number;     // 0–40px
-    noise?: number;         // 0–1 overlay opacity
-    grain?: boolean;
-    gradient?: { from: string; to: string; angle: number; opacity: number };
-    vignette?: number;      // 0–1
+  gradient?: {
+    from: string;
+    to: string;
+    angle: number;
+    opacity: number;
   };
   interactions?: {
     tilt3d?: boolean;
-    tiltIntensity?: number; // 1–20 degrees max, default 8 for ProfileCard, 4 for modules
-    spotlight?: boolean;    // dynamic spotlight follows cursor
+    tiltIntensity?: number;
+    spotlight?: boolean;
     spotlightColor?: string;
-    spotlightIntensity?: number; // 0–1
-    hoverScale?: number;    // 1.0–1.2
+    spotlightSize?: number;
     hoverGlow?: boolean;
-    hoverRotate?: number;   // degrees on hover
-    magnetic?: boolean;
-    magneticStrength?: number; // 0–1
+    hoverScale?: number;
   };
   animations?: {
     floating?: boolean;
-    floatHeight?: number;   // px, default 8
-    floatSpeed?: number;    // seconds, default 3
-    pulse?: boolean;
-    pulseSpeed?: number;    // seconds, default 1.8
-    breathingGlow?: boolean;
-    breathSpeed?: number;   // seconds, default 2.5
-    shineSweep?: boolean;
-    sweepInterval?: number; // seconds between sweeps, default 4
-    shimmer?: boolean;
-    borderAnimation?: boolean;
+    floatHeight?: number;
+    floatSpeed?: number;
   };
-  typography?: {
-    font?: TextFont;
-    color?: string;
-    letterSpacing?: number;
-    shadow?: string;
-    weight?: number;
-  };
-  opacity?: number;         // 0–1, global card opacity
+  opacity?: number;
 };
 
 // ── Canvas state ─────────────────────────────────────────────────────────────

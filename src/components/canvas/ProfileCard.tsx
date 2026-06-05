@@ -110,33 +110,28 @@ function ProfileCard({
   const effectiveEffects: CardEffects = {
     ...card.effects,
     bg: {
-      color:     card.effects?.bg?.color     ?? (card.bgColor || undefined),
-      image:     card.effects?.bg?.image     ?? (card.bgImage || undefined),
-      imageMode: card.effects?.bg?.imageMode ?? card.bgMode,
-      opacity:   card.effects?.bg?.opacity   ?? card.opacity,
+      color:     card.bgColor || undefined,
+      image:     card.bgImage || undefined,
+      imageMode: card.bgMode,
+      opacity:   card.opacity,
+      glass:     isGlassVariant,
       ...card.effects?.bg,
     },
     border: {
-      color:  card.effects?.border?.color  ?? card.borderColor,
-      width:  card.effects?.border?.width  ?? card.borderWidth,
-      radius: card.effects?.border?.radius ?? card.borderRadius,
+      color:  card.borderColor,
+      width:  card.borderWidth,
+      radius: card.borderRadius,
       ...card.effects?.border,
     },
     glow: {
-      color:     card.effects?.glow?.color     ?? card.glowColor,
-      intensity: card.effects?.glow?.intensity ?? card.glowIntensity,
-      outer:     card.effects?.glow?.outer     ?? ((card.glowIntensity ?? 0) > 0),
+      color:     card.glowColor,
+      intensity: card.glowIntensity,
+      outer:     (card.glowIntensity ?? 0) > 0,
       ...card.effects?.glow,
     },
-    layers: {
-      glass:     isGlassVariant,
-      glassBlur: 20,
-      ...card.effects?.layers,
-    },
     interactions: {
-      spotlight:          spotlightIntensity > 0,
-      spotlightColor:     `rgba(255,255,255,${spotlightIntensity * 2.5})`,
-      spotlightIntensity: spotlightIntensity,
+      spotlight:      spotlightIntensity > 0,
+      spotlightColor: `rgba(255,255,255,${spotlightIntensity * 2.5})`,
       ...card.effects?.interactions,
     },
   };
@@ -198,7 +193,10 @@ function ProfileCard({
     if (!f) return;
     const { publicUrl: src } = await uploadToStorage(f);
     const bgMode = await detectBgMode(src);
-    updateProfile(card.id, { bgImage: src, bgColor: "", bgMode });
+    updateProfile(card.id, {
+      bgImage: src, bgColor: "", bgMode,
+      effects: { ...card.effects, bg: { ...card.effects?.bg, image: src, color: undefined, imageMode: bgMode } },
+    });
     if (bgImgRef.current) bgImgRef.current.value = "";
   }
 
@@ -903,9 +901,9 @@ function ProfileCard({
             <div className="pcfg-s pcfg-s4">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <PanelLabel inline>estilo</PanelLabel>
-                {(card.bgColor || card.bgImage) && (
+                {(effectiveEffects.bg?.color || effectiveEffects.bg?.image) && (
                   <button
-                    onClick={() => updateProfile(card.id, { bgColor: "", bgImage: "" })}
+                    onClick={() => updateProfile(card.id, { bgColor: "", bgImage: "", effects: { ...card.effects, bg: { ...card.effects?.bg, color: undefined, image: undefined } } })}
                     style={{
                       background: "transparent", border: "none", padding: 0,
                       color: "rgba(255,255,255,0.22)", fontSize: 9,
@@ -954,22 +952,22 @@ function ProfileCard({
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, flexShrink: 0 }}>border</span>
                 <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-                  {card.borderColor && <div style={{ position: "absolute", inset: 0, background: card.borderColor }} />}
+                  {effectiveEffects.border?.color && <div style={{ position: "absolute", inset: 0, background: effectiveEffects.border.color }} />}
                   <input type="color"
-                    value={card.borderColor?.startsWith("#") ? card.borderColor : "#ffffff"}
-                    onChange={e => updateProfile(card.id, { borderColor: e.target.value })}
+                    value={effectiveEffects.border?.color?.startsWith("#") ? effectiveEffects.border.color : "#ffffff"}
+                    onChange={e => updateProfile(card.id, { effects: { ...card.effects, border: { ...card.effects?.border, color: e.target.value } } })}
                     onMouseDown={e => e.stopPropagation()}
                     style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
                   />
                 </div>
                 <input
-                  type="range" min={0} max={8} step={1} value={card.borderWidth ?? 1}
-                  onChange={e => updateProfile(card.id, { borderWidth: Number(e.target.value) })}
+                  type="range" min={0} max={6} step={1} value={effectiveEffects.border?.width ?? 1}
+                  onChange={e => updateProfile(card.id, { effects: { ...card.effects, border: { ...card.effects?.border, width: Number(e.target.value) } } })}
                   onMouseDown={e => e.stopPropagation()}
                   style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
                 />
-                {card.borderColor && (
-                  <button onClick={() => updateProfile(card.id, { borderColor: "", borderWidth: 1 })}
+                {effectiveEffects.border?.color && (
+                  <button onClick={() => updateProfile(card.id, { borderColor: "", effects: { ...card.effects, border: { ...card.effects?.border, color: undefined, width: undefined } } })}
                     onMouseDown={e => e.stopPropagation()}
                     style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
                 )}
@@ -979,22 +977,25 @@ function ProfileCard({
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, flexShrink: 0 }}>glow</span>
                 <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-                  {card.glowColor && <div style={{ position: "absolute", inset: 0, background: card.glowColor }} />}
+                  {effectiveEffects.glow?.color && <div style={{ position: "absolute", inset: 0, background: effectiveEffects.glow.color }} />}
                   <input type="color"
-                    value={card.glowColor?.startsWith("#") ? card.glowColor : "#a855f7"}
-                    onChange={e => updateProfile(card.id, { glowColor: e.target.value })}
+                    value={effectiveEffects.glow?.color?.startsWith("#") ? effectiveEffects.glow.color : "#a855f7"}
+                    onChange={e => updateProfile(card.id, { effects: { ...card.effects, glow: { ...card.effects?.glow, color: e.target.value } } })}
                     onMouseDown={e => e.stopPropagation()}
                     style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
                   />
                 </div>
                 <input
-                  type="range" min={0} max={1} step={0.05} value={card.glowIntensity ?? 0}
-                  onChange={e => updateProfile(card.id, { glowIntensity: Number(e.target.value) })}
+                  type="range" min={0} max={1} step={0.05} value={effectiveEffects.glow?.intensity ?? 0}
+                  onChange={e => {
+                    const v = Number(e.target.value);
+                    updateProfile(card.id, { effects: { ...card.effects, glow: { ...card.effects?.glow, intensity: v, outer: v > 0 } } });
+                  }}
                   onMouseDown={e => e.stopPropagation()}
                   style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }}
                 />
-                {(card.glowIntensity ?? 0) > 0 && (
-                  <button onClick={() => updateProfile(card.id, { glowIntensity: 0 })}
+                {(effectiveEffects.glow?.intensity ?? 0) > 0 && (
+                  <button onClick={() => updateProfile(card.id, { glowIntensity: 0, effects: { ...card.effects, glow: { ...card.effects?.glow, intensity: 0, outer: false } } })}
                     onMouseDown={e => e.stopPropagation()}
                     style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
                 )}
@@ -1011,23 +1012,23 @@ function ProfileCard({
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.2)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
               >
-                {!card.bgColor && !card.bgImage && (
+                {!effectiveEffects.bg?.color && !effectiveEffects.bg?.image && (
                   <div style={{
                     position: "absolute", inset: 0,
                     backgroundColor: "rgba(255,255,255,0.02)",
                     backgroundImage: "repeating-linear-gradient(45deg,rgba(255,255,255,0.04) 0,rgba(255,255,255,0.04) 1px,transparent 1px,transparent 9px)",
                   }} />
                 )}
-                {(card.bgColor || card.bgImage) && (
+                {(effectiveEffects.bg?.color || effectiveEffects.bg?.image) && (
                   <div style={{
                     position: "absolute", inset: 0,
-                    ...(card.bgImage ? bgImageStyle(card.bgImage, card.bgMode) : { background: card.bgColor }),
+                    ...(effectiveEffects.bg.image ? bgImageStyle(effectiveEffects.bg.image, effectiveEffects.bg.imageMode) : { background: effectiveEffects.bg.color }),
                   }} />
                 )}
                 <input
                   type="color"
-                  value={card.bgColor?.startsWith("#") ? card.bgColor : "#141416"}
-                  onChange={e => updateProfile(card.id, { bgColor: e.target.value, bgImage: "" })}
+                  value={effectiveEffects.bg?.color?.startsWith("#") ? effectiveEffects.bg.color : "#141416"}
+                  onChange={e => updateProfile(card.id, { bgImage: "", effects: { ...card.effects, bg: { ...card.effects?.bg, color: e.target.value, image: undefined } } })}
                   onMouseDown={e => e.stopPropagation()}
                   style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
                 />
@@ -1035,8 +1036,8 @@ function ProfileCard({
 
               <div style={{ display: "flex", gap: 5 }}>
                 <div style={{ flex: 1 }}><UIButton onClick={() => bgImgRef.current?.click()} full>image / gif</UIButton></div>
-                {card.bgImage && (
-                  <div style={{ flex: 1 }}><UIButton onClick={() => updateProfile(card.id, { bgImage: "" })} danger full>remove</UIButton></div>
+                {effectiveEffects.bg?.image && (
+                  <div style={{ flex: 1 }}><UIButton onClick={() => updateProfile(card.id, { bgImage: "", effects: { ...card.effects, bg: { ...card.effects?.bg, image: undefined } } })} danger full>remove</UIButton></div>
                 )}
               </div>
             </div>
@@ -1085,19 +1086,19 @@ function ProfileCard({
                   <PanelLabel>diseño</PanelLabel>
                   <UISlider
                     label="opacity"
-                    value={Math.round(card.opacity * 100)}
+                    value={Math.round((card.effects?.opacity ?? card.opacity) * 100)}
                     unit="%"
                     min={10} max={100}
-                    onChange={v => updateProfile(card.id, { opacity: v / 100 })}
+                    onChange={v => updateProfile(card.id, { effects: { ...card.effects, opacity: v / 100 } })}
                     onMouseDown={e => e.stopPropagation()}
                   />
                   <div style={{ marginTop: 20 }}>
                     <UISlider
                       label="radius"
-                      value={card.borderRadius}
+                      value={effectiveEffects.border?.radius ?? card.borderRadius}
                       unit="px"
                       min={0} max={60}
-                      onChange={v => updateProfile(card.id, { borderRadius: v })}
+                      onChange={v => updateProfile(card.id, { borderRadius: v, effects: { ...card.effects, border: { ...card.effects?.border, radius: v } } })}
                       onMouseDown={e => e.stopPropagation()}
                     />
                   </div>

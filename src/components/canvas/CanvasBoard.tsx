@@ -1244,19 +1244,18 @@ export default function CanvasBoard({
     const anchor = profiles.find(p => p.stackId === card.stackId && p.isStackAnchor);
     if (!anchor) return card;
 
-    // Inherit effects from anchor if card has no own effects
+    // If module has own effects, keep them. Otherwise inherit from anchor (minus interactions/animations).
     const inheritedEffects: import("@/types").CardEffects | undefined = card.effects
       ? card.effects
       : anchor.effects
         ? {
-            bg:     anchor.effects.bg,
-            border: anchor.effects.border,
-            layers: anchor.effects.layers,
-            glow:   anchor.effects.glow
+            bg:       anchor.effects.bg,
+            border:   anchor.effects.border,
+            gradient: anchor.effects.gradient,
+            glow:     anchor.effects.glow
               ? { ...anchor.effects.glow, intensity: (anchor.effects.glow.intensity ?? 0) * 0.6 }
               : undefined,
-            typography: anchor.effects.typography,
-            // Do NOT inherit animations or interactions from anchor
+            shadow:   anchor.effects.shadow,
           }
         : undefined;
 
