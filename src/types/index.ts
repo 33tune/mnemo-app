@@ -17,7 +17,6 @@ export type CanvasImage = {
   borderRadius?: number;
   locked?: boolean;
   isPublic?: boolean;
-  isLocal?: boolean;
   pinCount?: number;
   storage_path?: string;
   linkUrl?: string;
@@ -109,13 +108,10 @@ export type PhotoSize = "sm" | "md" | "lg";
 export type ProfileCardVariant = "classic" | "glass" | "guns" | "minimal" | "poster";
 
 export type ProfileLink = {
-  id:     string;
-  url:    string;
-  label:  string;
-  icon?:  string;
-  x?:     number;
-  y?:     number;
-  scale?: number;
+  id:    string;
+  url:   string;
+  label: string;
+  icon?: string;
 };
 
 export type SocialLink = {
@@ -142,81 +138,143 @@ export type CanvasMedia = {
   isPublic?: boolean;
 };
 
+// ── Profile Card — identity only ─────────────────────────────────────────────
+
 export type ProfileCardData = {
-  id:             string;
-  userId?:        string;   // owner's auth.users.id — used to wire social hooks
-  x:              number;
-  y:              number;
-  w:              number;
-  h:              number;
-  zIndex:         number;
-  layer:          0 | 1 | 2;
-  depth:          number;
-  rotation:       number;
-  photo:          string;
-  name:           string;
-  status:         string;
-  handle:         string;
-  photoX:         number;
-  photoY:         number;
-  textX:          number;
-  textY:          number;
-  photoSize:      PhotoSize;
-  font?:          TextFont;
-  nameFont?:      TextFont;
-  nameFontSize?:  number;
-  statusFont?:    TextFont;
+  id:              string;
+  userId?:         string;
+  x:               number;
+  y:               number;
+  w:               number;
+  h:               number;
+  zIndex:          number;
+  layer:           0 | 1 | 2;
+  depth:           number;
+  rotation:        number;
+  // Identity
+  photo:           string;
+  name:            string;
+  handle:          string;
+  status:          string;
+  bio?:            string;
+  // Photo positioning
+  photoX:          number;
+  photoY:          number;
+  photoScale?:     number;
+  photoSize:       PhotoSize;
+  // Text block (legacy fallback)
+  textX:           number;
+  textY:           number;
+  textScale?:      number;
+  // Per-element positions
+  nameX?:          number;
+  nameY?:          number;
+  nameScale?:      number;
+  handleX?:        number;
+  handleY?:        number;
+  handleScale?:    number;
+  statusX?:        number;
+  statusY?:        number;
+  statusScale?:    number;
+  bioX?:           number;
+  bioY?:           number;
+  bioScale?:       number;
+  // Typography
+  font?:           TextFont;
+  nameFont?:       TextFont;
+  nameFontSize?:   number;
+  statusFont?:     TextFont;
   statusFontSize?: number;
-  textColor?:     string;
-  bgColor:        string;
-  bgImage:        string;
-  bgMode?:        "cover" | "repeat";
-  borderRadius:   number;
-  opacity:        number;
-  locked?:        boolean;
-  isPublic?:      boolean;
-  statsX?:        number;
-  statsY?:        number;
-  actionsX?:      number;
-  actionsY?:      number;
-  photoScale?:    number;
-  textScale?:     number;
-  statsScale?:    number;
-  actionsScale?:  number;
-  followX?:       number;
-  followY?:       number;
-  messageX?:      number;
-  messageY?:      number;
-  favoriteX?:     number;
-  favoriteY?:     number;
-  followScale?:   number;
-  messageScale?:  number;
-  favoriteScale?: number;
-  linksX?:        number;
-  linksY?:        number;
-  linksScale?:    number;
-  // Per-element identity positions (independent of the legacy textX/Y block)
-  nameX?:         number;
-  nameY?:         number;
-  nameScale?:     number;
-  statusX?:       number;
-  statusY?:       number;
-  statusScale?:   number;
-  handleX?:       number;
-  handleY?:       number;
-  handleScale?:   number;
-  bioX?:          number;
-  bioY?:          number;
-  bioScale?:      number;
-  bio?:           string;
-  links?:         ProfileLink[];
-  mood?:          string;
-  musicUrl?:      string;
-  variant?:       ProfileCardVariant;
-  accentColor?:   string;
-  socialLinks?:   SocialLink[];
+  textColor?:      string;
+  // Style
+  bgColor:         string;
+  bgImage:         string;
+  bgMode?:         "cover" | "repeat";
+  borderRadius:    number;
+  opacity:         number;
+  variant?:        ProfileCardVariant;
+  accentColor?:    string;
+  glowIntensity?:  number;
+  glowColor?:      string;
+  bgOverlayOpacity?: number;
+  // State
+  locked?:         boolean;
+  isPublic?:       boolean;
+  // Stack
+  stackId?:        string;
+  isStackAnchor?:  boolean;
 };
 
+// ── Module cards ─────────────────────────────────────────────────────────────
+
+export type SocialCardData = {
+  id:            string;
+  x:             number;
+  y:             number;
+  w:             number;
+  h:             number;
+  zIndex:        number;
+  layer:         0 | 1 | 2;
+  depth:         number;
+  rotation:      number;
+  locked?:       boolean;
+  isPublic?:     boolean;
+  stackId?:      string;
+  socialLinks:   SocialLink[];
+  bgColor?:      string;
+  bgImage?:      string;
+  bgMode?:       "cover" | "repeat";
+  borderRadius?: number;
+  opacity?:      number;
+  variant?:      ProfileCardVariant;
+};
+
+export type MusicCardData = {
+  id:            string;
+  x:             number;
+  y:             number;
+  w:             number;
+  h:             number;
+  zIndex:        number;
+  layer:         0 | 1 | 2;
+  depth:         number;
+  rotation:      number;
+  locked?:       boolean;
+  isPublic?:     boolean;
+  stackId?:      string;
+  musicUrl?:     string;
+  mood?:         string;
+  bgColor?:      string;
+  bgImage?:      string;
+  bgMode?:       "cover" | "repeat";
+  borderRadius?: number;
+  opacity?:      number;
+  variant?:      ProfileCardVariant;
+};
+
+export type LinksCardData = {
+  id:            string;
+  x:             number;
+  y:             number;
+  w:             number;
+  h:             number;
+  zIndex:        number;
+  layer:         0 | 1 | 2;
+  depth:         number;
+  rotation:      number;
+  locked?:       boolean;
+  isPublic?:     boolean;
+  stackId?:      string;
+  links:         ProfileLink[];
+  bgColor?:      string;
+  bgImage?:      string;
+  bgMode?:       "cover" | "repeat";
+  borderRadius?: number;
+  opacity?:      number;
+  variant?:      ProfileCardVariant;
+};
+
+// ── Guestbook ────────────────────────────────────────────────────────────────
 
 export type GuestbookMessage = {
   id:            string;
@@ -243,6 +301,7 @@ export type GuestbookCardData = {
   rotation:      number;
   locked?:       boolean;
   isPublic?:     boolean;
+  stackId?:      string;
   preset?:       GuestbookPreset;
   bgColor?:      string;
   bgImage?:      string;
@@ -253,22 +312,30 @@ export type GuestbookCardData = {
   brightness?:   number;
 };
 
+// ── Canvas state ─────────────────────────────────────────────────────────────
+
 export type CanvasState = {
-  cards:       CanvasCard[];
-  images:      CanvasImage[];
-  texts:       CanvasText[];
-  galleries:   CanvasGallery[];
-  profiles:    ProfileCardData[];
-  medias:      CanvasMedia[];
-  guestbooks:  GuestbookCardData[];
-  bgColor:     string;
-  wallpaper:   string;
+  cards:        CanvasCard[];
+  images:       CanvasImage[];
+  texts:        CanvasText[];
+  galleries:    CanvasGallery[];
+  profiles:     ProfileCardData[];
+  medias:       CanvasMedia[];
+  guestbooks:   GuestbookCardData[];
+  socialCards:  SocialCardData[];
+  musicCards:   MusicCardData[];
+  linksCards:   LinksCardData[];
+  bgColor:      string;
+  wallpaper:    string;
   wallpaperBlur?:       number;
   wallpaperBrightness?: number;
   wallpaperVignette?:   number;
 };
 
-export type ElementType = "card" | "image" | "text" | "gallery" | "profile" | "media" | "guestbook";
+export type ElementType =
+  | "card" | "image" | "text" | "gallery"
+  | "profile" | "media" | "guestbook"
+  | "social" | "music" | "links";
 
 export type CanvasElement =
   | (CanvasCard          & { elementType: "card" })
@@ -277,7 +344,10 @@ export type CanvasElement =
   | (CanvasGallery       & { elementType: "gallery" })
   | (ProfileCardData     & { elementType: "profile" })
   | (CanvasMedia         & { elementType: "media" })
-  | (GuestbookCardData   & { elementType: "guestbook" });
+  | (GuestbookCardData   & { elementType: "guestbook" })
+  | (SocialCardData      & { elementType: "social" })
+  | (MusicCardData       & { elementType: "music" })
+  | (LinksCardData       & { elementType: "links" });
 
 export type PublishState = "idle" | "pending" | "publishing" | "success";
 

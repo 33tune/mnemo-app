@@ -55,7 +55,7 @@ export function detectPlatform(url: string): Platform {
   return "link";
 }
 
-function PlatformIcon({ platform, size, color }: { platform: Platform; size: number; color: string }) {
+export function PlatformIcon({ platform, size, color }: { platform: Platform; size: number; color: string }) {
   const p = { width: size, height: size, fill: color, viewBox: "0 0 24 24" };
 
   if (platform === "discord") return (

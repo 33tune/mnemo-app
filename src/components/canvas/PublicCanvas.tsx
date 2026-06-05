@@ -25,7 +25,9 @@ const LOGICAL_HEIGHT = 3000;
 
 const EMPTY: CanvasState = {
   cards: [], images: [], texts: [], galleries: [],
-  profiles: [], medias: [], guestbooks: [], bgColor: "#0a0a0c", wallpaper: "",
+  profiles: [], medias: [], guestbooks: [],
+  socialCards: [], musicCards: [], linksCards: [],
+  bgColor: "#0a0a0c", wallpaper: "",
 };
 
 export default function PublicCanvas({
@@ -314,7 +316,6 @@ export default function PublicCanvas({
             {(state.profiles ?? []).map(profile => {
               const ps = getParallaxStyle(profile.layer, profile.depth);
               const hasPhoto = profile.photo && !profile.photo.startsWith("blob:");
-              const links = (profile.links ?? []).filter(l => l.url);
               return (
                 <div key={profile.id} style={{
                   position: "absolute", left: profile.x, top: profile.y, width: profile.w, height: profile.h,
@@ -329,16 +330,6 @@ export default function PublicCanvas({
                   {hasPhoto && <img src={profile.photo} alt="" draggable={false} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />}
                   {profile.name && <span style={{ fontFamily: SANS, fontSize: 14, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>{profile.name}</span>}
                   {profile.status && <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>{profile.status}</span>}
-                  {links.length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center", marginTop: 2 }}>
-                      {links.map(link => {
-                        const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
-                        return (
-                          <PublicLinkButton key={link.id} label={link.label} icon={link.icon} href={safeUrl} />
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               );
             })}

@@ -23,7 +23,9 @@ const LOGICAL_HEIGHT = 3000;
 
 const EMPTY: CanvasState = {
   cards: [], images: [], texts: [], galleries: [],
-  profiles: [], medias: [], guestbooks: [], bgColor: "#0a0a0c", wallpaper: "",
+  profiles: [], medias: [], guestbooks: [],
+  socialCards: [], musicCards: [], linksCards: [],
+  bgColor: "#0a0a0c", wallpaper: "",
 };
 
 export default function MobilePublicCanvas({
@@ -271,7 +273,6 @@ export default function MobilePublicCanvas({
           {(state.profiles ?? []).map(profile => {
             const hasPhoto = profile.photo && !profile.photo.startsWith("blob:");
             const hasBgImg = profile.bgImage && !profile.bgImage.startsWith("blob:");
-            const links    = (profile.links ?? []).filter(l => l.url);
 
             // Replicate ProfileCard's position/scale defaults exactly
             const photoX  = profile.photoX ?? 50;
@@ -286,15 +287,12 @@ export default function MobilePublicCanvas({
             const handleY = profile.handleY ?? (_textY + 13);
             const bioX    = profile.bioX    ?? _textX;
             const bioY    = profile.bioY    ?? (_textY + 19);
-            const linksX  = profile.linksX  ?? 50;
-            const linksY  = profile.linksY  ?? 78;
 
             const photoScale  = profile.photoScale  ?? 1;
             const nameScale   = profile.nameScale   ?? (profile.textScale ?? 1);
             const statusScale = profile.statusScale ?? 1;
             const handleScale = profile.handleScale ?? 1;
             const bioScale    = profile.bioScale    ?? 1;
-            const linksScale  = profile.linksScale  ?? 1;
 
             const PHOTO_SIZES: Record<string, number> = { sm: 52, md: 80, lg: 112 };
             const photoSizePx = PHOTO_SIZES[profile.photoSize ?? "md"] ?? 80;
@@ -389,22 +387,6 @@ export default function MobilePublicCanvas({
                   </div>
                 )}
 
-                {/* Links — each individually positioned */}
-                {links.map((link, idx) => {
-                  const lx = link.x ?? linksX;
-                  const ly = link.y ?? (linksY + idx * 8);
-                  const ls = link.scale ?? linksScale;
-                  const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
-                  return (
-                    <div key={link.id} style={{
-                      position: "absolute",
-                      left: `${lx}%`, top: `${ly}%`,
-                      transform: `translate(-50%, -50%) scale(${ls})`,
-                    }}>
-                      <MobileLinkButton label={link.label} icon={link.icon} href={safeUrl} />
-                    </div>
-                  );
-                })}
               </div>
             );
           })}

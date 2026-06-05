@@ -4,21 +4,23 @@ import type { CanvasElement } from "@/types";
 
 export type ResizeHandle = "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w";
 
-export type DragTarget   = { type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"; id: string };
+type WidgetType = "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links";
+
+export type DragTarget   = { type: WidgetType; id: string };
 export type ResizeTarget =
-  | { type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"; id: string; handle: ResizeHandle }
+  | { type: WidgetType; id: string; handle: ResizeHandle }
   | { type: "group" };
 export type RotateTarget = {
-  type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook";
+  type: WidgetType;
   id: string; cx: number; cy: number;
   startAngle: number; startRotation: number;
 };
 
 export type DragUpResult = {
   wasDeleted: boolean;
-  moved: Array<{ id: string; type: DragTarget["type"]; x: number; y: number }>;
-  rotated: { id: string; type: RotateTarget["type"]; rotation: number } | null;
-  resized: { id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"; w?: number; h?: number; size?: number; x?: number; y?: number } | null;
+  moved: Array<{ id: string; type: WidgetType; x: number; y: number; startX: number; startY: number }>;
+  rotated: { id: string; type: WidgetType; rotation: number } | null;
+  resized: { id: string; type: WidgetType; w?: number; h?: number; size?: number; x?: number; y?: number } | null;
 };
 
 type GroupBoundsItem = { id: string; x: number; y: number; w: number; h: number };
@@ -92,7 +94,7 @@ export function useDragDrop({
 
   function startDrag(
     id: string,
-    type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook",
+    type: WidgetType,
     x: number, y: number,
     e: React.MouseEvent,
     selectedIds: Set<string>
@@ -116,7 +118,7 @@ export function useDragDrop({
 
   function startSingleResize(
     id: string,
-    type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook",
+    type: WidgetType,
     handle: ResizeHandle,
     e: React.MouseEvent,
   ) {
@@ -140,7 +142,7 @@ export function useDragDrop({
 
   function startRotate(
     id: string,
-    type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook",
+    type: WidgetType,
     e: React.MouseEvent,
     domCx?: number, domCy?: number
   ) {
@@ -249,21 +251,22 @@ export function useDragDrop({
       : null;
 
     const resized = (resizing && resizing.type !== "group")
-      ? { id: resizing.id, type: resizing.type as "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook", ...lastResize.current }
+      ? { id: resizing.id, type: resizing.type as WidgetType, ...lastResize.current }
       : null;
 
     const moved: DragUpResult["moved"] = [];
     const snapUpdates: Array<{ id: string; x: number; y: number }> = [];
     if (dragging && !overTrash) {
       elements.forEach(el => {
-        if (dragStartPos.current[el.id]) {
+        const startPos = dragStartPos.current[el.id];
+        if (startPos) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const w = (el as any).w ?? 0;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const h = (el as any).h ?? 0;
           const x = Math.max(0, Math.min((canvasBounds?.w ?? window.innerWidth) - w, el.x));
           const y = el.y;
-          moved.push({ id: el.id, type: el.elementType as DragTarget["type"], x, y });
+          moved.push({ id: el.id, type: el.elementType as DragTarget["type"], x, y, startX: startPos.x, startY: startPos.y });
           if (x !== el.x || y !== el.y) snapUpdates.push({ id: el.id, x, y });
         }
       });
