@@ -15,6 +15,7 @@ import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import PersonalizePanel from "./PersonalizePanel";
+import CardLayers from "./CardLayers";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -93,15 +94,51 @@ function ProfileCard({
   const [favHover,     setFavHover]     = useState(false);
   const [favAnimating, setFavAnimating] = useState(false);
   const [editingField, setEditingField] = useState<"name" | "status" | null>(null);
-  const [spotlightPos, setSpotlightPos] = useState<{ x: number; y: number } | null>(null);
   const cardRef     = useRef<HTMLDivElement>(null);
   const innerRef    = useRef<HTMLDivElement>(null);
   const favTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Build effective effects for card interactions (ProfileCard uses isProfileCard=true)
+  // Compute variant early — needed for effectiveEffects
+  const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
+  const isGlassVariant = variant === "glass" || (!card.bgColor && !card.bgImage);
+  const spotlightIntensity =
+    variant === "guns"    ? 0.09 :
+    variant === "minimal" ? 0    :
+    variant === "glass"   ? 0.07 : 0.055;
+
+  // Effective effects: flat fields as fallback, card.effects as override
   const effectiveEffects: CardEffects = {
     ...card.effects,
-    interactions: card.effects?.interactions,
+    bg: {
+      color:     card.effects?.bg?.color     ?? (card.bgColor || undefined),
+      image:     card.effects?.bg?.image     ?? (card.bgImage || undefined),
+      imageMode: card.effects?.bg?.imageMode ?? card.bgMode,
+      opacity:   card.effects?.bg?.opacity   ?? card.opacity,
+      ...card.effects?.bg,
+    },
+    border: {
+      color:  card.effects?.border?.color  ?? card.borderColor,
+      width:  card.effects?.border?.width  ?? card.borderWidth,
+      radius: card.effects?.border?.radius ?? card.borderRadius,
+      ...card.effects?.border,
+    },
+    glow: {
+      color:     card.effects?.glow?.color     ?? card.glowColor,
+      intensity: card.effects?.glow?.intensity ?? card.glowIntensity,
+      outer:     card.effects?.glow?.outer     ?? ((card.glowIntensity ?? 0) > 0),
+      ...card.effects?.glow,
+    },
+    layers: {
+      glass:     isGlassVariant,
+      glassBlur: 20,
+      ...card.effects?.layers,
+    },
+    interactions: {
+      spotlight:          spotlightIntensity > 0,
+      spotlightColor:     `rgba(255,255,255,${spotlightIntensity * 2.5})`,
+      spotlightIntensity: spotlightIntensity,
+      ...card.effects?.interactions,
+    },
   };
   const { onMouseMove: onInteractMove, onMouseLeave: onInteractLeave } =
     useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>, true);
@@ -165,8 +202,7 @@ function ProfileCard({
     if (bgImgRef.current) bgImgRef.current.value = "";
   }
 
-  // Visual values
-  const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
+  // Visual values (variant/spotlightIntensity already computed above for effectiveEffects)
   const photoSizeKey = card.photoSize ?? "md";
   const basePx       = PHOTO_SIZES[photoSizeKey];
   const avatarSize   = variant === "guns" || variant === "poster" ? Math.max(basePx, 88) :
@@ -175,17 +211,12 @@ function ProfileCard({
   const nameFontSize   = card.nameFontSize   ?? (variant === "guns" || variant === "poster" ? 17 : 15);
   const statusFontSize = card.statusFontSize ?? 10;
   const font           = card.font           ?? "DM Sans";
-  const isLight        = luminance(card.bgColor) > 0.5;
+  const isLight        = luminance(effectiveEffects.bg?.color ?? card.bgColor) > 0.5;
   const baseColor      = card.textColor ?? (isLight ? "#0f0f0f" : "#ffffff");
   const primaryColor   = withOpacity(baseColor, 0.95);
   const secondaryColor = withOpacity(baseColor, 0.72);
   const faintColor     = withOpacity(baseColor, 0.45);
   const globalFont     = fontStyle(font);
-
-  const spotlightIntensity =
-    variant === "guns"    ? 0.09 :
-    variant === "minimal" ? 0    :
-    variant === "glass"   ? 0.07 : 0.055;
 
   const avatarBorder =
     variant === "minimal"              ? "none" :
@@ -234,14 +265,8 @@ function ProfileCard({
         ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
         onClick={onClick}
-        onMouseMove={e => {
-          onInteractMove(e);
-          if (menuOpen || spotlightIntensity === 0) return;
-          const r = cardRef.current?.getBoundingClientRect();
-          if (!r) return;
-          setSpotlightPos({ x: e.clientX - r.left, y: e.clientY - r.top });
-        }}
-        onMouseLeave={e => { onInteractLeave(); setSpotlightPos(null); void e; }}
+        onMouseMove={onInteractMove}
+        onMouseLeave={onInteractLeave}
         style={{
           position:   "absolute",
           left:       card.x,
@@ -256,49 +281,21 @@ function ProfileCard({
           ...entryAnimStyle,
         }}
       >
-        {/* ── Background ── */}
-        <div style={{
-          position:             "absolute",
-          inset:                0,
-          borderRadius:         card.borderRadius,
-          ...(card.bgImage
-            ? bgImageStyle(card.bgImage, card.bgMode)
-            : { background: card.bgColor || "rgba(255,255,255,0.055)" }),
-          backdropFilter:       (variant === "glass" || (!card.bgColor && !card.bgImage))
-            ? "blur(20px)" : "none",
-          WebkitBackdropFilter: (variant === "glass" || (!card.bgColor && !card.bgImage))
-            ? "blur(20px)" : "none",
-          border:               card.borderColor
-            ? `${card.borderWidth ?? 1}px solid ${card.borderColor}`
-            : isSel
-              ? `1px solid ${isLight ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.22)"}`
-              : `1px solid ${isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.08)"}`,
-          boxShadow:            card.glowIntensity && card.glowIntensity > 0 && card.glowColor
-            ? `0 8px 32px rgba(0,0,0,0.25), 0 0 ${Math.round(card.glowIntensity * 30)}px ${card.glowColor}, 0 0 ${Math.round(card.glowIntensity * 60)}px ${card.glowColor}40`
-            : "0 8px 32px rgba(0,0,0,0.25)",
-          opacity:              card.opacity * (menuOpen ? 0.96 : 1),
-          transition:           `opacity 0.2s ${EASE}`,
-        }} />
-
-        {/* ── Spotlight ── */}
-        {spotlightIntensity > 0 && spotlightPos && (
-          <div style={{
-            position:      "absolute",
-            inset:         0,
-            borderRadius:  card.borderRadius,
-            background:    `radial-gradient(280px circle at ${spotlightPos.x}px ${spotlightPos.y}px, rgba(255,255,255,${spotlightIntensity}), transparent 68%)`,
-            pointerEvents: "none",
-            zIndex:        2,
-          }} />
-        )}
+        <CardLayers
+          cardId={card.id}
+          effects={effectiveEffects}
+          isSel={isSel}
+          borderRadius={effectiveEffects.border?.radius ?? card.borderRadius}
+          style={{ opacity: effectiveEffects.opacity ?? 1 }}
+        >
 
         {/* ── Content ── */}
         <div
           ref={innerRef}
-          style={{ position: "absolute", inset: 0, borderRadius: card.borderRadius, overflow: "hidden" }}
+          style={{ position: "absolute", inset: 0, borderRadius: effectiveEffects.border?.radius ?? card.borderRadius, overflow: "hidden" }}
         >
           {/* bg overlay tint for image cards */}
-          {card.bgImage && (
+          {(effectiveEffects.bg?.image) && (
             <div style={{
               position:      "absolute",
               inset:         0,
@@ -557,6 +554,7 @@ function ProfileCard({
             </div>
           )}
         </div>
+        </CardLayers>
 
         {/* ── Gear handle ── */}
         {isSel && canInteract && (
