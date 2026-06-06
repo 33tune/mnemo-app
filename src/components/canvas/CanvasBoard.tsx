@@ -253,6 +253,7 @@ export default function CanvasBoard({
   const spaceFontRef   = useRef<HTMLInputElement>(null);
   const spaceMusicRef  = useRef<HTMLInputElement>(null);
   const spaceCursorRef = useRef<HTMLInputElement>(null);
+  const spaceAudioRef  = useRef<HTMLAudioElement>(null);
   const zCounter       = useRef(10);
   const textElRefs     = useRef<Record<string, HTMLDivElement | null>>({});
   const imgElRefs      = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -375,6 +376,23 @@ export default function CanvasBoard({
       document.fonts.add(loaded);
     }).catch(() => {});
   }, [spaceFont?.url, spaceFont?.name]);
+
+  // ── SpaceMusic autoplay — attempt immediately; fall back to first interaction ──
+  useEffect(() => {
+    const audio = spaceAudioRef.current;
+    if (!audio || !spaceMusic?.url) return;
+    const tryPlay = () => audio.play().catch(() => {});
+    tryPlay().catch(() => {});
+    const onInteract = () => { audio.play().catch(() => {}); };
+    document.addEventListener("click",   onInteract, { once: true });
+    document.addEventListener("keydown", onInteract, { once: true });
+    document.addEventListener("scroll",  onInteract, { once: true, passive: true });
+    return () => {
+      document.removeEventListener("click",   onInteract);
+      document.removeEventListener("keydown", onInteract);
+      document.removeEventListener("scroll",  onInteract);
+    };
+  }, [spaceMusic?.url]);
 
   // ── Auth — fetch once on mount so MESSAGE handler and chat hooks have userId ──
   useEffect(() => {
@@ -1909,6 +1927,7 @@ export default function CanvasBoard({
             @keyframes el-reveal   { from { opacity: 0; } to { opacity: 1; } }
             @keyframes land-reveal { from { opacity: 0; } to { opacity: 1; } }
           }
+          ${spaceCursor?.url ? `*, *::before, *::after { cursor: url(${spaceCursor.url}) 0 0, auto !important; }` : ""}
         `}</style>
       )}
       {view === "canvas" && (
@@ -2699,9 +2718,9 @@ export default function CanvasBoard({
       {/* ── SpaceMusic global player ── */}
       {spaceMusic?.url && (
         <audio
+          ref={spaceAudioRef}
           key={spaceMusic.url}
           src={spaceMusic.url}
-          autoPlay
           loop
           preload="auto"
           style={{ display: "none" }}
