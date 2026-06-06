@@ -253,7 +253,8 @@ export default function CanvasBoard({
   const spaceFontRef   = useRef<HTMLInputElement>(null);
   const spaceMusicRef  = useRef<HTMLInputElement>(null);
   const spaceCursorRef = useRef<HTMLInputElement>(null);
-  const spaceAudioRef  = useRef<HTMLAudioElement>(null);
+  const spaceAudioRef       = useRef<HTMLAudioElement>(null);
+  const globalSaveTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const zCounter       = useRef(10);
   const textElRefs     = useRef<Record<string, HTMLDivElement | null>>({});
   const imgElRefs      = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -377,17 +378,54 @@ export default function CanvasBoard({
     }).catch(() => {});
   }, [spaceFont?.url, spaceFont?.name]);
 
+  // ── Global space settings auto-save — persists cursor/music/font to space canvas.data ──
+  // Runs in edit mode only; debounced 800ms to batch rapid changes.
+  useEffect(() => {
+    if (!canEdit) return;
+    const cursor = spaceCursor;
+    const music  = spaceMusic;
+    const font   = spaceFont;
+    if (globalSaveTimerRef.current) clearTimeout(globalSaveTimerRef.current);
+    globalSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: canvas } = await supabase
+          .from("canvases")
+          .select("id, data")
+          .eq("user_id", user.id)
+          .eq("type", "space")
+          .maybeSingle();
+        if (!canvas) return;
+        const prev = (canvas.data ?? {}) as import("@/types").CanvasState;
+        const merged: import("@/types").CanvasState = { ...prev, spaceMusic: music, spaceFont: font, spaceCursor: cursor };
+        await supabase.from("canvases").update({ data: merged, updated_at: new Date().toISOString() }).eq("id", canvas.id);
+      } catch { /* non-blocking */ }
+    }, 800);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spaceCursor, spaceMusic, spaceFont, canEdit]);
+
   // ── SpaceCursor — inject global cursor style into document.head ──
   useEffect(() => {
     const STYLE_ID = "mnemo-custom-cursor";
-    const existing = document.getElementById(STYLE_ID);
-    if (existing) existing.remove();
-    if (!spaceCursor?.url) return;
+    document.getElementById(STYLE_ID)?.remove();
+    if (!spaceCursor?.url) {
+      document.documentElement.style.removeProperty("cursor");
+      return;
+    }
+    const cursorVal = `url("${spaceCursor.url}") 0 0, auto`;
     const style = document.createElement("style");
     style.id = STYLE_ID;
-    style.textContent = `* { cursor: url("${spaceCursor.url}") 0 0, auto !important; }`;
+    // html+body+* ensures coverage even when child elements have their own cursor styles
+    style.textContent = `html, body, * { cursor: ${cursorVal} !important; }`;
     document.head.appendChild(style);
-    return () => { document.getElementById(STYLE_ID)?.remove(); };
+    // Belt-and-suspenders: also set directly on documentElement
+    document.documentElement.style.setProperty("cursor", cursorVal, "important");
+    return () => {
+      document.getElementById(STYLE_ID)?.remove();
+      document.documentElement.style.removeProperty("cursor");
+    };
   }, [spaceCursor?.url]);
 
   // ── SpaceMusic autoplay — attempt immediately; fall back to first interaction ──
@@ -697,7 +735,12 @@ export default function CanvasBoard({
       }
     }
     applyOp(op);
-    opsQueueRef.current.push({ op, canvas_type: canvasModeRef.current });
+    const isGlobalSpaceSetting =
+      op.type === "set_space_cursor" ||
+      op.type === "set_space_music"  ||
+      op.type === "set_space_font";
+    const opCanvasType = isGlobalSpaceSetting ? "space" : canvasModeRef.current;
+    opsQueueRef.current.push({ op, canvas_type: opCanvasType });
     if (isSpaceCanvas(canvasModeRef.current)) {
       setPublishState(s => (s === "publishing" ? s : "pending"));
     }
@@ -1044,9 +1087,9 @@ export default function CanvasBoard({
           if (initialState.wallpaperBlur       != null) setWallpaperBlur(initialState.wallpaperBlur);
           if (initialState.wallpaperBrightness != null) setWallpaperBrightness(initialState.wallpaperBrightness);
           if (initialState.wallpaperVignette   != null) setWallpaperVignette(initialState.wallpaperVignette);
-          if (initialState.spaceMusic)  setSpaceMusic(initialState.spaceMusic);
-          if (initialState.spaceFont)   setSpaceFont(initialState.spaceFont);
-          if (initialState.spaceCursor) setSpaceCursor(initialState.spaceCursor);
+          setSpaceMusic(initialState.spaceMusic);
+          setSpaceFont(initialState.spaceFont);
+          setSpaceCursor(initialState.spaceCursor);
         }
         hasLoadedRef.current = true;
         setIsLoading(false);
@@ -1113,9 +1156,9 @@ export default function CanvasBoard({
         if (s.wallpaperBlur       != null) setWallpaperBlur(s.wallpaperBlur);
         if (s.wallpaperBrightness != null) setWallpaperBrightness(s.wallpaperBrightness);
         if (s.wallpaperVignette   != null) setWallpaperVignette(s.wallpaperVignette);
-        if (s.spaceMusic)  setSpaceMusic(s.spaceMusic);
-        if (s.spaceFont)   setSpaceFont(s.spaceFont);
-        if (s.spaceCursor) setSpaceCursor(s.spaceCursor);
+        setSpaceMusic(s.spaceMusic);
+        setSpaceFont(s.spaceFont);
+        setSpaceCursor(s.spaceCursor);
       }
 
       // Keep homeBg in sync — always reflects the HOME canvas background
@@ -1482,15 +1525,33 @@ export default function CanvasBoard({
     enqueueOp({ type: "set_space_font", value: { name, url: publicUrl, format: validExt } });
   }
 
+  async function saveGlobalSettingsToSpace(patch: Partial<Pick<import("@/types").CanvasState, "spaceMusic" | "spaceFont" | "spaceCursor">>) {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: canvas } = await supabase
+        .from("canvases")
+        .select("id, data")
+        .eq("user_id", user.id)
+        .eq("type", "space")
+        .maybeSingle();
+      if (!canvas) return;
+      const merged = { ...((canvas.data ?? {}) as import("@/types").CanvasState), ...patch };
+      await supabase.from("canvases").update({ data: merged, updated_at: new Date().toISOString() }).eq("id", canvas.id);
+    } catch { /* non-blocking */ }
+  }
+
   async function handleMusicUpload(file: File) {
     const { publicUrl } = await uploadToStorage(file);
     const name = file.name.replace(/\.[^.]+$/, "");
     enqueueOp({ type: "set_space_music", value: { url: publicUrl, name } });
+    saveGlobalSettingsToSpace({ spaceMusic: { url: publicUrl, name } }).catch(() => {});
   }
 
   async function handleCursorUpload(file: File) {
-    const SIZE = 64;
-    const resized = await new Promise<File>((resolve, reject) => {
+    const SIZE = 32;
+    const resized = await new Promise<File>((resolve) => {
       const img = new Image();
       const objUrl = URL.createObjectURL(file);
       img.onload = () => {
@@ -1507,11 +1568,12 @@ export default function CanvasBoard({
           resolve(new File([blob], file.name, { type: "image/png" }));
         }, "image/png");
       };
-      img.onerror = () => { URL.revokeObjectURL(objUrl); reject(); };
+      img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(file); };
       img.src = objUrl;
-    }).catch(() => file);
+    });
     const { publicUrl } = await uploadToStorage(resized);
     enqueueOp({ type: "set_space_cursor", value: { url: publicUrl } });
+    saveGlobalSettingsToSpace({ spaceCursor: { url: publicUrl } }).catch(() => {});
   }
 
   function addGallery() {
