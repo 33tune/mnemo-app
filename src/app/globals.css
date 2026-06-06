@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Syne:wght@400;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400;1,6..72,600&family=Archivo:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto:wght@400;500;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&family=Montserrat:wght@400;600;700&family=Poppins:wght@400;500;700&family=Nunito:wght@400;600;700&family=Mulish:wght@400;700&family=Cabin:wght@400;600;700&family=Ubuntu:wght@400;500;700&family=Josefin+Sans:wght@400;600;700&family=Raleway:wght@400;600;700&family=Quicksand:wght@400;500;700&family=Comfortaa:wght@400;600;700&family=Oswald:wght@400;500;600&family=Anton&family=JetBrains+Mono:wght@400;700&family=Fira+Code:wght@400;500;700&family=Pacifico&family=Dancing+Script:wght@400;700&family=Great+Vibes&display=swap');
 
 :root {
   --bg: #0a0a0c;

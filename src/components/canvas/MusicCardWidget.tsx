@@ -9,15 +9,9 @@ import CardLayers from "./CardLayers";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgMode } from "@/lib/bgStyle";
 import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
+import { CANVAS_FONTS } from "@/lib/fontList";
 
-const FONTS: { key: TextFont; label: string; style: string }[] = [
-  { key: "DM Sans",          label: "DM Sans",  style: "'DM Sans', sans-serif" },
-  { key: "Space Mono",       label: "Mono",     style: "'Space Mono', monospace" },
-  { key: "Playfair Display", label: "Playfair", style: "'Playfair Display', serif" },
-  { key: "Bebas Neue",       label: "Bebas",    style: "'Bebas Neue', sans-serif" },
-  { key: "Syne",             label: "Syne",     style: "'Syne', sans-serif" },
-  { key: "Impact",           label: "Impact",   style: "Impact, sans-serif" },
-];
+const FONTS = CANVAS_FONTS;
 
 function musicLabel(url: string): string {
   try {
@@ -265,7 +259,7 @@ function MusicCardWidget({
               <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
                 Fuente
               </div>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, maxHeight: 120, overflowY: "auto" }}>
                 {FONTS.map(f => (
                   <button key={f.key} onMouseDown={e => e.stopPropagation()} onClick={() => updateCard(card.id, { font: f.key })}
                     style={{ padding: "4px 8px", borderRadius: T.radius.xs, cursor: "pointer", border: card.font === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`, background: card.font === f.key ? T.surface.overlay : "transparent", color: card.font === f.key ? T.text.primary : T.text.muted, fontFamily: f.style, fontSize: 9, letterSpacing: 0.3 }}>

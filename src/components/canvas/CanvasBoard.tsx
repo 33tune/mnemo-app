@@ -40,6 +40,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
 import { toEmbedUrl, embedDimensions, detectMusicPlatform } from "@/lib/musicEmbed";
+import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -65,17 +66,10 @@ function isSpaceCanvas(mode: CanvasMode): boolean {
   return mode === "space" || mode === "space_mobile";
 }
 
-const TEXT_FONTS: { key: TextFont; label: string; style: string }[] = [
-  { key: "DM Sans",          label: "DM Sans",    style: "'DM Sans', sans-serif" },
-  { key: "Space Mono",       label: "Space Mono", style: "'Space Mono', monospace" },
-  { key: "Impact",           label: "Impact",     style: "Impact, sans-serif" },
-  { key: "Playfair Display", label: "Playfair",   style: "'Playfair Display', serif" },
-  { key: "Bebas Neue",       label: "Bebas Neue", style: "'Bebas Neue', sans-serif" },
-  { key: "Syne",             label: "Syne",       style: "'Syne', sans-serif" },
-];
+const TEXT_FONTS = CANVAS_FONTS;
 
 function getFontStyle(font: TextFont): string {
-  return TEXT_FONTS.find(f => f.key === font)?.style ?? "'DM Sans', sans-serif";
+  return getCanvasFontStyle(font);
 }
 
 async function blobToBase64(url: string): Promise<string> {
@@ -2518,7 +2512,7 @@ export default function CanvasBoard({
             onMouseEnter={e=>{if(!wallpaperMenuOpen){e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="rgba(255,255,255,0.88)";}}}
             onMouseLeave={e=>{if(!wallpaperMenuOpen){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}}
           >
-            <span>WALLPAPER</span>
+            <span>MYLAND SETTINGS</span>
             <span style={{opacity:0.4}}>{wallpaperMenuOpen?"▲":"▶"}</span>
           </button>
         </div>
@@ -2665,16 +2659,31 @@ export default function CanvasBoard({
         if (!url) return null;
         const embedUrl = toEmbedUrl(url);
         if (!embedUrl) return null;
-        if (!canEdit && !(spaceMusic?.settings?.showControls ?? true)) return null;
+        // Visitors only see the player when showControls is not explicitly false
+        if (!canEdit && spaceMusic?.settings?.showControls === false) return null;
         const platform = detectMusicPlatform(url);
         const { w, h } = embedDimensions(platform);
+        // For YouTube: clip to controls bar only (hide video portion)
+        const isYT = platform === "youtube";
+        const CONTROLS_H = 46;
         return (
-          <div style={{position:"fixed",bottom:canEdit?80:16,left:16,zIndex:500,borderRadius:8,overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,0.6)",pointerEvents:"auto"}}>
+          <div style={{
+            position: "fixed", bottom: 16, left: 16, zIndex: 500,
+            borderRadius: 8, overflow: "hidden",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+            pointerEvents: "auto",
+            width: w,
+            height: isYT ? CONTROLS_H : h,
+          }}>
             <iframe
               src={embedUrl}
               width={w}
               height={h}
-              style={{display:"block",border:"none"}}
+              style={{
+                display: "block",
+                border: "none",
+                ...(isYT ? { position: "relative", top: CONTROLS_H - h } : {}),
+              }}
               allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             />
           </div>

@@ -10,15 +10,9 @@ import { useProfileViews } from "@/hooks/useProfileViews";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgMode } from "@/lib/bgStyle";
 import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, ActionButton, Divider, Collapsible } from "@/ui";
+import { CANVAS_FONTS } from "@/lib/fontList";
 
-const FONTS: { label: string; value: TextFont }[] = [
-  { label: "Sans",     value: "DM Sans" },
-  { label: "Mono",     value: "Space Mono" },
-  { label: "Impact",   value: "Impact" },
-  { label: "Playfair", value: "Playfair Display" },
-  { label: "Bebas",    value: "Bebas Neue" },
-  { label: "Syne",     value: "Syne" },
-];
+const FONTS = CANVAS_FONTS;
 
 const DEFAULT_STATS: StatBlock[] = [
   { id: "views", visible: true },
@@ -458,17 +452,17 @@ function StatsCardWidget({
               <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
                 Fuente
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap" as const, gap: T.space[1] }}>
+              <div style={{ display: "flex", flexWrap: "wrap" as const, gap: T.space[1], maxHeight: 120, overflowY: "auto" }}>
                 {FONTS.map(f => (
-                  <button key={f.value}
+                  <button key={f.key}
                     onMouseDown={e => e.stopPropagation()}
-                    onClick={() => updateCard(card.id, { font: f.value })}
+                    onClick={() => updateCard(card.id, { font: f.key })}
                     style={{
                       padding: `${T.space[1]}px ${T.space[2]}px`, borderRadius: T.radius.xs, cursor: "pointer",
-                      fontFamily: f.value, fontSize: T.size.xs,
-                      border: (card.font ?? "Space Mono") === f.value ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
-                      background: (card.font ?? "Space Mono") === f.value ? T.surface.overlay : T.surface.input,
-                      color: (card.font ?? "Space Mono") === f.value ? T.text.primary : T.text.muted,
+                      fontFamily: f.style, fontSize: T.size.xs,
+                      border: (card.font ?? "Space Mono") === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
+                      background: (card.font ?? "Space Mono") === f.key ? T.surface.overlay : T.surface.input,
+                      color: (card.font ?? "Space Mono") === f.key ? T.text.primary : T.text.muted,
                     }}
                   >{f.label}</button>
                 ))}

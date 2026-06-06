@@ -52,13 +52,8 @@ export type CanvasCard = {
   isPublic?: boolean;
 };
 
-export type TextFont =
-  | "DM Sans"
-  | "Space Mono"
-  | "Impact"
-  | "Playfair Display"
-  | "Bebas Neue"
-  | "Syne";
+// Intentionally a string so future fonts (including custom uploads) need no type update.
+export type TextFont = string;
 
 export type CanvasText = {
   id: string;

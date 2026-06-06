@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
+import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
 import { UIButton, UISlider } from "@/components/ui";
 import ResizeHandles from "./ResizeHandles";
@@ -26,14 +27,7 @@ const FREE_DEFAULTS = {
   bio:    { x: 50, y: 75, s: 1 },
 } as const;
 
-const FONTS: { key: TextFont; label: string; style: string }[] = [
-  { key: "DM Sans",          label: "DM Sans",  style: "'DM Sans', sans-serif" },
-  { key: "Space Mono",       label: "Mono",     style: "'Space Mono', monospace" },
-  { key: "Playfair Display", label: "Playfair", style: "'Playfair Display', serif" },
-  { key: "Bebas Neue",       label: "Bebas",    style: "'Bebas Neue', sans-serif" },
-  { key: "Syne",             label: "Syne",     style: "'Syne', sans-serif" },
-  { key: "Impact",           label: "Impact",   style: "Impact, sans-serif" },
-];
+const FONTS = CANVAS_FONTS;
 
 const VARIANTS: { key: ProfileCardVariant; label: string }[] = [
   { key: "classic", label: "CL" },
@@ -50,7 +44,7 @@ const LAYOUTS: { key: "vertical" | "horizontal" | "free"; label: string; desc: s
 ];
 
 function fontStyle(font: TextFont | undefined, fallback = SANS): string {
-  return FONTS.find(f => f.key === font)?.style ?? fallback;
+  return getCanvasFontStyle(font, fallback);
 }
 function luminance(hex: string): number {
   if (!hex?.startsWith("#") || hex.length < 7) return 0;

@@ -19,7 +19,7 @@ export function toEmbedUrl(url: string): string | null {
     const shortMatch2 = url.match(/youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/);
     const id = (shortMatch ?? longMatch ?? shortMatch2)?.[1];
     if (!id) return null;
-    return `https://www.youtube.com/embed/${id}?autoplay=1&mute=0&loop=1&playlist=${id}&controls=1`;
+    return `https://www.youtube.com/embed/${id}?loop=1&playlist=${id}&controls=1&rel=0&modestbranding=1`;
   }
 
   if (platform === "spotify") {

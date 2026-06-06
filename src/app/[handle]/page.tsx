@@ -21,7 +21,7 @@ export async function generateMetadata(
     .maybeSingle();
   if (!data) return { title: "myLand" };
   return {
-    title: `@${data.handle} — MNEMO`,
+    title: `@${data.handle}`,
     icons: { icon: data.photo || "/favicon.ico" },
   };
 }
