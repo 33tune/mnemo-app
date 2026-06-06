@@ -9,17 +9,14 @@ import CardLayers from "./CardLayers";
 import PersonalizePanel from "./PersonalizePanel";
 import { useProfileViews } from "@/hooks/useProfileViews";
 import { useFavoriteCount } from "@/hooks/useFavoriteCount";
-
-const MONO = "'Space Mono', monospace";
-const SANS = "'DM Sans', sans-serif";
-const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
+import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, ActionButton, Divider, Collapsible } from "@/ui";
 
 const DEFAULT_STATS: StatBlock[] = [
   { id: "views",     visible: true },
   { id: "favorites", visible: true },
 ];
 
-function fmt(n: number): string {
+function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
@@ -40,17 +37,17 @@ interface Props {
   canInteract?:      boolean;
   entryAnimStyle?:   CSSProperties;
   ownerUserId?:      string;
+  onDelete?:         (id: string) => void;
 }
 
 function StatsCardWidget({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, onRotateMD,
   updateCard, locked, onToggleLock, canInteract,
-  entryAnimStyle = {}, ownerUserId,
+  entryAnimStyle = {}, ownerUserId, onDelete,
 }: Props) {
-  const [menuOpen,    setMenuOpen]    = useState(false);
-  const [personalize, setPersonalize] = useState(false);
-  const [portalPos,   setPortalPos]   = useState<{ left: number; top: number } | null>(null);
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const [portalPos, setPortalPos] = useState<{ left: number; top: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const { total: viewCount } = useProfileViews(ownerUserId);
@@ -92,7 +89,7 @@ function StatsCardWidget({
     const compute = () => {
       if (!cardRef.current) return;
       const r = cardRef.current.getBoundingClientRect();
-      const MENU_W = 272, GAP = 10;
+      const MENU_W = T.comp.panelWidth, GAP = 10;
       const left = r.right + GAP + MENU_W > window.innerWidth
         ? Math.max(4, r.left - MENU_W - GAP) : r.right + GAP;
       setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 140) });
@@ -106,7 +103,11 @@ function StatsCardWidget({
     };
   }, [menuOpen, card.x, card.y]);
 
-  useEffect(() => { if (!isSel) { setMenuOpen(false); setPersonalize(false); } }, [isSel]);
+  useEffect(() => { if (!isSel) setMenuOpen(false); }, [isSel]);
+
+  function patchBg(patch: Partial<NonNullable<CardEffects["bg"]>>) {
+    updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, ...patch } } });
+  }
 
   function getStatValue(id: string): number {
     switch (id) {
@@ -160,7 +161,6 @@ function StatsCardWidget({
           isSel={isSel}
           borderRadius={borderRadius}
         >
-          {/* Content */}
           <div
             style={{
               position:    "absolute",
@@ -190,11 +190,11 @@ function StatsCardWidget({
 
             {layout === "list" && visibleStats.map(block => (
               <div key={block.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "2px 0" }}>
-                <span style={{ fontFamily: MONO, fontSize: 7, letterSpacing: 1.5, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const }}>
+                <span style={{ fontFamily: T.font.mono, fontSize: 7, letterSpacing: 1.5, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const }}>
                   {getStatLabel(block)}
                 </span>
-                <span style={{ fontFamily: MONO, fontSize: 11, color: textColor, fontWeight: 600 }}>
-                  {fmt(getStatValue(block.id))}
+                <span style={{ fontFamily: T.font.mono, fontSize: 11, color: textColor, fontWeight: 600 }}>
+                  {fmtNum(getStatValue(block.id))}
                 </span>
               </div>
             ))}
@@ -202,10 +202,10 @@ function StatsCardWidget({
             {layout === "compact" && visibleStats.map((block, i) => (
               <div key={block.id} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 {i > 0 && <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 10 }}>·</span>}
-                <span style={{ fontFamily: MONO, fontSize: 10, color: textColor, fontWeight: 600 }}>
-                  {fmt(getStatValue(block.id))}
+                <span style={{ fontFamily: T.font.mono, fontSize: 10, color: textColor, fontWeight: 600 }}>
+                  {fmtNum(getStatValue(block.id))}
                 </span>
-                <span style={{ fontFamily: MONO, fontSize: 6.5, letterSpacing: 1, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const }}>
+                <span style={{ fontFamily: T.font.mono, fontSize: 6.5, letterSpacing: 1, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const }}>
                   {getStatLabel(block)}
                 </span>
               </div>
@@ -222,25 +222,24 @@ function StatsCardWidget({
               const next = !menuOpen;
               if (next && cardRef.current) {
                 const r = cardRef.current.getBoundingClientRect();
-                const MENU_W = 272, GAP = 10;
+                const MENU_W = T.comp.panelWidth, GAP = 10;
                 const left = r.right + GAP + MENU_W > window.innerWidth ? Math.max(4, r.left - MENU_W - GAP) : r.right + GAP;
                 setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 140) });
               } else setPortalPos(null);
               setMenuOpen(next);
-              if (!next) setPersonalize(false);
             }}
             style={{
               position: "absolute", top: -10, left: -10,
               width: 20, height: 20, borderRadius: "50%",
-              background: menuOpen ? "rgba(212,240,196,0.12)" : "rgba(12,12,14,0.96)",
-              border: menuOpen ? "1px solid rgba(212,240,196,0.32)" : "1px solid rgba(255,255,255,0.1)",
+              background: menuOpen ? "rgba(255,255,255,0.12)" : T.surface.canvas,
+              border: `1px solid ${menuOpen ? T.border.strong : T.border.default}`,
               cursor: "pointer", zIndex: 20,
               display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+              boxShadow: T.shadow.sm,
             }}
           >
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
-              stroke={menuOpen ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.55)"}
+              stroke={menuOpen ? T.text.primary : T.text.secondary}
               strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -258,8 +257,8 @@ function StatsCardWidget({
               width: 16, height: 16, borderRadius: 4, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
               background: locked ? "rgba(255,180,60,0.15)" : "rgba(255,255,255,0.06)",
-              border: locked ? "1px solid rgba(255,180,60,0.3)" : "1px solid rgba(255,255,255,0.07)",
-              color: locked ? "rgba(255,180,60,0.9)" : "rgba(255,255,255,0.32)",
+              border: locked ? "1px solid rgba(255,180,60,0.3)" : `1px solid ${T.border.subtle}`,
+              color: locked ? "rgba(255,180,60,0.9)" : T.text.muted,
               zIndex: 20,
             }}
           >
@@ -277,12 +276,12 @@ function StatsCardWidget({
             style={{
               position: "absolute", top: -10, right: -10,
               width: 20, height: 20, borderRadius: "50%",
-              background: "rgba(12,12,14,0.96)", border: "1px solid rgba(255,255,255,0.1)",
+              background: T.surface.canvas, border: `1px solid ${T.border.default}`,
               cursor: "crosshair", zIndex: 20,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={T.text.secondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.5 2v6h-6" /><path d="M21.34 15.57a10 10 0 1 1-.57-8.38" />
             </svg>
           </div>
@@ -293,154 +292,121 @@ function StatsCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <div
-          onMouseDown={e => e.stopPropagation()}
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}
-          style={{
-            position: "fixed", left: portalPos.left, top: portalPos.top,
-            width: 272, background: "#09090b",
-            border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6,
-            padding: "18px 14px 22px", zIndex: 999999,
-            boxShadow: "0 8px 40px rgba(0,0,0,0.65)",
-            fontFamily: SANS, display: "flex", flexDirection: "column", gap: 12,
-            maxHeight: `calc(100vh - ${portalPos.top + 8}px)`, overflowY: "auto",
-          } as CSSProperties}
-        >
-          {!personalize && (
-            <>
-              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>
-                stats
-              </div>
+        <MenuPanel pos={portalPos} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
 
-              {/* Stats toggles */}
-              <div>
-                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 8 }}>mostrar</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {stats.map(block => (
-                    <div key={block.id}
-                      onClick={() => toggleStat(block.id)}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "6px 10px", borderRadius: 5, cursor: "pointer",
-                        background: block.visible ? "rgba(212,240,196,0.06)" : "rgba(255,255,255,0.02)",
-                        border: block.visible ? "1px solid rgba(212,240,196,0.18)" : "1px solid rgba(255,255,255,0.06)",
-                        transition: `all 0.12s ${EASE}`,
-                      }}
-                    >
-                      <span style={{ fontFamily: MONO, fontSize: 9, color: block.visible ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.28)", letterSpacing: 0.5 }}>
-                        {getStatLabel(block)}
-                      </span>
-                      <span style={{ fontFamily: MONO, fontSize: 11, color: block.visible ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", fontWeight: 600 }}>
-                        {fmt(getStatValue(block.id))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* Header */}
+          <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.12em", color: T.text.muted, textTransform: "uppercase", paddingBottom: T.space[3], marginBottom: T.space[2] }}>
+            Stats
+          </div>
 
-              <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
-
-              {/* Layout */}
-              <div>
-                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>diseño</div>
-                <div style={{ display: "flex", gap: 4 }}>
-                  {(["grid", "list", "compact"] as const).map(l => (
-                    <button key={l}
-                      onMouseDown={e => e.stopPropagation()}
-                      onClick={() => updateCard(card.id, { displayLayout: l })}
-                      style={{
-                        flex: 1, padding: "5px 0", borderRadius: 4, cursor: "pointer", fontSize: 8,
-                        fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase" as const,
-                        border: layout === l ? "1px solid rgba(212,240,196,0.38)" : "1px solid rgba(255,255,255,0.08)",
-                        background: layout === l ? "rgba(212,240,196,0.1)" : "rgba(255,255,255,0.03)",
-                        color: layout === l ? "rgba(212,240,196,0.9)" : "rgba(255,255,255,0.38)",
-                      }}
-                    >{l}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Text color */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, width: 44, flexShrink: 0 }}>text</span>
-                <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-                  {card.textColor && <div style={{ position: "absolute", inset: 0, background: card.textColor }} />}
-                  <input type="color"
-                    value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
-                    onChange={e => updateCard(card.id, { textColor: e.target.value })}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
-                  />
-                </div>
-              </div>
-
-              {/* Background quick controls */}
-              <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "2px 0" }} />
-              <div>
-                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>fondo</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ position: "relative", width: 28, height: 22, borderRadius: 4, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer", flexShrink: 0 }}>
-                    {effectiveEffects.bg?.color && <div style={{ position: "absolute", inset: 0, background: effectiveEffects.bg.color }} />}
-                    <input type="color"
-                      value={effectiveEffects.bg?.color?.startsWith("#") ? effectiveEffects.bg.color : "#141416"}
-                      onChange={e => updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, color: e.target.value } } })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
-                  </div>
-                  <input type="range" min={0} max={1} step={0.05} value={effectiveEffects.bg?.opacity ?? 1}
-                    onChange={e => updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, opacity: Number(e.target.value) } } })}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
-                  <span style={{ fontFamily: MONO, fontSize: 7, color: "rgba(255,255,255,0.3)", minWidth: 24, textAlign: "right" }}>
-                    {Math.round((effectiveEffects.bg?.opacity ?? 1) * 100)}%
-                  </span>
-                  {effectiveEffects.bg?.color && (
-                    <button onClick={() => updateCard(card.id, { bgColor: undefined, effects: { ...card.effects, bg: { ...card.effects?.bg, color: undefined } } })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onMouseDown={e => e.stopPropagation()}
-                onClick={e => { e.stopPropagation(); setPersonalize(true); }}
-                style={{
-                  marginTop: 4, padding: "8px 0", borderRadius: 5, cursor: "pointer",
-                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                  color: "rgba(255,255,255,0.5)", fontFamily: MONO, fontSize: 8, letterSpacing: 1.5,
-                  textTransform: "uppercase" as const, width: "100%", transition: `all 0.12s ${EASE}`,
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(212,240,196,0.07)"; e.currentTarget.style.borderColor = "rgba(212,240,196,0.2)"; e.currentTarget.style.color = "rgba(212,240,196,0.7)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
-              >
-                Personalizar →
-              </button>
-            </>
-          )}
-
-          {personalize && (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <button
+          {/* CONTENIDO */}
+          <MenuSection label="Contenido" first>
+            {/* Stat toggles with live values */}
+            <div style={{ display: "flex", flexDirection: "column", gap: T.space[1] }}>
+              {stats.map(block => (
+                <div key={block.id}
+                  onClick={() => toggleStat(block.id)}
                   onMouseDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); setPersonalize(false); }}
                   style={{
-                    background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 4, color: "rgba(255,255,255,0.4)", fontFamily: MONO,
-                    fontSize: 8, letterSpacing: 1, cursor: "pointer", padding: "3px 8px",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: `${T.space[2]}px ${T.space[3]}px`, borderRadius: T.radius.sm, cursor: "pointer",
+                    background: block.visible ? T.surface.overlay : T.surface.input,
+                    border: `1px solid ${block.visible ? T.border.default : T.border.subtle}`,
+                    transition: "all 0.12s ease",
                   }}
-                >← Volver</button>
-                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const }}>personalizar</span>
+                >
+                  <span style={{ fontFamily: T.font.mono, fontSize: T.size.xs, color: block.visible ? T.text.secondary : T.text.muted, letterSpacing: "0.05em" }}>
+                    {getStatLabel(block)}
+                  </span>
+                  <span style={{ fontFamily: T.font.mono, fontSize: T.size.sm, color: block.visible ? T.text.primary : T.text.muted, fontWeight: 600 }}>
+                    {fmtNum(getStatValue(block.id))}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: T.space[3] }}>
+              <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase", marginBottom: T.space[2] }}>
+                Diseño
               </div>
-              <PersonalizePanel
-                effects={card.effects}
-                onChange={newEffects => updateCard(card.id, { effects: newEffects })}
+              <div style={{ display: "flex", gap: T.space[1] }}>
+                {(["grid", "list", "compact"] as const).map(l => (
+                  <button key={l}
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={() => updateCard(card.id, { displayLayout: l })}
+                    style={{
+                      flex: 1, padding: `${T.space[1]}px 0`, borderRadius: T.radius.xs, cursor: "pointer",
+                      fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.05em",
+                      textTransform: "uppercase" as const,
+                      border: layout === l ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
+                      background: layout === l ? T.surface.overlay : T.surface.input,
+                      color: layout === l ? T.text.primary : T.text.muted,
+                    }}
+                  >{l}</button>
+                ))}
+              </div>
+            </div>
+          </MenuSection>
+
+          <Divider />
+
+          {/* FONDO */}
+          <MenuSection label="Fondo">
+            <MenuRow label="Color">
+              <ColorSwatch
+                value={effectiveEffects.bg?.color ?? "#141416"}
+                onChange={v => patchBg({ color: v })}
+                clearable={!!effectiveEffects.bg?.color}
+                onClear={() => patchBg({ color: undefined })}
               />
-            </>
+            </MenuRow>
+            <SliderRow label="Opacidad" min={0} max={1} step={0.01}
+              value={effectiveEffects.bg?.opacity ?? 1}
+              onChange={v => patchBg({ opacity: v })}
+              fmt={v => `${Math.round(v * 100)}%`} />
+            <SliderRow label="Blur" min={0} max={24} step={1}
+              value={effectiveEffects.bg?.blur ?? 0}
+              onChange={v => patchBg({ blur: v || undefined })}
+              unit="px" />
+            <MenuRow label="Glass">
+              <Toggle value={!!effectiveEffects.bg?.glass} onChange={v => patchBg({ glass: v })} />
+            </MenuRow>
+          </MenuSection>
+
+          <Divider />
+
+          {/* TEXTO */}
+          <MenuSection label="Texto">
+            <MenuRow label="Color">
+              <ColorSwatch
+                value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
+                onChange={v => updateCard(card.id, { textColor: v })}
+              />
+            </MenuRow>
+            <SliderRow label="Tamaño" min={7} max={18} step={0.5}
+              value={card.textSize ?? 13}
+              onChange={v => updateCard(card.id, { textSize: v })}
+              unit="px" />
+          </MenuSection>
+
+          {/* EFECTOS AVANZADOS */}
+          <Collapsible label="Efectos avanzados">
+            <PersonalizePanel
+              effects={card.effects}
+              onChange={newEffects => updateCard(card.id, { effects: newEffects })}
+              tabs={["efectos", "animar"]}
+            />
+          </Collapsible>
+
+          {/* Eliminar */}
+          {onDelete && (
+            <div style={{ marginTop: T.space[4], paddingTop: T.space[4], borderTop: `1px solid ${T.border.subtle}` }}>
+              <ActionButton variant="danger" onClick={() => onDelete(card.id)} fullWidth>
+                Eliminar modulo
+              </ActionButton>
+            </div>
           )}
-        </div>,
+        </MenuPanel>,
         document.body
       )}
     </>
@@ -450,10 +416,10 @@ function StatsCardWidget({
 function StatItem({ label, value, textColor }: { label: string; value: number; textColor: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "6px 0" }}>
-      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: textColor, fontWeight: 700, lineHeight: 1 }}>
-        {fmt(value)}
+      <span style={{ fontFamily: T.font.mono, fontSize: 13, color: textColor, fontWeight: 700, lineHeight: 1 }}>
+        {fmtNum(value)}
       </span>
-      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 6.5, letterSpacing: 1.5, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const, marginTop: 3 }}>
+      <span style={{ fontFamily: T.font.mono, fontSize: 6.5, letterSpacing: 1.5, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const, marginTop: 3 }}>
         {label}
       </span>
     </div>

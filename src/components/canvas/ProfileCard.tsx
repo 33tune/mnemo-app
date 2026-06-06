@@ -12,6 +12,7 @@ import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import PersonalizePanel from "./PersonalizePanel";
 import CardLayers from "./CardLayers";
+import { Collapsible } from "@/ui";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -110,7 +111,6 @@ function ProfileCard({
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
   const [menuOpen,     setMenuOpen]     = useState(false);
-  const [personalize,  setPersonalize]  = useState(false);
   const [favHover,     setFavHover]     = useState(false);
   const [favAnimating, setFavAnimating] = useState(false);
   const [editingField, setEditingField] = useState<"name" | null>(null);
@@ -211,7 +211,7 @@ function ProfileCard({
   }, [menuOpen, card.x, card.y, card.w, card.h]);
 
   useEffect(() => {
-    if (!isSel) { setMenuOpen(false); setEditingField(null); setPersonalize(false); }
+    if (!isSel) { setMenuOpen(false); setEditingField(null); }
   }, [isSel]);
   useEffect(() => () => { if (favTimerRef.current) clearTimeout(favTimerRef.current); }, []);
 
@@ -590,8 +590,8 @@ function ProfileCard({
             }}
             style={{
               position: "absolute", top: -10, left: -10, width: 20, height: 20, borderRadius: "50%",
-              background: menuOpen ? "rgba(212,240,196,0.12)" : "rgba(12,12,14,0.96)",
-              border: menuOpen ? "1px solid rgba(212,240,196,0.32)" : "1px solid rgba(255,255,255,0.1)",
+              background: menuOpen ? "rgba(255,255,255,0.12)" : "rgba(12,12,14,0.96)",
+              border: menuOpen ? "1px solid rgba(255,255,255,0.18)" : "1px solid rgba(255,255,255,0.10)",
               cursor: "pointer", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: "0 2px 8px rgba(0,0,0,0.4)", transition: `all 0.12s ${EASE}`,
             }}
@@ -599,7 +599,7 @@ function ProfileCard({
             onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
           >
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
-              stroke={menuOpen ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.55)"}
+              stroke={menuOpen ? "rgba(255,255,255,0.90)" : "rgba(255,255,255,0.55)"}
               strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -687,7 +687,7 @@ function ProfileCard({
               overflowY: "auto", scrollbarWidth: "thin" as CSSProperties["scrollbarWidth"],
             } as CSSProperties}
           >
-            {!personalize && <>
+            {<>
 
               {/* ════ FOTO ════ */}
               <div className="pcfg-s pcfg-s1">
@@ -963,39 +963,15 @@ function ProfileCard({
 
               <Div />
 
-              {/* ════ PERSONALIZAR ════ */}
-              <button
-                onMouseDown={e => e.stopPropagation()}
-                onClick={e => { e.stopPropagation(); setPersonalize(true); }}
-                style={{
-                  padding: "9px 0", borderRadius: 6, cursor: "pointer",
-                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                  color: "rgba(255,255,255,0.5)", fontFamily: MONO, fontSize: 8, letterSpacing: 1.5,
-                  textTransform: "uppercase" as const, width: "100%", transition: "all 0.12s ease",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(212,240,196,0.07)"; e.currentTarget.style.borderColor = "rgba(212,240,196,0.2)"; e.currentTarget.style.color = "rgba(212,240,196,0.7)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
-              >Personalizar efectos →</button>
-
-            </>}
-
-            {/* ── PersonalizePanel ── */}
-            {personalize && (
-              <>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <button onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setPersonalize(false); }}
-                    style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "rgba(255,255,255,0.4)", fontFamily: MONO, fontSize: 8, letterSpacing: 1, cursor: "pointer", padding: "3px 8px" }}>
-                    ← Volver
-                  </button>
-                  <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const }}>personalizar</span>
-                </div>
+              <Collapsible label="Efectos avanzados">
                 <PersonalizePanel
                   effects={card.effects}
                   onChange={newEffects => updateProfile(card.id, { effects: newEffects })}
                   isProfileCard
                 />
-              </>
-            )}
+              </Collapsible>
+
+            </>}
           </div>
         , document.body)}
       </div>

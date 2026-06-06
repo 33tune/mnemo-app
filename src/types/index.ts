@@ -279,6 +279,7 @@ export type MusicCardData = {
   glowColor?:    string;
   glowIntensity?: number;
   textColor?:    string;
+  textSize?:     number;
   font?:         TextFont;
   effects?:      CardEffects;
 };
@@ -308,6 +309,7 @@ export type LinksCardData = {
   glowColor?:    string;
   glowIntensity?: number;
   textColor?:    string;
+  textSize?:     number;
   font?:         TextFont;
   effects?:      CardEffects;
 };
@@ -345,6 +347,7 @@ export type StatsCardData = {
   glowColor?:    string;
   glowIntensity?: number;
   textColor?:    string;
+  textSize?:     number;
   effects?:      CardEffects;
 };
 

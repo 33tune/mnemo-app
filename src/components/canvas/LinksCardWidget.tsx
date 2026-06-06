@@ -8,10 +8,7 @@ import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import PersonalizePanel from "./PersonalizePanel";
-
-const MONO = "'Space Mono', monospace";
-const SANS = "'DM Sans', sans-serif";
-const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
+import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
 
 const FONTS: { key: TextFont; label: string; style: string }[] = [
   { key: "DM Sans",          label: "DM Sans",  style: "'DM Sans', sans-serif" },
@@ -30,12 +27,13 @@ type InternalDrag = {
   startMouseY: number;
 };
 
-function LinkBtn({ link, editMode, ownerUserId, baseColor, fontStyle, onDragStart, isSelected, canInteract }: {
+function LinkBtn({ link, editMode, ownerUserId, baseColor, fontStyle, fontSize, onDragStart, isSelected, canInteract }: {
   link: ProfileLink;
   editMode: boolean;
   ownerUserId?: string;
   baseColor: string;
   fontStyle: string;
+  fontSize: number;
   onDragStart?: (e: React.MouseEvent, link: ProfileLink) => void;
   isSelected?: boolean;
   canInteract?: boolean;
@@ -68,7 +66,7 @@ function LinkBtn({ link, editMode, ownerUserId, baseColor, fontStyle, onDragStar
     >
       {link.icon && <span style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>{link.icon}</span>}
       <span style={{
-        fontFamily: fontStyle, fontSize: 9, fontWeight: 600,
+        fontFamily: fontStyle, fontSize, fontWeight: 600,
         color: hov ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)",
         letterSpacing: 1.2, textTransform: "uppercase" as const,
         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 140,
@@ -95,25 +93,24 @@ interface Props {
   canInteract?:      boolean;
   ownerUserId?:      string;
   entryAnimStyle?:   CSSProperties;
+  onDelete?:         (id: string) => void;
 }
 
 function LinksCardWidget({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, onRotateMD,
   updateCard, locked, onToggleLock, canInteract,
-  ownerUserId, entryAnimStyle = {},
+  ownerUserId, entryAnimStyle = {}, onDelete,
 }: Props) {
-  const [menuOpen,      setMenuOpen]      = useState(false);
-  const [personalize,   setPersonalize]   = useState(false);
-  const [newLabel,      setNewLabel]      = useState("");
-  const [newUrl,        setNewUrl]        = useState("");
-  const [newIcon,       setNewIcon]       = useState("");
-  const [portalPos,     setPortalPos]     = useState<{ left: number; top: number } | null>(null);
-  const [internalDrag,  setInternalDrag]  = useState<InternalDrag | null>(null);
+  const [menuOpen,     setMenuOpen]     = useState(false);
+  const [newLabel,     setNewLabel]     = useState("");
+  const [newUrl,       setNewUrl]       = useState("");
+  const [newIcon,      setNewIcon]      = useState("");
+  const [portalPos,    setPortalPos]    = useState<{ left: number; top: number } | null>(null);
+  const [internalDrag, setInternalDrag] = useState<InternalDrag | null>(null);
   const pendingPositions = useRef<Record<string, { x: number; y: number }>>({});
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Build effective effects (backwards compat with flat fields)
   const effectiveEffects: CardEffects = {
     ...card.effects,
     bg: {
@@ -138,7 +135,8 @@ function LinksCardWidget({
   };
 
   const borderRadius = effectiveEffects.border?.radius ?? 14;
-  const fontStyle    = FONTS.find(f => f.key === card.font)?.style ?? SANS;
+  const fontStyle    = FONTS.find(f => f.key === card.font)?.style ?? T.font.sans;
+  const fontSize     = card.textSize ?? 9;
 
   const { onMouseMove: onInteractMove, onMouseLeave: onInteractLeave } =
     useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>);
@@ -148,7 +146,7 @@ function LinksCardWidget({
     const compute = () => {
       if (!cardRef.current) return;
       const r = cardRef.current.getBoundingClientRect();
-      const MENU_W = 272, GAP = 10;
+      const MENU_W = T.comp.panelWidth, GAP = 10;
       const left = r.right + GAP + MENU_W > window.innerWidth
         ? Math.max(4, r.left - MENU_W - GAP) : r.right + GAP;
       setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
@@ -162,7 +160,11 @@ function LinksCardWidget({
     };
   }, [menuOpen, card.x, card.y]);
 
-  useEffect(() => { if (!isSel) { setMenuOpen(false); setPersonalize(false); } }, [isSel]);
+  useEffect(() => { if (!isSel) setMenuOpen(false); }, [isSel]);
+
+  function patchBg(patch: Partial<NonNullable<CardEffects["bg"]>>) {
+    updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, ...patch } } });
+  }
 
   function addLink() {
     if (!newUrl.trim()) return;
@@ -256,7 +258,6 @@ function LinksCardWidget({
           isSel={isSel}
           borderRadius={borderRadius}
         >
-          {/* Links */}
           <div style={{
             position: "absolute", inset: 0, borderRadius,
             ...(hasPositionedLinks ? {} : {
@@ -266,7 +267,7 @@ function LinksCardWidget({
             overflow: "hidden",
           }}>
             {(card.links ?? []).filter(l => l.url).length === 0 ? (
-              <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.2)", letterSpacing: 1 }}>links</span>
+              <span style={{ fontFamily: T.font.mono, fontSize: 8, color: "rgba(255,255,255,0.2)", letterSpacing: 1 }}>links</span>
             ) : (
               (card.links ?? []).filter(l => l.url).map(link => {
                 const hasPos = link.x !== undefined && link.y !== undefined;
@@ -288,6 +289,7 @@ function LinksCardWidget({
                       ownerUserId={ownerUserId}
                       baseColor="rgba(255,255,255"
                       fontStyle={fontStyle}
+                      fontSize={fontSize}
                       onDragStart={onLinkDragStart}
                       isSelected={isSel}
                       canInteract={canInteract}
@@ -308,25 +310,24 @@ function LinksCardWidget({
               const next = !menuOpen;
               if (next && cardRef.current) {
                 const r = cardRef.current.getBoundingClientRect();
-                const MENU_W = 272, GAP = 10;
+                const MENU_W = T.comp.panelWidth, GAP = 10;
                 const left = r.right + GAP + MENU_W > window.innerWidth ? Math.max(4, r.left - MENU_W - GAP) : r.right + GAP;
                 setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
               } else setPortalPos(null);
               setMenuOpen(next);
-              if (!next) setPersonalize(false);
             }}
             style={{
               position: "absolute", top: -10, left: -10,
               width: 20, height: 20, borderRadius: "50%",
-              background: menuOpen ? "rgba(212,240,196,0.12)" : "rgba(12,12,14,0.96)",
-              border: menuOpen ? "1px solid rgba(212,240,196,0.32)" : "1px solid rgba(255,255,255,0.1)",
+              background: menuOpen ? "rgba(255,255,255,0.12)" : T.surface.canvas,
+              border: `1px solid ${menuOpen ? T.border.strong : T.border.default}`,
               cursor: "pointer", zIndex: 20,
               display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+              boxShadow: T.shadow.sm,
             }}
           >
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
-              stroke={menuOpen ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.55)"}
+              stroke={menuOpen ? T.text.primary : T.text.secondary}
               strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -344,8 +345,8 @@ function LinksCardWidget({
               width: 16, height: 16, borderRadius: 4, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
               background: locked ? "rgba(255,180,60,0.15)" : "rgba(255,255,255,0.06)",
-              border: locked ? "1px solid rgba(255,180,60,0.3)" : "1px solid rgba(255,255,255,0.07)",
-              color: locked ? "rgba(255,180,60,0.9)" : "rgba(255,255,255,0.32)",
+              border: locked ? "1px solid rgba(255,180,60,0.3)" : `1px solid ${T.border.subtle}`,
+              color: locked ? "rgba(255,180,60,0.9)" : T.text.muted,
               zIndex: 20,
             }}
           >
@@ -363,12 +364,12 @@ function LinksCardWidget({
             style={{
               position: "absolute", top: -10, right: -10,
               width: 20, height: 20, borderRadius: "50%",
-              background: "rgba(12,12,14,0.96)", border: "1px solid rgba(255,255,255,0.1)",
+              background: T.surface.canvas, border: `1px solid ${T.border.default}`,
               cursor: "crosshair", zIndex: 20,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={T.text.secondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.5 2v6h-6" /><path d="M21.34 15.57a10 10 0 1 1-.57-8.38" />
             </svg>
           </div>
@@ -379,223 +380,206 @@ function LinksCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <div
-          onMouseDown={e => e.stopPropagation()}
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}
-          style={{
-            position: "fixed", left: portalPos.left, top: portalPos.top,
-            width: 272, background: "#09090b",
-            border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6,
-            padding: "18px 14px 22px", zIndex: 999999,
-            boxShadow: "0 8px 40px rgba(0,0,0,0.65)",
-            fontFamily: SANS, display: "flex", flexDirection: "column", gap: 10,
-            maxHeight: `calc(100vh - ${portalPos.top + 8}px)`, overflowY: "auto",
-          } as CSSProperties}
-        >
-          {/* ── View A: Content ── */}
-          {!personalize && (
-            <>
-              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>
-                links
-              </div>
+        <MenuPanel pos={portalPos} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
 
-              {/* Links list */}
-              {(card.links ?? []).length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {(card.links ?? []).map((link, idx) => (
-                    <div key={link.id} style={{
-                      background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
-                      borderRadius: 4, padding: "7px 8px",
-                    }}>
-                      <div style={{ display: "flex", gap: 5, marginBottom: 4 }}>
-                        <input
-                          value={link.icon ?? ""}
-                          onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, icon: e.target.value } : l) })}
-                          onMouseDown={e => e.stopPropagation()}
-                          placeholder="🔗"
-                          maxLength={2}
-                          style={{ width: 26, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 3, padding: "3px 4px", color: "rgba(255,255,255,0.8)", fontSize: 11, textAlign: "center", outline: "none", flexShrink: 0 }}
-                        />
-                        <input
-                          value={link.label}
-                          onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, label: e.target.value } : l) })}
-                          onMouseDown={e => e.stopPropagation()}
-                          placeholder="label..."
-                          style={{ flex: 1, background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.1)", outline: "none", color: "rgba(255,255,255,0.75)", fontFamily: MONO, fontSize: 8.5, letterSpacing: 1, textTransform: "uppercase" as const, padding: "2px 0 3px" }}
-                        />
-                        {link.x !== undefined && (
-                          <button
-                            title="Reset position"
-                            onClick={() => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, x: undefined, y: undefined } : l) })}
-                            onMouseDown={e => e.stopPropagation()}
-                            style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 10, cursor: "pointer", lineHeight: 1, padding: "0 2px", transition: `color 0.1s ${EASE}` }}
-                            onMouseEnter={e => e.currentTarget.style.color = "rgba(212,240,196,0.7)"}
-                            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.2)"}
-                          >⊙</button>
-                        )}
-                        <button
-                          onClick={() => updateCard(card.id, { links: (card.links ?? []).filter((_, i) => i !== idx) })}
-                          onMouseDown={e => e.stopPropagation()}
-                          style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 14, cursor: "pointer", lineHeight: 1, padding: "0 2px", transition: `color 0.1s ${EASE}` }}
-                          onMouseEnter={e => e.currentTarget.style.color = "rgba(220,80,60,0.85)"}
-                          onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.2)"}
-                        >×</button>
-                      </div>
+          {/* Header */}
+          <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.12em", color: T.text.muted, textTransform: "uppercase", paddingBottom: T.space[3], marginBottom: T.space[2] }}>
+            Links
+          </div>
+
+          {/* CONTENIDO */}
+          <MenuSection label="Contenido" first>
+            {/* Existing links */}
+            {(card.links ?? []).length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: T.space[2], marginBottom: T.space[2] }}>
+                {(card.links ?? []).map((link, idx) => (
+                  <div key={link.id} style={{
+                    background: T.surface.input, border: `1px solid ${T.border.subtle}`,
+                    borderRadius: T.radius.sm, padding: `${T.space[2]}px`,
+                  }}>
+                    <div style={{ display: "flex", gap: T.space[1], marginBottom: T.space[1] }}>
                       <input
-                        value={link.url}
-                        onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, url: e.target.value } : l) })}
+                        value={link.icon ?? ""}
+                        onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, icon: e.target.value } : l) })}
                         onMouseDown={e => e.stopPropagation()}
-                        placeholder="https://..."
-                        type="url"
-                        style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 3, padding: "4px 7px", color: "rgba(255,255,255,0.38)", fontFamily: MONO, fontSize: 8, letterSpacing: 0.3, outline: "none", boxSizing: "border-box" as const }}
+                        placeholder="icon"
+                        maxLength={2}
+                        style={{
+                          width: 28, background: T.surface.raised, border: `1px solid ${T.border.subtle}`,
+                          borderRadius: T.radius.xs, padding: "3px 4px", color: T.text.primary,
+                          fontSize: 11, textAlign: "center", outline: "none", flexShrink: 0,
+                          fontFamily: T.font.sans,
+                        }}
                       />
+                      <input
+                        value={link.label}
+                        onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, label: e.target.value } : l) })}
+                        onMouseDown={e => e.stopPropagation()}
+                        placeholder="label"
+                        style={{
+                          flex: 1, background: "transparent", border: "none",
+                          borderBottom: `1px solid ${T.border.default}`, outline: "none",
+                          color: T.text.secondary, fontFamily: T.font.mono, fontSize: T.size.xs,
+                          letterSpacing: "0.08em", textTransform: "uppercase" as const, padding: "2px 0 3px",
+                        }}
+                      />
+                      {link.x !== undefined && (
+                        <button
+                          title="Reset position"
+                          onClick={() => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, x: undefined, y: undefined } : l) })}
+                          onMouseDown={e => e.stopPropagation()}
+                          style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 12, cursor: "pointer", lineHeight: 1, padding: "0 2px", fontFamily: T.font.mono }}
+                        >o</button>
+                      )}
+                      <button
+                        onClick={() => updateCard(card.id, { links: (card.links ?? []).filter((_, i) => i !== idx) })}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 14, cursor: "pointer", lineHeight: 1, padding: "0 2px" }}
+                      >×</button>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Add link */}
-              {(card.links ?? []).length < 8 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                  <div style={{ display: "flex", gap: 5 }}>
                     <input
-                      value={newLabel}
-                      onChange={e => setNewLabel(e.target.value)}
+                      value={link.url}
+                      onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, url: e.target.value } : l) })}
                       onMouseDown={e => e.stopPropagation()}
-                      placeholder="label..."
-                      style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 3, padding: "5px 8px", color: "rgba(255,255,255,0.55)", fontFamily: MONO, fontSize: 8.5, outline: "none", letterSpacing: 0.5, textTransform: "uppercase" as const }}
-                    />
-                    <input
-                      value={newIcon}
-                      onChange={e => setNewIcon(e.target.value)}
-                      onMouseDown={e => e.stopPropagation()}
-                      placeholder="🔗"
-                      maxLength={2}
-                      style={{ width: 32, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 3, padding: "5px 4px", color: "rgba(255,255,255,0.7)", fontSize: 11, textAlign: "center", outline: "none", flexShrink: 0 }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", gap: 5 }}>
-                    <input
-                      value={newUrl}
-                      onChange={e => setNewUrl(e.target.value)}
-                      onMouseDown={e => e.stopPropagation()}
-                      onKeyDown={e => e.key === "Enter" && addLink()}
                       placeholder="https://..."
                       type="url"
-                      style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 3, padding: "5px 8px", color: "rgba(255,255,255,0.55)", fontFamily: MONO, fontSize: 8.5, outline: "none", letterSpacing: 0.3 }}
-                    />
-                    <button
-                      onClick={addLink}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 3, color: "rgba(255,255,255,0.45)", fontFamily: MONO, fontSize: 8, letterSpacing: 1, cursor: "pointer", padding: "5px 8px", flexShrink: 0, textTransform: "uppercase" as const }}
-                    >+</button>
-                  </div>
-                </div>
-              )}
-
-              <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
-
-              {/* Font picker */}
-              <div>
-                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>font</div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                  {FONTS.map(f => (
-                    <button key={f.key} onMouseDown={e => e.stopPropagation()} onClick={() => updateCard(card.id, { font: f.key })}
                       style={{
-                        padding: "4px 8px", borderRadius: 3, cursor: "pointer",
-                        border: card.font === f.key ? "1px solid rgba(212,240,196,0.38)" : "1px solid rgba(255,255,255,0.08)",
-                        background: card.font === f.key ? "rgba(212,240,196,0.1)" : "rgba(255,255,255,0.03)",
-                        color: card.font === f.key ? "rgba(212,240,196,0.9)" : "rgba(255,255,255,0.38)",
-                        fontFamily: f.style, fontSize: 9, letterSpacing: 0.3,
+                        width: "100%", background: "transparent", border: `1px solid ${T.border.subtle}`,
+                        borderRadius: T.radius.xs, padding: "4px 7px", color: T.text.muted,
+                        fontFamily: T.font.mono, fontSize: T.size.xs - 1, letterSpacing: "0.03em",
+                        outline: "none", boxSizing: "border-box" as const,
                       }}
-                    >{f.label}</button>
-                  ))}
-                </div>
+                    />
+                  </div>
+                ))}
               </div>
+            )}
 
-              {/* Text color */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, width: 44, flexShrink: 0 }}>text</span>
-                <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-                  {card.textColor && <div style={{ position: "absolute", inset: 0, background: card.textColor }} />}
-                  <input type="color"
-                    value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
-                    onChange={e => updateCard(card.id, { textColor: e.target.value })}
+            {/* Add link form */}
+            {(card.links ?? []).length < 8 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: T.space[1] }}>
+                <div style={{ display: "flex", gap: T.space[1] }}>
+                  <TextInput
+                    value={newLabel}
+                    onChange={setNewLabel}
+                    placeholder="label"
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    value={newIcon}
+                    onChange={e => setNewIcon(e.target.value)}
                     onMouseDown={e => e.stopPropagation()}
-                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                    placeholder="icon"
+                    maxLength={2}
+                    style={{
+                      width: 36, background: T.surface.input, border: `1px solid ${T.border.subtle}`,
+                      borderRadius: T.radius.xs, padding: "5px 4px", color: T.text.primary,
+                      fontSize: 11, textAlign: "center", outline: "none", flexShrink: 0,
+                    }}
                   />
                 </div>
-              </div>
-
-              {/* Background quick controls */}
-              <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "2px 0" }} />
-              <div>
-                <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, marginBottom: 6 }}>fondo</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ position: "relative", width: 28, height: 22, borderRadius: 4, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer", flexShrink: 0 }}>
-                    {effectiveEffects.bg?.color && <div style={{ position: "absolute", inset: 0, background: effectiveEffects.bg.color }} />}
-                    <input type="color"
-                      value={effectiveEffects.bg?.color?.startsWith("#") ? effectiveEffects.bg.color : "#141416"}
-                      onChange={e => updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, color: e.target.value } } })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
-                  </div>
-                  <input type="range" min={0} max={1} step={0.05} value={effectiveEffects.bg?.opacity ?? 1}
-                    onChange={e => updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, opacity: Number(e.target.value) } } })}
+                <div style={{ display: "flex", gap: T.space[1] }}>
+                  <TextInput
+                    value={newUrl}
+                    onChange={setNewUrl}
+                    onKeyDown={e => e.key === "Enter" && addLink()}
+                    placeholder="https://..."
+                    type="url"
+                    mono
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    onClick={addLink}
                     onMouseDown={e => e.stopPropagation()}
-                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
-                  <span style={{ fontFamily: MONO, fontSize: 7, color: "rgba(255,255,255,0.3)", minWidth: 24, textAlign: "right" }}>
-                    {Math.round((effectiveEffects.bg?.opacity ?? 1) * 100)}%
-                  </span>
-                  {effectiveEffects.bg?.color && (
-                    <button onClick={() => updateCard(card.id, { bgColor: "", effects: { ...card.effects, bg: { ...card.effects?.bg, color: undefined } } })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
-                  )}
+                    style={{
+                      background: T.surface.raised, border: `1px solid ${T.border.default}`,
+                      borderRadius: T.radius.xs, color: T.text.secondary, fontFamily: T.font.mono,
+                      fontSize: T.size.xs, cursor: "pointer", padding: "5px 10px", flexShrink: 0,
+                    }}
+                  >+</button>
                 </div>
               </div>
+            )}
+          </MenuSection>
 
-              {/* Personalizar button */}
-              <button
-                onMouseDown={e => e.stopPropagation()}
-                onClick={e => { e.stopPropagation(); setPersonalize(true); }}
-                style={{
-                  marginTop: 4, padding: "8px 0", borderRadius: 5, cursor: "pointer",
-                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                  color: "rgba(255,255,255,0.5)", fontFamily: MONO, fontSize: 8, letterSpacing: 1.5,
-                  textTransform: "uppercase" as const, width: "100%", transition: `all 0.12s ${EASE}`,
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(212,240,196,0.07)"; e.currentTarget.style.borderColor = "rgba(212,240,196,0.2)"; e.currentTarget.style.color = "rgba(212,240,196,0.7)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
-              >
-                Personalizar →
-              </button>
-            </>
-          )}
+          <Divider />
 
-          {/* ── View B: PersonalizePanel ── */}
-          {personalize && (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <button
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); setPersonalize(false); }}
+          {/* Font picker */}
+          <MenuSection label="Tipografia">
+            <div style={{ display: "flex", gap: T.space[1], flexWrap: "wrap" as const }}>
+              {FONTS.map(f => (
+                <button key={f.key} onMouseDown={e => e.stopPropagation()} onClick={() => updateCard(card.id, { font: f.key })}
                   style={{
-                    background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 4, color: "rgba(255,255,255,0.4)", fontFamily: MONO,
-                    fontSize: 8, letterSpacing: 1, cursor: "pointer", padding: "3px 8px",
+                    padding: `${T.space[1]}px ${T.space[2]}px`, borderRadius: T.radius.xs, cursor: "pointer",
+                    border: card.font === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
+                    background: card.font === f.key ? T.surface.overlay : T.surface.input,
+                    color: card.font === f.key ? T.text.primary : T.text.muted,
+                    fontFamily: f.style, fontSize: T.size.xs, letterSpacing: "0.02em",
                   }}
-                >← Volver</button>
-                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const }}>personalizar</span>
-              </div>
-              <PersonalizePanel
-                effects={card.effects}
-                onChange={newEffects => updateCard(card.id, { effects: newEffects })}
+                >{f.label}</button>
+              ))}
+            </div>
+          </MenuSection>
+
+          <Divider />
+
+          {/* FONDO */}
+          <MenuSection label="Fondo">
+            <MenuRow label="Color">
+              <ColorSwatch
+                value={effectiveEffects.bg?.color ?? "#141416"}
+                onChange={v => patchBg({ color: v })}
+                clearable={!!effectiveEffects.bg?.color}
+                onClear={() => patchBg({ color: undefined })}
               />
-            </>
+            </MenuRow>
+            <SliderRow label="Opacidad" min={0} max={1} step={0.01}
+              value={effectiveEffects.bg?.opacity ?? 1}
+              onChange={v => patchBg({ opacity: v })}
+              fmt={v => `${Math.round(v * 100)}%`} />
+            <SliderRow label="Blur" min={0} max={24} step={1}
+              value={effectiveEffects.bg?.blur ?? 0}
+              onChange={v => patchBg({ blur: v || undefined })}
+              unit="px" />
+            <MenuRow label="Glass">
+              <Toggle value={!!effectiveEffects.bg?.glass} onChange={v => patchBg({ glass: v })} />
+            </MenuRow>
+          </MenuSection>
+
+          <Divider />
+
+          {/* TEXTO */}
+          <MenuSection label="Texto">
+            <MenuRow label="Color">
+              <ColorSwatch
+                value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
+                onChange={v => updateCard(card.id, { textColor: v })}
+              />
+            </MenuRow>
+            <SliderRow label="Tamaño" min={7} max={18} step={0.5}
+              value={card.textSize ?? 9}
+              onChange={v => updateCard(card.id, { textSize: v })}
+              unit="px" />
+          </MenuSection>
+
+          {/* EFECTOS AVANZADOS */}
+          <Collapsible label="Efectos avanzados">
+            <PersonalizePanel
+              effects={card.effects}
+              onChange={newEffects => updateCard(card.id, { effects: newEffects })}
+              tabs={["efectos", "animar"]}
+            />
+          </Collapsible>
+
+          {/* Eliminar */}
+          {onDelete && (
+            <div style={{ marginTop: T.space[4], paddingTop: T.space[4], borderTop: `1px solid ${T.border.subtle}` }}>
+              <ActionButton variant="danger" onClick={() => onDelete(card.id)} fullWidth>
+                Eliminar modulo
+              </ActionButton>
+            </div>
           )}
-        </div>,
+        </MenuPanel>,
         document.body
       )}
     </>

@@ -2162,6 +2162,7 @@ export default function CanvasBoard({
               updateCard={updateSocialCard}
               onToggleLock={() => setElements(p => p.map(e => e.elementType === "social" && e.id === sc.id ? { ...e, locked: !e.locked } : e))}
               canInteract={canInteract}
+              onDelete={id => enqueueOp({ type: "delete_social", id })}
             />
           </WidgetBoundary>
         );
@@ -2188,6 +2189,7 @@ export default function CanvasBoard({
               updateCard={updateMusicCard}
               onToggleLock={() => setElements(p => p.map(e => e.elementType === "music" && e.id === mc.id ? { ...e, locked: !e.locked } : e))}
               canInteract={canInteract}
+              onDelete={id => enqueueOp({ type: "delete_music", id })}
             />
           </WidgetBoundary>
         );
@@ -2215,6 +2217,7 @@ export default function CanvasBoard({
               onToggleLock={() => setElements(p => p.map(e => e.elementType === "links" && e.id === lc.id ? { ...e, locked: !e.locked } : e))}
               canInteract={canInteract}
               ownerUserId={ownerUserId ?? currentUserId}
+              onDelete={id => enqueueOp({ type: "delete_links", id })}
             />
           </WidgetBoundary>
         );
@@ -2243,6 +2246,7 @@ export default function CanvasBoard({
               onToggleLock={() => setElements(p => p.map(e => e.elementType === "stats" && e.id === sc.id ? { ...e, locked: !e.locked } : e))}
               canInteract={canInteract}
               ownerUserId={anchor?.userId ?? ownerUserId ?? currentUserId}
+              onDelete={id => enqueueOp({ type: "delete_stats", id })}
             />
           </WidgetBoundary>
         );
