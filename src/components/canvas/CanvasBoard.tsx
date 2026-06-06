@@ -3,7 +3,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont } from "@/types";
+import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor } from "@/types";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
@@ -39,7 +39,6 @@ import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
-import { toEmbedUrl, embedDimensions, detectMusicPlatform } from "@/lib/musicEmbed";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 
 const MONO = "'Space Mono', monospace";
@@ -132,8 +131,9 @@ type CanvasOp =
   | { type: "set_wallpaper_blur";       value: number }
   | { type: "set_wallpaper_brightness"; value: number }
   | { type: "set_wallpaper_vignette";   value: number }
-  | { type: "set_space_music";          value: import("@/types").SpaceMusic | undefined }
-  | { type: "set_space_font";           value: import("@/types").SpaceFont  | undefined }
+  | { type: "set_space_music";          value: import("@/types").SpaceMusic  | undefined }
+  | { type: "set_space_font";           value: import("@/types").SpaceFont   | undefined }
+  | { type: "set_space_cursor";         value: SpaceCursor | undefined }
   | { type: "move_elements";   moves: Array<{ id: string; elementType: string; x: number; y: number }> };
 
 type QueuedOp = { op: CanvasOp; canvas_type: CanvasMode };
@@ -200,6 +200,7 @@ export default function CanvasBoard({
   const [bgColor,          setBgColor]          = useState("#0a0a0c");
   const [spaceMusic,       setSpaceMusic]       = useState<import("@/types").SpaceMusic | undefined>(undefined);
   const [spaceFont,        setSpaceFont]        = useState<import("@/types").SpaceFont  | undefined>(undefined);
+  const [spaceCursor,      setSpaceCursor]      = useState<SpaceCursor | undefined>(undefined);
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
   const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "analytics">(canEdit ? "analytics" : "canvas");
   const [totalUnread,      setTotalUnread]      = useState(0);
@@ -250,6 +251,8 @@ export default function CanvasBoard({
   const wallpaperRef   = useRef<HTMLInputElement>(null);
   const imageRef       = useRef<HTMLInputElement>(null);
   const spaceFontRef   = useRef<HTMLInputElement>(null);
+  const spaceMusicRef  = useRef<HTMLInputElement>(null);
+  const spaceCursorRef = useRef<HTMLInputElement>(null);
   const zCounter       = useRef(10);
   const textElRefs     = useRef<Record<string, HTMLDivElement | null>>({});
   const imgElRefs      = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -480,6 +483,7 @@ export default function CanvasBoard({
       wallpaperVignette,
       spaceMusic,
       spaceFont,
+      spaceCursor,
     };
   }
 
@@ -577,6 +581,7 @@ export default function CanvasBoard({
       case "set_wallpaper_vignette":   setWallpaperVignette(op.value);   break;
       case "set_space_music":          setSpaceMusic(op.value);          break;
       case "set_space_font":           setSpaceFont(op.value);           break;
+      case "set_space_cursor":         setSpaceCursor(op.value);         break;
       case "move_elements":
         setElements(p => p.map(e => {
           const m = op.moves.find(m => m.id === e.id);
@@ -1008,8 +1013,9 @@ export default function CanvasBoard({
           if (initialState.wallpaperBlur       != null) setWallpaperBlur(initialState.wallpaperBlur);
           if (initialState.wallpaperBrightness != null) setWallpaperBrightness(initialState.wallpaperBrightness);
           if (initialState.wallpaperVignette   != null) setWallpaperVignette(initialState.wallpaperVignette);
-          if (initialState.spaceMusic) setSpaceMusic(initialState.spaceMusic);
-          if (initialState.spaceFont)  setSpaceFont(initialState.spaceFont);
+          if (initialState.spaceMusic)  setSpaceMusic(initialState.spaceMusic);
+          if (initialState.spaceFont)   setSpaceFont(initialState.spaceFont);
+          if (initialState.spaceCursor) setSpaceCursor(initialState.spaceCursor);
         }
         hasLoadedRef.current = true;
         setIsLoading(false);
@@ -1076,8 +1082,9 @@ export default function CanvasBoard({
         if (s.wallpaperBlur       != null) setWallpaperBlur(s.wallpaperBlur);
         if (s.wallpaperBrightness != null) setWallpaperBrightness(s.wallpaperBrightness);
         if (s.wallpaperVignette   != null) setWallpaperVignette(s.wallpaperVignette);
-        if (s.spaceMusic) setSpaceMusic(s.spaceMusic);
-        if (s.spaceFont)  setSpaceFont(s.spaceFont);
+        if (s.spaceMusic)  setSpaceMusic(s.spaceMusic);
+        if (s.spaceFont)   setSpaceFont(s.spaceFont);
+        if (s.spaceCursor) setSpaceCursor(s.spaceCursor);
       }
 
       // Keep homeBg in sync — always reflects the HOME canvas background
@@ -1128,6 +1135,7 @@ export default function CanvasBoard({
         else if (op.type === "set_wallpaper_vignette")   { setWallpaperVignette(op.value); }
         else if (op.type === "set_space_music")          { setSpaceMusic(op.value); }
         else if (op.type === "set_space_font")           { setSpaceFont(op.value); }
+        else if (op.type === "set_space_cursor")         { setSpaceCursor(op.value); }
         else                                             { newElements = reduceOp(newElements, op); }
       }
 
@@ -1441,6 +1449,17 @@ export default function CanvasBoard({
     const name = file.name.replace(/\.[^.]+$/, "");
     const { publicUrl } = await uploadToStorage(file);
     enqueueOp({ type: "set_space_font", value: { name, url: publicUrl, format: validExt } });
+  }
+
+  async function handleMusicUpload(file: File) {
+    const { publicUrl } = await uploadToStorage(file);
+    const name = file.name.replace(/\.[^.]+$/, "");
+    enqueueOp({ type: "set_space_music", value: { url: publicUrl, name } });
+  }
+
+  async function handleCursorUpload(file: File) {
+    const { publicUrl } = await uploadToStorage(file);
+    enqueueOp({ type: "set_space_cursor", value: { url: publicUrl } });
   }
 
   function addGallery() {
@@ -1822,7 +1841,7 @@ export default function CanvasBoard({
       width: "100%",
       overflowX: "hidden",
       display: "flex", alignItems: "flex-start",
-      cursor: addingText?"text":rotating?"crosshair":creatingCard?"crosshair":dragging?"grabbing":"default",
+      cursor: addingText?"text":rotating?"crosshair":creatingCard?"crosshair":dragging?"grabbing":(spaceCursor?.url?`url(${spaceCursor.url}) 0 0, auto`:"default"),
       fontFamily: spaceFont ? `"${spaceFont.name}", ${SANS}` : SANS,
     }}
       onMouseMove={onGlobalMouseMove} onMouseUp={onGlobalMouseUp} onClick={onCanvasClick}>
@@ -2444,6 +2463,34 @@ export default function CanvasBoard({
         }}
       />
 
+      {/* Hidden file input for global music */}
+      <input
+        ref={spaceMusicRef}
+        type="file"
+        accept="audio/mpeg,.mp3"
+        style={{ display: "none" }}
+        onChange={async e => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          await handleMusicUpload(f);
+          e.target.value = "";
+        }}
+      />
+
+      {/* Hidden file input for custom cursor */}
+      <input
+        ref={spaceCursorRef}
+        type="file"
+        accept="image/png,.png"
+        style={{ display: "none" }}
+        onChange={async e => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          await handleCursorUpload(f);
+          e.target.value = "";
+        }}
+      />
+
       {/* Hidden file input for guestbook bg image */}
       <input
         ref={gbBgFileRef}
@@ -2538,33 +2585,14 @@ export default function CanvasBoard({
           {/* ── MÚSICA ── */}
           <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
           <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>MÚSICA</div>
-          <input
-            type="text"
-            placeholder="YouTube / Spotify / SoundCloud"
-            defaultValue={spaceMusic?.url ?? ""}
-            onMouseDown={e=>e.stopPropagation()}
-            onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();}}
-            onBlur={e=>{
-              const val=e.target.value.trim();
-              if(val===(spaceMusic?.url??""))return;
-              if(!val){enqueueOp({type:"set_space_music",value:undefined});}
-              else{enqueueOp({type:"set_space_music",value:{url:val,settings:spaceMusic?.settings??{loop:true,showControls:true}}});}
-            }}
-            style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:4,color:"rgba(255,255,255,0.65)",fontSize:8,fontFamily:MONO,padding:"5px 7px",outline:"none",letterSpacing:0.5}}
-          />
-          {spaceMusic?.url && (
+          {spaceMusic?.url ? (
             <div style={{display:"flex",flexDirection:"column",gap:4}}>
-              <label style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
-                <span style={{fontFamily:MONO,fontSize:7,letterSpacing:1.5,color:"rgba(255,255,255,0.35)",textTransform:"uppercase"}}>MOSTRAR CONTROLES</span>
-                <div
-                  onClick={()=>enqueueOp({type:"set_space_music",value:{url:spaceMusic.url,settings:{...spaceMusic.settings,showControls:!(spaceMusic.settings?.showControls??true)}}})}
-                  style={{width:28,height:14,borderRadius:7,background:(spaceMusic.settings?.showControls??true)?"rgba(212,240,196,0.3)":"rgba(255,255,255,0.1)",position:"relative",cursor:"pointer",transition:"background 0.15s",flexShrink:0}}
-                >
-                  <div style={{position:"absolute",top:2,left:(spaceMusic.settings?.showControls??true)?14:2,width:10,height:10,borderRadius:"50%",background:(spaceMusic.settings?.showControls??true)?"rgba(212,240,196,0.9)":"rgba(255,255,255,0.4)",transition:"left 0.15s"}}/>
-                </div>
-              </label>
+              <div style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.5)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{spaceMusic.name ?? "ambient.mp3"}</div>
+              <WallpaperMenuBtn label="CAMBIAR MÚSICA" onClick={()=>spaceMusicRef.current?.click()} />
               <WallpaperMenuBtn label="QUITAR MÚSICA" onClick={()=>enqueueOp({type:"set_space_music",value:undefined})} dim />
             </div>
+          ) : (
+            <WallpaperMenuBtn label="SUBIR MÚSICA (.mp3)" onClick={()=>spaceMusicRef.current?.click()} />
           )}
           {/* ── FUENTES ── */}
           <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
@@ -2577,6 +2605,21 @@ export default function CanvasBoard({
             </div>
           ) : (
             <WallpaperMenuBtn label="SUBIR FUENTE (.woff2 .woff .ttf .otf)" onClick={()=>spaceFontRef.current?.click()} />
+          )}
+          {/* ── CURSOR ── */}
+          <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
+          <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>CURSOR</div>
+          {spaceCursor?.url ? (
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <img src={spaceCursor.url} alt="cursor" style={{width:20,height:20,objectFit:"contain",imageRendering:"pixelated",opacity:0.7}} />
+                <span style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.4)"}}>cursor.png</span>
+              </div>
+              <WallpaperMenuBtn label="CAMBIAR CURSOR" onClick={()=>spaceCursorRef.current?.click()} />
+              <WallpaperMenuBtn label="QUITAR CURSOR" onClick={()=>enqueueOp({type:"set_space_cursor",value:undefined})} dim />
+            </div>
+          ) : (
+            <WallpaperMenuBtn label="SUBIR CURSOR (.png)" onClick={()=>spaceCursorRef.current?.click()} />
           )}
         </div>
       )}
@@ -2654,41 +2697,17 @@ export default function CanvasBoard({
       )}
 
       {/* ── SpaceMusic global player ── */}
-      {(()=>{
-        const url = spaceMusic?.url;
-        if (!url) return null;
-        const embedUrl = toEmbedUrl(url);
-        if (!embedUrl) return null;
-        // Visitors only see the player when showControls is not explicitly false
-        if (!canEdit && spaceMusic?.settings?.showControls === false) return null;
-        const platform = detectMusicPlatform(url);
-        const { w, h } = embedDimensions(platform);
-        // For YouTube: clip to controls bar only (hide video portion)
-        const isYT = platform === "youtube";
-        const CONTROLS_H = 46;
-        return (
-          <div style={{
-            position: "fixed", bottom: 16, left: 16, zIndex: 500,
-            borderRadius: 8, overflow: "hidden",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-            pointerEvents: "auto",
-            width: w,
-            height: isYT ? CONTROLS_H : h,
-          }}>
-            <iframe
-              src={embedUrl}
-              width={w}
-              height={h}
-              style={{
-                display: "block",
-                border: "none",
-                ...(isYT ? { position: "relative", top: CONTROLS_H - h } : {}),
-              }}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            />
-          </div>
-        );
-      })()}
+      {spaceMusic?.url && (
+        <audio
+          key={spaceMusic.url}
+          src={spaceMusic.url}
+          autoPlay
+          loop
+          preload="auto"
+          style={{ display: "none" }}
+          onError={() => {}}
+        />
+      )}
 
       {/* Social hub view */}
       {view === "chats" && (

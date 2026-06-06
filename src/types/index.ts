@@ -434,11 +434,12 @@ export type CardEffects = {
 // ── Space-level identity settings ────────────────────────────────────────────
 
 export type SpaceMusic = {
-  url:       string;
-  settings?: {
-    loop?:         boolean;
-    showControls?: boolean;
-  };
+  url:   string;   // Supabase public URL for MP3
+  name?: string;   // display filename
+};
+
+export type SpaceCursor = {
+  url: string;     // Supabase public URL for PNG cursor
 };
 
 export type SpaceFont = {
@@ -468,6 +469,7 @@ export type CanvasState = {
   wallpaperVignette?:   number;
   spaceMusic?:  SpaceMusic;
   spaceFont?:   SpaceFont;
+  spaceCursor?: SpaceCursor;
 };
 
 export type ElementType =
