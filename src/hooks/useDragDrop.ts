@@ -49,16 +49,20 @@ function computeResize(
   let nw = startW, nh = startH, nx = startX, ny = startY;
 
   if (isImage && ratio > 0) {
-    // Images: corners maintain ratio, sides free
+    // All image handles maintain aspect ratio so objectFit:contain fills the container
+    // with no invisible empty space. Anchor = opposite side/corner from handle.
     switch (handle) {
+      // Corners: driven by width, height follows ratio
       case "se": { nw = Math.max(minW, startW + dx); nh = Math.max(minH, Math.round(nw * ratio)); break; }
       case "ne": { nw = Math.max(minW, startW + dx); nh = Math.max(minH, Math.round(nw * ratio)); ny = startY + (startH - nh); break; }
       case "sw": { nw = Math.max(minW, startW - dx); nh = Math.max(minH, Math.round(nw * ratio)); nx = startX + (startW - nw); break; }
       case "nw": { nw = Math.max(minW, startW - dx); nh = Math.max(minH, Math.round(nw * ratio)); nx = startX + (startW - nw); ny = startY + (startH - nh); break; }
-      case "e":  { nw = Math.max(minW, startW + dx); break; }
-      case "w":  { nw = Math.max(minW, startW - dx); nx = startX + (startW - nw); break; }
-      case "s":  { nh = Math.max(minH, startH + dy); break; }
-      case "n":  { nh = Math.max(minH, startH - dy); ny = startY + (startH - nh); break; }
+      // Horizontal sides: driven by width, height follows ratio, top anchored
+      case "e":  { nw = Math.max(minW, startW + dx); nh = Math.max(minH, Math.round(nw * ratio)); break; }
+      case "w":  { nw = Math.max(minW, startW - dx); nh = Math.max(minH, Math.round(nw * ratio)); nx = startX + (startW - nw); break; }
+      // Vertical sides: driven by height, width follows ratio, left anchored
+      case "s":  { nh = Math.max(minH, startH + dy); nw = Math.max(minW, Math.round(nh / ratio)); break; }
+      case "n":  { nh = Math.max(minH, startH - dy); nw = Math.max(minW, Math.round(nh / ratio)); ny = startY + (startH - nh); break; }
     }
   } else {
     switch (handle) {
