@@ -7,7 +7,8 @@ import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { SocialIconBtn, detectPlatform } from "./SocialIcons";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
-import PersonalizePanel from "./PersonalizePanel";
+import { uploadToStorage } from "@/lib/storage";
+import { detectBgMode } from "@/lib/bgStyle";
 import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
 
 type InternalDrag = { id: string; startX: number; startY: number; startMouseX: number; startMouseY: number };
@@ -40,7 +41,8 @@ function SocialCardWidget({
   const [portalPos,    setPortalPos]    = useState<{ left: number; top: number } | null>(null);
   const [internalDrag, setInternalDrag] = useState<InternalDrag | null>(null);
   const pendingPositions = useRef<Record<string, { x: number; y: number }>>({});
-  const cardRef = useRef<HTMLDivElement>(null);
+  const cardRef  = useRef<HTMLDivElement>(null);
+  const bgImgRef = useRef<HTMLInputElement>(null);
 
   const effectiveEffects: CardEffects = {
     ...card.effects,
@@ -83,8 +85,31 @@ function SocialCardWidget({
   function patchBg(patch: Partial<NonNullable<CardEffects["bg"]>>) {
     updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, ...patch } } });
   }
-  function patchEffects(patch: CardEffects) {
-    updateCard(card.id, { effects: patch });
+  function patchBorder(patch: Partial<NonNullable<CardEffects["border"]>>) {
+    updateCard(card.id, { effects: { ...card.effects, border: { ...card.effects?.border, ...patch } } });
+  }
+  function patchGlow(patch: Partial<NonNullable<CardEffects["glow"]>>) {
+    updateCard(card.id, { effects: { ...card.effects, glow: { ...card.effects?.glow, ...patch } } });
+  }
+  function patchShadow(patch: Partial<NonNullable<CardEffects["shadow"]>>) {
+    updateCard(card.id, { effects: { ...card.effects, shadow: { ...card.effects?.shadow, ...patch } } });
+  }
+  function patchGradient(patch: Partial<NonNullable<CardEffects["gradient"]>>) {
+    const base = card.effects?.gradient ?? { from: "#0f0f0f", to: "#1a1a2e", angle: 135, opacity: 0.6 };
+    updateCard(card.id, { effects: { ...card.effects, gradient: { ...base, ...patch } } });
+  }
+  function patchInteractions(patch: Partial<NonNullable<CardEffects["interactions"]>>) {
+    updateCard(card.id, { effects: { ...card.effects, interactions: { ...card.effects?.interactions, ...patch } } });
+  }
+  function patchAnimations(patch: Partial<NonNullable<CardEffects["animations"]>>) {
+    updateCard(card.id, { effects: { ...card.effects, animations: { ...card.effects?.animations, ...patch } } });
+  }
+  async function handleBgUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    const { publicUrl } = await uploadToStorage(f);
+    const bgMode = await detectBgMode(publicUrl);
+    updateCard(card.id, { bgImage: publicUrl, bgMode, effects: { ...card.effects, bg: { ...card.effects?.bg, image: publicUrl, imageMode: bgMode } } });
+    if (bgImgRef.current) bgImgRef.current.value = "";
   }
 
   const onIconMouseDown = useCallback((e: React.MouseEvent, sl: SocialLink) => {
@@ -254,48 +279,144 @@ function SocialCardWidget({
           <Divider />
 
           {/* FONDO */}
-          <MenuSection label="Fondo">
-            <MenuRow label="Color">
-              <ColorSwatch value={effectiveEffects.bg?.color ?? "#141416"} onChange={v => patchBg({ color: v })}
-                clearable={!!effectiveEffects.bg?.color} onClear={() => patchBg({ color: undefined })} />
-            </MenuRow>
-            <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={effectiveEffects.bg?.opacity ?? 1}
-              onChange={v => patchBg({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
-            <SliderRow label="Blur" min={0} max={24} step={1} value={effectiveEffects.bg?.blur ?? 0}
-              onChange={v => patchBg({ blur: v || undefined })} unit="px" />
-            <MenuRow label="Glass">
-              <Toggle value={!!effectiveEffects.bg?.glass} onChange={v => patchBg({ glass: v })} />
-            </MenuRow>
-          </MenuSection>
+          {(() => {
+            const bg   = card.effects?.bg;
+            const grad = card.effects?.gradient;
+            return (
+              <MenuSection label="Fondo">
+                <MenuRow label="Color">
+                  <ColorSwatch value={bg?.color ?? "#141416"} onChange={v => patchBg({ color: v })}
+                    clearable={!!bg?.color} onClear={() => patchBg({ color: undefined })} />
+                </MenuRow>
+                <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bg?.opacity ?? 1}
+                  onChange={v => patchBg({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+                <SliderRow label="Blur" min={0} max={24} step={1} value={bg?.blur ?? 0}
+                  onChange={v => patchBg({ blur: v || undefined })} unit="px" />
+                <MenuRow label="Glass">
+                  <Toggle value={!!bg?.glass} onChange={v => patchBg({ glass: v })} />
+                </MenuRow>
+
+                <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
+                  <MenuRow label="Gradiente">
+                    <Toggle value={!!grad} onChange={v => {
+                      if (v) updateCard(card.id, { effects: { ...card.effects, gradient: { from: "#0f0f0f", to: "#1a1a2e", angle: 135, opacity: 0.6 } } });
+                      else updateCard(card.id, { effects: { ...card.effects, gradient: undefined } });
+                    }} />
+                  </MenuRow>
+                  {grad && (<>
+                    <MenuRow label="Color A"><ColorSwatch value={grad.from} onChange={v => patchGradient({ from: v })} /></MenuRow>
+                    <MenuRow label="Color B"><ColorSwatch value={grad.to} onChange={v => patchGradient({ to: v })} /></MenuRow>
+                    <SliderRow label="Ángulo" min={0} max={360} step={5} value={grad.angle} onChange={v => patchGradient({ angle: v })} fmt={v => `${v}°`} />
+                    <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={grad.opacity} onChange={v => patchGradient({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+                  </>)}
+                </div>
+
+                <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
+                  <div style={{ display: "flex", gap: T.space[2] }}>
+                    <ActionButton onClick={() => bgImgRef.current?.click()} fullWidth>
+                      {bg?.image ? "Cambiar imagen" : "Imagen de fondo"}
+                    </ActionButton>
+                    {bg?.image && <ActionButton variant="danger" onClick={() => patchBg({ image: undefined })} fullWidth>Quitar</ActionButton>}
+                  </div>
+                </div>
+              </MenuSection>
+            );
+          })()}
 
           <Divider />
 
-          {/* TEXTO */}
-          <MenuSection label="Texto">
+          {/* ICONOS */}
+          <MenuSection label="Iconos">
             <MenuRow label="Color">
               <ColorSwatch value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
                 onChange={v => updateCard(card.id, { textColor: v })} />
             </MenuRow>
-            <SliderRow label="Tamano icono" min={12} max={40} step={1}
+            <SliderRow label="Tamaño" min={12} max={40} step={1}
               value={card.iconSize ?? 16}
               onChange={v => updateCard(card.id, { iconSize: v })} unit="px" />
           </MenuSection>
 
-          {/* EFECTOS AVANZADOS */}
-          <Collapsible label="Efectos avanzados">
-            <PersonalizePanel effects={card.effects} onChange={patchEffects} tabs={["efectos", "animar"]} />
-          </Collapsible>
-
           <Divider />
 
+          {/* EFECTOS */}
+          {(() => {
+            const glow = card.effects?.glow;
+            const sh   = card.effects?.shadow;
+            const bord = card.effects?.border;
+            const anyGlow = !!(glow?.outer || glow?.inner);
+            return (
+              <MenuSection label="Efectos">
+                <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Glow</div>
+                <MenuRow label="Exterior"><Toggle value={!!glow?.outer} onChange={v => patchGlow({ outer: v })} /></MenuRow>
+                <MenuRow label="Interior"><Toggle value={!!glow?.inner} onChange={v => patchGlow({ inner: v })} /></MenuRow>
+                {anyGlow && (<>
+                  <MenuRow label="Color"><ColorSwatch value={glow?.color ?? "#a855f7"} onChange={v => patchGlow({ color: v })} /></MenuRow>
+                  <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={glow?.intensity ?? 0} onChange={v => patchGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+                </>)}
+                <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
+                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Sombra</div>
+                  <MenuRow label="Color"><ColorSwatch value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} /></MenuRow>
+                  <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={sh?.intensity ?? 0} onChange={v => patchShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+                </div>
+                <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
+                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Borde</div>
+                  <MenuRow label="Color">
+                    <ColorSwatch value={bord?.color ?? "#ffffff"} onChange={v => patchBorder({ color: v })}
+                      clearable={!!bord?.color} onClear={() => patchBorder({ color: undefined })} />
+                  </MenuRow>
+                  <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? 1} onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`} />
+                  <SliderRow label="Radio" min={0} max={60} step={1} value={bord?.radius ?? 14} onChange={v => patchBorder({ radius: v })} unit="px" />
+                </div>
+              </MenuSection>
+            );
+          })()}
+
+          {/* ANIMAR */}
+          <Collapsible label="Animar">
+            {(() => {
+              const inter = card.effects?.interactions;
+              const anim  = card.effects?.animations;
+              return (<>
+                <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Flotación</div>
+                <MenuRow label="Activar"><Toggle value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} /></MenuRow>
+                {anim?.floating && (<>
+                  <SliderRow label="Altura" min={2} max={24} step={1} value={anim?.floatHeight ?? 8} onChange={v => patchAnimations({ floatHeight: v })} unit="px" />
+                  <SliderRow label="Velocidad" min={1} max={8} step={0.5} value={anim?.floatSpeed ?? 3} onChange={v => patchAnimations({ floatSpeed: v })} fmt={v => `${v}s`} />
+                </>)}
+                <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
+                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Inclinación 3D</div>
+                  <MenuRow label="Activar"><Toggle value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} /></MenuRow>
+                  {inter?.tilt3d && <SliderRow label="Intensidad" min={1} max={15} step={0.5} value={inter?.tiltIntensity ?? 6} onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${v}°`} />}
+                </div>
+                <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
+                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Spotlight</div>
+                  <MenuRow label="Activar"><Toggle value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} /></MenuRow>
+                  {inter?.spotlight && (<>
+                    <MenuRow label="Color">
+                      <ColorSwatch value={inter?.spotlightColor?.startsWith("#") ? inter.spotlightColor : "#ffffff"} onChange={v => patchInteractions({ spotlightColor: v })} />
+                    </MenuRow>
+                    <SliderRow label="Radio" min={20} max={100} step={1} value={inter?.spotlightSize ?? 65} onChange={v => patchInteractions({ spotlightSize: v })} unit="%" />
+                  </>)}
+                </div>
+                <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
+                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Hover</div>
+                  <MenuRow label="Glow al pasar"><Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} /></MenuRow>
+                </div>
+              </>);
+            })()}
+          </Collapsible>
+
           {onDelete && (
-            <ActionButton variant="danger" fullWidth onClick={() => { onDelete(card.id); setMenuOpen(false); }}>
-              Eliminar modulo
-            </ActionButton>
+            <div style={{ marginTop: T.space[4], paddingTop: T.space[4], borderTop: `1px solid ${T.border.subtle}` }}>
+              <ActionButton variant="danger" fullWidth onClick={() => { onDelete(card.id); setMenuOpen(false); }}>
+                Eliminar modulo
+              </ActionButton>
+            </div>
           )}
         </MenuPanel>,
         document.body
       )}
+      <input ref={bgImgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleBgUpload} />
     </>
   );
 }

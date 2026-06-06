@@ -348,6 +348,7 @@ export type StatsCardData = {
   glowIntensity?: number;
   textColor?:    string;
   textSize?:     number;
+  font?:         TextFont;
   effects?:      CardEffects;
 };
 

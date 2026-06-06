@@ -423,7 +423,7 @@ function ProfileCard({
     return (
       <div style={{
         position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-        alignItems: "center", padding: `${pad}px`, gap, zIndex: 3, overflowY: "hidden",
+        alignItems: "center", padding: `${pad}px`, gap, zIndex: 3, overflow: "hidden",
       }}>
         <AvatarEl />
         {card.name && (
@@ -441,12 +441,13 @@ function ProfileCard({
             fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
             maxWidth: "100%", textAlign: "center", lineHeight: 1.6,
             whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
+            overflow: "hidden", minHeight: 0,
           } as CSSProperties}>{card.bio}</div>
         )}
         {variant !== "minimal" && (
           <div style={{ width: "100%", height: 1, background: withOpacity(baseColor, 0.07), flexShrink: 0 }} />
         )}
-        <StarEl />
+        <StarEl style={{ flexShrink: 0 }} />
       </div>
     );
   }
@@ -474,9 +475,10 @@ function ProfileCard({
             <div style={{
               fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
               lineHeight: 1.6, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
+              overflow: "hidden", minHeight: 0,
             } as CSSProperties}>{card.bio}</div>
           )}
-          <StarEl />
+          <StarEl style={{ flexShrink: 0 }} />
         </div>
         {/* suppress unused warning */}
         <span style={{ display: "none" }}>{photoW}</span>
