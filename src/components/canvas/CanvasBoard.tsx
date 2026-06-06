@@ -377,6 +377,19 @@ export default function CanvasBoard({
     }).catch(() => {});
   }, [spaceFont?.url, spaceFont?.name]);
 
+  // ── SpaceCursor — inject global cursor style into document.head ──
+  useEffect(() => {
+    const STYLE_ID = "mnemo-custom-cursor";
+    const existing = document.getElementById(STYLE_ID);
+    if (existing) existing.remove();
+    if (!spaceCursor?.url) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `* { cursor: url("${spaceCursor.url}") 0 0, auto !important; }`;
+    document.head.appendChild(style);
+    return () => { document.getElementById(STYLE_ID)?.remove(); };
+  }, [spaceCursor?.url]);
+
   // ── SpaceMusic autoplay — attempt immediately; fall back to first interaction ──
   useEffect(() => {
     const audio = spaceAudioRef.current;
@@ -1476,7 +1489,28 @@ export default function CanvasBoard({
   }
 
   async function handleCursorUpload(file: File) {
-    const { publicUrl } = await uploadToStorage(file);
+    const SIZE = 64;
+    const resized = await new Promise<File>((resolve, reject) => {
+      const img = new Image();
+      const objUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objUrl);
+        const canvas = document.createElement("canvas");
+        canvas.width  = SIZE;
+        canvas.height = SIZE;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(file); return; }
+        ctx.clearRect(0, 0, SIZE, SIZE);
+        ctx.drawImage(img, 0, 0, SIZE, SIZE);
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name, { type: "image/png" }));
+        }, "image/png");
+      };
+      img.onerror = () => { URL.revokeObjectURL(objUrl); reject(); };
+      img.src = objUrl;
+    }).catch(() => file);
+    const { publicUrl } = await uploadToStorage(resized);
     enqueueOp({ type: "set_space_cursor", value: { url: publicUrl } });
   }
 
@@ -1927,7 +1961,6 @@ export default function CanvasBoard({
             @keyframes el-reveal   { from { opacity: 0; } to { opacity: 1; } }
             @keyframes land-reveal { from { opacity: 0; } to { opacity: 1; } }
           }
-          ${spaceCursor?.url ? `*, *::before, *::after { cursor: url(${spaceCursor.url}) 0 0, auto !important; }` : ""}
         `}</style>
       )}
       {view === "canvas" && (
