@@ -5,7 +5,6 @@ import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
-import { useFavorite } from "@/hooks/useFavorite";
 import { UIButton, UISlider } from "@/components/ui";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
@@ -25,7 +24,6 @@ const FREE_DEFAULTS = {
   name:   { x: 50, y: 53, s: 1 },
   handle: { x: 50, y: 63, s: 1 },
   bio:    { x: 50, y: 75, s: 1 },
-  star:   { x: 86, y: 12, s: 1 },
 } as const;
 
 const FONTS: { key: TextFont; label: string; style: string }[] = [
@@ -88,7 +86,7 @@ interface Props {
 
 // ── Free-mode position state ──────────────────────────────────────────────────
 
-type FreeKey = "photo" | "name" | "handle" | "bio" | "star";
+type FreeKey = "photo" | "name" | "handle" | "bio";
 type FreePos = Record<FreeKey, { x: number; y: number; s: number }>;
 
 function initFreePos(card: ProfileCardData): FreePos {
@@ -97,7 +95,6 @@ function initFreePos(card: ProfileCardData): FreePos {
     name:   { x: card.nameX   ?? FREE_DEFAULTS.name.x,   y: card.nameY   ?? FREE_DEFAULTS.name.y,   s: card.nameScale   ?? 1 },
     handle: { x: card.handleX ?? FREE_DEFAULTS.handle.x, y: card.handleY ?? FREE_DEFAULTS.handle.y, s: card.handleScale ?? 1 },
     bio:    { x: card.bioX    ?? FREE_DEFAULTS.bio.x,    y: card.bioY    ?? FREE_DEFAULTS.bio.y,    s: card.bioScale    ?? 1 },
-    star:   { x: card.starX   ?? FREE_DEFAULTS.star.x,   y: card.starY   ?? FREE_DEFAULTS.star.y,   s: 1 },
   };
 }
 
@@ -111,11 +108,8 @@ function ProfileCard({
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
   const [menuOpen,     setMenuOpen]     = useState(false);
-  const [favHover,     setFavHover]     = useState(false);
-  const [favAnimating, setFavAnimating] = useState(false);
   const [editingField, setEditingField] = useState<"name" | null>(null);
-  const cardRef     = useRef<HTMLDivElement>(null);
-  const favTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Layout mode
   const layout = (card.layout ?? "vertical") as "vertical" | "horizontal" | "free";
@@ -130,8 +124,7 @@ function ProfileCard({
     setFreePos(initFreePos(card));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card.photoX, card.photoY, card.photoScale, card.nameX, card.nameY, card.nameScale,
-      card.handleX, card.handleY, card.handleScale, card.bioX, card.bioY, card.bioScale,
-      card.starX, card.starY]);
+      card.handleX, card.handleY, card.handleScale, card.bioX, card.bioY, card.bioScale]);
 
   // When switching to free, seed defaults if positions not yet set
   useEffect(() => {
@@ -143,10 +136,8 @@ function ProfileCard({
     if (card.nameY   == null) patch.nameY   = FREE_DEFAULTS.name.y;
     if (card.handleX == null) patch.handleX = FREE_DEFAULTS.handle.x;
     if (card.handleY == null) patch.handleY = FREE_DEFAULTS.handle.y;
-    if (card.bioX    == null) patch.bioX    = FREE_DEFAULTS.bio.x;
-    if (card.bioY    == null) patch.bioY    = FREE_DEFAULTS.bio.y;
-    if (card.starX   == null) patch.starX   = FREE_DEFAULTS.star.x;
-    if (card.starY   == null) patch.starY   = FREE_DEFAULTS.star.y;
+    if (card.bioX == null) patch.bioX = FREE_DEFAULTS.bio.x;
+    if (card.bioY == null) patch.bioY = FREE_DEFAULTS.bio.y;
     if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout]);
@@ -213,7 +204,6 @@ function ProfileCard({
   useEffect(() => {
     if (!isSel) { setMenuOpen(false); setEditingField(null); }
   }, [isSel]);
-  useEffect(() => () => { if (favTimerRef.current) clearTimeout(favTimerRef.current); }, []);
 
   // ── Uploads ──
   const photoRef  = useRef<HTMLInputElement>(null);
@@ -234,12 +224,6 @@ function ProfileCard({
     });
     if (bgImgRef.current) bgImgRef.current.value = "";
   }
-
-  // ── Favorite ──
-  const targetUserId = card.userId ?? ownerUserId;
-  const isSelf = !!(targetUserId && currentUserId && targetUserId === currentUserId);
-  const { isFavorite, addFavorite, removeFavorite, justFavorited } =
-    useFavorite(targetUserId ?? "", currentUserId);
 
   // ── Visual values ──
   const photoSizeKey   = card.photoSize ?? "md";
@@ -313,8 +297,7 @@ function ProfileCard({
         if (key === "photo")  { patch.photoX = pos.x;  patch.photoY = pos.y;  if (isScale) patch.photoScale  = pos.s; }
         if (key === "name")   { patch.nameX  = pos.x;  patch.nameY  = pos.y;  if (isScale) patch.nameScale   = pos.s; }
         if (key === "handle") { patch.handleX = pos.x; patch.handleY = pos.y; if (isScale) patch.handleScale = pos.s; }
-        if (key === "bio")    { patch.bioX   = pos.x;  patch.bioY   = pos.y;  if (isScale) patch.bioScale    = pos.s; }
-        if (key === "star")   { patch.starX  = pos.x;  patch.starY  = pos.y; }
+        if (key === "bio") { patch.bioX = pos.x; patch.bioY = pos.y; if (isScale) patch.bioScale = pos.s; }
         updateProfile(card.id, patch);
         return latest;
       });
@@ -342,38 +325,6 @@ function ProfileCard({
           </div>
         )}
       </div>
-    );
-  }
-
-  function StarEl({ style }: { style?: CSSProperties }) {
-    const showStar = !isSelf;
-    if (!showStar) return null;
-    return (
-      <button
-        className="pcfg-btn"
-        onMouseDown={e => e.stopPropagation()}
-        onClick={e => {
-          e.stopPropagation();
-          if (menuOpen) return;
-          if (favTimerRef.current) clearTimeout(favTimerRef.current);
-          setFavAnimating(true);
-          favTimerRef.current = setTimeout(() => setFavAnimating(false), 240);
-          isFavorite ? removeFavorite() : addFavorite();
-        }}
-        onMouseEnter={() => setFavHover(true)}
-        onMouseLeave={() => setFavHover(false)}
-        style={{
-          background: isFavorite ? withOpacity(baseColor, 0.12) : (favHover ? withOpacity(baseColor, 0.1) : withOpacity(baseColor, 0.05)),
-          border: "none", borderRadius: 7, padding: "4px 7px",
-          fontSize: 15, fontWeight: 400, cursor: "pointer",
-          color: isFavorite ? primaryColor : (favHover ? primaryColor : secondaryColor),
-          filter: justFavorited ? `drop-shadow(0 0 8px ${withOpacity(baseColor, 0.7)})` : isFavorite ? `drop-shadow(0 0 5px ${withOpacity(baseColor, 0.35)})` : "none",
-          transform: !favAnimating ? (favHover ? "translateY(-1px) scale(1.1)" : "none") : undefined,
-          animation: favAnimating ? `pcfg-star 0.22s ${EASE} both` : undefined,
-          transition: `color 0.14s ease, background 0.14s ease, filter 0.2s ease`,
-          ...style,
-        }}
-      >★</button>
     );
   }
 
@@ -444,10 +395,6 @@ function ProfileCard({
             overflow: "hidden", minHeight: 0,
           } as CSSProperties}>{card.bio}</div>
         )}
-        {variant !== "minimal" && (
-          <div style={{ width: "100%", height: 1, background: withOpacity(baseColor, 0.07), flexShrink: 0 }} />
-        )}
-        <StarEl style={{ flexShrink: 0 }} />
       </div>
     );
   }
@@ -478,7 +425,6 @@ function ProfileCard({
               overflow: "hidden", minHeight: 0,
             } as CSSProperties}>{card.bio}</div>
           )}
-          <StarEl style={{ flexShrink: 0 }} />
         </div>
         {/* suppress unused warning */}
         <span style={{ display: "none" }}>{photoW}</span>
@@ -513,7 +459,6 @@ function ProfileCard({
             }}>{card.bio}</div>
           </FreeWrap>
         )}
-        <FreeWrap elemKey="star"><StarEl /></FreeWrap>
         {/* Free-mode hint */}
         {canInteract && (
           <div style={{
@@ -530,15 +475,6 @@ function ProfileCard({
 
   return (
     <>
-      <style>{`
-        .pcfg-btn:active { transform: scale(0.96) !important; transition-duration: 0.06s !important; }
-        @keyframes pcfg-star {
-          0%   { transform: scale(1) translateY(0); }
-          45%  { transform: scale(1.28) translateY(-2px); }
-          100% { transform: scale(1) translateY(0); }
-        }
-      `}</style>
-
       <div
         ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}

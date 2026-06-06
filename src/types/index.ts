@@ -209,9 +209,6 @@ export type ProfileCardData = {
   bgOverlayOpacity?: number;
   // Layout mode
   layout?:         "vertical" | "horizontal" | "free";
-  // Free layout per-element positions (% of card size, 0–100)
-  starX?:          number;
-  starY?:          number;
   // State
   locked?:         boolean;
   isPublic?:       boolean;
@@ -317,9 +314,9 @@ export type LinksCardData = {
 // ── Stats module ─────────────────────────────────────────────────────────────
 
 export type StatBlock = {
-  id:       "views" | "favorites" | string;
-  label?:   string;
-  visible:  boolean;
+  id:      string;
+  label?:  string;
+  visible: boolean;
 };
 
 export type StatsCardData = {
@@ -439,6 +436,22 @@ export type CardEffects = {
   opacity?: number;
 };
 
+// ── Space-level identity settings ────────────────────────────────────────────
+
+export type SpaceMusic = {
+  url:       string;
+  settings?: {
+    loop?:         boolean;
+    showControls?: boolean;
+  };
+};
+
+export type SpaceFont = {
+  name:   string;
+  url:    string;
+  format: "woff2" | "woff" | "ttf" | "otf";
+};
+
 // ── Canvas state ─────────────────────────────────────────────────────────────
 
 export type CanvasState = {
@@ -458,6 +471,8 @@ export type CanvasState = {
   wallpaperBlur?:       number;
   wallpaperBrightness?: number;
   wallpaperVignette?:   number;
+  spaceMusic?:  SpaceMusic;
+  spaceFont?:   SpaceFont;
 };
 
 export type ElementType =

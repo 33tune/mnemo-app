@@ -3,7 +3,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant } from "@/types";
+import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont } from "@/types";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
@@ -39,6 +39,7 @@ import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
+import { toEmbedUrl, embedDimensions, detectMusicPlatform } from "@/lib/musicEmbed";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -137,6 +138,8 @@ type CanvasOp =
   | { type: "set_wallpaper_blur";       value: number }
   | { type: "set_wallpaper_brightness"; value: number }
   | { type: "set_wallpaper_vignette";   value: number }
+  | { type: "set_space_music";          value: import("@/types").SpaceMusic | undefined }
+  | { type: "set_space_font";           value: import("@/types").SpaceFont  | undefined }
   | { type: "move_elements";   moves: Array<{ id: string; elementType: string; x: number; y: number }> };
 
 type QueuedOp = { op: CanvasOp; canvas_type: CanvasMode };
@@ -201,6 +204,8 @@ export default function CanvasBoard({
   const [wallpaperBrightness,  setWallpaperBrightness]  = useState(100);
   const [wallpaperVignette,    setWallpaperVignette]    = useState(0);
   const [bgColor,          setBgColor]          = useState("#0a0a0c");
+  const [spaceMusic,       setSpaceMusic]       = useState<import("@/types").SpaceMusic | undefined>(undefined);
+  const [spaceFont,        setSpaceFont]        = useState<import("@/types").SpaceFont  | undefined>(undefined);
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
   const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "analytics">(canEdit ? "analytics" : "canvas");
   const [totalUnread,      setTotalUnread]      = useState(0);
@@ -250,6 +255,7 @@ export default function CanvasBoard({
   const bgCardId       = useRef<string | null>(null);
   const wallpaperRef   = useRef<HTMLInputElement>(null);
   const imageRef       = useRef<HTMLInputElement>(null);
+  const spaceFontRef   = useRef<HTMLInputElement>(null);
   const zCounter       = useRef(10);
   const textElRefs     = useRef<Record<string, HTMLDivElement | null>>({});
   const imgElRefs      = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -364,6 +370,15 @@ export default function CanvasBoard({
     canvasBounds: { w: effectiveW, h: CANVAS_H, topOffset: 44 },
   });
 
+  // ── SpaceFont injection — load custom font into document.fonts when spaceFont changes ──
+  useEffect(() => {
+    if (!spaceFont?.url || typeof window === "undefined") return;
+    const face = new FontFace(spaceFont.name, `url(${spaceFont.url})`);
+    face.load().then(loaded => {
+      document.fonts.add(loaded);
+    }).catch(() => {});
+  }, [spaceFont?.url, spaceFont?.name]);
+
   // ── Auth — fetch once on mount so MESSAGE handler and chat hooks have userId ──
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => {
@@ -469,6 +484,8 @@ export default function CanvasBoard({
       wallpaperBlur,
       wallpaperBrightness,
       wallpaperVignette,
+      spaceMusic,
+      spaceFont,
     };
   }
 
@@ -564,6 +581,8 @@ export default function CanvasBoard({
       case "set_wallpaper_blur":       setWallpaperBlur(op.value);       break;
       case "set_wallpaper_brightness": setWallpaperBrightness(op.value); break;
       case "set_wallpaper_vignette":   setWallpaperVignette(op.value);   break;
+      case "set_space_music":          setSpaceMusic(op.value);          break;
+      case "set_space_font":           setSpaceFont(op.value);           break;
       case "move_elements":
         setElements(p => p.map(e => {
           const m = op.moves.find(m => m.id === e.id);
@@ -995,6 +1014,8 @@ export default function CanvasBoard({
           if (initialState.wallpaperBlur       != null) setWallpaperBlur(initialState.wallpaperBlur);
           if (initialState.wallpaperBrightness != null) setWallpaperBrightness(initialState.wallpaperBrightness);
           if (initialState.wallpaperVignette   != null) setWallpaperVignette(initialState.wallpaperVignette);
+          if (initialState.spaceMusic) setSpaceMusic(initialState.spaceMusic);
+          if (initialState.spaceFont)  setSpaceFont(initialState.spaceFont);
         }
         hasLoadedRef.current = true;
         setIsLoading(false);
@@ -1061,6 +1082,8 @@ export default function CanvasBoard({
         if (s.wallpaperBlur       != null) setWallpaperBlur(s.wallpaperBlur);
         if (s.wallpaperBrightness != null) setWallpaperBrightness(s.wallpaperBrightness);
         if (s.wallpaperVignette   != null) setWallpaperVignette(s.wallpaperVignette);
+        if (s.spaceMusic) setSpaceMusic(s.spaceMusic);
+        if (s.spaceFont)  setSpaceFont(s.spaceFont);
       }
 
       // Keep homeBg in sync — always reflects the HOME canvas background
@@ -1104,9 +1127,14 @@ export default function CanvasBoard({
       // Fold ops into newElements — single full replacement at the end
       for (const row of opsRows ?? []) {
         const op = row.op as CanvasOp;
-        if (op.type === "set_bg")             { setBgColor(op.value); }
-        else if (op.type === "set_wallpaper") { setWallpaper(op.value); setWallpaperLoaded(true); }
-        else                                  { newElements = reduceOp(newElements, op); }
+        if      (op.type === "set_bg")                  { setBgColor(op.value); }
+        else if (op.type === "set_wallpaper")            { setWallpaper(op.value); setWallpaperLoaded(true); }
+        else if (op.type === "set_wallpaper_blur")       { setWallpaperBlur(op.value); }
+        else if (op.type === "set_wallpaper_brightness") { setWallpaperBrightness(op.value); }
+        else if (op.type === "set_wallpaper_vignette")   { setWallpaperVignette(op.value); }
+        else if (op.type === "set_space_music")          { setSpaceMusic(op.value); }
+        else if (op.type === "set_space_font")           { setSpaceFont(op.value); }
+        else                                             { newElements = reduceOp(newElements, op); }
       }
 
       // Sync zCounter to the highest zIndex among loaded elements.
@@ -1337,7 +1365,7 @@ export default function CanvasBoard({
     } else {
       const st: StatsCardData = {
         ...base, h: 72,
-        stats: [{ id: "views", visible: true }, { id: "favorites", visible: true }],
+        stats: [{ id: "views", visible: true }],
       };
       enqueueOp({ type: "add_stats", stats: st });
       setSelectedIds(new Set([st.id]));
@@ -1410,6 +1438,15 @@ export default function CanvasBoard({
     enqueueOp({ type: "add_guestbook", guestbook: g });
     setSelectedIds(new Set([g.id]));
     setMenuOpen(false);
+  }
+
+  async function handleFontUpload(file: File) {
+    const FONT_EXTS = ["woff2", "woff", "ttf", "otf"] as const;
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "woff2";
+    const validExt = FONT_EXTS.includes(ext as typeof FONT_EXTS[number]) ? (ext as SpaceFont["format"]) : "woff2";
+    const name = file.name.replace(/\.[^.]+$/, "");
+    const { publicUrl } = await uploadToStorage(file);
+    enqueueOp({ type: "set_space_font", value: { name, url: publicUrl, format: validExt } });
   }
 
   function addGallery() {
@@ -1792,7 +1829,7 @@ export default function CanvasBoard({
       overflowX: "hidden",
       display: "flex", alignItems: "flex-start",
       cursor: addingText?"text":rotating?"crosshair":creatingCard?"crosshair":dragging?"grabbing":"default",
-      fontFamily: SANS,
+      fontFamily: spaceFont ? `"${spaceFont.name}", ${SANS}` : SANS,
     }}
       onMouseMove={onGlobalMouseMove} onMouseUp={onGlobalMouseUp} onClick={onCanvasClick}>
       {/* ── Fixed background layers ── */}
@@ -2399,6 +2436,20 @@ export default function CanvasBoard({
         );
       })()}
 
+      {/* Hidden file input for global font */}
+      <input
+        ref={spaceFontRef}
+        type="file"
+        accept=".woff2,.woff,.ttf,.otf"
+        style={{ display: "none" }}
+        onChange={async e => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          await handleFontUpload(f);
+          e.target.value = "";
+        }}
+      />
+
       {/* Hidden file input for guestbook bg image */}
       <input
         ref={gbBgFileRef}
@@ -2490,6 +2541,49 @@ export default function CanvasBoard({
           <WallpaperSlider label="BLUR" value={wallpaperBlur} min={0} max={40} unit="px" onChange={v=>enqueueOp({type:"set_wallpaper_blur",value:v})} />
           <WallpaperSlider label="BRILLO" value={wallpaperBrightness} min={0} max={200} unit="%" onChange={v=>enqueueOp({type:"set_wallpaper_brightness",value:v})} />
           <WallpaperSlider label="VIÑETADO" value={wallpaperVignette} min={0} max={100} unit="" onChange={v=>enqueueOp({type:"set_wallpaper_vignette",value:v})} />
+          {/* ── MÚSICA ── */}
+          <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
+          <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>MÚSICA</div>
+          <input
+            type="text"
+            placeholder="YouTube / Spotify / SoundCloud"
+            defaultValue={spaceMusic?.url ?? ""}
+            onMouseDown={e=>e.stopPropagation()}
+            onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();}}
+            onBlur={e=>{
+              const val=e.target.value.trim();
+              if(val===(spaceMusic?.url??""))return;
+              if(!val){enqueueOp({type:"set_space_music",value:undefined});}
+              else{enqueueOp({type:"set_space_music",value:{url:val,settings:spaceMusic?.settings??{loop:true,showControls:true}}});}
+            }}
+            style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:4,color:"rgba(255,255,255,0.65)",fontSize:8,fontFamily:MONO,padding:"5px 7px",outline:"none",letterSpacing:0.5}}
+          />
+          {spaceMusic?.url && (
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <label style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
+                <span style={{fontFamily:MONO,fontSize:7,letterSpacing:1.5,color:"rgba(255,255,255,0.35)",textTransform:"uppercase"}}>MOSTRAR CONTROLES</span>
+                <div
+                  onClick={()=>enqueueOp({type:"set_space_music",value:{url:spaceMusic.url,settings:{...spaceMusic.settings,showControls:!(spaceMusic.settings?.showControls??true)}}})}
+                  style={{width:28,height:14,borderRadius:7,background:(spaceMusic.settings?.showControls??true)?"rgba(212,240,196,0.3)":"rgba(255,255,255,0.1)",position:"relative",cursor:"pointer",transition:"background 0.15s",flexShrink:0}}
+                >
+                  <div style={{position:"absolute",top:2,left:(spaceMusic.settings?.showControls??true)?14:2,width:10,height:10,borderRadius:"50%",background:(spaceMusic.settings?.showControls??true)?"rgba(212,240,196,0.9)":"rgba(255,255,255,0.4)",transition:"left 0.15s"}}/>
+                </div>
+              </label>
+              <WallpaperMenuBtn label="QUITAR MÚSICA" onClick={()=>enqueueOp({type:"set_space_music",value:undefined})} dim />
+            </div>
+          )}
+          {/* ── FUENTES ── */}
+          <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
+          <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>FUENTE GLOBAL</div>
+          {spaceFont ? (
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <div style={{fontFamily:`"${spaceFont.name}", ${SANS}`,fontSize:11,color:"rgba(255,255,255,0.6)",padding:"4px 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{spaceFont.name}</div>
+              <WallpaperMenuBtn label="CAMBIAR FUENTE" onClick={()=>spaceFontRef.current?.click()} />
+              <WallpaperMenuBtn label="QUITAR FUENTE" onClick={()=>enqueueOp({type:"set_space_font",value:undefined})} dim />
+            </div>
+          ) : (
+            <WallpaperMenuBtn label="SUBIR FUENTE (.woff2 .woff .ttf .otf)" onClick={()=>spaceFontRef.current?.click()} />
+          )}
         </div>
       )}
 
@@ -2564,6 +2658,28 @@ export default function CanvasBoard({
           />
         </WidgetBoundary>
       )}
+
+      {/* ── SpaceMusic global player ── */}
+      {(()=>{
+        const url = spaceMusic?.url;
+        if (!url) return null;
+        const embedUrl = toEmbedUrl(url);
+        if (!embedUrl) return null;
+        if (!canEdit && !(spaceMusic?.settings?.showControls ?? true)) return null;
+        const platform = detectMusicPlatform(url);
+        const { w, h } = embedDimensions(platform);
+        return (
+          <div style={{position:"fixed",bottom:canEdit?80:16,left:16,zIndex:500,borderRadius:8,overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,0.6)",pointerEvents:"auto"}}>
+            <iframe
+              src={embedUrl}
+              width={w}
+              height={h}
+              style={{display:"block",border:"none"}}
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            />
+          </div>
+        );
+      })()}
 
       {/* Social hub view */}
       {view === "chats" && (

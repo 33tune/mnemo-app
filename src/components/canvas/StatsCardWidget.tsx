@@ -7,7 +7,6 @@ import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { useProfileViews } from "@/hooks/useProfileViews";
-import { useFavoriteCount } from "@/hooks/useFavoriteCount";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgMode } from "@/lib/bgStyle";
 import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, ActionButton, Divider, Collapsible } from "@/ui";
@@ -22,8 +21,7 @@ const FONTS: { label: string; value: TextFont }[] = [
 ];
 
 const DEFAULT_STATS: StatBlock[] = [
-  { id: "views",     visible: true },
-  { id: "favorites", visible: true },
+  { id: "views", visible: true },
 ];
 
 function fmtNum(n: number): string {
@@ -62,7 +60,6 @@ function StatsCardWidget({
   const bgImgRef  = useRef<HTMLInputElement>(null);
 
   const { total: viewCount } = useProfileViews(ownerUserId);
-  const { count: favCount  } = useFavoriteCount(ownerUserId);
 
   const effectiveEffects: CardEffects = {
     ...card.effects,
@@ -147,20 +144,14 @@ function StatsCardWidget({
   }
 
   function getStatValue(id: string): number {
-    switch (id) {
-      case "views":     return viewCount;
-      case "favorites": return favCount;
-      default:          return 0;
-    }
+    if (id === "views") return viewCount;
+    return 0;
   }
 
   function getStatLabel(block: StatBlock): string {
     if (block.label) return block.label;
-    switch (block.id) {
-      case "views":     return "VIEWS";
-      case "favorites": return "FAVS";
-      default:          return block.id.toUpperCase();
-    }
+    if (block.id === "views") return "VIEWS";
+    return block.id.toUpperCase();
   }
 
   function toggleStat(id: string) {

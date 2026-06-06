@@ -21,7 +21,7 @@ interface ProfileRow {
   last_active_at: string | null;
 }
 
-type FilterTab = "all" | "following" | "favorites";
+type FilterTab = "all" | "following";
 
 function FeedItem({ profile }: { profile: ProfileRow }) {
   const router = useRouter();
@@ -158,9 +158,8 @@ export default function BrowseView({ currentUserId }: { currentUserId?: string }
   const [profiles,      setProfiles]      = useState<ProfileRow[]>([]);
   const [query,         setQuery]         = useState("");
   const [loading,       setLoading]       = useState(true);
-  const [activeTab,     setActiveTab]     = useState<FilterTab>("all");
-  const [followingIds,  setFollowingIds]  = useState<Set<string>>(new Set());
-  const [favoriteIds,   setFavoriteIds]   = useState<Set<string>>(new Set());
+  const [activeTab,    setActiveTab]    = useState<FilterTab>("all");
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     createClient().from("profiles").select("handle, display_name, user_id, last_active_at").limit(50)
@@ -179,15 +178,10 @@ export default function BrowseView({ currentUserId }: { currentUserId?: string }
   }, []);
 
   useEffect(() => {
-    if (!currentUserId) { setFollowingIds(new Set()); setFavoriteIds(new Set()); return; }
-    const sb = createClient();
-    Promise.all([
-      sb.from("followers").select("following_id").eq("follower_id", currentUserId),
-      sb.from("favorites").select("target_user_id").eq("user_id", currentUserId),
-    ]).then(([foll, favs]) => {
-      setFollowingIds(new Set((foll.data ?? []).map(r => r.following_id)));
-      setFavoriteIds(new Set((favs.data  ?? []).map(r => r.target_user_id)));
-    });
+    if (!currentUserId) { setFollowingIds(new Set()); return; }
+    createClient()
+      .from("followers").select("following_id").eq("follower_id", currentUserId)
+      .then(({ data }) => setFollowingIds(new Set((data ?? []).map(r => r.following_id))));
   }, [currentUserId]);
 
   useEffect(() => {
@@ -202,7 +196,6 @@ export default function BrowseView({ currentUserId }: { currentUserId?: string }
 
   const visible =
     activeTab === "following" ? searched.filter(p => followingIds.has(p.user_id)) :
-    activeTab === "favorites" ? searched.filter(p => favoriteIds.has(p.user_id)) :
     searched;
 
   const hasSocial = !!currentUserId;
@@ -255,21 +248,15 @@ export default function BrowseView({ currentUserId }: { currentUserId?: string }
             padding:      "3px",
             backdropFilter:"blur(16px)",
           }}>
-            {(["all", "following", "favorites"] as FilterTab[]).map(tab => {
-              const isActive = activeTab === tab;
-              const count =
-                tab === "following" ? followingIds.size :
-                tab === "favorites" ? favoriteIds.size  : 0;
-              return (
-                <FilterTabBtn
-                  key={tab}
-                  label={tab}
-                  active={isActive}
-                  count={count}
-                  onClick={() => setActiveTab(tab)}
-                />
-              );
-            })}
+            {(["all", "following"] as FilterTab[]).map(tab => (
+              <FilterTabBtn
+                key={tab}
+                label={tab}
+                active={activeTab === tab}
+                count={tab === "following" ? followingIds.size : 0}
+                onClick={() => setActiveTab(tab)}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -369,9 +356,8 @@ function FilterTabBtn({
 // ── Empty state ────────────────────────────────────────────────────────────────
 function EmptyBrowse({ tab, hasQuery }: { tab: FilterTab; hasQuery: boolean }) {
   const lines: Record<FilterTab, [string, string]> = {
-    all:       ["NO PROFILES FOUND",   hasQuery ? "try a different search" : "network is empty"],
-    following: ["EMPTY NETWORK",       "find profiles in ALL"],
-    favorites: ["NO FAVORITES",        "star profiles to save them"],
+    all:       ["NO PROFILES FOUND", hasQuery ? "try a different search" : "network is empty"],
+    following: ["EMPTY NETWORK",     "find profiles in ALL"],
   };
   const [title, sub] = lines[tab];
   return (

@@ -4,8 +4,27 @@ import { createClient } from "@/lib/supabase/server";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
 import MobilePublicCanvas from "@/components/canvas/MobilePublicCanvas";
 import type { CanvasState } from "@/types";
+import type { Metadata } from "next";
 
 const RESERVED = new Set(["login", "dashboard", "space", "auth", "api", "admin", "settings"]);
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ handle: string }> }
+): Promise<Metadata> {
+  const { handle } = await params;
+  if (RESERVED.has(handle)) return { title: "myLand" };
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("handle, photo")
+    .eq("handle", handle)
+    .maybeSingle();
+  if (!data) return { title: "myLand" };
+  return {
+    title: `@${data.handle} — MNEMO`,
+    icons: { icon: data.photo || "/favicon.ico" },
+  };
+}
 
 export default async function PublicPage({
   params,
