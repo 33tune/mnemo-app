@@ -21,6 +21,8 @@ export default function Topbar({
   onSignals,
   isAnalytics,
   onAnalytics,
+  isEditMode,
+  onToggleEditMode,
 }: {
   wallpaper: string;
   handle?: string;
@@ -38,6 +40,8 @@ export default function Topbar({
   onSignals?:     () => void;
   isAnalytics?:   boolean;
   onAnalytics?:   () => void;
+  isEditMode?:    boolean;
+  onToggleEditMode?: () => void;
 }) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
@@ -203,6 +207,10 @@ export default function Topbar({
             </span>
           </div>
 
+          {onToggleEditMode && (
+            <SplitViewBtn active={!!isEditMode} onClick={onToggleEditMode} />
+          )}
+
           {onSignals && (
             <SignalsBtn count={unreadSignals ?? 0} onClick={onSignals} />
           )}
@@ -338,6 +346,38 @@ function SignalsBtn({ count, onClick }: { count: number; onClick: () => void }) 
           {count}
         </span>
       )}
+    </button>
+  );
+}
+
+// ── Split view toggle ──────────────────────────────────────────────────────────
+function SplitViewBtn({ active, onClick }: { active: boolean; onClick: () => void }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      title={active ? "Close Mobile Preview" : "Open Mobile Preview"}
+      style={{
+        display:       "flex",
+        alignItems:    "center",
+        gap:           5,
+        background:    active ? "rgba(255,255,255,0.09)" : "transparent",
+        border:        `1px solid ${active ? "rgba(255,255,255,0.18)" : hov ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.07)"}`,
+        borderRadius:  4,
+        padding:       "3px 9px",
+        fontFamily:    "'Space Mono', monospace",
+        fontSize:      8,
+        letterSpacing: 1.5,
+        color:         active ? "rgba(255,255,255,0.82)" : hov ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)",
+        textTransform: "uppercase",
+        cursor:        "pointer",
+        transition:    "all 0.1s ease",
+        userSelect:    "none",
+      }}
+    >
+      SPLIT
     </button>
   );
 }

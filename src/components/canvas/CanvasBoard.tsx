@@ -39,6 +39,7 @@ import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
+import EditModePanel from "./EditModePanel";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 
 const MONO = "'Space Mono', monospace";
@@ -230,6 +231,7 @@ export default function CanvasBoard({
   const [isLoading,     setIsLoading]     = useState(false);
   const [publishState,  setPublishState]  = useState<PublishState>("idle");
   const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("home");
+  const [editMode,      setEditMode]      = useState(false);
 
   const cards        = useMemo(() => elements.filter(e => e.elementType === "card")        as (CanvasCard        & { elementType: "card" })[], [elements]);
   const images       = useMemo(() => elements.filter(e => e.elementType === "image")       as (CanvasImageType   & { elementType: "image" })[], [elements]);
@@ -1040,6 +1042,11 @@ export default function CanvasBoard({
       setPublishState("pending");
     }
   }
+
+  // Close Edit Mode when leaving Desktop space view
+  useEffect(() => {
+    if (canvasMode !== "space") setEditMode(false);
+  }, [canvasMode]);
 
   // Carga (inicial y al cambiar de modo) con flush no-bloqueante y session guard
   useEffect(() => {
@@ -1996,6 +2003,8 @@ export default function CanvasBoard({
         onSignals={canEdit ? () => { if (!showSignals) markAllRead(); setShowSignals(s => !s); } : undefined}
         isAnalytics={view === "analytics"}
         onAnalytics={canEdit ? () => setView("analytics") : undefined}
+        isEditMode={editMode}
+        onToggleEditMode={canEdit && canvasMode === "space" && view === "canvas" ? () => setEditMode(v => !v) : undefined}
       />
 
       {view==="canvas"&&(creatingCard||rotating||addingText)&&(
@@ -2808,6 +2817,16 @@ export default function CanvasBoard({
             wallpaper={homeBg.wallpaper && homeBg.wallpaperLoaded ? homeBg.wallpaper : undefined}
           />
         </WidgetBoundary>
+      )}
+
+      {/* ── Edit Mode: Mobile Preview panel ── */}
+      {editMode && canvasMode === "space" && view === "canvas" && currentUserId && (
+        <EditModePanel
+          userId={currentUserId}
+          handle={userHandle}
+          name={userHandle}
+          onClose={() => setEditMode(false)}
+        />
       )}
 
       {/* ── SpaceMusic global player ── */}
