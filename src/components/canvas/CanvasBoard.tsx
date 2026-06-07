@@ -39,7 +39,6 @@ import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
-import EditModePanel from "./EditModePanel";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 
 const MONO = "'Space Mono', monospace";
@@ -231,7 +230,6 @@ export default function CanvasBoard({
   const [isLoading,     setIsLoading]     = useState(false);
   const [publishState,  setPublishState]  = useState<PublishState>("idle");
   const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("home");
-  const [editMode,      setEditMode]      = useState(false);
 
   const cards        = useMemo(() => elements.filter(e => e.elementType === "card")        as (CanvasCard        & { elementType: "card" })[], [elements]);
   const images       = useMemo(() => elements.filter(e => e.elementType === "image")       as (CanvasImageType   & { elementType: "image" })[], [elements]);
@@ -1042,11 +1040,6 @@ export default function CanvasBoard({
       setPublishState("pending");
     }
   }
-
-  // Close Edit Mode when leaving Desktop space view
-  useEffect(() => {
-    if (canvasMode !== "space") setEditMode(false);
-  }, [canvasMode]);
 
   // Carga (inicial y al cambiar de modo) con flush no-bloqueante y session guard
   useEffect(() => {
@@ -2003,8 +1996,6 @@ export default function CanvasBoard({
         onSignals={canEdit ? () => { if (!showSignals) markAllRead(); setShowSignals(s => !s); } : undefined}
         isAnalytics={view === "analytics"}
         onAnalytics={canEdit ? () => setView("analytics") : undefined}
-        isEditMode={editMode}
-        onToggleEditMode={canEdit && canvasMode === "space" && view === "canvas" ? () => setEditMode(v => !v) : undefined}
       />
 
       {view==="canvas"&&(creatingCard||rotating||addingText)&&(
@@ -2808,6 +2799,15 @@ export default function CanvasBoard({
         <OnboardingOverlay onDone={dismissOnboarding} />
       )}
 
+      {/* ── Desktop / Mobile view selector ── */}
+      {canEdit && isSpaceCanvas(canvasMode) && view === "canvas" && (
+        <ViewSelector
+          isDesktop={canvasMode === "space"}
+          onDesktop={() => handleModeChange("space")}
+          onMobile={() => handleModeChange("space_mobile")}
+        />
+      )}
+
       {/* Analytics view */}
       {view === "analytics" && canEdit && (
         <WidgetBoundary label="analytics-view">
@@ -2817,16 +2817,6 @@ export default function CanvasBoard({
             wallpaper={homeBg.wallpaper && homeBg.wallpaperLoaded ? homeBg.wallpaper : undefined}
           />
         </WidgetBoundary>
-      )}
-
-      {/* ── Edit Mode: Mobile Preview panel ── */}
-      {editMode && canvasMode === "space" && view === "canvas" && currentUserId && (
-        <EditModePanel
-          userId={currentUserId}
-          handle={userHandle}
-          name={userHandle}
-          onClose={() => setEditMode(false)}
-        />
       )}
 
       {/* ── SpaceMusic global player ── */}
@@ -2868,6 +2858,82 @@ export default function CanvasBoard({
 
 
     </div>
+  );
+}
+
+// ── Desktop / Mobile view selector ────────────────────────────────────────────
+function ViewSelector({
+  isDesktop,
+  onDesktop,
+  onMobile,
+}: {
+  isDesktop: boolean;
+  onDesktop: () => void;
+  onMobile:  () => void;
+}) {
+  return (
+    <div style={{
+      position:        "fixed",
+      bottom:          20,
+      left:            "50%",
+      transform:       "translateX(-50%)",
+      zIndex:          700,
+      display:         "flex",
+      alignItems:      "center",
+      background:      "rgba(8,8,10,0.88)",
+      backdropFilter:  "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      border:          "1px solid rgba(255,255,255,0.09)",
+      borderRadius:    8,
+      padding:         3,
+      gap:             2,
+    }}>
+      <ViewSelectorBtn
+        label="DESKTOP"
+        active={isDesktop}
+        onClick={onDesktop}
+      />
+      <ViewSelectorBtn
+        label="MOBILE"
+        active={!isDesktop}
+        onClick={onMobile}
+      />
+    </div>
+  );
+}
+
+function ViewSelectorBtn({
+  label,
+  active,
+  onClick,
+}: {
+  label:   string;
+  active:  boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding:       "5px 16px",
+        borderRadius:  5,
+        border:        active ? "1px solid rgba(255,255,255,0.13)" : "1px solid transparent",
+        background:    active ? "rgba(255,255,255,0.11)" : "transparent",
+        color:         active ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.32)",
+        fontFamily:    MONO,
+        fontSize:      8,
+        letterSpacing: 2,
+        textTransform: "uppercase",
+        cursor:        active ? "default" : "pointer",
+        transition:    "all 0.12s ease",
+        userSelect:    "none",
+        whiteSpace:    "nowrap",
+      }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,0.32)"; }}
+    >
+      {label}
+    </button>
   );
 }
 
