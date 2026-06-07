@@ -40,6 +40,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
+import { extractConfig, MOBILE_DEFAULT_DIMS, MOBILE_CANVAS_WIDTH, MOBILE_STACK_GAP, MOBILE_INITIAL_Y } from "@/lib/canvasCrossView";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -230,6 +231,9 @@ export default function CanvasBoard({
   const [isLoading,     setIsLoading]     = useState(false);
   const [publishState,  setPublishState]  = useState<PublishState>("idle");
   const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("home");
+  const exportingRef                        = useRef(false);
+  const [isExporting,    setIsExporting]    = useState(false);
+  const [exportFeedback, setExportFeedback] = useState(false);
 
   const cards        = useMemo(() => elements.filter(e => e.elementType === "card")        as (CanvasCard        & { elementType: "card" })[], [elements]);
   const images       = useMemo(() => elements.filter(e => e.elementType === "image")       as (CanvasImageType   & { elementType: "image" })[], [elements]);
@@ -1038,6 +1042,96 @@ export default function CanvasBoard({
     } catch (e) {
       console.error("[PUBLISH ERROR]", e);
       setPublishState("pending");
+    }
+  }
+
+  async function exportToMobile() {
+    if (exportingRef.current || canvasMode !== "space") return;
+    exportingRef.current = true;
+    setIsExporting(true);
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Sort elements top-to-bottom; skip unsaved blob images
+      const sorted = [...elements].sort((a, b) => a.y - b.y);
+
+      let nextY = MOBILE_INITIAL_Y;
+      const mobileElements: CanvasElement[] = [];
+
+      for (const src of sorted) {
+        if (src.elementType === "image" && src.src?.startsWith("blob:")) continue;
+
+        const config = extractConfig(src as Record<string, unknown>) as Record<string, unknown>;
+        delete config.stackId;
+        delete config.isStackAnchor;
+
+        const et = src.elementType;
+
+        if (et === "gallery") {
+          const cleanImages = (src as CanvasGallery & { elementType: "gallery" }).images
+            .filter(img => !img.src.startsWith("blob:"));
+          if (cleanImages.length === 0) continue;
+          config.images = cleanImages;
+        }
+
+        if (et === "text") {
+          mobileElements.push({
+            ...config,
+            id: crypto.randomUUID(),
+            elementType: et,
+            x: MOBILE_INITIAL_Y,
+            y: nextY,
+            zIndex: mobileElements.length + 1,
+            layer: 0,
+            depth: 0,
+            rotation: 0,
+          } as unknown as CanvasElement);
+          nextY += ((src as CanvasText & { elementType: "text" }).size ?? 16) + MOBILE_STACK_GAP;
+          continue;
+        }
+
+        const dims = MOBILE_DEFAULT_DIMS[et];
+        const w = dims.w;
+        const h = dims.h;
+        const x = Math.max(0, Math.round((MOBILE_CANVAS_WIDTH - w) / 2));
+
+        mobileElements.push({
+          ...config,
+          id: crypto.randomUUID(),
+          elementType: et,
+          x,
+          y: nextY,
+          w,
+          h,
+          zIndex: mobileElements.length + 1,
+          layer: 0,
+          depth: 0,
+          rotation: 0,
+        } as unknown as CanvasElement);
+        nextY += h + MOBILE_STACK_GAP;
+      }
+
+      // buildSaveState reads bgColor/wallpaper from current Desktop scope — intentional
+      const mobileState = await buildSaveState(mobileElements);
+
+      await supabase
+        .from("canvases")
+        .upsert(
+          { user_id: user.id, type: "space_mobile", data: mobileState, updated_at: new Date().toISOString() },
+          { onConflict: "user_id,type" },
+        );
+
+      await handleModeChange("space_mobile");
+      setExportFeedback(true);
+      setTimeout(() => setExportFeedback(false), 3000);
+    } catch (e) {
+      console.error("[EXPORT ERROR]", e);
+    } finally {
+      exportingRef.current = false;
+      setIsExporting(false);
     }
   }
 
@@ -2805,7 +2899,35 @@ export default function CanvasBoard({
           isDesktop={canvasMode === "space"}
           onDesktop={() => handleModeChange("space")}
           onMobile={() => handleModeChange("space_mobile")}
+          onExport={exportToMobile}
+          isExporting={isExporting}
         />
+      )}
+
+      {/* ── Export feedback toast ── */}
+      {exportFeedback && (
+        <div style={{
+          position:        "fixed",
+          bottom:          70,
+          left:            "50%",
+          transform:       "translateX(-50%)",
+          zIndex:          800,
+          background:      "rgba(8,8,10,0.92)",
+          backdropFilter:  "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border:          "1px solid rgba(212,240,196,0.22)",
+          borderRadius:    8,
+          padding:         "8px 18px",
+          fontFamily:      MONO,
+          fontSize:        9,
+          letterSpacing:   1.8,
+          color:           "rgba(212,240,196,0.8)",
+          textTransform:   "uppercase",
+          whiteSpace:      "nowrap",
+          pointerEvents:   "none",
+        }}>
+          Mobile layout generated ✓
+        </div>
       )}
 
       {/* Analytics view */}
@@ -2866,38 +2988,46 @@ function ViewSelector({
   isDesktop,
   onDesktop,
   onMobile,
+  onExport,
+  isExporting,
 }: {
-  isDesktop: boolean;
-  onDesktop: () => void;
-  onMobile:  () => void;
+  isDesktop:    boolean;
+  onDesktop:    () => void;
+  onMobile:     () => void;
+  onExport?:    () => void;
+  isExporting?: boolean;
 }) {
   return (
     <div style={{
-      position:        "fixed",
-      bottom:          20,
-      left:            "50%",
-      transform:       "translateX(-50%)",
-      zIndex:          700,
-      display:         "flex",
-      alignItems:      "center",
-      background:      "rgba(8,8,10,0.88)",
-      backdropFilter:  "blur(20px)",
-      WebkitBackdropFilter: "blur(20px)",
-      border:          "1px solid rgba(255,255,255,0.09)",
-      borderRadius:    8,
-      padding:         3,
-      gap:             2,
+      position:  "fixed",
+      bottom:    20,
+      left:      "50%",
+      transform: "translateX(-50%)",
+      zIndex:    700,
+      display:   "flex",
+      alignItems:"center",
+      gap:       8,
     }}>
-      <ViewSelectorBtn
-        label="DESKTOP"
-        active={isDesktop}
-        onClick={onDesktop}
-      />
-      <ViewSelectorBtn
-        label="MOBILE"
-        active={!isDesktop}
-        onClick={onMobile}
-      />
+      {/* Toggle pill */}
+      <div style={{
+        display:         "flex",
+        alignItems:      "center",
+        background:      "rgba(8,8,10,0.88)",
+        backdropFilter:  "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border:          "1px solid rgba(255,255,255,0.09)",
+        borderRadius:    8,
+        padding:         3,
+        gap:             2,
+      }}>
+        <ViewSelectorBtn label="DESKTOP" active={isDesktop} onClick={onDesktop} />
+        <ViewSelectorBtn label="MOBILE"  active={!isDesktop} onClick={onMobile} />
+      </div>
+
+      {/* Export button — visible only in Desktop view */}
+      {onExport && isDesktop && (
+        <ExportToMobileBtn onClick={onExport} isExporting={!!isExporting} />
+      )}
     </div>
   );
 }
@@ -2933,6 +3063,39 @@ function ViewSelectorBtn({
       onMouseLeave={e => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,0.32)"; }}
     >
       {label}
+    </button>
+  );
+}
+
+function ExportToMobileBtn({ onClick, isExporting }: { onClick: () => void; isExporting: boolean }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={isExporting}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background:          hov && !isExporting ? "rgba(255,255,255,0.07)" : "rgba(8,8,10,0.88)",
+        backdropFilter:      "blur(20px)",
+        WebkitBackdropFilter:"blur(20px)",
+        border:              `1px solid ${hov && !isExporting ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.09)"}`,
+        borderRadius:        8,
+        padding:             "7px 14px",
+        fontFamily:          MONO,
+        fontSize:            8,
+        letterSpacing:       2,
+        color:               isExporting
+          ? "rgba(255,255,255,0.32)"
+          : hov ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.48)",
+        textTransform:       "uppercase",
+        cursor:              isExporting ? "default" : "pointer",
+        transition:          "all 0.12s ease",
+        userSelect:          "none",
+        whiteSpace:          "nowrap",
+      }}
+    >
+      {isExporting ? "Exporting..." : "Export to Mobile"}
     </button>
   );
 }
