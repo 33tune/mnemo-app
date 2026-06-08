@@ -40,7 +40,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
-import { copyToMobile } from "@/lib/canvasCrossView";
+import { MOBILE_DEFAULT_DIMS, MOBILE_CANVAS_WIDTH, MOBILE_STACK_GAP, MOBILE_INITIAL_Y } from "@/lib/canvasCrossView";
 import MobileViewPanel from "./MobileViewPanel";
 
 const MONO = "'Space Mono', monospace";
@@ -234,17 +234,6 @@ export default function CanvasBoard({
   const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("home");
   // ── Mobile View panel ──────────────────────────────────────────────────────────
   const [mobilePanelOpen,  setMobilePanelOpen]  = useState(false);
-  const [mobileElements,   setMobileElements]   = useState<CanvasElement[]>([]);
-  const [mobileBgColor,    setMobileBgColor]    = useState("#0a0a0c");
-  const [mobileWallpaper,  setMobileWallpaper]  = useState("");
-  const [mobileWallpaperBlur,       setMobileWallpaperBlur]       = useState(0);
-  const [mobileWallpaperBrightness, setMobileWallpaperBrightness] = useState(100);
-  const [mobileWallpaperVignette,   setMobileWallpaperVignette]   = useState(0);
-  const [mobileLoaded,     setMobileLoaded]     = useState(false);
-  const [sentToMobileIds,  setSentToMobileIds]  = useState<Set<string>>(new Set());
-  const mobileBaseStateRef  = useRef<import("@/types").CanvasState | null>(null);
-  const mobileCanvasIdRef   = useRef<string | null>(null);
-  const mobileSaveTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cards        = useMemo(() => elements.filter(e => e.elementType === "card")        as (CanvasCard        & { elementType: "card" })[], [elements]);
   const images       = useMemo(() => elements.filter(e => e.elementType === "image")       as (CanvasImageType   & { elementType: "image" })[], [elements]);
@@ -1056,146 +1045,94 @@ export default function CanvasBoard({
     }
   }
 
-  // ── Mobile panel load — fetches space_mobile once when panel first opens ────────
-  useEffect(() => {
-    if (!mobilePanelOpen || mobileLoaded || !canEdit) return;
-    (async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: row } = await supabase
-        .from("canvases").select("id, data")
-        .eq("user_id", user.id).eq("type", "space_mobile").maybeSingle();
-      let canvasId = row?.id ?? null;
-      const baseState = (row?.data ?? {}) as import("@/types").CanvasState;
-      if (!canvasId) {
-        const { data: created } = await supabase
-          .from("canvases")
-          .upsert({ user_id: user.id, type: "space_mobile", data: baseState }, { onConflict: "user_id,type" })
-          .select("id").single();
-        canvasId = created?.id ?? null;
+  // ── Compute lowest bottom edge of all mobile-registered elements ─────────────
+  function computeMobileBottom(): number {
+    let max = 0;
+    for (const e of elements) {
+      if (e.mobileX == null) continue;
+      const my = e.mobileY!;
+      let bottom = my;
+      if (e.elementType === "text") {
+        bottom = my + (e as CanvasText & { elementType: "text" }).size;
+      } else {
+        const mh = e.mobileH ?? (e as { h?: number }).h ?? 0;
+        bottom = my + mh;
       }
-      mobileCanvasIdRef.current = canvasId;
-      mobileBaseStateRef.current = baseState;
-      if (baseState.bgColor)   setMobileBgColor(baseState.bgColor);
-      if (baseState.wallpaper) setMobileWallpaper(baseState.wallpaper);
-      if (baseState.wallpaperBlur       != null) setMobileWallpaperBlur(baseState.wallpaperBlur);
-      if (baseState.wallpaperBrightness != null) setMobileWallpaperBrightness(baseState.wallpaperBrightness);
-      if (baseState.wallpaperVignette   != null) setMobileWallpaperVignette(baseState.wallpaperVignette);
-      setMobileElements([
-        ...(baseState.cards        ?? []).map(c => ({ ...c, elementType: "card"      as const })),
-        ...(baseState.images       ?? []).map(i => ({ ...i, elementType: "image"     as const })),
-        ...(baseState.texts        ?? []).map(t => ({ ...t, elementType: "text"      as const })),
-        ...(baseState.galleries    ?? []).map(g => ({ ...g, elementType: "gallery"   as const })),
-        ...(baseState.profiles     ?? []).map(p => ({ ...p, elementType: "profile"   as const })),
-        ...(baseState.medias       ?? []).map(m => ({ ...m, elementType: "media"     as const })),
-        ...(baseState.guestbooks   ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
-        ...(baseState.socialCards  ?? []).map(s => ({ ...s, elementType: "social"    as const })),
-        ...(baseState.musicCards   ?? []).map(m => ({ ...m, elementType: "music"     as const })),
-        ...(baseState.linksCards   ?? []).map(l => ({ ...l, elementType: "links"     as const })),
-        ...(baseState.statsCards   ?? []).map(s => ({ ...s, elementType: "stats"     as const })),
-      ]);
-      setMobileLoaded(true);
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mobilePanelOpen, mobileLoaded, canEdit]);
-
-  // ── Mobile panel debounced save ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!mobileLoaded) return;
-    if (mobileSaveTimerRef.current) clearTimeout(mobileSaveTimerRef.current);
-    mobileSaveTimerRef.current = setTimeout(async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const b = mobileBaseStateRef.current ?? {};
-      const newState = {
-        ...b,
-        bgColor:              mobileBgColor,
-        wallpaper:            mobileWallpaper,
-        wallpaperBlur:        mobileWallpaperBlur,
-        wallpaperBrightness:  mobileWallpaperBrightness,
-        wallpaperVignette:    mobileWallpaperVignette,
-        cards:       mobileElements.filter(e => e.elementType === "card"),
-        images:      mobileElements.filter(e => e.elementType === "image"),
-        texts:       mobileElements.filter(e => e.elementType === "text"),
-        galleries:   mobileElements.filter(e => e.elementType === "gallery"),
-        profiles:    mobileElements.filter(e => e.elementType === "profile"),
-        medias:      mobileElements.filter(e => e.elementType === "media"),
-        guestbooks:  mobileElements.filter(e => e.elementType === "guestbook"),
-        socialCards: mobileElements.filter(e => e.elementType === "social"),
-        musicCards:  mobileElements.filter(e => e.elementType === "music"),
-        linksCards:  mobileElements.filter(e => e.elementType === "links"),
-        statsCards:  mobileElements.filter(e => e.elementType === "stats"),
-      };
-      mobileBaseStateRef.current = newState;
-      await supabase.from("canvases").upsert(
-        { user_id: user.id, type: "space_mobile", data: newState, updated_at: new Date().toISOString() },
-        { onConflict: "user_id,type" },
-      );
-    }, 900);
-    return () => { if (mobileSaveTimerRef.current) clearTimeout(mobileSaveTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mobileElements, mobileLoaded]);
-
-  // ── Load sentToMobileIds from localStorage ───────────────────────────────────
-  useEffect(() => {
-    if (!currentUserId) return;
-    try {
-      const raw = localStorage.getItem(`myland-sent-to-mobile-${currentUserId}`);
-      if (raw) setSentToMobileIds(new Set(JSON.parse(raw)));
-    } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUserId]);
-
-  function persistSentIds(ids: Set<string>) {
-    if (!currentUserId) return;
-    try { localStorage.setItem(`myland-sent-to-mobile-${currentUserId}`, JSON.stringify([...ids])); } catch { /* ignore */ }
-  }
-
-  function buildMobileCanvasStateForPlacement(): import("@/types").CanvasState {
-    const b = mobileBaseStateRef.current;
-    return {
-      bgColor:     b?.bgColor     ?? "#0a0a0c",
-      wallpaper:   b?.wallpaper   ?? "",
-      cards:       mobileElements.filter(e => e.elementType === "card")      as never[],
-      images:      mobileElements.filter(e => e.elementType === "image")     as never[],
-      texts:       mobileElements.filter(e => e.elementType === "text")      as never[],
-      galleries:   mobileElements.filter(e => e.elementType === "gallery")   as never[],
-      profiles:    mobileElements.filter(e => e.elementType === "profile")   as never[],
-      medias:      mobileElements.filter(e => e.elementType === "media")     as never[],
-      guestbooks:  mobileElements.filter(e => e.elementType === "guestbook") as never[],
-      socialCards: mobileElements.filter(e => e.elementType === "social")    as never[],
-      musicCards:  mobileElements.filter(e => e.elementType === "music")     as never[],
-      linksCards:  mobileElements.filter(e => e.elementType === "links")     as never[],
-      statsCards:  mobileElements.filter(e => e.elementType === "stats")     as never[],
-    };
+      max = Math.max(max, bottom);
+    }
+    return max;
   }
 
   function sendSelectedToMobile() {
     if (selectedIds.size !== 1) return;
     const id = [...selectedIds][0];
-    const source = elements.find(e => e.id === id);
-    if (!source) return;
-    // Skip unsaved blob images
-    if (source.elementType === "image" && (source as { src?: string }).src?.startsWith("blob:")) return;
-    // For gallery, filter blob images first; skip if empty
-    let adjusted = source;
-    if (source.elementType === "gallery") {
-      const clean = (source as CanvasGallery & { elementType: "gallery" }).images.filter(i => !i.src.startsWith("blob:"));
+    const el = elements.find(e => e.id === id);
+    if (!el) return;
+    if (el.elementType === "image" && el.src?.startsWith("blob:")) return;
+    if (el.elementType === "gallery") {
+      const clean = el.images.filter(i => !i.src.startsWith("blob:"));
       if (clean.length === 0) return;
-      adjusted = { ...source, images: clean } as CanvasElement;
     }
-    const mobileCanvasState = buildMobileCanvasStateForPlacement();
-    const copy = copyToMobile(adjusted, mobileCanvasState);
-    setMobileElements(prev => [...prev, copy]);
-    setSentToMobileIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      persistSentIds(next);
-      return next;
-    });
+    // Already on mobile — just open the panel
+    if (el.mobileX != null) { setMobilePanelOpen(true); return; }
+
+    const maxBottom = computeMobileBottom();
+    const nextY = maxBottom > 0 ? maxBottom + MOBILE_STACK_GAP : MOBILE_INITIAL_Y;
+    const mobileEls = elements.filter(e => e.mobileX != null);
+    const nextZ = mobileEls.length > 0 ? Math.max(...mobileEls.map(e => e.zIndex)) + 1 : el.zIndex;
+
+    let mobileX: number, mobileY: number, mobileW: number | undefined, mobileH: number | undefined;
+    if (el.elementType === "text") {
+      mobileX = MOBILE_INITIAL_Y;
+      mobileY = nextY;
+    } else {
+      const dims = MOBILE_DEFAULT_DIMS[el.elementType];
+      mobileW = dims.w;
+      mobileH = dims.h;
+      mobileX = Math.max(0, Math.round((MOBILE_CANVAS_WIDTH - dims.w) / 2));
+      mobileY = nextY;
+    }
+
+    const patch = el.elementType === "text"
+      ? { mobileX, mobileY }
+      : { mobileX, mobileY, mobileW, mobileH };
+
+    // Dispatch typed update op
+    if      (el.elementType === "card")      enqueueOp({ type: "update_card",      id, patch: patch as Partial<CanvasCard> });
+    else if (el.elementType === "image")     enqueueOp({ type: "update_image",     id, patch: patch as Partial<CanvasImageType> });
+    else if (el.elementType === "text")      enqueueOp({ type: "update_text",      id, patch: patch as Partial<CanvasText> });
+    else if (el.elementType === "gallery")   enqueueOp({ type: "update_gallery",   id, patch: patch as Partial<CanvasGallery> });
+    else if (el.elementType === "profile")   enqueueOp({ type: "update_profile",   id, patch: patch as Partial<ProfileCardData> });
+    else if (el.elementType === "media")     enqueueOp({ type: "update_media",     id, patch: patch as Partial<CanvasMedia> });
+    else if (el.elementType === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: patch as Partial<GuestbookCardData> });
+    else if (el.elementType === "social")    enqueueOp({ type: "update_social",    id, patch: patch as Partial<SocialCardData> });
+    else if (el.elementType === "music")     enqueueOp({ type: "update_music",     id, patch: patch as Partial<MusicCardData> });
+    else if (el.elementType === "links")     enqueueOp({ type: "update_links",     id, patch: patch as Partial<LinksCardData> });
+    else if (el.elementType === "stats")     enqueueOp({ type: "update_stats",     id, patch: patch as Partial<StatsCardData> });
+
+    void nextZ; // unused but computed for future zIndex ordering
     if (!mobilePanelOpen) setMobilePanelOpen(true);
+  }
+
+  function handleDragMobileLayout(id: string, mobileX: number, mobileY: number) {
+    setElements(prev => prev.map(e => e.id === id ? { ...e, mobileX, mobileY } as typeof e : e));
+  }
+
+  function handleCommitMobileLayout(id: string, mobileX: number, mobileY: number) {
+    const el = elementsRef.current.find(e => e.id === id);
+    if (!el) return;
+    const patch = { mobileX, mobileY };
+    if      (el.elementType === "card")      enqueueOp({ type: "update_card",      id, patch: patch as Partial<CanvasCard> });
+    else if (el.elementType === "image")     enqueueOp({ type: "update_image",     id, patch: patch as Partial<CanvasImageType> });
+    else if (el.elementType === "text")      enqueueOp({ type: "update_text",      id, patch: patch as Partial<CanvasText> });
+    else if (el.elementType === "gallery")   enqueueOp({ type: "update_gallery",   id, patch: patch as Partial<CanvasGallery> });
+    else if (el.elementType === "profile")   enqueueOp({ type: "update_profile",   id, patch: patch as Partial<ProfileCardData> });
+    else if (el.elementType === "media")     enqueueOp({ type: "update_media",     id, patch: patch as Partial<CanvasMedia> });
+    else if (el.elementType === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: patch as Partial<GuestbookCardData> });
+    else if (el.elementType === "social")    enqueueOp({ type: "update_social",    id, patch: patch as Partial<SocialCardData> });
+    else if (el.elementType === "music")     enqueueOp({ type: "update_music",     id, patch: patch as Partial<MusicCardData> });
+    else if (el.elementType === "links")     enqueueOp({ type: "update_links",     id, patch: patch as Partial<LinksCardData> });
+    else if (el.elementType === "stats")     enqueueOp({ type: "update_stats",     id, patch: patch as Partial<StatsCardData> });
   }
 
   // Carga (inicial y al cambiar de modo) con flush no-bloqueante y session guard
@@ -2278,8 +2215,8 @@ export default function CanvasBoard({
       {view==="canvas"&&selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
       {/* ── 📱 Sent-to-Mobile indicators ── */}
-      {canEdit && canvasMode === "space" && sentToMobileIds.size > 0 && elements
-        .filter(e => sentToMobileIds.has(e.id))
+      {canEdit && canvasMode === "space" && elements
+        .filter(e => e.mobileX != null)
         .map(e => {
           const ew = (e as { w?: number }).w ?? 0;
           return (
@@ -2989,7 +2926,7 @@ export default function CanvasBoard({
       {/* ── Send to Mobile contextual button ── */}
       {canEdit && canvasMode === "space" && view === "canvas" && selectedIds.size === 1 && (
         <SendToMobileButton
-          alreadySent={sentToMobileIds.has([...selectedIds][0])}
+          alreadySent={elements.find(e => e.id === [...selectedIds][0])?.mobileX != null}
           panelOpen={mobilePanelOpen}
           onClick={sendSelectedToMobile}
         />
@@ -3049,14 +2986,14 @@ export default function CanvasBoard({
         <MobileViewPanel
           isOpen={mobilePanelOpen}
           onClose={() => setMobilePanelOpen(false)}
-          elements={mobileElements}
-          setElements={setMobileElements}
-          bgColor={mobileBgColor}
-          wallpaper={mobileWallpaper}
-          wallpaperBlur={mobileWallpaperBlur}
-          wallpaperBrightness={mobileWallpaperBrightness}
-          wallpaperVignette={mobileWallpaperVignette}
-          loaded={mobileLoaded}
+          elements={elements.filter(e => e.mobileX != null)}
+          onDragMobileLayout={handleDragMobileLayout}
+          onCommitMobileLayout={handleCommitMobileLayout}
+          bgColor={bgColor}
+          wallpaper={wallpaper}
+          wallpaperBlur={wallpaperBlur}
+          wallpaperBrightness={wallpaperBrightness}
+          wallpaperVignette={wallpaperVignette}
         />
       )}
 

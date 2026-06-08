@@ -21,6 +21,10 @@ export type CanvasImage = {
   storage_path?: string;
   linkUrl?: string;
   isLocal?: boolean;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 export type CardType = "empty" | "text" | "list" | "gallery" | "links" | "folder";
@@ -50,6 +54,10 @@ export type CanvasCard = {
   cardFont?: TextFont;
   cardFontSize?: number;
   isPublic?: boolean;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 // Intentionally a string so future fonts (including custom uploads) need no type update.
@@ -73,6 +81,8 @@ export type CanvasText = {
   locked?: boolean;
   isPublic?: boolean;
   pinCount?: number;
+  mobileX?: number;
+  mobileY?: number;
 };
 
 export type GalleryImage = {
@@ -97,6 +107,10 @@ export type CanvasGallery = {
   opacity: number;
   locked?: boolean;
   isPublic?: boolean;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 export type PhotoSize = "sm" | "md" | "lg";
@@ -138,6 +152,10 @@ export type CanvasMedia = {
   mediaType: MediaType;
   locked?:   boolean;
   isPublic?: boolean;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 // ── Profile Card — identity only ─────────────────────────────────────────────
@@ -212,6 +230,11 @@ export type ProfileCardData = {
   isStackAnchor?:  boolean;
   // Effects
   effects?:        CardEffects;
+  // Mobile layout (panel placement, independent from desktop)
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 // ── Module cards ─────────────────────────────────────────────────────────────
@@ -243,6 +266,10 @@ export type SocialCardData = {
   textColor?:    string;
   iconSize?:     number;
   effects?:      CardEffects;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 export type MusicCardData = {
@@ -274,6 +301,10 @@ export type MusicCardData = {
   textSize?:     number;
   font?:         TextFont;
   effects?:      CardEffects;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 export type LinksCardData = {
@@ -304,6 +335,10 @@ export type LinksCardData = {
   textSize?:     number;
   font?:         TextFont;
   effects?:      CardEffects;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 // ── Stats module ─────────────────────────────────────────────────────────────
@@ -342,6 +377,10 @@ export type StatsCardData = {
   textSize?:     number;
   font?:         TextFont;
   effects?:      CardEffects;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 // ── Guestbook ────────────────────────────────────────────────────────────────
@@ -380,6 +419,10 @@ export type GuestbookCardData = {
   opacity?:      number;
   blur?:         number;
   brightness?:   number;
+  mobileX?: number;
+  mobileY?: number;
+  mobileW?: number;
+  mobileH?: number;
 };
 
 // ── Card Effects System ───────────────────────────────────────────────────────
