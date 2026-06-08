@@ -40,7 +40,8 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
-import { extractConfig, MOBILE_DEFAULT_DIMS, MOBILE_CANVAS_WIDTH, MOBILE_STACK_GAP, MOBILE_INITIAL_Y } from "@/lib/canvasCrossView";
+import { copyToMobile } from "@/lib/canvasCrossView";
+import MobileViewPanel from "./MobileViewPanel";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -231,9 +232,19 @@ export default function CanvasBoard({
   const [isLoading,     setIsLoading]     = useState(false);
   const [publishState,  setPublishState]  = useState<PublishState>("idle");
   const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("home");
-  const exportingRef                        = useRef(false);
-  const [isExporting,    setIsExporting]    = useState(false);
-  const [exportFeedback, setExportFeedback] = useState(false);
+  // ── Mobile View panel ──────────────────────────────────────────────────────────
+  const [mobilePanelOpen,  setMobilePanelOpen]  = useState(false);
+  const [mobileElements,   setMobileElements]   = useState<CanvasElement[]>([]);
+  const [mobileBgColor,    setMobileBgColor]    = useState("#0a0a0c");
+  const [mobileWallpaper,  setMobileWallpaper]  = useState("");
+  const [mobileWallpaperBlur,       setMobileWallpaperBlur]       = useState(0);
+  const [mobileWallpaperBrightness, setMobileWallpaperBrightness] = useState(100);
+  const [mobileWallpaperVignette,   setMobileWallpaperVignette]   = useState(0);
+  const [mobileLoaded,     setMobileLoaded]     = useState(false);
+  const [sentToMobileIds,  setSentToMobileIds]  = useState<Set<string>>(new Set());
+  const mobileBaseStateRef  = useRef<import("@/types").CanvasState | null>(null);
+  const mobileCanvasIdRef   = useRef<string | null>(null);
+  const mobileSaveTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cards        = useMemo(() => elements.filter(e => e.elementType === "card")        as (CanvasCard        & { elementType: "card" })[], [elements]);
   const images       = useMemo(() => elements.filter(e => e.elementType === "image")       as (CanvasImageType   & { elementType: "image" })[], [elements]);
@@ -1045,94 +1056,146 @@ export default function CanvasBoard({
     }
   }
 
-  async function exportToMobile() {
-    if (exportingRef.current || canvasMode !== "space") return;
-    exportingRef.current = true;
-    setIsExporting(true);
-
-    try {
+  // ── Mobile panel load — fetches space_mobile once when panel first opens ────────
+  useEffect(() => {
+    if (!mobilePanelOpen || mobileLoaded || !canEdit) return;
+    (async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      // Sort elements top-to-bottom; skip unsaved blob images
-      const sorted = [...elements].sort((a, b) => a.y - b.y);
-
-      let nextY = MOBILE_INITIAL_Y;
-      const mobileElements: CanvasElement[] = [];
-
-      for (const src of sorted) {
-        if (src.elementType === "image" && src.src?.startsWith("blob:")) continue;
-
-        const config = extractConfig(src as Record<string, unknown>) as Record<string, unknown>;
-        delete config.stackId;
-        delete config.isStackAnchor;
-
-        const et = src.elementType;
-
-        if (et === "gallery") {
-          const cleanImages = (src as CanvasGallery & { elementType: "gallery" }).images
-            .filter(img => !img.src.startsWith("blob:"));
-          if (cleanImages.length === 0) continue;
-          config.images = cleanImages;
-        }
-
-        if (et === "text") {
-          mobileElements.push({
-            ...config,
-            id: crypto.randomUUID(),
-            elementType: et,
-            x: MOBILE_INITIAL_Y,
-            y: nextY,
-            zIndex: mobileElements.length + 1,
-            layer: 0,
-            depth: 0,
-            rotation: 0,
-          } as unknown as CanvasElement);
-          nextY += ((src as CanvasText & { elementType: "text" }).size ?? 16) + MOBILE_STACK_GAP;
-          continue;
-        }
-
-        const dims = MOBILE_DEFAULT_DIMS[et];
-        const w = dims.w;
-        const h = dims.h;
-        const x = Math.max(0, Math.round((MOBILE_CANVAS_WIDTH - w) / 2));
-
-        mobileElements.push({
-          ...config,
-          id: crypto.randomUUID(),
-          elementType: et,
-          x,
-          y: nextY,
-          w,
-          h,
-          zIndex: mobileElements.length + 1,
-          layer: 0,
-          depth: 0,
-          rotation: 0,
-        } as unknown as CanvasElement);
-        nextY += h + MOBILE_STACK_GAP;
+      const { data: row } = await supabase
+        .from("canvases").select("id, data")
+        .eq("user_id", user.id).eq("type", "space_mobile").maybeSingle();
+      let canvasId = row?.id ?? null;
+      const baseState = (row?.data ?? {}) as import("@/types").CanvasState;
+      if (!canvasId) {
+        const { data: created } = await supabase
+          .from("canvases")
+          .upsert({ user_id: user.id, type: "space_mobile", data: baseState }, { onConflict: "user_id,type" })
+          .select("id").single();
+        canvasId = created?.id ?? null;
       }
+      mobileCanvasIdRef.current = canvasId;
+      mobileBaseStateRef.current = baseState;
+      if (baseState.bgColor)   setMobileBgColor(baseState.bgColor);
+      if (baseState.wallpaper) setMobileWallpaper(baseState.wallpaper);
+      if (baseState.wallpaperBlur       != null) setMobileWallpaperBlur(baseState.wallpaperBlur);
+      if (baseState.wallpaperBrightness != null) setMobileWallpaperBrightness(baseState.wallpaperBrightness);
+      if (baseState.wallpaperVignette   != null) setMobileWallpaperVignette(baseState.wallpaperVignette);
+      setMobileElements([
+        ...(baseState.cards        ?? []).map(c => ({ ...c, elementType: "card"      as const })),
+        ...(baseState.images       ?? []).map(i => ({ ...i, elementType: "image"     as const })),
+        ...(baseState.texts        ?? []).map(t => ({ ...t, elementType: "text"      as const })),
+        ...(baseState.galleries    ?? []).map(g => ({ ...g, elementType: "gallery"   as const })),
+        ...(baseState.profiles     ?? []).map(p => ({ ...p, elementType: "profile"   as const })),
+        ...(baseState.medias       ?? []).map(m => ({ ...m, elementType: "media"     as const })),
+        ...(baseState.guestbooks   ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
+        ...(baseState.socialCards  ?? []).map(s => ({ ...s, elementType: "social"    as const })),
+        ...(baseState.musicCards   ?? []).map(m => ({ ...m, elementType: "music"     as const })),
+        ...(baseState.linksCards   ?? []).map(l => ({ ...l, elementType: "links"     as const })),
+        ...(baseState.statsCards   ?? []).map(s => ({ ...s, elementType: "stats"     as const })),
+      ]);
+      setMobileLoaded(true);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobilePanelOpen, mobileLoaded, canEdit]);
 
-      // buildSaveState reads bgColor/wallpaper from current Desktop scope — intentional
-      const mobileState = await buildSaveState(mobileElements);
+  // ── Mobile panel debounced save ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!mobileLoaded) return;
+    if (mobileSaveTimerRef.current) clearTimeout(mobileSaveTimerRef.current);
+    mobileSaveTimerRef.current = setTimeout(async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const b = mobileBaseStateRef.current ?? {};
+      const newState = {
+        ...b,
+        bgColor:              mobileBgColor,
+        wallpaper:            mobileWallpaper,
+        wallpaperBlur:        mobileWallpaperBlur,
+        wallpaperBrightness:  mobileWallpaperBrightness,
+        wallpaperVignette:    mobileWallpaperVignette,
+        cards:       mobileElements.filter(e => e.elementType === "card"),
+        images:      mobileElements.filter(e => e.elementType === "image"),
+        texts:       mobileElements.filter(e => e.elementType === "text"),
+        galleries:   mobileElements.filter(e => e.elementType === "gallery"),
+        profiles:    mobileElements.filter(e => e.elementType === "profile"),
+        medias:      mobileElements.filter(e => e.elementType === "media"),
+        guestbooks:  mobileElements.filter(e => e.elementType === "guestbook"),
+        socialCards: mobileElements.filter(e => e.elementType === "social"),
+        musicCards:  mobileElements.filter(e => e.elementType === "music"),
+        linksCards:  mobileElements.filter(e => e.elementType === "links"),
+        statsCards:  mobileElements.filter(e => e.elementType === "stats"),
+      };
+      mobileBaseStateRef.current = newState;
+      await supabase.from("canvases").upsert(
+        { user_id: user.id, type: "space_mobile", data: newState, updated_at: new Date().toISOString() },
+        { onConflict: "user_id,type" },
+      );
+    }, 900);
+    return () => { if (mobileSaveTimerRef.current) clearTimeout(mobileSaveTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileElements, mobileLoaded]);
 
-      await supabase
-        .from("canvases")
-        .upsert(
-          { user_id: user.id, type: "space_mobile", data: mobileState, updated_at: new Date().toISOString() },
-          { onConflict: "user_id,type" },
-        );
+  // ── Load sentToMobileIds from localStorage ───────────────────────────────────
+  useEffect(() => {
+    if (!currentUserId) return;
+    try {
+      const raw = localStorage.getItem(`myland-sent-to-mobile-${currentUserId}`);
+      if (raw) setSentToMobileIds(new Set(JSON.parse(raw)));
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]);
 
-      await handleModeChange("space_mobile");
-      setExportFeedback(true);
-      setTimeout(() => setExportFeedback(false), 3000);
-    } catch (e) {
-      console.error("[EXPORT ERROR]", e);
-    } finally {
-      exportingRef.current = false;
-      setIsExporting(false);
+  function persistSentIds(ids: Set<string>) {
+    if (!currentUserId) return;
+    try { localStorage.setItem(`myland-sent-to-mobile-${currentUserId}`, JSON.stringify([...ids])); } catch { /* ignore */ }
+  }
+
+  function buildMobileCanvasStateForPlacement(): import("@/types").CanvasState {
+    const b = mobileBaseStateRef.current;
+    return {
+      bgColor:     b?.bgColor     ?? "#0a0a0c",
+      wallpaper:   b?.wallpaper   ?? "",
+      cards:       mobileElements.filter(e => e.elementType === "card")      as never[],
+      images:      mobileElements.filter(e => e.elementType === "image")     as never[],
+      texts:       mobileElements.filter(e => e.elementType === "text")      as never[],
+      galleries:   mobileElements.filter(e => e.elementType === "gallery")   as never[],
+      profiles:    mobileElements.filter(e => e.elementType === "profile")   as never[],
+      medias:      mobileElements.filter(e => e.elementType === "media")     as never[],
+      guestbooks:  mobileElements.filter(e => e.elementType === "guestbook") as never[],
+      socialCards: mobileElements.filter(e => e.elementType === "social")    as never[],
+      musicCards:  mobileElements.filter(e => e.elementType === "music")     as never[],
+      linksCards:  mobileElements.filter(e => e.elementType === "links")     as never[],
+      statsCards:  mobileElements.filter(e => e.elementType === "stats")     as never[],
+    };
+  }
+
+  function sendSelectedToMobile() {
+    if (selectedIds.size !== 1) return;
+    const id = [...selectedIds][0];
+    const source = elements.find(e => e.id === id);
+    if (!source) return;
+    // Skip unsaved blob images
+    if (source.elementType === "image" && (source as { src?: string }).src?.startsWith("blob:")) return;
+    // For gallery, filter blob images first; skip if empty
+    let adjusted = source;
+    if (source.elementType === "gallery") {
+      const clean = (source as CanvasGallery & { elementType: "gallery" }).images.filter(i => !i.src.startsWith("blob:"));
+      if (clean.length === 0) return;
+      adjusted = { ...source, images: clean } as CanvasElement;
     }
+    const mobileCanvasState = buildMobileCanvasStateForPlacement();
+    const copy = copyToMobile(adjusted, mobileCanvasState);
+    setMobileElements(prev => [...prev, copy]);
+    setSentToMobileIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      persistSentIds(next);
+      return next;
+    });
+    if (!mobilePanelOpen) setMobilePanelOpen(true);
   }
 
   // Carga (inicial y al cambiar de modo) con flush no-bloqueante y session guard
@@ -2214,6 +2277,26 @@ export default function CanvasBoard({
       {view==="canvas"&&drawRectVis&&drawRectVis.w>0&&(<div style={{position:"absolute",left:drawRectVis.x,top:drawRectVis.y,width:drawRectVis.w,height:drawRectVis.h,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.02)",borderRadius:4,pointerEvents:"none",zIndex:600}} />)}
       {view==="canvas"&&selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
+      {/* ── 📱 Sent-to-Mobile indicators ── */}
+      {canEdit && canvasMode === "space" && sentToMobileIds.size > 0 && elements
+        .filter(e => sentToMobileIds.has(e.id))
+        .map(e => {
+          const ew = (e as { w?: number }).w ?? 0;
+          return (
+            <div key={`mob-badge-${e.id}`} style={{
+              position:      "absolute",
+              left:          e.x + ew - 18,
+              top:           e.y + 4,
+              zIndex:        e.zIndex + (e.layer ?? 0) * 100 + 2,
+              fontSize:      12,
+              pointerEvents: "none",
+              filter:        "drop-shadow(0 1px 3px rgba(0,0,0,0.7))",
+              lineHeight:    1,
+            }}>📱</div>
+          );
+        })
+      }
+
       {/* ── IMAGES ── */}
       {visImages.map((img,i)=>{
         const isSel=selectedIds.has(img.id);
@@ -2897,37 +2980,19 @@ export default function CanvasBoard({
       {canEdit && isSpaceCanvas(canvasMode) && view === "canvas" && (
         <ViewSelector
           isDesktop={canvasMode === "space"}
+          mobilePanelOpen={mobilePanelOpen}
           onDesktop={() => handleModeChange("space")}
-          onMobile={() => handleModeChange("space_mobile")}
-          onExport={exportToMobile}
-          isExporting={isExporting}
+          onToggleMobilePanel={() => setMobilePanelOpen(v => !v)}
         />
       )}
 
-      {/* ── Export feedback toast ── */}
-      {exportFeedback && (
-        <div style={{
-          position:        "fixed",
-          bottom:          70,
-          left:            "50%",
-          transform:       "translateX(-50%)",
-          zIndex:          800,
-          background:      "rgba(8,8,10,0.92)",
-          backdropFilter:  "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          border:          "1px solid rgba(212,240,196,0.22)",
-          borderRadius:    8,
-          padding:         "8px 18px",
-          fontFamily:      MONO,
-          fontSize:        9,
-          letterSpacing:   1.8,
-          color:           "rgba(212,240,196,0.8)",
-          textTransform:   "uppercase",
-          whiteSpace:      "nowrap",
-          pointerEvents:   "none",
-        }}>
-          Mobile layout generated ✓
-        </div>
+      {/* ── Send to Mobile contextual button ── */}
+      {canEdit && canvasMode === "space" && view === "canvas" && selectedIds.size === 1 && (
+        <SendToMobileButton
+          alreadySent={sentToMobileIds.has([...selectedIds][0])}
+          panelOpen={mobilePanelOpen}
+          onClick={sendSelectedToMobile}
+        />
       )}
 
       {/* Analytics view */}
@@ -2979,6 +3044,22 @@ export default function CanvasBoard({
       )}
 
 
+      {/* ── Mobile View Panel ── */}
+      {canEdit && (
+        <MobileViewPanel
+          isOpen={mobilePanelOpen}
+          onClose={() => setMobilePanelOpen(false)}
+          elements={mobileElements}
+          setElements={setMobileElements}
+          bgColor={mobileBgColor}
+          wallpaper={mobileWallpaper}
+          wallpaperBlur={mobileWallpaperBlur}
+          wallpaperBrightness={mobileWallpaperBrightness}
+          wallpaperVignette={mobileWallpaperVignette}
+          loaded={mobileLoaded}
+        />
+      )}
+
     </div>
   );
 }
@@ -2986,16 +3067,14 @@ export default function CanvasBoard({
 // ── Desktop / Mobile view selector ────────────────────────────────────────────
 function ViewSelector({
   isDesktop,
+  mobilePanelOpen,
   onDesktop,
-  onMobile,
-  onExport,
-  isExporting,
+  onToggleMobilePanel,
 }: {
-  isDesktop:    boolean;
-  onDesktop:    () => void;
-  onMobile:     () => void;
-  onExport?:    () => void;
-  isExporting?: boolean;
+  isDesktop:           boolean;
+  mobilePanelOpen:     boolean;
+  onDesktop:           () => void;
+  onToggleMobilePanel: () => void;
 }) {
   return (
     <div style={{
@@ -3008,7 +3087,6 @@ function ViewSelector({
       alignItems:"center",
       gap:       8,
     }}>
-      {/* Toggle pill */}
       <div style={{
         display:         "flex",
         alignItems:      "center",
@@ -3020,14 +3098,9 @@ function ViewSelector({
         padding:         3,
         gap:             2,
       }}>
-        <ViewSelectorBtn label="DESKTOP" active={isDesktop} onClick={onDesktop} />
-        <ViewSelectorBtn label="MOBILE"  active={!isDesktop} onClick={onMobile} />
+        <ViewSelectorBtn label="DESKTOP"     active={isDesktop && !mobilePanelOpen} onClick={onDesktop} />
+        <ViewSelectorBtn label="MOBILE VIEW" active={mobilePanelOpen}               onClick={onToggleMobilePanel} />
       </div>
-
-      {/* Export button — visible only in Desktop view */}
-      {onExport && isDesktop && (
-        <ExportToMobileBtn onClick={onExport} isExporting={!!isExporting} />
-      )}
     </div>
   );
 }
@@ -3067,35 +3140,47 @@ function ViewSelectorBtn({
   );
 }
 
-function ExportToMobileBtn({ onClick, isExporting }: { onClick: () => void; isExporting: boolean }) {
+function SendToMobileButton({ alreadySent, panelOpen, onClick }: { alreadySent: boolean; panelOpen: boolean; onClick: () => void }) {
   const [hov, setHov] = useState(false);
   return (
     <button
       onClick={onClick}
-      disabled={isExporting}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        background:          hov && !isExporting ? "rgba(255,255,255,0.07)" : "rgba(8,8,10,0.88)",
+        position:            "fixed",
+        bottom:              56,
+        left:                "50%",
+        transform:           "translateX(-50%)",
+        zIndex:              700,
+        background:          alreadySent
+          ? (hov ? "rgba(212,240,196,0.12)" : "rgba(212,240,196,0.07)")
+          : (hov ? "rgba(255,255,255,0.1)" : "rgba(8,8,10,0.88)"),
         backdropFilter:      "blur(20px)",
         WebkitBackdropFilter:"blur(20px)",
-        border:              `1px solid ${hov && !isExporting ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.09)"}`,
+        border:              alreadySent
+          ? `1px solid ${hov ? "rgba(212,240,196,0.45)" : "rgba(212,240,196,0.22)"}`
+          : `1px solid ${hov ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.09)"}`,
         borderRadius:        8,
-        padding:             "7px 14px",
+        padding:             "6px 14px",
         fontFamily:          MONO,
         fontSize:            8,
         letterSpacing:       2,
-        color:               isExporting
-          ? "rgba(255,255,255,0.32)"
-          : hov ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.48)",
+        color:               alreadySent
+          ? "rgba(212,240,196,0.75)"
+          : (hov ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.5)"),
         textTransform:       "uppercase",
-        cursor:              isExporting ? "default" : "pointer",
+        cursor:              "pointer",
         transition:          "all 0.12s ease",
         userSelect:          "none",
         whiteSpace:          "nowrap",
+        display:             "flex",
+        alignItems:          "center",
+        gap:                 6,
       }}
     >
-      {isExporting ? "Exporting..." : "Export to Mobile"}
+      <span style={{ fontSize: 11 }}>📱</span>
+      {alreadySent ? "Sent to Mobile" : "+ Send to Mobile"}
     </button>
   );
 }
