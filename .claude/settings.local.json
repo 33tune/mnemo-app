@@ -43,7 +43,10 @@
       "Bash(powershell -Command 'Get-ChildItem -Path src/components -Recurse -Filter '\\\\''*.tsx'\\\\'' | Select-String -Pattern '\\\\''[^\\\\x00-\\\\x7F]'\\\\'' | Where-Object { $_.Line -notmatch '\\\\''//|placeholder|icon|emoji'\\\\'' } | Select-Object -First 30')",
       "Bash(powershell -Command \"Get-Content -Encoding UTF8 src/components/canvas/ProfileCard.tsx | Select-String -Pattern '[^\\\\x00-\\\\x7F]' | Select-Object LineNumber, Line\")",
       "Bash(Write-Output \"deleted\")",
-      "Bash(xargs grep -l \"canvas_ops\")"
+      "Bash(xargs grep -l \"canvas_ops\")",
+      "Bash(cd *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
