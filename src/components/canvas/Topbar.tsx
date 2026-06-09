@@ -77,9 +77,8 @@ export default function Topbar({
     tabs.push({ key: "analytics", label: "ANALYTICS", active: !!isAnalytics && !isBrowse && !isChats, onClick: onAnalytics });
   }
   if (onModeChange && canvasMode) {
-    // MY LAND is active for both space views; switching always goes to desktop (space).
-    // The Desktop/Mobile toggle lives at the bottom of the canvas editor, not here.
-    tabs.push({ key: "space", label: "MY LAND", active: (canvasMode === "space" || canvasMode === "space_mobile") && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space") });
+    tabs.push({ key: "space",        label: "MY LAND",  active: canvasMode === "space"        && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space") });
+    tabs.push({ key: "space_mobile", label: "MOBILE",   active: canvasMode === "space_mobile" && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space_mobile") });
   }
   if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats && !isAnalytics, onClick: onChats });
 

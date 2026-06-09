@@ -40,8 +40,6 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
-import { MOBILE_DEFAULT_DIMS, MOBILE_CANVAS_WIDTH, MOBILE_STACK_GAP, MOBILE_INITIAL_Y } from "@/lib/canvasCrossView";
-import MobileViewPanel from "./MobileViewPanel";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -232,8 +230,6 @@ export default function CanvasBoard({
   const [isLoading,     setIsLoading]     = useState(false);
   const [publishState,  setPublishState]  = useState<PublishState>("idle");
   const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("home");
-  // ── Mobile View panel ──────────────────────────────────────────────────────────
-  const [mobilePanelOpen,  setMobilePanelOpen]  = useState(false);
 
   const cards        = useMemo(() => elements.filter(e => e.elementType === "card")        as (CanvasCard        & { elementType: "card" })[], [elements]);
   const images       = useMemo(() => elements.filter(e => e.elementType === "image")       as (CanvasImageType   & { elementType: "image" })[], [elements]);
@@ -1043,96 +1039,6 @@ export default function CanvasBoard({
       console.error("[PUBLISH ERROR]", e);
       setPublishState("pending");
     }
-  }
-
-  // ── Compute lowest bottom edge of all mobile-registered elements ─────────────
-  function computeMobileBottom(): number {
-    let max = 0;
-    for (const e of elements) {
-      if (e.mobileX == null) continue;
-      const my = e.mobileY!;
-      let bottom = my;
-      if (e.elementType === "text") {
-        bottom = my + (e as CanvasText & { elementType: "text" }).size;
-      } else {
-        const mh = e.mobileH ?? (e as { h?: number }).h ?? 0;
-        bottom = my + mh;
-      }
-      max = Math.max(max, bottom);
-    }
-    return max;
-  }
-
-  function sendSelectedToMobile() {
-    if (selectedIds.size !== 1) return;
-    const id = [...selectedIds][0];
-    const el = elements.find(e => e.id === id);
-    if (!el) return;
-    if (el.elementType === "image" && el.src?.startsWith("blob:")) return;
-    if (el.elementType === "gallery") {
-      const clean = el.images.filter(i => !i.src.startsWith("blob:"));
-      if (clean.length === 0) return;
-    }
-    // Already on mobile — just open the panel
-    if (el.mobileX != null) { setMobilePanelOpen(true); return; }
-
-    const maxBottom = computeMobileBottom();
-    const nextY = maxBottom > 0 ? maxBottom + MOBILE_STACK_GAP : MOBILE_INITIAL_Y;
-    const mobileEls = elements.filter(e => e.mobileX != null);
-    const nextZ = mobileEls.length > 0 ? Math.max(...mobileEls.map(e => e.zIndex)) + 1 : el.zIndex;
-
-    let mobileX: number, mobileY: number, mobileW: number | undefined, mobileH: number | undefined;
-    if (el.elementType === "text") {
-      mobileX = MOBILE_INITIAL_Y;
-      mobileY = nextY;
-    } else {
-      const dims = MOBILE_DEFAULT_DIMS[el.elementType];
-      mobileW = dims.w;
-      mobileH = dims.h;
-      mobileX = Math.max(0, Math.round((MOBILE_CANVAS_WIDTH - dims.w) / 2));
-      mobileY = nextY;
-    }
-
-    const patch = el.elementType === "text"
-      ? { mobileX, mobileY }
-      : { mobileX, mobileY, mobileW, mobileH };
-
-    // Dispatch typed update op
-    if      (el.elementType === "card")      enqueueOp({ type: "update_card",      id, patch: patch as Partial<CanvasCard> });
-    else if (el.elementType === "image")     enqueueOp({ type: "update_image",     id, patch: patch as Partial<CanvasImageType> });
-    else if (el.elementType === "text")      enqueueOp({ type: "update_text",      id, patch: patch as Partial<CanvasText> });
-    else if (el.elementType === "gallery")   enqueueOp({ type: "update_gallery",   id, patch: patch as Partial<CanvasGallery> });
-    else if (el.elementType === "profile")   enqueueOp({ type: "update_profile",   id, patch: patch as Partial<ProfileCardData> });
-    else if (el.elementType === "media")     enqueueOp({ type: "update_media",     id, patch: patch as Partial<CanvasMedia> });
-    else if (el.elementType === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: patch as Partial<GuestbookCardData> });
-    else if (el.elementType === "social")    enqueueOp({ type: "update_social",    id, patch: patch as Partial<SocialCardData> });
-    else if (el.elementType === "music")     enqueueOp({ type: "update_music",     id, patch: patch as Partial<MusicCardData> });
-    else if (el.elementType === "links")     enqueueOp({ type: "update_links",     id, patch: patch as Partial<LinksCardData> });
-    else if (el.elementType === "stats")     enqueueOp({ type: "update_stats",     id, patch: patch as Partial<StatsCardData> });
-
-    void nextZ; // unused but computed for future zIndex ordering
-    if (!mobilePanelOpen) setMobilePanelOpen(true);
-  }
-
-  function handleDragMobileLayout(id: string, mobileX: number, mobileY: number) {
-    setElements(prev => prev.map(e => e.id === id ? { ...e, mobileX, mobileY } as typeof e : e));
-  }
-
-  function handleCommitMobileLayout(id: string, mobileX: number, mobileY: number) {
-    const el = elementsRef.current.find(e => e.id === id);
-    if (!el) return;
-    const patch = { mobileX, mobileY };
-    if      (el.elementType === "card")      enqueueOp({ type: "update_card",      id, patch: patch as Partial<CanvasCard> });
-    else if (el.elementType === "image")     enqueueOp({ type: "update_image",     id, patch: patch as Partial<CanvasImageType> });
-    else if (el.elementType === "text")      enqueueOp({ type: "update_text",      id, patch: patch as Partial<CanvasText> });
-    else if (el.elementType === "gallery")   enqueueOp({ type: "update_gallery",   id, patch: patch as Partial<CanvasGallery> });
-    else if (el.elementType === "profile")   enqueueOp({ type: "update_profile",   id, patch: patch as Partial<ProfileCardData> });
-    else if (el.elementType === "media")     enqueueOp({ type: "update_media",     id, patch: patch as Partial<CanvasMedia> });
-    else if (el.elementType === "guestbook") enqueueOp({ type: "update_guestbook", id, patch: patch as Partial<GuestbookCardData> });
-    else if (el.elementType === "social")    enqueueOp({ type: "update_social",    id, patch: patch as Partial<SocialCardData> });
-    else if (el.elementType === "music")     enqueueOp({ type: "update_music",     id, patch: patch as Partial<MusicCardData> });
-    else if (el.elementType === "links")     enqueueOp({ type: "update_links",     id, patch: patch as Partial<LinksCardData> });
-    else if (el.elementType === "stats")     enqueueOp({ type: "update_stats",     id, patch: patch as Partial<StatsCardData> });
   }
 
   // Carga (inicial y al cambiar de modo) con flush no-bloqueante y session guard
@@ -2214,26 +2120,6 @@ export default function CanvasBoard({
       {view==="canvas"&&drawRectVis&&drawRectVis.w>0&&(<div style={{position:"absolute",left:drawRectVis.x,top:drawRectVis.y,width:drawRectVis.w,height:drawRectVis.h,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.02)",borderRadius:4,pointerEvents:"none",zIndex:600}} />)}
       {view==="canvas"&&selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
-      {/* ── 📱 Sent-to-Mobile indicators ── */}
-      {canEdit && canvasMode === "space" && elements
-        .filter(e => e.mobileX != null)
-        .map(e => {
-          const ew = (e as { w?: number }).w ?? 0;
-          return (
-            <div key={`mob-badge-${e.id}`} style={{
-              position:      "absolute",
-              left:          e.x + ew - 18,
-              top:           e.y + 4,
-              zIndex:        e.zIndex + (e.layer ?? 0) * 100 + 2,
-              fontSize:      12,
-              pointerEvents: "none",
-              filter:        "drop-shadow(0 1px 3px rgba(0,0,0,0.7))",
-              lineHeight:    1,
-            }}>📱</div>
-          );
-        })
-      }
-
       {/* ── IMAGES ── */}
       {visImages.map((img,i)=>{
         const isSel=selectedIds.has(img.id);
@@ -2913,25 +2799,6 @@ export default function CanvasBoard({
         <OnboardingOverlay onDone={dismissOnboarding} />
       )}
 
-      {/* ── Desktop / Mobile view selector ── */}
-      {canEdit && isSpaceCanvas(canvasMode) && view === "canvas" && (
-        <ViewSelector
-          isDesktop={canvasMode === "space"}
-          mobilePanelOpen={mobilePanelOpen}
-          onDesktop={() => handleModeChange("space")}
-          onToggleMobilePanel={() => setMobilePanelOpen(v => !v)}
-        />
-      )}
-
-      {/* ── Send to Mobile contextual button ── */}
-      {canEdit && canvasMode === "space" && view === "canvas" && selectedIds.size === 1 && (
-        <SendToMobileButton
-          alreadySent={elements.find(e => e.id === [...selectedIds][0])?.mobileX != null}
-          panelOpen={mobilePanelOpen}
-          onClick={sendSelectedToMobile}
-        />
-      )}
-
       {/* Analytics view */}
       {view === "analytics" && canEdit && (
         <WidgetBoundary label="analytics-view">
@@ -2981,144 +2848,7 @@ export default function CanvasBoard({
       )}
 
 
-      {/* ── Mobile View Panel ── */}
-      {canEdit && (
-        <MobileViewPanel
-          isOpen={mobilePanelOpen}
-          onClose={() => setMobilePanelOpen(false)}
-          elements={elements.filter(e => e.mobileX != null)}
-          onDragMobileLayout={handleDragMobileLayout}
-          onCommitMobileLayout={handleCommitMobileLayout}
-          bgColor={bgColor}
-          wallpaper={wallpaper}
-          wallpaperBlur={wallpaperBlur}
-          wallpaperBrightness={wallpaperBrightness}
-          wallpaperVignette={wallpaperVignette}
-        />
-      )}
-
     </div>
-  );
-}
-
-// ── Desktop / Mobile view selector ────────────────────────────────────────────
-function ViewSelector({
-  isDesktop,
-  mobilePanelOpen,
-  onDesktop,
-  onToggleMobilePanel,
-}: {
-  isDesktop:           boolean;
-  mobilePanelOpen:     boolean;
-  onDesktop:           () => void;
-  onToggleMobilePanel: () => void;
-}) {
-  return (
-    <div style={{
-      position:  "fixed",
-      bottom:    20,
-      left:      "50%",
-      transform: "translateX(-50%)",
-      zIndex:    700,
-      display:   "flex",
-      alignItems:"center",
-      gap:       8,
-    }}>
-      <div style={{
-        display:         "flex",
-        alignItems:      "center",
-        background:      "rgba(8,8,10,0.88)",
-        backdropFilter:  "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border:          "1px solid rgba(255,255,255,0.09)",
-        borderRadius:    8,
-        padding:         3,
-        gap:             2,
-      }}>
-        <ViewSelectorBtn label="DESKTOP"     active={isDesktop && !mobilePanelOpen} onClick={onDesktop} />
-        <ViewSelectorBtn label="MOBILE VIEW" active={mobilePanelOpen}               onClick={onToggleMobilePanel} />
-      </div>
-    </div>
-  );
-}
-
-function ViewSelectorBtn({
-  label,
-  active,
-  onClick,
-}: {
-  label:   string;
-  active:  boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding:       "5px 16px",
-        borderRadius:  5,
-        border:        active ? "1px solid rgba(255,255,255,0.13)" : "1px solid transparent",
-        background:    active ? "rgba(255,255,255,0.11)" : "transparent",
-        color:         active ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.32)",
-        fontFamily:    MONO,
-        fontSize:      8,
-        letterSpacing: 2,
-        textTransform: "uppercase",
-        cursor:        active ? "default" : "pointer",
-        transition:    "all 0.12s ease",
-        userSelect:    "none",
-        whiteSpace:    "nowrap",
-      }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,0.32)"; }}
-    >
-      {label}
-    </button>
-  );
-}
-
-function SendToMobileButton({ alreadySent, panelOpen, onClick }: { alreadySent: boolean; panelOpen: boolean; onClick: () => void }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        position:            "fixed",
-        bottom:              56,
-        left:                "50%",
-        transform:           "translateX(-50%)",
-        zIndex:              700,
-        background:          alreadySent
-          ? (hov ? "rgba(212,240,196,0.12)" : "rgba(212,240,196,0.07)")
-          : (hov ? "rgba(255,255,255,0.1)" : "rgba(8,8,10,0.88)"),
-        backdropFilter:      "blur(20px)",
-        WebkitBackdropFilter:"blur(20px)",
-        border:              alreadySent
-          ? `1px solid ${hov ? "rgba(212,240,196,0.45)" : "rgba(212,240,196,0.22)"}`
-          : `1px solid ${hov ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.09)"}`,
-        borderRadius:        8,
-        padding:             "6px 14px",
-        fontFamily:          MONO,
-        fontSize:            8,
-        letterSpacing:       2,
-        color:               alreadySent
-          ? "rgba(212,240,196,0.75)"
-          : (hov ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.5)"),
-        textTransform:       "uppercase",
-        cursor:              "pointer",
-        transition:          "all 0.12s ease",
-        userSelect:          "none",
-        whiteSpace:          "nowrap",
-        display:             "flex",
-        alignItems:          "center",
-        gap:                 6,
-      }}
-    >
-      <span style={{ fontSize: 11 }}>📱</span>
-      {alreadySent ? "Sent to Mobile" : "+ Send to Mobile"}
-    </button>
   );
 }
 

@@ -35,7 +35,6 @@ export default function MobilePublicCanvas({
   userId,
   preview = false,
   readOnly = false,
-  fixedScale,
 }: {
   state?: CanvasState;
   handle?: string;
@@ -43,9 +42,6 @@ export default function MobilePublicCanvas({
   userId?: string;
   preview?: boolean;
   readOnly?: boolean;
-  /** When provided, skips the window.innerWidth calculation and uses this scale directly.
-   *  The component also disables its own scroll so a parent container can scroll instead. */
-  fixedScale?: number;
 }) {
   const isPreview = preview || readOnly;
   const [fetchedState, setFetchedState] = useState<CanvasState | null>(null);
@@ -66,17 +62,15 @@ export default function MobilePublicCanvas({
 
   const state: CanvasState = propState ?? fetchedState ?? EMPTY;
 
-  // windowScale drives the full-page public view; fixedScale overrides it for panel previews.
-  // Using fixedScale directly (not through state) avoids a double render on every resize tick.
-  const [windowScale, setWindowScale] = useState(1);
+  const [scale, setScale] = useState(1);
   useEffect(() => {
-    if (fixedScale !== undefined) return; // panel controls its own scale
-    const update = () => setWindowScale(window.innerWidth / LOGICAL_WIDTH);
+    const update = () => {
+      setScale(window.innerWidth / LOGICAL_WIDTH);
+    };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [fixedScale]);
-  const scale = fixedScale ?? windowScale;
+  }, []);
 
   const hasWallpaper = !!(state.wallpaper && !state.wallpaper.startsWith("blob:"));
   const wpBlur       = state.wallpaperBlur       ?? 0;
@@ -92,10 +86,9 @@ export default function MobilePublicCanvas({
       style={{
         position: "relative",
         width: "100%",
-        // In panel/preview mode the parent container handles scroll
-        minHeight: fixedScale !== undefined ? "auto" : "100vh",
+        minHeight: "100vh",
         overflowX: "hidden",
-        overflowY: fixedScale !== undefined ? "visible" : "auto",
+        overflowY: "auto",
         fontFamily: SANS,
         backgroundColor: state.bgColor || "#0a0a0c",
       }}
