@@ -47,7 +47,20 @@
       "Bash(cd *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git show *)"
+      "Bash(git show *)",
+      "Bash(Get-ChildItem -Path . -Recurse -Directory)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Format-Table FullName)",
+      "PowerShell(head *)",
+      "Bash(git fsck *)",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "Bash(xxd)",
+      "Bash(rm -f .git/index)",
+      "Bash(git read-tree *)",
+      "Bash(git status *)",
+      "Bash(echo \"grep exit: $?\")",
+      "Bash(GIT_EDITOR=true git -c core.editor=true rebase --continue)"
     ]
   }
 }

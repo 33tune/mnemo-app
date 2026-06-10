@@ -3,7 +3,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor } from "@/types";
+import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor, SharedWidgetKind, Placement, HiddenMap, PlacementMap } from "@/types";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
@@ -14,6 +14,7 @@ import MediaCardWidget from "./MediaCardWidget";
 import ResizeHandles from "./ResizeHandles";
 import { SocialDock } from "./SocialDock";
 import Topbar from "./Topbar";
+import ViewModeSwitcher from "./ViewModeSwitcher";
 import CardMenu from "./CardMenu";
 import GalleryWidget from "./GalleryWidget";
 import ProfileCard from "./ProfileCard";
@@ -24,6 +25,7 @@ import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { uploadToStorage } from "@/lib/storage";
 import { queueOrphanedAssets } from "@/lib/storage/queueOrphanedAssets";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
+import { splitPlacementPatch, mergeMobileState, filterHiddenDesktop, SHARED_WIDGET_KINDS } from "@/lib/mobileMerge";
 import { useChatWindows } from "@/hooks/useChatWindows";
 import { openOrCreateChat } from "@/lib/chat/openOrCreateChat";
 import ChatsWorkspace from "@/components/chats/ChatsWorkspace";
@@ -134,7 +136,11 @@ type CanvasOp =
   | { type: "set_space_music";          value: import("@/types").SpaceMusic  | undefined }
   | { type: "set_space_font";           value: import("@/types").SpaceFont   | undefined }
   | { type: "set_space_cursor";         value: SpaceCursor | undefined }
-  | { type: "move_elements";   moves: Array<{ id: string; elementType: string; x: number; y: number }> };
+  | { type: "move_elements";   moves: Array<{ id: string; elementType: string; x: number; y: number }> }
+  // Shared-widget overlay ops (MY LAND Desktop/Mobile unification) — not yet enqueued anywhere.
+  | { type: "update_placement"; widgetType: SharedWidgetKind; id: string; patch: Partial<Placement> }
+  | { type: "hide_widget";       widgetType: SharedWidgetKind; id: string }
+  | { type: "show_widget";       widgetType: SharedWidgetKind; id: string };
 
 type QueuedOp = { op: CanvasOp; canvas_type: CanvasMode };
 
@@ -179,6 +185,188 @@ function reduceOp(els: CanvasElement[], op: CanvasOp): CanvasElement[] {
   }
 }
 
+// Pure reducer for op replay — folds hide_widget/show_widget ops into a HiddenMap.
+function reduceHidden(hidden: HiddenMap, op: CanvasOp): HiddenMap {
+  switch (op.type) {
+    case "hide_widget": {
+      const ids = hidden[op.widgetType] ?? [];
+      if (ids.includes(op.id)) return hidden;
+      return { ...hidden, [op.widgetType]: [...ids, op.id] };
+    }
+    case "show_widget": {
+      const ids = hidden[op.widgetType];
+      if (!ids || !ids.includes(op.id)) return hidden;
+      return { ...hidden, [op.widgetType]: ids.filter(id => id !== op.id) };
+    }
+    default:
+      return hidden;
+  }
+}
+
+// Pure reducer for op replay — folds update_placement ops into a PlacementMap.
+function reducePlacements(placements: PlacementMap, op: CanvasOp): PlacementMap {
+  if (op.type !== "update_placement") return placements;
+  const existing = placements[op.widgetType]?.[op.id];
+  const merged: Placement = { ...existing, ...op.patch } as Placement;
+  return {
+    ...placements,
+    [op.widgetType]: { ...placements[op.widgetType], [op.id]: merged },
+  };
+}
+
+// elementType values that are also valid SharedWidgetKind values (the 7 shared widgets).
+const SHARED_ELEMENT_TYPES = new Set<string>([
+  "profile", "guestbook", "social", "music", "links", "stats", "gallery",
+]);
+
+// Replays a HiddenMap + PlacementMap onto a list of elements: drops shared
+// widgets hidden in the current view, and applies per-widget placement
+// overrides. Non-shared elements (cards, images, texts, medias, ...) pass through.
+function applyHiddenAndPlacements(els: CanvasElement[], hidden: HiddenMap, placements: PlacementMap): CanvasElement[] {
+  return els
+    .filter(e => {
+      if (!SHARED_ELEMENT_TYPES.has(e.elementType)) return true;
+      const kind = e.elementType as SharedWidgetKind;
+      return !hidden[kind]?.includes(e.id);
+    })
+    .map(e => {
+      if (!SHARED_ELEMENT_TYPES.has(e.elementType)) return e;
+      const kind = e.elementType as SharedWidgetKind;
+      const placement = placements[kind]?.[e.id];
+      return placement ? ({ ...e, ...placement } as CanvasElement) : e;
+    });
+}
+
+// Splits a flat CanvasElement[] into the per-type arrays mergeMobileState/
+// filterHiddenDesktop expect on a CanvasState.
+function elementsToStateArrays(elements: CanvasElement[]) {
+  return {
+    cards:       elements.filter(e => e.elementType === "card")      as CanvasCard[],
+    images:      elements.filter(e => e.elementType === "image")     as CanvasImageType[],
+    texts:       elements.filter(e => e.elementType === "text")      as CanvasText[],
+    galleries:   elements.filter(e => e.elementType === "gallery")   as CanvasGallery[],
+    profiles:    elements.filter(e => e.elementType === "profile")   as ProfileCardData[],
+    medias:      elements.filter(e => e.elementType === "media")     as CanvasMedia[],
+    guestbooks:  elements.filter(e => e.elementType === "guestbook") as GuestbookCardData[],
+    socialCards: elements.filter(e => e.elementType === "social")    as SocialCardData[],
+    musicCards:  elements.filter(e => e.elementType === "music")     as MusicCardData[],
+    linksCards:  elements.filter(e => e.elementType === "links")     as LinksCardData[],
+    statsCards:  elements.filter(e => e.elementType === "stats")     as StatsCardData[],
+  };
+}
+
+// Flattens a CanvasState's per-type arrays back into a CanvasElement[].
+function stateArraysToElements(s: CanvasState): CanvasElement[] {
+  return [
+    ...s.cards.map(c       => ({ ...c, elementType: "card"      as const })),
+    ...s.images.map(i      => ({ ...i, elementType: "image"     as const })),
+    ...s.texts.map(t       => ({ ...t, elementType: "text"      as const })),
+    ...s.galleries.map(g   => ({ ...g, elementType: "gallery"   as const })),
+    ...s.profiles.map(p    => ({ ...p, elementType: "profile"   as const })),
+    ...s.medias.map(m      => ({ ...m, elementType: "media"     as const })),
+    ...s.guestbooks.map(g  => ({ ...g, elementType: "guestbook" as const })),
+    ...s.socialCards.map(c => ({ ...c, elementType: "social"    as const })),
+    ...s.musicCards.map(c  => ({ ...c, elementType: "music"     as const })),
+    ...s.linksCards.map(c  => ({ ...c, elementType: "links"     as const })),
+    ...s.statsCards.map(c  => ({ ...c, elementType: "stats"     as const })),
+  ];
+}
+
+// Maps each "delete_<kind>" op type to its shared-widget kind.
+const DELETE_OP_WIDGET_KIND = {
+  delete_profile:   "profile",
+  delete_guestbook: "guestbook",
+  delete_social:    "social",
+  delete_music:     "music",
+  delete_links:     "links",
+  delete_stats:     "stats",
+  delete_gallery:   "gallery",
+} as const satisfies Record<string, SharedWidgetKind>;
+
+// space_mobile only: an "add_<kind>" op also persists a placement override to
+// space_mobile (so the widget keeps the spot it was dropped at on Mobile),
+// while the add itself (content + its dropped coords as desktop default) goes to space.
+function splitAddOp<T extends { id: string }>(
+  addOp: CanvasOp,
+  widgetType: SharedWidgetKind,
+  item: T,
+  mode: CanvasMode,
+): QueuedOp[] {
+  if (mode !== "space_mobile") return [{ op: addOp, canvas_type: mode }];
+  const { placement } = splitPlacementPatch<Record<string, unknown>>(item as unknown as Record<string, unknown>);
+  return [
+    { op: addOp, canvas_type: "space" },
+    { op: { type: "update_placement", widgetType, id: item.id, patch: placement }, canvas_type: "space_mobile" },
+  ];
+}
+
+// space_mobile only: splits an "update_<kind>" patch into its placement part
+// (persisted as update_placement to space_mobile) and its content part
+// (persisted as the original op, forced to space).
+function splitSharedUpdate(
+  op: CanvasOp,
+  opType: string,
+  id: string,
+  patch: Record<string, unknown>,
+  widgetType: SharedWidgetKind,
+  mode: CanvasMode,
+): QueuedOp[] {
+  if (mode !== "space_mobile") return [{ op, canvas_type: mode }];
+
+  const { placement, content } = splitPlacementPatch<Record<string, unknown>>(patch);
+  const result: QueuedOp[] = [];
+  if (Object.keys(content).length > 0) {
+    result.push({ op: { type: opType, id, patch: content } as CanvasOp, canvas_type: "space" });
+  }
+  if (Object.keys(placement).length > 0) {
+    result.push({ op: { type: "update_placement", widgetType, id, patch: placement }, canvas_type: "space_mobile" });
+  }
+  return result.length > 0 ? result : [{ op, canvas_type: "space" }];
+}
+
+// Decides which op(s) to persist to canvas_ops for a given local op + canvas mode.
+// Local in-memory state is always updated via applyOp(op) with the ORIGINAL op —
+// this only changes what gets written to canvas_ops, for the shared-widget overlay
+// (see src/lib/mobileMerge.ts). Not yet consumed by the load effect.
+function buildPersistedOps(op: CanvasOp, mode: CanvasMode): QueuedOp[] {
+  switch (op.type) {
+    case "set_space_cursor":
+    case "set_space_music":
+    case "set_space_font":
+      return [{ op, canvas_type: "space" }];
+
+    case "delete_profile":
+    case "delete_guestbook":
+    case "delete_social":
+    case "delete_music":
+    case "delete_links":
+    case "delete_stats":
+    case "delete_gallery": {
+      if (!isSpaceCanvas(mode)) return [{ op, canvas_type: mode }];
+      return [{ op: { type: "hide_widget", widgetType: DELETE_OP_WIDGET_KIND[op.type], id: op.id }, canvas_type: mode }];
+    }
+
+    case "add_profile":   return splitAddOp(op, "profile",   op.profile,   mode);
+    case "add_guestbook": return splitAddOp(op, "guestbook", op.guestbook, mode);
+    case "add_social":    return splitAddOp(op, "social",    op.social,    mode);
+    case "add_music":     return splitAddOp(op, "music",     op.music,     mode);
+    case "add_links":     return splitAddOp(op, "links",     op.links,     mode);
+    case "add_stats":     return splitAddOp(op, "stats",     op.stats,     mode);
+    case "add_gallery":   return splitAddOp(op, "gallery",   op.gallery,   mode);
+
+    case "update_profile":   return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "profile",   mode);
+    case "update_guestbook": return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "guestbook", mode);
+    case "update_social":    return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "social",    mode);
+    case "update_music":     return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "music",     mode);
+    case "update_links":     return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "links",     mode);
+    case "update_stats":     return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "stats",     mode);
+    case "update_gallery":   return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "gallery",   mode);
+
+    default:
+      return [{ op, canvas_type: mode }];
+  }
+}
+
 export default function CanvasBoard({
   userHandle = "",
   canEdit = true,
@@ -201,6 +389,8 @@ export default function CanvasBoard({
   const [spaceMusic,       setSpaceMusic]       = useState<import("@/types").SpaceMusic | undefined>(undefined);
   const [spaceFont,        setSpaceFont]        = useState<import("@/types").SpaceFont  | undefined>(undefined);
   const [spaceCursor,      setSpaceCursor]      = useState<SpaceCursor | undefined>(undefined);
+  const [hiddenMap,        setHiddenMap]        = useState<HiddenMap>({});
+  const [placementsMap,    setPlacementsMap]    = useState<PlacementMap>({});
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
   const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "analytics">(canEdit ? "analytics" : "canvas");
   const [totalUnread,      setTotalUnread]      = useState(0);
@@ -522,17 +712,23 @@ export default function CanvasBoard({
   // Always pass an explicit snapshot; never reads from live state.
   async function buildSaveState(snapshot: CanvasElement[]): Promise<CanvasState> {
     const safe = (url: string) => blobToBase64(url);
+    // space_mobile never persists shared-widget content (profile/guestbook/social/
+    // music/links/stats/gallery) — it's sourced from "space" at load time via
+    // mergeMobileState, so persisting it here would re-introduce stale duplicates.
+    const sharedSnapshot = canvasModeRef.current === "space_mobile"
+      ? snapshot.filter(e => !SHARED_ELEMENT_TYPES.has(e.elementType))
+      : snapshot;
     const sCards       = snapshot.filter(e => e.elementType === "card")      as (CanvasCard        & { elementType: "card" })[];
     const sImages      = snapshot.filter(e => e.elementType === "image")     as (CanvasImageType   & { elementType: "image" })[];
     const sTexts       = snapshot.filter(e => e.elementType === "text")      as (CanvasText        & { elementType: "text" })[];
-    const sGalleries   = snapshot.filter(e => e.elementType === "gallery")   as (CanvasGallery     & { elementType: "gallery" })[];
-    const sProfiles    = snapshot.filter(e => e.elementType === "profile")   as (ProfileCardData   & { elementType: "profile" })[];
+    const sGalleries   = sharedSnapshot.filter(e => e.elementType === "gallery")   as (CanvasGallery     & { elementType: "gallery" })[];
+    const sProfiles    = sharedSnapshot.filter(e => e.elementType === "profile")   as (ProfileCardData   & { elementType: "profile" })[];
     const sMedias      = snapshot.filter(e => e.elementType === "media")     as (CanvasMedia       & { elementType: "media" })[];
-    const sGuestbooks  = snapshot.filter(e => e.elementType === "guestbook") as (GuestbookCardData & { elementType: "guestbook" })[];
-    const sSocialCards = snapshot.filter(e => e.elementType === "social")    as (SocialCardData    & { elementType: "social" })[];
-    const sMusicCards  = snapshot.filter(e => e.elementType === "music")     as (MusicCardData     & { elementType: "music" })[];
-    const sLinksCards  = snapshot.filter(e => e.elementType === "links")     as (LinksCardData     & { elementType: "links" })[];
-    const sStatsCards  = snapshot.filter(e => e.elementType === "stats")     as (StatsCardData     & { elementType: "stats" })[];
+    const sGuestbooks  = sharedSnapshot.filter(e => e.elementType === "guestbook") as (GuestbookCardData & { elementType: "guestbook" })[];
+    const sSocialCards = sharedSnapshot.filter(e => e.elementType === "social")    as (SocialCardData    & { elementType: "social" })[];
+    const sMusicCards  = sharedSnapshot.filter(e => e.elementType === "music")     as (MusicCardData     & { elementType: "music" })[];
+    const sLinksCards  = sharedSnapshot.filter(e => e.elementType === "links")     as (LinksCardData     & { elementType: "links" })[];
+    const sStatsCards  = sharedSnapshot.filter(e => e.elementType === "stats")     as (StatsCardData     & { elementType: "stats" })[];
     return {
       cards:       await Promise.all(sCards.map(async c => ({ ...c, bgImage: await safe(c.bgImage) }))),
       images:      await Promise.all(sImages.map(async i => ({ ...i, src: await safe(i.src) }))),
@@ -553,6 +749,8 @@ export default function CanvasBoard({
       spaceMusic,
       spaceFont,
       spaceCursor,
+      hidden:      hiddenMap,
+      placements:  placementsMap,
     };
   }
 
@@ -735,12 +933,15 @@ export default function CanvasBoard({
       }
     }
     applyOp(op);
-    const isGlobalSpaceSetting =
-      op.type === "set_space_cursor" ||
-      op.type === "set_space_music"  ||
-      op.type === "set_space_font";
-    const opCanvasType = isGlobalSpaceSetting ? "space" : canvasModeRef.current;
-    opsQueueRef.current.push({ op, canvas_type: opCanvasType });
+    const persistedOps = buildPersistedOps(op, canvasModeRef.current);
+    for (const { op: pOp } of persistedOps) {
+      if (pOp.type === "hide_widget" || pOp.type === "show_widget") {
+        setHiddenMap(h => reduceHidden(h, pOp));
+      } else if (pOp.type === "update_placement") {
+        setPlacementsMap(p => reducePlacements(p, pOp));
+      }
+    }
+    opsQueueRef.current.push(...persistedOps);
     if (isSpaceCanvas(canvasModeRef.current)) {
       setPublishState(s => (s === "publishing" ? s : "pending"));
     }
@@ -1057,6 +1258,8 @@ export default function CanvasBoard({
       setBgColor("#0a0a0c");
       setWallpaper("");
       setWallpaperLoaded(false);
+      setHiddenMap({});
+      setPlacementsMap({});
       hasLoadedRef.current = false;
       savingRef.current = false;
       lastSavedStateRef.current = null;
@@ -1129,9 +1332,13 @@ export default function CanvasBoard({
 
       // Build initial elements from snapshot into a local variable (no setElements yet)
       let newElements: CanvasElement[] = [];
+      let hiddenMap: HiddenMap = {};
+      let placementsMap: PlacementMap = {};
       if (canvasRow?.data) {
         const s = canvasRow.data as CanvasState;
         lastSavedStateRef.current = s; // baseline for GC diffing
+        hiddenMap     = s.hidden     ?? {};
+        placementsMap = s.placements ?? {};
         newElements = [
           ...(s.cards        ?? []).map(c => ({ ...c, elementType: "card"      as const })),
           ...(s.images       ?? []).map(i => ({ ...i, elementType: "image"     as const })),
@@ -1210,8 +1417,121 @@ export default function CanvasBoard({
         else if (op.type === "set_space_music")          { setSpaceMusic(op.value); }
         else if (op.type === "set_space_font")           { setSpaceFont(op.value); }
         else if (op.type === "set_space_cursor")         { setSpaceCursor(op.value); }
+        else if (op.type === "hide_widget" || op.type === "show_widget") { hiddenMap     = reduceHidden(hiddenMap, op); }
+        else if (op.type === "update_placement")                          { placementsMap = reducePlacements(placementsMap, op); }
         else                                             { newElements = reduceOp(newElements, op); }
       }
+
+      // Replay the shared-widget overlay onto the loaded elements: drop hidden
+      // widgets and apply per-widget placement overrides.
+      newElements = applyHiddenAndPlacements(newElements, hiddenMap, placementsMap);
+      setHiddenMap(hiddenMap);
+
+      // space_mobile: shared-widget content (profile, guestbook, social, music,
+      // links, stats, gallery) is sourced from "space" — load it here and merge
+      // it with this view's hidden/placements overlay via mergeMobileState.
+      // Any shared-widget elements loaded above from space_mobile's own data are
+      // discarded by the merge (content is no longer duplicated per view).
+      if (canvasModeRef.current === "space_mobile") {
+        const { data: spaceCanvasRow } = await supabase
+          .from("canvases")
+          .select("data, updated_at")
+          .eq("user_id", user.id)
+          .eq("type", "space")
+          .maybeSingle();
+
+        if (sessionAtLoad !== sessionIdRef.current) return;
+
+        let spaceElements: CanvasElement[] = [];
+        let spaceHidden: HiddenMap = {};
+        if (spaceCanvasRow?.data) {
+          const ss = spaceCanvasRow.data as CanvasState;
+          spaceHidden = ss.hidden ?? {};
+          spaceElements = [
+            ...(ss.profiles    ?? []).map(p => ({ ...p, elementType: "profile"   as const })),
+            ...(ss.guestbooks  ?? []).map(g => ({ ...g, elementType: "guestbook" as const })),
+            ...(ss.socialCards ?? []).map(c => ({ ...c, elementType: "social"    as const })),
+            ...(ss.musicCards  ?? []).map(c => ({ ...c, elementType: "music"     as const })),
+            ...(ss.linksCards  ?? []).map(c => ({ ...c, elementType: "links"     as const })),
+            ...(ss.statsCards  ?? []).map(c => ({ ...c, elementType: "stats"     as const })),
+            ...(ss.galleries   ?? []).map(g => ({ ...g, elementType: "gallery"   as const })),
+          ];
+        }
+
+        const { data: spaceOpsRows } = spaceCanvasRow?.updated_at
+          ? await supabase
+              .from("canvas_ops")
+              .select("op")
+              .eq("user_id", user.id)
+              .eq("canvas_type", "space")
+              .gt("created_at", spaceCanvasRow.updated_at)
+              .order("created_at", { ascending: true })
+              .order("id", { ascending: true })
+          : await supabase
+              .from("canvas_ops")
+              .select("op")
+              .eq("user_id", user.id)
+              .eq("canvas_type", "space")
+              .order("created_at", { ascending: true })
+              .order("id", { ascending: true });
+
+        if (sessionAtLoad !== sessionIdRef.current) return;
+
+        for (const row of spaceOpsRows ?? []) {
+          const op = row.op as CanvasOp;
+          if (op.type === "hide_widget" || op.type === "show_widget") {
+            spaceHidden = reduceHidden(spaceHidden, op);
+          } else {
+            spaceElements = reduceOp(spaceElements, op);
+          }
+        }
+        spaceElements = spaceElements.filter(e => SHARED_ELEMENT_TYPES.has(e.elementType));
+
+        // Lazy one-time legacy migration: before this refactor, space_mobile stored
+        // its own copies of the 7 shared widgets. If this view has no placement
+        // overrides yet, map each legacy item's placement fields onto the
+        // corresponding "space" item by (kind, array index), so the merge below
+        // positions it where it already was on Mobile, and persist those as
+        // update_placement ops so this only runs once. Legacy content is discarded —
+        // mergeMobileState always sources content from "space".
+        if (Object.keys(placementsMap).length === 0) {
+          const migrationOps: QueuedOp[] = [];
+          for (const kind of SHARED_WIDGET_KINDS) {
+            const legacyItems = newElements.filter(e => e.elementType === kind);
+            const spaceItems  = spaceElements.filter(e => e.elementType === kind);
+            legacyItems.forEach((legacyItem, i) => {
+              const spaceItem = spaceItems[i];
+              if (!spaceItem) return;
+              const { placement } = splitPlacementPatch<Record<string, unknown>>(
+                legacyItem as unknown as Record<string, unknown>
+              );
+              const op: CanvasOp = { type: "update_placement", widgetType: kind, id: spaceItem.id, patch: placement };
+              placementsMap = reducePlacements(placementsMap, op);
+              migrationOps.push({ op, canvas_type: "space_mobile" });
+            });
+          }
+          // Persisted on the next flush (user edit or beforeunload); harmless to
+          // recompute next load if that never happens, since placementsMap stays empty.
+          opsQueueRef.current.push(...migrationOps);
+        }
+
+        const spaceState: CanvasState = {
+          ...elementsToStateArrays(spaceElements),
+          bgColor: "", wallpaper: "",
+          hidden: spaceHidden,
+        };
+        const mobileState: CanvasState = {
+          ...elementsToStateArrays(newElements),
+          bgColor: "", wallpaper: "",
+          hidden: hiddenMap,
+          placements: placementsMap,
+        };
+
+        const merged = mergeMobileState(filterHiddenDesktop(spaceState), mobileState);
+        newElements = stateArraysToElements(merged);
+      }
+
+      setPlacementsMap(placementsMap);
 
       // Sync zCounter to the highest zIndex among loaded elements.
       // Without this, zCounter starts at 10 but loaded elements may have zIndex 500+,
@@ -1997,6 +2317,10 @@ export default function CanvasBoard({
         isAnalytics={view === "analytics"}
         onAnalytics={canEdit ? () => setView("analytics") : undefined}
       />
+
+      {canEdit && isSpaceCanvas(canvasMode) && view === "canvas" && (
+        <ViewModeSwitcher canvasMode={canvasMode} onSwitch={switchMode} />
+      )}
 
       {view==="canvas"&&(creatingCard||rotating||addingText)&&(
         <div style={{position:"fixed",top:58,left:"50%",transform:"translateX(-50%)",background:"rgba(10,10,12,0.92)",color:"rgba(255,255,255,0.4)",padding:"5px 14px",borderRadius:6,zIndex:700,fontFamily:MONO,fontSize:9,letterSpacing:2,textTransform:"uppercase",border:"1px solid rgba(255,255,255,0.06)",pointerEvents:"none"}}>

@@ -448,6 +448,41 @@ export type SpaceFont = {
   format: "woff2" | "woff" | "ttf" | "otf";
 };
 
+// ── Shared-widget overlay (MY LAND: Desktop/Mobile unification) ─────────────
+//
+// "space" stays the source of truth for shared-widget content
+// (profiles/guestbooks/socialCards/musicCards/linksCards/statsCards/galleries).
+// "space_mobile" stores only an overlay on top of that content: which shared
+// widgets are hidden in that view, and per-view placement overrides.
+
+export type SharedWidgetKind =
+  | "profile" | "guestbook" | "social" | "music" | "links" | "stats" | "gallery";
+
+export type Placement = {
+  x:        number;
+  y:        number;
+  w:        number;
+  h:        number;
+  zIndex:   number;
+  layer:    0 | 1 | 2;
+  depth:    number;
+  rotation: number;
+  locked?:        boolean;
+  stackId?:       string;
+  isStackAnchor?: boolean;
+};
+
+export const PLACEMENT_FIELDS = [
+  "x", "y", "w", "h", "zIndex", "layer", "depth", "rotation",
+  "locked", "stackId", "isStackAnchor",
+] as const satisfies readonly (keyof Placement)[];
+
+// ids of shared widgets hidden in a given view, keyed by widget kind
+export type HiddenMap = Partial<Record<SharedWidgetKind, string[]>>;
+
+// per-view placement overrides for shared widgets, keyed by widget kind then id
+export type PlacementMap = Partial<Record<SharedWidgetKind, Record<string, Placement>>>;
+
 // ── Canvas state ─────────────────────────────────────────────────────────────
 
 export type CanvasState = {
@@ -470,6 +505,9 @@ export type CanvasState = {
   spaceMusic?:  SpaceMusic;
   spaceFont?:   SpaceFont;
   spaceCursor?: SpaceCursor;
+  // Shared-widget overlay (see above). Optional/additive — absent on existing rows.
+  hidden?:      HiddenMap;
+  placements?:  PlacementMap;
 };
 
 export type ElementType =

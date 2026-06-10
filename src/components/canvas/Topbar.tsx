@@ -77,8 +77,13 @@ export default function Topbar({
     tabs.push({ key: "analytics", label: "ANALYTICS", active: !!isAnalytics && !isBrowse && !isChats, onClick: onAnalytics });
   }
   if (onModeChange && canvasMode) {
-    tabs.push({ key: "space",        label: "MY LAND",  active: canvasMode === "space"        && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space") });
-    tabs.push({ key: "space_mobile", label: "MOBILE",   active: canvasMode === "space_mobile" && !isBrowse && !isChats && !isAnalytics, onClick: () => onModeChange("space_mobile") });
+    const inSpace = canvasMode === "space" || canvasMode === "space_mobile";
+    tabs.push({
+      key:    "space",
+      label:  "MY LAND",
+      active: inSpace && !isBrowse && !isChats && !isAnalytics,
+      onClick: () => { if (!inSpace) onModeChange("space"); },
+    });
   }
   if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats && !isAnalytics, onClick: onChats });
 

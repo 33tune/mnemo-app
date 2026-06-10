@@ -3,10 +3,18 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
 import MobilePublicCanvas from "@/components/canvas/MobilePublicCanvas";
+import { mergeMobileState, filterHiddenDesktop } from "@/lib/mobileMerge";
 import type { CanvasState } from "@/types";
 import type { Metadata } from "next";
 
 const RESERVED = new Set(["login", "dashboard", "space", "auth", "api", "admin", "settings"]);
+
+const EMPTY_MOBILE_STATE: CanvasState = {
+  cards: [], images: [], texts: [], galleries: [],
+  profiles: [], medias: [], guestbooks: [],
+  socialCards: [], musicCards: [], linksCards: [], statsCards: [],
+  bgColor: "#0a0a0c", wallpaper: "",
+};
 
 export async function generateMetadata(
   { params }: { params: Promise<{ handle: string }> }
@@ -75,18 +83,7 @@ export default async function PublicPage({
 
   if (!canvas) notFound();
 
-  // Use mobile canvas if: device is mobile AND mobile canvas has content
-  const mobileState = mobileCanvas?.data as CanvasState | undefined;
-  const hasMobileContent = !!(mobileState && (
-    (mobileState.cards?.length ?? 0) > 0 ||
-    (mobileState.images?.length ?? 0) > 0 ||
-    (mobileState.texts?.length ?? 0) > 0 ||
-    (mobileState.profiles?.length ?? 0) > 0 ||
-    (mobileState.galleries?.length ?? 0) > 0 ||
-    (mobileState.medias?.length ?? 0) > 0 ||
-    (mobileState.guestbooks?.length ?? 0) > 0
-  ));
-  const showMobile = isMobileUA && hasMobileContent;
+  const showMobile = isMobileUA;
 
   // Track view — fire-and-forget, don't block render
   if (!viewer || viewer.id !== profile.user_id) {
@@ -105,7 +102,7 @@ export default async function PublicPage({
     <>
       {showMobile ? (
         <MobilePublicCanvas
-          state={mobileState}
+          state={mergeMobileState(filterHiddenDesktop(state), (mobileCanvas?.data as CanvasState | undefined) ?? EMPTY_MOBILE_STATE)}
           handle={profile.handle}
           name={profile.display_name ?? ""}
           userId={profile.user_id}

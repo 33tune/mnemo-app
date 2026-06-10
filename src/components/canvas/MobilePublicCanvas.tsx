@@ -5,6 +5,7 @@ import type { CanvasState, TextFont, GuestbookMessage, GuestbookCardData } from 
 import { THEMES as GB_THEMES } from "./GuestbookWidget";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { createClient } from "@/lib/supabase/client";
+import { mergeMobileState, filterHiddenDesktop } from "@/lib/mobileMerge";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -49,15 +50,14 @@ export default function MobilePublicCanvas({
   useEffect(() => {
     if (!userId) return;
     const sb = createClient();
-    sb.from("canvases")
-      .select("data")
-      .eq("user_id", userId)
-      .eq("type", "space_mobile")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.data) setFetchedState(data.data as CanvasState);
-        else setFetchedState(EMPTY);
-      });
+    Promise.all([
+      sb.from("canvases").select("data").eq("user_id", userId).eq("type", "space").maybeSingle(),
+      sb.from("canvases").select("data").eq("user_id", userId).eq("type", "space_mobile").maybeSingle(),
+    ]).then(([{ data: spaceRow }, { data: mobileRow }]) => {
+      const spaceState  = (spaceRow?.data  as CanvasState | undefined) ?? EMPTY;
+      const mobileState = (mobileRow?.data as CanvasState | undefined) ?? EMPTY;
+      setFetchedState(mergeMobileState(filterHiddenDesktop(spaceState), mobileState));
+    });
   }, [userId]);
 
   const state: CanvasState = propState ?? fetchedState ?? EMPTY;
