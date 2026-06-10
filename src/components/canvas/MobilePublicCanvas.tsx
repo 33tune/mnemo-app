@@ -6,6 +6,12 @@ import { THEMES as GB_THEMES } from "./GuestbookWidget";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { createClient } from "@/lib/supabase/client";
 import { mergeMobileState, filterHiddenDesktop } from "@/lib/mobileMerge";
+import { SocialIconBtn, detectPlatform } from "./SocialIcons";
+import { musicLabel } from "./MusicCardWidget";
+import { fmtNum, StatItem } from "./StatsCardWidget";
+import { trackLinkClick } from "@/lib/trackLinkClick";
+import { useProfileViews } from "@/hooks/useProfileViews";
+import { getFontStyle } from "@/lib/fontList";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -61,6 +67,16 @@ export default function MobilePublicCanvas({
   }, [userId]);
 
   const state: CanvasState = propState ?? fetchedState ?? EMPTY;
+
+  const { total: profileViewCount } = useProfileViews(userId);
+  function getStatValue(id: string): number {
+    return id === "views" ? profileViewCount : 0;
+  }
+  function getStatLabel(block: { id: string; label?: string }): string {
+    if (block.label) return block.label;
+    if (block.id === "views") return "VIEWS";
+    return block.id.toUpperCase();
+  }
 
   const [scale, setScale] = useState(1);
   useEffect(() => {
@@ -387,6 +403,219 @@ export default function MobilePublicCanvas({
                   </div>
                 )}
 
+              </div>
+            );
+          })}
+
+          {/* Galleries */}
+          {(state.galleries ?? []).map(gallery => (
+            <div key={gallery.id} style={{
+              position: "absolute", left: gallery.x, top: gallery.y, width: gallery.w,
+              zIndex: gallery.zIndex + gallery.layer * 100,
+              transform: `rotate(${gallery.rotation ?? 0}deg)`,
+              opacity: gallery.opacity,
+            }}>
+              <div style={{
+                position: "relative", borderRadius: gallery.borderRadius ?? 16, overflow: "hidden",
+                background: "rgba(255,255,255,0.04)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
+                border: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              }}>
+                <div style={{ padding: "10px 12px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                    <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>GALLERY</span>
+                  </div>
+                  <span style={{ fontFamily: MONO, fontSize: 9, color: "rgba(255,255,255,0.15)" }}>{(gallery.images ?? []).length}</span>
+                </div>
+                <div style={{ padding: "0 10px 10px", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4, maxHeight: "60vh", overflowY: "auto" }}>
+                  {(gallery.images ?? []).filter(img => img.src && !img.src.startsWith("blob:")).map(img => (
+                    <div key={img.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Social cards */}
+          {(state.socialCards ?? []).map(card => {
+            const hasBgImg   = card.bgImage && !card.bgImage.startsWith("blob:");
+            const iconSize   = card.iconSize ?? 16;
+            const links      = card.socialLinks ?? [];
+            const hasPositionedIcons = links.some(sl => sl.x !== undefined && sl.y !== undefined);
+            const borderRadius = card.borderRadius ?? 14;
+            return (
+              <div key={card.id} style={{
+                position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
+                zIndex: card.zIndex + card.layer * 100,
+                transform: `rotate(${card.rotation ?? 0}deg)`,
+                borderRadius, opacity: card.opacity,
+                ...(hasBgImg ? bgImageStyle(card.bgImage!, card.bgMode) : { background: card.bgColor || "rgba(255,255,255,0.04)" }),
+                border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden",
+              }}>
+                <div style={{
+                  position: "absolute", inset: 0, borderRadius,
+                  ...(hasPositionedIcons ? {} : { display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap" as const, gap: 2, padding: "10px 12px" }),
+                  overflow: "hidden",
+                }}>
+                  {links.map(sl => {
+                    const hasPos = sl.x !== undefined && sl.y !== undefined;
+                    return (
+                      <div key={sl.id} style={hasPos ? { position: "absolute", left: sl.x, top: sl.y, transform: "translate(-50%,-50%)" } : { flexShrink: 0 }}>
+                        <SocialIconBtn platform={detectPlatform(sl.url)} url={sl.url} color={card.textColor || "rgba(255,255,255,0.75)"} size={iconSize} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Music cards */}
+          {(state.musicCards ?? []).map(card => {
+            const hasBgImg  = card.bgImage && !card.bgImage.startsWith("blob:");
+            const hasUrl    = !!(card.musicUrl?.trim());
+            const href      = hasUrl ? (card.musicUrl!.startsWith("http") ? card.musicUrl! : `https://${card.musicUrl}`) : "";
+            const textColor = card.textColor || "rgba(255,255,255,0.62)";
+            const textSize  = card.textSize ?? 8;
+            const fontStyle = getFontStyle(card.font, MONO);
+            const borderRadius = card.borderRadius ?? 10;
+            return (
+              <div key={card.id} style={{
+                position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
+                zIndex: card.zIndex + card.layer * 100,
+                transform: `rotate(${card.rotation ?? 0}deg)`,
+                borderRadius, opacity: card.opacity,
+                ...(hasBgImg ? bgImageStyle(card.bgImage!, card.bgMode) : { background: card.bgColor || "rgba(255,255,255,0.04)" }),
+                border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden",
+              }}>
+                <a href={hasUrl ? href : undefined} target="_blank" rel="noopener noreferrer"
+                  onClick={e => { if (!hasUrl) e.preventDefault(); }}
+                  style={{ position: "absolute", inset: 0, borderRadius, display: "flex", alignItems: "center", gap: 10, padding: "0 14px", textDecoration: "none", cursor: hasUrl ? "pointer" : "default" }}>
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,0.55)", flexShrink: 0 }} />
+                  <div style={{ overflow: "hidden", minWidth: 0 }}>
+                    <div style={{ fontFamily: fontStyle, fontSize: 6, letterSpacing: 2, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" as const, lineHeight: 1, marginBottom: 3 }}>NOW PLAYING</div>
+                    <div style={{ fontFamily: fontStyle, fontSize: textSize, letterSpacing: 0.5, color: textColor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {hasUrl ? musicLabel(card.musicUrl!) : "—"}
+                    </div>
+                    {card.mood && <div style={{ fontFamily: fontStyle, fontSize: Math.max(6, textSize - 2), color: "rgba(255,255,255,0.28)", marginTop: 2 }}>{card.mood}</div>}
+                  </div>
+                </a>
+              </div>
+            );
+          })}
+
+          {/* Links cards */}
+          {(state.linksCards ?? []).map(card => {
+            const hasBgImg  = card.bgImage && !card.bgImage.startsWith("blob:");
+            const fontStyle = getFontStyle(card.font, SANS);
+            const fontSize  = card.textSize ?? 9;
+            const links     = (card.links ?? []).filter(l => l.url);
+            const hasPositionedLinks = links.some(l => l.x !== undefined && l.y !== undefined);
+            const borderRadius = card.borderRadius ?? 14;
+            return (
+              <div key={card.id} style={{
+                position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
+                zIndex: card.zIndex + card.layer * 100,
+                transform: `rotate(${card.rotation ?? 0}deg)`,
+                borderRadius, opacity: card.opacity,
+                ...(hasBgImg ? bgImageStyle(card.bgImage!, card.bgMode) : { background: card.bgColor || "rgba(255,255,255,0.04)" }),
+                border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden",
+              }}>
+                <div style={{
+                  position: "absolute", inset: 0, borderRadius,
+                  ...(hasPositionedLinks ? {} : { display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 14px" }),
+                  overflow: "hidden",
+                }}>
+                  {links.map(link => {
+                    const hasPos  = link.x !== undefined && link.y !== undefined;
+                    const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
+                    return (
+                      <div key={link.id} style={hasPos ? { position: "absolute", left: link.x, top: link.y, transform: "translate(-50%,-50%)" } : {}}>
+                        <a href={safeUrl} target="_blank" rel="noopener noreferrer"
+                          onClick={() => userId && trackLinkClick(userId, link.label, safeUrl)}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                            padding: "5px 14px", borderRadius: 100,
+                            background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)",
+                            textDecoration: "none",
+                          }}>
+                          {link.icon && <span style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>{link.icon}</span>}
+                          <span style={{ fontFamily: fontStyle, fontSize, fontWeight: 600, color: "rgba(255,255,255,0.6)", letterSpacing: 1.2, textTransform: "uppercase" as const, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 140 }}>
+                            {link.label || safeUrl}
+                          </span>
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Stats cards */}
+          {(state.statsCards ?? []).map(card => {
+            const hasBgImg  = card.bgImage && !card.bgImage.startsWith("blob:");
+            const textColor = card.textColor || "rgba(255,255,255,0.75)";
+            const stats     = card.stats ?? [{ id: "views", visible: true }];
+            const layout    = card.displayLayout ?? "grid";
+            const visibleStats = stats.filter(s => s.visible);
+            const fontStyle = getFontStyle(card.font, MONO);
+            const borderRadius = card.borderRadius ?? 10;
+            return (
+              <div key={card.id} style={{
+                position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
+                zIndex: card.zIndex + card.layer * 100,
+                transform: `rotate(${card.rotation ?? 0}deg)`,
+                borderRadius, opacity: card.opacity,
+                ...(hasBgImg ? bgImageStyle(card.bgImage!, card.bgMode) : { background: card.bgColor || "rgba(255,255,255,0.04)" }),
+                border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden",
+              }}>
+                <div style={{
+                  position: "absolute", inset: 0, borderRadius,
+                  display: "flex", alignItems: "center",
+                  justifyContent: layout === "list" ? "flex-start" : "center",
+                  flexDirection: layout === "list" ? "column" : "row",
+                  gap: layout === "grid" ? 0 : 8,
+                  padding: layout === "compact" ? "0 14px" : "8px 14px",
+                  overflow: "hidden",
+                }}>
+                  {layout === "grid" && (
+                    <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(visibleStats.length, 2)}, 1fr)`, gap: "2px 16px", width: "100%" }}>
+                      {visibleStats.map(block => (
+                        <StatItem key={block.id} label={getStatLabel(block)} value={getStatValue(block.id)} textColor={textColor} font={fontStyle} textSize={card.textSize ?? 13} />
+                      ))}
+                    </div>
+                  )}
+
+                  {layout === "list" && visibleStats.map(block => (
+                    <div key={block.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "2px 0" }}>
+                      <span style={{ fontFamily: fontStyle, fontSize: 7, letterSpacing: 1.5, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const }}>
+                        {getStatLabel(block)}
+                      </span>
+                      <span style={{ fontFamily: fontStyle, fontSize: card.textSize ?? 11, color: textColor, fontWeight: 600 }}>
+                        {fmtNum(getStatValue(block.id))}
+                      </span>
+                    </div>
+                  ))}
+
+                  {layout === "compact" && visibleStats.map((block, i) => (
+                    <div key={block.id} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      {i > 0 && <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 10 }}>·</span>}
+                      <span style={{ fontFamily: fontStyle, fontSize: card.textSize ?? 10, color: textColor, fontWeight: 600 }}>
+                        {fmtNum(getStatValue(block.id))}
+                      </span>
+                      <span style={{ fontFamily: fontStyle, fontSize: 6.5, letterSpacing: 1, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" as const }}>
+                        {getStatLabel(block)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             );
           })}

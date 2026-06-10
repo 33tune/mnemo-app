@@ -13,7 +13,7 @@ import { CANVAS_FONTS } from "@/lib/fontList";
 
 const FONTS = CANVAS_FONTS;
 
-function musicLabel(url: string): string {
+export function musicLabel(url: string): string {
   try {
     const full = url.startsWith("http") ? url : `https://${url}`;
     const { hostname, pathname } = new URL(full);

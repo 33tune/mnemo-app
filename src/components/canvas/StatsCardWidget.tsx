@@ -18,7 +18,7 @@ const DEFAULT_STATS: StatBlock[] = [
   { id: "views", visible: true },
 ];
 
-function fmtNum(n: number): string {
+export function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
@@ -589,7 +589,7 @@ function StatsCardWidget({
   );
 }
 
-function StatItem({ label, value, textColor, font, textSize }: { label: string; value: number; textColor: string; font?: string; textSize?: number }) {
+export function StatItem({ label, value, textColor, font, textSize }: { label: string; value: number; textColor: string; font?: string; textSize?: number }) {
   const ff = font ?? T.font.mono;
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "6px 0" }}>
