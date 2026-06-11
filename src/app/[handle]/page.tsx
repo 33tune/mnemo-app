@@ -106,6 +106,7 @@ export default async function PublicPage({
           handle={profile.handle}
           name={profile.display_name ?? ""}
           userId={profile.user_id}
+          viewerLoggedIn={!!viewer && viewer.id !== profile.user_id}
         />
       ) : (
         <CanvasBoard

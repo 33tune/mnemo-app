@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import type { CanvasState, TextFont, GuestbookMessage, GuestbookCardData } from "@/types";
 import { THEMES as GB_THEMES } from "./GuestbookWidget";
@@ -44,6 +45,7 @@ export default function MobilePublicCanvas({
   userId,
   preview = false,
   readOnly = false,
+  viewerLoggedIn = false,
 }: {
   state?: CanvasState;
   handle?: string;
@@ -51,7 +53,10 @@ export default function MobilePublicCanvas({
   userId?: string;
   preview?: boolean;
   readOnly?: boolean;
+  viewerLoggedIn?: boolean;
 }) {
+  const router = useRouter();
+  const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
   const isPreview = preview || readOnly;
   const [fetchedState, setFetchedState] = useState<CanvasState | null>(null);
 
@@ -158,6 +163,26 @@ export default function MobilePublicCanvas({
           <div style={{ flex: 1 }} />
           <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.28)", textTransform: "uppercase" }}>@{handle}</span>
         </div>
+      )}
+
+      {/* Back to home */}
+      {viewerLoggedIn && (
+        <button
+          onClick={() => router.push("/dashboard")}
+          title="Volver"
+          style={{
+            position: "fixed", top: 14, left: 14, zIndex: 800,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 32, height: 32, borderRadius: 8,
+            background: "rgba(7,7,9,0.6)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+            border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.75)",
+            cursor: "pointer",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
       )}
 
       {/* Scaled world wrapper */}
@@ -433,9 +458,14 @@ export default function MobilePublicCanvas({
                 </div>
                 <div style={{ padding: "0 10px 10px", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4, maxHeight: "60vh", overflowY: "auto" }}>
                   {(gallery.images ?? []).filter(img => img.src && !img.src.startsWith("blob:")).map(img => (
-                    <div key={img.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div key={img.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <img
+                        src={img.src}
+                        alt=""
+                        onClick={() => setLightbox({ src: img.src, name: img.name })}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -618,6 +648,39 @@ export default function MobilePublicCanvas({
           })}
         </div>
       </div>
+
+      {/* Gallery lightbox */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.92)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightbox.src}
+              alt={lightbox.name}
+              style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain", borderRadius: 8, display: "block" }}
+            />
+            <button
+              onClick={() => setLightbox(null)}
+              style={{
+                position: "absolute", top: -14, right: -14,
+                width: 28, height: 28, borderRadius: "50%",
+                border: "1px solid rgba(255,255,255,0.15)",
+                background: "rgba(10,10,12,0.95)",
+                color: "rgba(255,255,255,0.6)", fontSize: 14,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >×</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

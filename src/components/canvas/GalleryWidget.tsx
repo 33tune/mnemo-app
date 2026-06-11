@@ -138,28 +138,7 @@ function GalleryWidget({
           }}
           onMouseDown={e => e.stopPropagation()}
         >
-          {gallery.images.length === 0 ? (
-            canInteract ? <div
-              onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
-              style={{
-                display: "flex", flexDirection: "column", alignItems: "center",
-                justifyContent: "center", gap: 8, height: 80, borderRadius: 10,
-                border: "1px dashed rgba(255,255,255,0.1)",
-                cursor: "pointer", opacity: 0.5,
-              }}
-              onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-              onMouseLeave={e => e.currentTarget.style.opacity = "0.5"}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-              <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, textTransform: "uppercase" }}>
-                add images
-              </span>
-            </div> : null
-          ) : (
+          {gallery.images.length === 0 ? null : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
               {gallery.images.map((img) => (
                 <div
@@ -218,23 +197,6 @@ function GalleryWidget({
                   >×</button>}
                 </div>
               ))}
-
-              {/* Celda agregar más */}
-              {canInteract && <div
-                onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
-                style={{
-                  aspectRatio: "1", borderRadius: 8,
-                  border: "1px dashed rgba(255,255,255,0.08)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer", opacity: 0.4, transition: "opacity 0.15s",
-                }}
-                onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-                onMouseLeave={e => e.currentTarget.style.opacity = "0.4"}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </div>}
             </div>
           )}
         </div>

@@ -8,6 +8,7 @@ export default function Topbar({
   wallpaper,
   handle,
   onLogout,
+  onBack,
   canvasMode,
   onModeChange,
   publishState,
@@ -25,6 +26,7 @@ export default function Topbar({
   wallpaper: string;
   handle?: string;
   onLogout?: () => Promise<void>;
+  onBack?: () => void;
   canvasMode?: CanvasMode;
   onModeChange?: (newMode: CanvasMode) => Promise<void>;
   publishState?: PublishState;
@@ -110,6 +112,9 @@ export default function Topbar({
         WebkitBackdropFilter:"blur(28px)",
         borderBottom:        "1px solid rgba(255,255,255,0.07)",
       }}>
+
+        {/* ── Back ── */}
+        {onBack && <BackBtn onClick={onBack} />}
 
         {/* ── Logo ── */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -343,6 +348,38 @@ function SignalsBtn({ count, onClick }: { count: number; onClick: () => void }) 
           {count}
         </span>
       )}
+    </button>
+  );
+}
+
+// ── Back button ────────────────────────────────────────────────────────────────
+function BackBtn({ onClick }: { onClick: () => void }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      title="Volver"
+      style={{
+        display:       "flex",
+        alignItems:    "center",
+        justifyContent:"center",
+        width:         26,
+        height:        26,
+        marginRight:   12,
+        borderRadius:  6,
+        flexShrink:    0,
+        background:    hov ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)",
+        border:        `1px solid ${hov ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.07)"}`,
+        color:         hov ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.5)",
+        cursor:        "pointer",
+        transition:    "all 0.1s ease",
+      }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
+      </svg>
     </button>
   );
 }

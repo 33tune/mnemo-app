@@ -2342,6 +2342,7 @@ export default function CanvasBoard({
         wallpaper={wallpaper}
         handle={userHandle}
         onLogout={canEdit ? handleLogout : undefined}
+        onBack={!canEdit && viewerLoggedIn ? () => router.push("/dashboard") : undefined}
         canvasMode={canEdit ? canvasMode : (viewerLoggedIn ? "space" : undefined)}
         onModeChange={canEdit
           ? async (mode: CanvasMode) => { setView("canvas"); await handleModeChange(mode); }
