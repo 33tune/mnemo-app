@@ -5,6 +5,7 @@ import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
+import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { UIButton, UISlider } from "@/components/ui";
@@ -445,7 +446,7 @@ function ProfileCard({
         onMouseLeave={onInteractLeave}
         style={{
           position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
-          zIndex: card.zIndex + card.layer * 100,
+          zIndex: card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
           transform: `${parallaxTransform} rotate(${card.rotation}deg)`,
           willChange: "transform", userSelect: "none",
           cursor: draggingId === card.id ? "grabbing" : menuOpen ? "default" : "grab",

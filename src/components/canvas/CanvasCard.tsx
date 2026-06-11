@@ -4,6 +4,7 @@ import type { CanvasCard as CanvasCardType } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import CardMenu from "./CardMenu";
 import { renderContent, textColor, isLight } from "./CardContent";
+import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
 const MONO = "'Space Mono', monospace";
 const LAYER_NAMES = ["Fondo", "Medio", "Frente"] as const;
@@ -54,7 +55,7 @@ export default function CanvasCard({
       onDoubleClick={onDoubleClick}
       style={{
         position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
-        zIndex: card.zIndex + card.layer * 100,
+        zIndex: card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
         cursor: connectMode ? "crosshair" : draggingId === card.id ? "grabbing" : "grab",
         userSelect: "none",
         transform: `${parallaxStyle.transform ?? ""} rotate(${card.rotation}deg)`,

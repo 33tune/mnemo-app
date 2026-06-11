@@ -5,6 +5,7 @@ import type { SocialCardData, SocialLink, CardEffects } from "@/types";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { SocialIconBtn, detectPlatform } from "./SocialIcons";
+import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { uploadToStorage } from "@/lib/storage";
@@ -165,7 +166,7 @@ function SocialCardWidget({
         onClick={onClick}
         style={{
           position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
-          zIndex: card.zIndex + card.layer * 100, transform: `${parallaxTransform} rotate(${card.rotation}deg)`,
+          zIndex: card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0), transform: `${parallaxTransform} rotate(${card.rotation}deg)`,
           willChange: "transform", userSelect: "none",
           cursor: internalDrag ? "grabbing" : draggingId === card.id ? "grabbing" : menuOpen ? "default" : "grab",
           ...entryAnimStyle,

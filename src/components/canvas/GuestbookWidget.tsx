@@ -6,6 +6,7 @@ import { bgImageStyle } from "@/lib/bgStyle";
 import type { GuestbookCardData, GuestbookPreset } from "@/types";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
+import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
 const MAX_CHARS   = 280;
 const COOLDOWN_MS = 30_000;
@@ -335,7 +336,7 @@ export default function GuestbookWidget({
         top:        guestbook.y,
         width:      guestbook.w,
         height:     guestbook.h,
-        zIndex:     guestbook.zIndex + guestbook.layer * 100,
+        zIndex:     guestbook.zIndex + guestbook.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
         cursor:     locked ? "default" : isDragging ? "grabbing" : "grab",
         userSelect: "none",
         transform:  `${parallaxTransform} rotate(${guestbook.rotation ?? 0}deg)`,

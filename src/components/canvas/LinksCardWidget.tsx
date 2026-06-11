@@ -11,6 +11,7 @@ import { uploadToStorage } from "@/lib/storage";
 import { detectBgMode } from "@/lib/bgStyle";
 import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
 import { CANVAS_FONTS } from "@/lib/fontList";
+import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
 const FONTS = CANVAS_FONTS;
 
@@ -266,7 +267,7 @@ function LinksCardWidget({
           top:        card.y,
           width:      card.w,
           height:     card.h,
-          zIndex:     card.zIndex + card.layer * 100,
+          zIndex:     card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
           transform:  `${parallaxTransform} rotate(${card.rotation}deg)`,
           willChange: "transform",
           userSelect: "none",

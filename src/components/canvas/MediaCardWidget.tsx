@@ -4,6 +4,7 @@ import { trackRender } from "@/lib/perfDebug";
 import type { CanvasMedia, MediaType } from "@/types";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
+import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
 const MONO = "'Space Mono', monospace";
 const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
@@ -132,7 +133,7 @@ function MediaCardWidget({
         top:        media.y,
         width:      media.w,
         height:     media.h,
-        zIndex:     media.zIndex + media.layer * 100,
+        zIndex:     media.zIndex + media.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
         transform:  `${parallaxTransform} rotate(${media.rotation}deg)`,
         willChange: "transform",
         userSelect: "none",

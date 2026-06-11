@@ -10,6 +10,7 @@ import { uploadToStorage } from "@/lib/storage";
 import { detectBgMode } from "@/lib/bgStyle";
 import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
 import { CANVAS_FONTS } from "@/lib/fontList";
+import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
 const FONTS = CANVAS_FONTS;
 
@@ -127,7 +128,7 @@ function MusicCardWidget({
         onClick={onClick}
         style={{
           position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
-          zIndex: card.zIndex + card.layer * 100, transform: `${parallaxTransform} rotate(${card.rotation}deg)`,
+          zIndex: card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0), transform: `${parallaxTransform} rotate(${card.rotation}deg)`,
           willChange: "transform", userSelect: "none",
           cursor: draggingId === card.id ? "grabbing" : menuOpen ? "default" : "grab",
           ...entryAnimStyle,

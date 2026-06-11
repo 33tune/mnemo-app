@@ -5,6 +5,7 @@ import type { CanvasGallery, GalleryImage } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
+import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -60,7 +61,7 @@ function GalleryWidget({
         style={{
           position: "absolute", left: gallery.x, top: gallery.y,
           width: gallery.w,
-          zIndex: gallery.zIndex + gallery.layer * 100,
+          zIndex: gallery.zIndex + gallery.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
           transform: `${parallaxTransform} rotate(${gallery.rotation}deg)`,
           willChange: "transform",
           userSelect: "none",
