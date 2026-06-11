@@ -12,6 +12,50 @@ type ProfileCardEffectsSource = Pick<ProfileCardData,
  * Shared by the editor (ProfileCard) and MobilePublicCanvas so both render
  * the same visual system via CardLayers.
  */
+type ModuleCardEffectsSource = {
+  bgColor?:       string;
+  bgImage?:       string;
+  bgMode?:        "cover" | "repeat";
+  opacity?:       number;
+  borderColor?:   string;
+  borderWidth?:   number;
+  borderRadius?:  number;
+  glowColor?:     string;
+  glowIntensity?: number;
+  effects?:       CardEffects;
+};
+
+/**
+ * Computes the effective CardEffects for a module card (Social/Music/Links/Stats),
+ * merging its legacy bg/border/glow fields with any explicit `effects` overrides.
+ * Mirrors the effectiveEffects construction in each *CardWidget so MobilePublicCanvas
+ * renders the same visual system via CardLayers.
+ */
+export function getModuleCardEffects(card: ModuleCardEffectsSource, defaultRadius: number): CardEffects {
+  return {
+    ...card.effects,
+    bg: {
+      color:     card.bgColor,
+      image:     card.bgImage,
+      imageMode: card.bgMode,
+      ...card.effects?.bg,
+    },
+    border: {
+      color:  card.borderColor,
+      width:  card.borderWidth,
+      radius: card.borderRadius ?? defaultRadius,
+      ...card.effects?.border,
+    },
+    glow: {
+      color:     card.glowColor,
+      intensity: card.glowIntensity,
+      outer:     true,
+      ...card.effects?.glow,
+    },
+    opacity: card.effects?.opacity ?? card.opacity,
+  };
+}
+
 export function getProfileCardEffects(card: ProfileCardEffectsSource): CardEffects {
   const variant = card.variant ?? "classic";
   const isGlassVariant = variant === "glass" || (!card.bgColor && !card.bgImage);
