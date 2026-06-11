@@ -29,6 +29,9 @@ export const MOBILE_CANVAS_PADDING = 32;
 /** Usable width for shared-widget content on the Mobile canvas. */
 export const MOBILE_CONTENT_W = MOBILE_CANVAS_W - MOBILE_CANVAS_PADDING;
 
+/** Logical height of the Mobile canvas in pixels. Matches MobilePublicCanvas's LOGICAL_HEIGHT and CanvasBoard's CANVAS_H. */
+export const MOBILE_CANVAS_H = 3000;
+
 /** All widget kinds whose content is shared between Desktop and Mobile. */
 export const SHARED_WIDGET_KINDS: readonly SharedWidgetKind[] = [
   "profile", "guestbook", "social", "music", "links", "stats", "gallery",
@@ -91,9 +94,28 @@ export function defaultMobilePlacement(item: PlacementSource): Placement {
 }
 
 /**
+ * Returns true if `placement` describes a position/size that is fully
+ * within the Mobile viewport (MOBILE_CANVAS_W x MOBILE_CANVAS_H). Guards
+ * against stale/legacy placements (e.g. coordinates copied verbatim from a
+ * pre-unification canvas) that would render the widget off-screen.
+ */
+function isPlacementWithinViewport(placement: Placement | undefined): placement is Placement {
+  if (!placement) return false;
+  const { x, y, w, h } = placement;
+  if (
+    !Number.isFinite(x) || !Number.isFinite(y) ||
+    !Number.isFinite(w) || !Number.isFinite(h)
+  ) return false;
+  if (x < 0 || y < 0 || w <= 0 || h <= 0) return false;
+  if (x + w > MOBILE_CANVAS_W || y + h > MOBILE_CANVAS_H) return false;
+  return true;
+}
+
+/**
  * Merges a shared widget array from `space` into the shape Mobile expects:
  * filters out ids hidden on Mobile, and applies each item's placement
- * override (falling back to a computed default placement).
+ * override (falling back to a computed default placement) if that
+ * placement is valid for the Mobile viewport.
  */
 function mergeSharedArray<T extends PlacementSource & { id: string }>(
   sourceItems: readonly T[] | undefined,
@@ -103,7 +125,13 @@ function mergeSharedArray<T extends PlacementSource & { id: string }>(
   const hidden = new Set(hiddenIds ?? []);
   return (sourceItems ?? [])
     .filter(item => !hidden.has(item.id))
-    .map(item => ({ ...item, ...(placements?.[item.id] ?? defaultMobilePlacement(item)) }));
+    .map(item => {
+      const placement = placements?.[item.id];
+      return {
+        ...item,
+        ...(isPlacementWithinViewport(placement) ? placement : defaultMobilePlacement(item)),
+      };
+    });
 }
 
 /**

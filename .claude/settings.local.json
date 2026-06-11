@@ -60,7 +60,10 @@
       "Bash(git read-tree *)",
       "Bash(git status *)",
       "Bash(echo \"grep exit: $?\")",
-      "Bash(GIT_EDITOR=true git -c core.editor=true rebase --continue)"
+      "Bash(GIT_EDITOR=true git -c core.editor=true rebase --continue)",
+      "Bash(npx supabase *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-ChildItem *)"
     ]
   }
 }
