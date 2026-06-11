@@ -6,6 +6,7 @@ import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from 
 import { uploadToStorage } from "@/lib/storage";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
+import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { UIButton, UISlider } from "@/components/ui";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
@@ -138,40 +139,7 @@ function ProfileCard({
 
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
-  const isGlassVariant = variant === "glass" || (!card.bgColor && !card.bgImage);
-  const spotlightIntensity =
-    variant === "guns"    ? 0.09 :
-    variant === "minimal" ? 0    :
-    variant === "glass"   ? 0.07 : 0.055;
-
-  const effectiveEffects: CardEffects = {
-    ...card.effects,
-    bg: {
-      color:     card.bgColor || undefined,
-      image:     card.bgImage || undefined,
-      imageMode: card.bgMode,
-      opacity:   card.opacity,
-      glass:     isGlassVariant,
-      ...card.effects?.bg,
-    },
-    border: {
-      color:  card.borderColor,
-      width:  card.borderWidth,
-      radius: card.borderRadius,
-      ...card.effects?.border,
-    },
-    glow: {
-      color:     card.glowColor,
-      intensity: card.glowIntensity,
-      outer:     (card.glowIntensity ?? 0) > 0,
-      ...card.effects?.glow,
-    },
-    interactions: {
-      spotlight:      spotlightIntensity > 0,
-      spotlightColor: `rgba(255,255,255,${spotlightIntensity * 2.5})`,
-      ...card.effects?.interactions,
-    },
-  };
+  const effectiveEffects: CardEffects = getProfileCardEffects(card);
 
   const { onMouseMove: onInteractMove, onMouseLeave: onInteractLeave } =
     useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>, true);

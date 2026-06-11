@@ -362,6 +362,29 @@ function buildPersistedOps(op: CanvasOp, mode: CanvasMode): QueuedOp[] {
     case "update_stats":     return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "stats",     mode);
     case "update_gallery":   return splitSharedUpdate(op, op.type, op.id, op.patch as unknown as Record<string, unknown>, "gallery",   mode);
 
+    // space_mobile only: a multi-element move (group drag, or dragging the
+    // ProfileCard along with its stacked modules) splits per element — shared
+    // widget moves become update_placement ops (so they survive reload via
+    // placementsMap), while non-shared elements (cards/images/texts/medias,
+    // which are space_mobile's own per-view content) keep moving via move_elements.
+    case "move_elements": {
+      if (mode !== "space_mobile") return [{ op, canvas_type: mode }];
+      const sharedKinds: readonly string[] = SHARED_WIDGET_KINDS;
+      const result: QueuedOp[] = [];
+      const nonSharedMoves = op.moves.filter(m => {
+        if (!sharedKinds.includes(m.elementType)) return true;
+        result.push({
+          op: { type: "update_placement", widgetType: m.elementType as SharedWidgetKind, id: m.id, patch: { x: m.x, y: m.y } },
+          canvas_type: "space_mobile",
+        });
+        return false;
+      });
+      if (nonSharedMoves.length > 0) {
+        result.push({ op: { ...op, moves: nonSharedMoves }, canvas_type: "space_mobile" });
+      }
+      return result;
+    }
+
     default:
       return [{ op, canvas_type: mode }];
   }
@@ -2153,8 +2176,10 @@ export default function CanvasBoard({
         }
       }
 
-      // Snap-to-stack magnetism: after any drag, align consecutive stack members with gap < 60px to 14px
-      if (!result.wasDeleted && result.moved.length > 0) {
+      // Snap-to-stack magnetism: after any drag, align consecutive stack members with gap < 60px to 14px.
+      // Skipped on space_mobile — manual mobile placements must take priority over
+      // this desktop auto-relayout, which also doesn't persist via update_placement.
+      if (!result.wasDeleted && result.moved.length > 0 && canvasMode !== "space_mobile") {
         // Find all affected stackIds
         const affectedStackIds = new Set<string>();
         result.moved.forEach(m => {

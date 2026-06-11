@@ -6,6 +6,8 @@ import { THEMES as GB_THEMES } from "./GuestbookWidget";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { createClient } from "@/lib/supabase/client";
 import { mergeMobileState, filterHiddenDesktop } from "@/lib/mobileMerge";
+import { getProfileCardEffects } from "@/lib/profileCardEffects";
+import CardLayers from "./CardLayers";
 import { SocialIconBtn, detectPlatform } from "./SocialIcons";
 import { musicLabel } from "./MusicCardWidget";
 import { fmtNum, StatItem } from "./StatsCardWidget";
@@ -288,7 +290,6 @@ export default function MobilePublicCanvas({
           {/* Profiles — use stored % positions, same as ProfileCard desktop */}
           {(state.profiles ?? []).map(profile => {
             const hasPhoto = profile.photo && !profile.photo.startsWith("blob:");
-            const hasBgImg = profile.bgImage && !profile.bgImage.startsWith("blob:");
 
             // Replicate ProfileCard's position/scale defaults exactly
             const photoX  = profile.photoX ?? 50;
@@ -318,91 +319,91 @@ export default function MobilePublicCanvas({
 
             const textColor = profile.textColor ?? "rgba(255,255,255,0.92)";
 
+            const profileEffects = getProfileCardEffects(profile);
+            const profileRad     = profileEffects.border?.radius ?? profile.borderRadius;
+
             return (
               <div key={profile.id} style={{
                 position: "absolute", left: profile.x, top: profile.y,
                 width: profile.w, height: profile.h,
                 zIndex: profile.zIndex + profile.layer * 100,
                 transform: `rotate(${profile.rotation ?? 0}deg)`,
-                borderRadius: profile.borderRadius, opacity: profile.opacity,
-                ...(hasBgImg
-                  ? bgImageStyle(profile.bgImage, profile.bgMode)
-                  : { background: profile.bgColor || "rgba(255,255,255,0.04)" }),
-                border: "1px solid rgba(255,255,255,0.06)",
-                overflow: "hidden",
               }}>
-                {/* Photo */}
-                {hasPhoto && (
-                  <div style={{
-                    position: "absolute",
-                    left: `${photoX}%`, top: `${photoY}%`,
-                    transform: `translate(-50%, -50%) scale(${photoScale})`,
-                  }}>
-                    <div style={{ width: photoSizePx, height: photoSizePx, borderRadius: "50%", overflow: "hidden" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={profile.photo} alt="" draggable={false}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    </div>
-                  </div>
-                )}
+                <CardLayers cardId={profile.id} effects={profileEffects} borderRadius={profile.borderRadius}>
+                  <div style={{ position: "absolute", inset: 0, borderRadius: profileRad, overflow: "hidden" }}>
+                    {/* Photo */}
+                    {hasPhoto && (
+                      <div style={{
+                        position: "absolute",
+                        left: `${photoX}%`, top: `${photoY}%`,
+                        transform: `translate(-50%, -50%) scale(${photoScale})`,
+                      }}>
+                        <div style={{ width: photoSizePx, height: photoSizePx, borderRadius: "50%", overflow: "hidden" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={profile.photo} alt="" draggable={false}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </div>
+                      </div>
+                    )}
 
-                {/* Name */}
-                {profile.name && (
-                  <div style={{
-                    position: "absolute",
-                    left: `${nameX}%`, top: `${nameY}%`,
-                    transform: `translate(-50%, -50%) scale(${nameScale})`,
-                    textAlign: "center", whiteSpace: "nowrap",
-                  }}>
-                    <span style={{ fontFamily: SANS, fontSize: nameFontSize, fontWeight: 700, color: textColor }}>
-                      {profile.name}
-                    </span>
-                  </div>
-                )}
+                    {/* Name */}
+                    {profile.name && (
+                      <div style={{
+                        position: "absolute",
+                        left: `${nameX}%`, top: `${nameY}%`,
+                        transform: `translate(-50%, -50%) scale(${nameScale})`,
+                        textAlign: "center", whiteSpace: "nowrap",
+                      }}>
+                        <span style={{ fontFamily: SANS, fontSize: nameFontSize, fontWeight: 700, color: textColor }}>
+                          {profile.name}
+                        </span>
+                      </div>
+                    )}
 
-                {/* Status */}
-                {profile.status && (
-                  <div style={{
-                    position: "absolute",
-                    left: `${statusX}%`, top: `${statusY}%`,
-                    transform: `translate(-50%, -50%) scale(${statusScale})`,
-                    textAlign: "center", whiteSpace: "nowrap",
-                  }}>
-                    <span style={{ fontFamily: SANS, fontSize: statusFontSize, fontWeight: 500, color: textColor, opacity: 0.82 }}>
-                      {profile.status}
-                    </span>
-                  </div>
-                )}
+                    {/* Status */}
+                    {profile.status && (
+                      <div style={{
+                        position: "absolute",
+                        left: `${statusX}%`, top: `${statusY}%`,
+                        transform: `translate(-50%, -50%) scale(${statusScale})`,
+                        textAlign: "center", whiteSpace: "nowrap",
+                      }}>
+                        <span style={{ fontFamily: SANS, fontSize: statusFontSize, fontWeight: 500, color: textColor, opacity: 0.82 }}>
+                          {profile.status}
+                        </span>
+                      </div>
+                    )}
 
-                {/* Handle */}
-                {profile.handle && (
-                  <div style={{
-                    position: "absolute",
-                    left: `${handleX}%`, top: `${handleY}%`,
-                    transform: `translate(-50%, -50%) scale(${handleScale})`,
-                    textAlign: "center", whiteSpace: "nowrap",
-                  }}>
-                    <span style={{ fontFamily: SANS, fontSize: 9, color: textColor, opacity: 0.65 }}>
-                      @{profile.handle}
-                    </span>
-                  </div>
-                )}
+                    {/* Handle */}
+                    {profile.handle && (
+                      <div style={{
+                        position: "absolute",
+                        left: `${handleX}%`, top: `${handleY}%`,
+                        transform: `translate(-50%, -50%) scale(${handleScale})`,
+                        textAlign: "center", whiteSpace: "nowrap",
+                      }}>
+                        <span style={{ fontFamily: SANS, fontSize: 9, color: textColor, opacity: 0.65 }}>
+                          @{profile.handle}
+                        </span>
+                      </div>
+                    )}
 
-                {/* Bio */}
-                {profile.bio && (
-                  <div style={{
-                    position: "absolute",
-                    left: `${bioX}%`, top: `${bioY}%`,
-                    transform: `translate(-50%, -50%) scale(${bioScale})`,
-                    textAlign: "center",
-                  }}>
-                    <span style={{ fontFamily: MONO, fontSize: 7.5, color: textColor, opacity: 0.42,
-                      maxWidth: 110, display: "block", wordBreak: "break-word", lineHeight: 1.55 }}>
-                      {profile.bio}
-                    </span>
+                    {/* Bio */}
+                    {profile.bio && (
+                      <div style={{
+                        position: "absolute",
+                        left: `${bioX}%`, top: `${bioY}%`,
+                        transform: `translate(-50%, -50%) scale(${bioScale})`,
+                        textAlign: "center",
+                      }}>
+                        <span style={{ fontFamily: MONO, fontSize: 7.5, color: textColor, opacity: 0.42,
+                          maxWidth: 110, display: "block", wordBreak: "break-word", lineHeight: 1.55 }}>
+                          {profile.bio}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-
+                </CardLayers>
               </div>
             );
           })}
