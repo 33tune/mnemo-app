@@ -114,8 +114,9 @@ function isPlacementWithinViewport(placement: Placement | undefined): placement 
 /**
  * Merges a shared widget array from `space` into the shape Mobile expects:
  * filters out ids hidden on Mobile, and applies each item's placement
- * override (falling back to a computed default placement) if that
- * placement is valid for the Mobile viewport.
+ * override (completed with computed defaults for any field the override
+ * doesn't specify, falling back entirely to the computed default if the
+ * completed placement still isn't valid for the Mobile viewport).
  */
 function mergeSharedArray<T extends PlacementSource & { id: string }>(
   sourceItems: readonly T[] | undefined,
@@ -127,9 +128,15 @@ function mergeSharedArray<T extends PlacementSource & { id: string }>(
     .filter(item => !hidden.has(item.id))
     .map(item => {
       const placement = placements?.[item.id];
+      const fallback  = defaultMobilePlacement(item);
+      // Stored overrides may be partial (e.g. {x, y} from a single drag) —
+      // complete them with the computed default before validating, so a
+      // manual placement is never discarded just because it omits fields
+      // like w/h that the user never touched.
+      const completed = placement ? { ...fallback, ...placement } : fallback;
       return {
         ...item,
-        ...(isPlacementWithinViewport(placement) ? placement : defaultMobilePlacement(item)),
+        ...(isPlacementWithinViewport(completed) ? completed : fallback),
       };
     });
 }
