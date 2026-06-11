@@ -14,25 +14,22 @@ export function useProfileViews(userId?: string) {
     cancelledRef.current = false;
     setLoading(true);
 
-    const now       = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const weekStart  = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const sb = createClient();
 
-    Promise.all([
-      sb.from("profile_views").select("*", { count: "exact", head: true }).eq("profile_user_id", userId) as unknown as Promise<{ count: number | null }>,
-      sb.from("profile_views").select("*", { count: "exact", head: true }).eq("profile_user_id", userId).gte("viewed_at", todayStart) as unknown as Promise<{ count: number | null }>,
-      sb.from("profile_views").select("*", { count: "exact", head: true }).eq("profile_user_id", userId).gte("viewed_at", weekStart) as unknown as Promise<{ count: number | null }>,
-    ]).then(([totalRes, todayRes, weekRes]) => {
-      if (cancelledRef.current) return;
-      setTotal(totalRes.count ?? 0);
-      setToday(todayRes.count  ?? 0);
-      setWeek(weekRes.count    ?? 0);
-      setLoading(false);
-    }).catch(e => {
-      console.error("[useProfileViews]", e);
-      if (!cancelledRef.current) setLoading(false);
-    });
+    sb.rpc("get_profile_view_stats", { profile_id: userId })
+      .then(({ data, error }: { data: { total: number; today: number; week: number }[] | { total: number; today: number; week: number } | null; error: unknown }) => {
+        if (cancelledRef.current) return;
+        if (error) {
+          console.error("[useProfileViews]", error);
+          setLoading(false);
+          return;
+        }
+        const row = Array.isArray(data) ? data[0] : data;
+        setTotal(Number(row?.total ?? 0));
+        setToday(Number(row?.today ?? 0));
+        setWeek(Number(row?.week  ?? 0));
+        setLoading(false);
+      });
 
     return () => { cancelledRef.current = true; };
   }, [userId]);

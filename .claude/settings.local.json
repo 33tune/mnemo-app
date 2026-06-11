@@ -64,7 +64,10 @@
       "Bash(npx supabase *)",
       "PowerShell(Test-Path *)",
       "PowerShell(Get-ChildItem *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(xargs -I{} sh -c 'echo \"=== {} ===\"; cat {}')",
+      "Bash(curl -s \"https://xfefrruwyrhkiijrhxtp.supabase.co/rest/v1/\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZWZycnV3eXJoa2lpanJoeHRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNzA3MTksImV4cCI6MjA5MTk0NjcxOX0.Q5xb4dv7bdUtz6id-C2GmDiMZr4lV1gd0q1o3pmBh6g\" -H \"Accept: application/openapi+json\")",
+      "Bash(curl *)"
     ]
   }
 }
