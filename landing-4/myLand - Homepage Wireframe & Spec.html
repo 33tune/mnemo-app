@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>myLand — Homepage Wireframe &amp; Spec</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#e7e7ea;
+    --card:#ffffff;
+    --ink:#16161a;
+    --ink-2:#55555f;
+    --ink-3:#8a8a93;
+    --line:#d2d2d8;
+    --fill:#f1f1f4;
+    --fill-2:#e9e9ee;
+    --dash:#bcbcc6;
+    --accent:#2f6f4f;      /* annotation accent — only in the wireframe doc */
+    --accent-soft:#e6f0ea;
+    --mono:'Space Mono',monospace;
+    --sans:'DM Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding:0 0 120px;
+  }
+  .wrap{max-width:1320px;margin:0 auto;padding:0 40px;}
+
+  /* ---- typographic helpers ---- */
+  .mono{font-family:var(--mono);}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--ink-3);}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);}
+
+  /* ---- doc masthead ---- */
+  .masthead{padding:80px 0 36px;border-bottom:1px solid var(--line);}
+  .masthead .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:9px;vertical-align:middle;}
+  .masthead h1{font-size:30px;font-weight:600;letter-spacing:-0.5px;display:flex;align-items:center;}
+  .masthead .sub{margin-top:14px;max-width:760px;color:var(--ink-2);font-size:15px;}
+  .masthead .meta{margin-top:22px;display:flex;gap:28px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);}
+  .masthead .meta b{color:var(--ink);font-weight:700;}
+
+  /* ---- legend ---- */
+  .legend{display:flex;gap:32px;flex-wrap:wrap;padding:22px 0 0;font-family:var(--mono);font-size:11px;color:var(--ink-2);}
+  .legend span{display:inline-flex;align-items:center;gap:8px;}
+  .swatch{width:26px;height:16px;border-radius:2px;border:1px solid var(--line);}
+  .swatch.ph{background:var(--fill);border:1px dashed var(--dash);}
+  .swatch.live{background:var(--accent);border-color:var(--accent);}
+  .swatch.txt{background:repeating-linear-gradient(180deg,var(--ink-3) 0 2px,transparent 2px 6px);}
+
+  /* ---- section blocks in the doc ---- */
+  .block{padding:64px 0 8px;}
+  .block-head{display:flex;align-items:flex-start;gap:18px;margin-bottom:8px;}
+  .block-num{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);padding-top:4px;min-width:34px;}
+  .block-title{font-size:22px;font-weight:600;letter-spacing:-0.3px;}
+  .block-purpose{color:var(--ink-2);font-size:14px;margin-top:3px;max-width:720px;}
+
+  h2.docsec{font-size:13px;font-family:var(--mono);letter-spacing:2.5px;text-transform:uppercase;color:var(--ink);border-top:2px solid var(--ink);padding-top:14px;margin-top:90px;}
+  h2.docsec .hint{display:block;font-family:var(--sans);font-size:14px;letter-spacing:normal;text-transform:none;color:var(--ink-2);margin-top:8px;font-weight:400;}
+
+  /* ---- section map ---- */
+  .map{display:flex;flex-direction:column;gap:2px;margin-top:26px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card);}
+  .map-row{display:grid;grid-template-columns:60px 1.1fr 2fr 150px;gap:18px;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);}
+  .map-row:last-child{border-bottom:none;}
+  .map-row:hover{background:var(--fill);}
+  .map-row .n{font-family:var(--mono);font-weight:700;color:var(--accent);font-size:13px;}
+  .map-row .nm{font-weight:600;font-size:15px;}
+  .map-row .pp{color:var(--ink-2);font-size:13.5px;}
+  .map-row .cta{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;text-align:right;color:var(--ink-3);}
+  .map-row .cta.primary{color:var(--accent);font-weight:700;}
+
+  /* ---- device frames ---- */
+  .device{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 0 rgba(0,0,0,0.02),0 18px 50px -30px rgba(0,0,0,0.4);overflow:hidden;}
+  .chrome{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--fill);}
+  .chrome i{width:9px;height:9px;border-radius:50%;background:var(--dash);display:block;}
+  .chrome .url{margin-left:12px;font-family:var(--mono);font-size:10px;color:var(--ink-3);background:var(--card);border:1px solid var(--line);border-radius:5px;padding:3px 10px;}
+  .screen{position:relative;}
+  /* faint design grid inside screens */
+  .screen.grid{background-image:linear-gradient(rgba(0,0,0,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.025) 1px,transparent 1px);background-size:32px 32px;}
+
+  .desktop{max-width:1180px;margin:26px auto 0;}
+  .mobile{width:340px;}
+
+  /* ---- wireframe primitives ---- */
+  .ph{background:var(--fill);border:1px dashed var(--dash);border-radius:6px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:10px;position:relative;}
+  .ph.img{background:repeating-linear-gradient(45deg,var(--fill) 0 9px,var(--fill-2) 9px 18px);}
+  .ph.solid{background:var(--fill-2);border-style:solid;border-color:var(--line);}
+  .tline{height:9px;border-radius:3px;background:var(--ink);opacity:0.82;}
+  .tline.dim{background:var(--ink-3);opacity:1;height:7px;}
+  .tline.xl{height:18px;}
+  .tline.lg{height:13px;}
+  .lines{display:flex;flex-direction:column;gap:8px;}
+  .btn-ph{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;padding:11px 18px;border-radius:6px;border:1px solid var(--ink);color:var(--ink);background:var(--card);}
+  .btn-ph.solid{background:var(--ink);color:#fff;}
+  .btn-ph.ghost{border:none;color:var(--ink-2);padding-left:0;padding-right:0;}
+  .field-ph{display:flex;align-items:center;gap:0;border:1px solid var(--dash);border-radius:6px;overflow:hidden;background:var(--card);font-family:var(--mono);font-size:11px;}
+  .field-ph .pre{padding:11px 4px 11px 12px;color:var(--ink-3);}
+  .field-ph .blank{flex:1;border-left:1px dashed var(--dash);padding:11px 12px;color:var(--ink);background:var(--fill);}
+  .field-ph .ok{padding:0 12px;color:var(--accent);}
+  .live-dot{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);}
+  .live-dot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+
+  /* annotation callouts */
+  .cap{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-3);position:absolute;}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-family:var(--mono);font-size:10px;font-weight:700;}
+
+  /* notes under a frame */
+  .notes{margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
+  .note .nh{display:flex;align-items:center;gap:9px;font-weight:600;font-size:13.5px;margin-bottom:5px;}
+  .note p{font-size:13px;color:var(--ink-2);}
+
+  /* copy deck */
+  .copy{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:22px 24px;margin-top:16px;}
+  .copy .lbl{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:10px;}
+  .copy .h{font-size:23px;font-weight:600;letter-spacing:-0.4px;line-height:1.2;}
+  .copy .h.big{font-size:30px;}
+  .copy .sub{font-size:15px;color:var(--ink-2);margin-top:10px;max-width:640px;}
+  .copy .micro{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:12px;}
+  .copy .micro b{color:var(--ink);}
+  .copy-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  .pillrow{display:flex;flex-wrap:wrap;gap:8px;}
+  .pill{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;border:1px dashed var(--dash);border-radius:20px;padding:7px 13px;color:var(--ink-2);background:var(--fill);}
+
+  .tag{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:3px 8px;}
+
+  @media(max-width:780px){
+    .wrap{padding:0 18px;}
+    .map-row{grid-template-columns:40px 1fr;gap:8px;}
+    .map-row .pp,.map-row .cta{display:none;}
+    .copy-grid{grid-template-columns:1fr;}
+    .desktop{max-width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- ════════ MASTHEAD ════════ -->
+  <header class="masthead">
+    <h1><span class="dot"></span>myLand — Homepage Wireframe &amp; Spec</h1>
+    <p class="sub">Low-fidelity structural proposal for validation. Greyscale on purpose — this defines <b>layout, hierarchy, behavior and copy</b>, not final visuals. The dark, editorial brand skin gets applied at the hi-fi stage; treatment intent is noted per block.</p>
+    <div class="meta">
+      <span>VER · <b>wireframe v1</b></span>
+      <span>SCOPE · <b>desktop + mobile</b></span>
+      <span>LANG · <b>english</b></span>
+      <span>ONE CTA · <b>claim your space</b></span>
+    </div>
+    <div class="legend">
+      <span><i class="swatch txt"></i> text / headline</span>
+      <span><i class="swatch ph"></i> placeholder block</span>
+      <span><i class="swatch"></i> real component (reused)</span>
+      <span><i class="swatch live"></i> live / presence accent (mint in hi-fi)</span>
+      <span><i class="num">1</i> interaction callout</span>
+    </div>
+  </header>
+
+  <!-- ════════ SECTION MAP ════════ -->
+  <h2 class="docsec">Section hierarchy
+    <span class="hint">Single editorial scroll. Generous black space between beats. One repeated action: claim your handle. Sells the <i>idea of a space</i> first — pricing only appears after the product is understood and real examples are seen.</span>
+  </h2>
+  <div class="map">
+    <div class="map-row"><span class="n">00</span><span class="nm">Topbar</span><span class="pp">Fixed, minimal. Identity + the one CTA.</span><span class="cta primary">claim your space</span></div>
+    <div class="map-row"><span class="n">01</span><span class="nm">Hero — the living space</span><span class="pp">Curated, hand-built canvas with parallax + presence. Show, don't tell.</span><span class="cta primary">claim · handle field</span></div>
+    <div class="map-row"><span class="n">02</span><span class="nm">Contrast — list vs. space</span><span class="pp">The wedge. A rigid list beside a living canvas. No competitor named.</span><span class="cta">—</span></div>
+    <div class="map-row"><span class="n">03</span><span class="nm">The kit — blocks not forms</span><span class="pp">Real canvas blocks shown as loose, floating pieces.</span><span class="cta">—</span></div>
+    <div class="map-row"><span class="n">04</span><span class="nm">Presence &amp; Guestbook</span><span class="pp">Centerpiece. Visits leave marks; spaces accumulate history.</span><span class="cta">explore →</span></div>
+    <div class="map-row"><span class="n">05</span><span class="nm">Gallery — real spaces</span><span class="pp">Live canvas previews (reuse BrowseCard). Seed profiles until real ones exist.</span><span class="cta">see all spaces →</span></div>
+    <div class="map-row"><span class="n">06</span><span class="nm">Pricing — quiet</span><span class="pp">After the value. Free-forever base, room to grow. Built for future subscriptions.</span><span class="cta">start free</span></div>
+    <div class="map-row"><span class="n">07</span><span class="nm">Closing CTA + footer</span><span class="pp">Near-empty, atmospheric. The handle field one more time.</span><span class="cta primary">create my space</span></div>
+  </div>
+
+  <!-- ════════════════════ DESKTOP WIREFRAME ════════════════════ -->
+  <h2 class="docsec">Desktop wireframe
+    <span class="hint">~1280px. Numbered circles map to the Interaction behaviors section below.</span>
+  </h2>
+
+  <div class="device desktop">
+    <div class="chrome"><i></i><i></i><i></i><span class="url">myland.app</span></div>
+    <div class="screen grid">
+
+      <!-- 00 TOPBAR -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--line);position:relative;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--accent);display:block;"></span>
+          <span class="mono" style="font-size:13px;letter-spacing:3px;">myLand</span>
+          <span class="mono" style="font-size:8px;letter-spacing:2px;color:var(--ink-3);text-transform:uppercase;">SOCIAL OS</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:18px;">
+          <span class="btn-ph ghost">explore</span>
+          <span class="btn-ph ghost">sign in</span>
+          <span class="btn-ph solid">claim your space</span>
+        </div>
+        <span class="cap" style="right:-6px;top:-10px;"><span class="num">1</span></span>
+      </div>
+
+      <!-- 01 HERO -->
+      <div style="display:grid;grid-template-columns:0.95fr 1.05fr;gap:30px;padding:64px 40px 72px;align-items:center;position:relative;">
+        <div>
+          <span class="eyebrow">your own corner of the internet</span>
+          <div class="lines" style="margin-top:18px;">
+            <div class="tline xl" style="width:88%;"></div>
+            <div class="tline xl" style="width:62%;"></div>
+          </div>
+          <div class="lines" style="margin-top:20px;gap:7px;">
+            <div class="tline dim" style="width:80%;"></div>
+            <div class="tline dim" style="width:64%;"></div>
+          </div>
+          <div style="margin-top:28px;max-width:360px;">
+            <div class="field-ph"><span class="pre">myland.app/</span><span class="blank">your-handle</span><span class="ok">✓</span></div>
+            <div style="display:flex;gap:14px;align-items:center;margin-top:14px;">
+              <span class="btn-ph solid">claim your space&nbsp;→</span>
+              <span class="btn-ph ghost">explore spaces</span>
+            </div>
+          </div>
+          <span class="cap" style="left:0;bottom:-26px;"><span class="num">3</span> live handle availability check (reuse login logic)</span>
+        </div>
+
+        <!-- the curated canvas -->
+        <div class="ph solid" style="height:340px;border-radius:10px;background:var(--fill-2);overflow:hidden;">
+          <div style="position:absolute;inset:0;">
+            <div class="ph img" style="position:absolute;left:30px;top:34px;width:150px;height:190px;border-radius:8px;">profile card</div>
+            <div class="ph img" style="position:absolute;right:46px;top:24px;width:120px;height:96px;border-radius:8px;">gif</div>
+            <div class="ph img" style="position:absolute;left:206px;top:150px;width:128px;height:128px;border-radius:8px;">photo</div>
+            <div class="ph" style="position:absolute;right:34px;top:150px;width:150px;height:88px;border-radius:6px;transform:rotate(-3deg);">guestbook<br>note</div>
+            <div class="ph" style="position:absolute;left:40px;bottom:18px;width:130px;height:34px;border-radius:18px;">link pill</div>
+            <span class="live-dot" style="position:absolute;right:54px;bottom:22px;">3 here now</span>
+          </div>
+          <span class="cap" style="right:8px;top:6px;"><span class="num">2</span></span>
+        </div>
+        <span class="cap" style="left:40px;top:34px;color:var(--accent);">01 · HERO — full-bleed dark in hi-fi, grain + 48px grid</span>
+      </div>
+
+      <!-- 02 CONTRAST -->
+      <div style="padding:60px 40px;border-top:1px solid var(--line);position:relative;">
+        <span class="kicker">the difference</span>
+        <div class="tline xl" style="width:420px;margin-top:14px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:40px;margin-top:34px;align-items:center;">
+          <!-- the usual: rigid list -->
+          <div>
+            <span class="cap" style="position:static;display:block;margin-bottom:10px;">the usual</span>
+            <div style="display:flex;flex-direction:column;gap:10px;max-width:230px;filter:grayscale(1);opacity:0.7;">
+              <div class="ph solid" style="height:40px;border-radius:6px;">link</div>
+              <div class="ph solid" style="height:40px;border-radius:6px;">link</div>
+              <div class="ph solid" style="height:40px;border-radius:6px;">link</div>
+              <div class="ph solid" style="height:40px;border-radius:6px;">link</div>
+            </div>
+          </div>
+          <!-- myLand: living space -->
+          <div>
+            <span class="cap" style="position:static;display:block;margin-bottom:10px;color:var(--accent);">myLand</span>
+            <div class="ph solid" style="height:230px;border-radius:10px;background:var(--fill-2);overflow:hidden;">
+              <div class="ph img" style="position:absolute;left:24px;top:26px;width:110px;height:130px;border-radius:8px;">photo</div>
+              <div class="ph img" style="position:absolute;left:150px;top:46px;width:96px;height:80px;border-radius:8px;transform:rotate(4deg);">gif</div>
+              <div class="ph" style="position:absolute;right:40px;top:30px;width:130px;height:150px;border-radius:8px;">profile<br>card</div>
+              <div class="ph" style="position:absolute;left:60px;bottom:20px;width:150px;height:40px;border-radius:6px;transform:rotate(-2deg);">note</div>
+              <span class="live-dot" style="position:absolute;right:24px;bottom:20px;">live</span>
+            </div>
+          </div>
+        </div>
+        <span class="cap" style="right:40px;top:60px;"><span class="num">4</span></span>
+      </div>
+
+      <!-- 03 KIT -->
+      <div style="padding:60px 40px;border-top:1px solid var(--line);position:relative;text-align:center;">
+        <span class="kicker">blocks</span>
+        <div class="tline xl" style="width:360px;margin:14px auto 0;"></div>
+        <div class="tline dim" style="width:480px;margin:14px auto 26px;"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:18px;justify-content:center;">
+          <div class="ph img" style="width:130px;height:150px;border-radius:8px;transform:rotate(-3deg);">profile card</div>
+          <div class="ph img" style="width:150px;height:110px;border-radius:8px;transform:rotate(2deg);">images &amp; gifs</div>
+          <div class="ph img" style="width:140px;height:96px;border-radius:8px;transform:rotate(-1deg);">video &amp; music</div>
+          <div class="ph" style="width:120px;height:120px;border-radius:8px;transform:rotate(3deg);">guestbook</div>
+          <div class="ph" style="width:110px;height:46px;border-radius:22px;align-self:center;">links</div>
+          <div class="ph" style="width:120px;height:90px;border-radius:6px;transform:rotate(-4deg);">post-it / note</div>
+          <div class="ph img" style="width:150px;height:104px;border-radius:8px;transform:rotate(1deg);">gallery</div>
+        </div>
+        <span class="cap" style="right:40px;top:60px;"><span class="num">5</span></span>
+      </div>
+
+      <!-- 04 PRESENCE & GUESTBOOK -->
+      <div style="padding:64px 40px;border-top:1px solid var(--line);position:relative;background:var(--fill);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;">
+          <div>
+            <span class="kicker">presence</span>
+            <div class="lines" style="margin-top:14px;">
+              <div class="tline xl" style="width:90%;"></div>
+              <div class="tline xl" style="width:55%;"></div>
+            </div>
+            <div class="lines" style="margin-top:18px;gap:7px;">
+              <div class="tline dim" style="width:86%;"></div>
+              <div class="tline dim" style="width:72%;"></div>
+            </div>
+            <div style="display:flex;gap:24px;margin-top:24px;">
+              <div><div class="tline lg" style="width:54px;"></div><span class="cap" style="position:static;display:block;margin-top:6px;">visits</span></div>
+              <div><span class="live-dot">3 here now</span></div>
+            </div>
+          </div>
+          <!-- guestbook wall -->
+          <div>
+            <span class="tag">centerpiece</span>
+            <div class="ph solid" style="height:250px;border-radius:10px;background:var(--card);margin-top:10px;padding:16px;align-items:flex-start;justify-content:flex-start;">
+              <div style="position:absolute;inset:16px;display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start;">
+                <div class="ph" style="width:140px;height:54px;border-radius:6px;transform:rotate(-2deg);">visitor note</div>
+                <div class="ph img" style="width:74px;height:74px;border-radius:6px;transform:rotate(3deg);">gif</div>
+                <div class="ph" style="width:90px;height:48px;border-radius:6px;transform:rotate(1deg);">sticker</div>
+                <div class="ph" style="width:120px;height:60px;border-radius:6px;transform:rotate(-3deg);">doodle</div>
+                <div class="ph" style="width:150px;height:46px;border-radius:6px;transform:rotate(2deg);">"was here ♡"</div>
+              </div>
+              <span class="cap" style="left:16px;bottom:-2px;background:var(--card);padding:2px 6px;">accumulates over time</span>
+            </div>
+          </div>
+        </div>
+        <span class="cap" style="right:40px;top:64px;"><span class="num">6</span></span>
+        <span class="cap" style="left:40px;top:30px;color:var(--accent);">04 · the emotional core — most important differentiator</span>
+      </div>
+
+      <!-- 05 GALLERY -->
+      <div style="padding:60px 40px;border-top:1px solid var(--line);position:relative;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;">
+          <div><span class="kicker">explore</span><div class="tline xl" style="width:320px;margin-top:12px;"></div></div>
+          <span class="btn-ph ghost">see all spaces →</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;">
+          <div class="ph img" style="height:170px;border-radius:12px;">space preview</div>
+          <div class="ph img" style="height:170px;border-radius:12px;">space preview</div>
+          <div class="ph img" style="height:170px;border-radius:12px;">space preview</div>
+          <div class="ph img" style="height:170px;border-radius:12px;">space preview</div>
+          <div class="ph img" style="height:170px;border-radius:12px;">space preview</div>
+          <div class="ph img" style="height:170px;border-radius:12px;">space preview</div>
+        </div>
+        <span class="cap" style="right:40px;top:60px;"><span class="num">7</span></span>
+        <span class="cap" style="left:40px;bottom:18px;">reuses existing <b>BrowseCard / CanvasPreview</b> — live, hover parallax</span>
+      </div>
+
+      <!-- 06 PRICING -->
+      <div style="padding:62px 40px 70px;border-top:1px solid var(--line);position:relative;text-align:center;">
+        <span class="kicker">plans</span>
+        <div class="tline xl" style="width:340px;margin:14px auto 0;"></div>
+        <div class="tline dim" style="width:440px;margin:14px auto 30px;"></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:840px;margin:0 auto;">
+          <div class="ph solid" style="height:230px;border-radius:10px;flex-direction:column;gap:10px;background:var(--card);">
+            <span class="cap" style="position:static;">free</span>
+            <div class="tline lg" style="width:60px;"></div>
+            <div class="lines" style="width:70%;gap:7px;margin-top:6px;"><div class="tline dim"></div><div class="tline dim"></div><div class="tline dim"></div></div>
+          </div>
+          <div class="ph solid" style="height:248px;border-radius:10px;flex-direction:column;gap:10px;background:var(--accent-soft);border:1.5px solid var(--accent);margin-top:-9px;">
+            <span class="tag">recommended</span>
+            <span class="cap" style="position:static;color:var(--accent);">plus</span>
+            <div class="tline lg" style="width:60px;"></div>
+            <div class="lines" style="width:70%;gap:7px;margin-top:6px;"><div class="tline dim"></div><div class="tline dim"></div><div class="tline dim"></div><div class="tline dim"></div></div>
+          </div>
+          <div class="ph solid" style="height:230px;border-radius:10px;flex-direction:column;gap:10px;background:var(--card);border-style:dashed;">
+            <span class="cap" style="position:static;">studio · soon</span>
+            <div class="tline dim" style="width:80px;"></div>
+            <div class="lines" style="width:60%;gap:7px;margin-top:6px;opacity:0.55;"><div class="tline dim"></div><div class="tline dim"></div></div>
+          </div>
+        </div>
+        <span class="cap" style="right:40px;top:62px;"><span class="num">8</span></span>
+        <span class="cap" style="left:40px;top:30px;color:var(--accent);">06 · scaffolded for subscriptions — quiet, never the protagonist</span>
+      </div>
+
+      <!-- 07 CLOSING -->
+      <div style="padding:96px 40px;border-top:1px solid var(--line);text-align:center;position:relative;">
+        <span style="width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;margin-bottom:24px;"></span>
+        <div class="lines" style="align-items:center;gap:10px;">
+          <div class="tline xl" style="width:520px;height:24px;"></div>
+          <div class="tline xl" style="width:360px;height:24px;"></div>
+        </div>
+        <div style="max-width:340px;margin:34px auto 0;">
+          <div class="field-ph"><span class="pre">myland.app/</span><span class="blank">____</span></div>
+          <div style="margin-top:14px;"><span class="btn-ph solid" style="width:100%;">create my space</span></div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:22px;margin-top:54px;font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);">
+          <span>about</span><span>privacy</span><span>terms</span><span>SOCIAL OS</span><span>© 2026</span>
+        </div>
+        <span class="cap" style="left:40px;top:30px;color:var(--accent);">07 · big display type (Syne/Bebas), grain, near-empty</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════ MOBILE WIREFRAME ════════════════════ -->
+  <h2 class="docsec">Mobile wireframe
+    <span class="hint">~360px. The canvas becomes the vertical protagonist — never a flat link list. Sections stack; one block at a time.</span>
+  </h2>
+
+  <div style="display:flex;flex-wrap:wrap;gap:30px;margin-top:26px;">
+
+    <!-- mobile: hero -->
+    <div class="device mobile">
+      <div class="chrome"><i></i><i></i><i></i><span class="url">myland.app</span></div>
+      <div class="screen grid" style="padding:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="display:flex;align-items:center;gap:7px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);"></span><span class="mono" style="font-size:11px;letter-spacing:2px;">myLand</span></span>
+          <span class="ph solid" style="width:26px;height:22px;border-radius:5px;padding:0;">≡</span>
+        </div>
+        <div style="padding:26px 16px 22px;">
+          <span class="eyebrow">your corner of the internet</span>
+          <div class="lines" style="margin-top:14px;"><div class="tline xl" style="width:90%;"></div><div class="tline xl" style="width:70%;"></div></div>
+          <div class="ph solid" style="height:240px;border-radius:10px;margin-top:20px;background:var(--fill-2);overflow:hidden;">
+            <div class="ph img" style="position:absolute;left:16px;top:18px;width:96px;height:118px;border-radius:8px;">profile</div>
+            <div class="ph img" style="position:absolute;right:20px;top:30px;width:78px;height:64px;border-radius:8px;transform:rotate(4deg);">gif</div>
+            <div class="ph" style="position:absolute;left:34px;bottom:26px;width:120px;height:40px;border-radius:6px;transform:rotate(-2deg);">note</div>
+            <span class="live-dot" style="position:absolute;right:16px;bottom:18px;">live</span>
+          </div>
+          <div style="margin-top:18px;"><div class="field-ph"><span class="pre">myland.app/</span><span class="blank">handle</span><span class="ok">✓</span></div></div>
+          <div style="margin-top:12px;"><span class="btn-ph solid" style="width:100%;">claim your space&nbsp;→</span></div>
+          <div style="margin-top:10px;text-align:center;"><span class="btn-ph ghost">explore spaces</span></div>
+        </div>
+        <span class="cap" style="left:16px;bottom:-22px;">01 · hero canvas tilts subtly with device gyro / scroll</span>
+      </div>
+    </div>
+
+    <!-- mobile: contrast + kit -->
+    <div class="device mobile">
+      <div class="chrome"><i></i><i></i><i></i><span class="url">02 · contrast → 03 · kit</span></div>
+      <div class="screen grid" style="padding:24px 16px;">
+        <span class="kicker">the difference</span>
+        <div class="tline xl" style="width:80%;margin:12px 0 18px;"></div>
+        <span class="cap" style="position:static;display:block;margin-bottom:8px;">the usual</span>
+        <div style="display:flex;flex-direction:column;gap:8px;filter:grayscale(1);opacity:0.7;margin-bottom:22px;">
+          <div class="ph solid" style="height:34px;border-radius:6px;">link</div>
+          <div class="ph solid" style="height:34px;border-radius:6px;">link</div>
+          <div class="ph solid" style="height:34px;border-radius:6px;">link</div>
+        </div>
+        <span class="cap" style="position:static;display:block;margin-bottom:8px;color:var(--accent);">myLand</span>
+        <div class="ph solid" style="height:170px;border-radius:10px;background:var(--fill-2);overflow:hidden;">
+          <div class="ph img" style="position:absolute;left:16px;top:18px;width:90px;height:100px;border-radius:8px;">photo</div>
+          <div class="ph" style="position:absolute;right:18px;top:24px;width:96px;height:110px;border-radius:8px;">profile</div>
+          <div class="ph" style="position:absolute;left:40px;bottom:14px;width:120px;height:34px;border-radius:6px;transform:rotate(-2deg);">note</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- mobile: guestbook -->
+    <div class="device mobile">
+      <div class="chrome"><i></i><i></i><i></i><span class="url">04 · presence &amp; guestbook</span></div>
+      <div class="screen grid" style="padding:24px 16px;">
+        <span class="kicker">presence</span>
+        <div class="lines" style="margin:12px 0 14px;"><div class="tline xl" style="width:85%;"></div><div class="tline xl" style="width:60%;"></div></div>
+        <div style="display:flex;gap:18px;align-items:center;margin-bottom:18px;">
+          <div><div class="tline lg" style="width:44px;"></div><span class="cap" style="position:static;display:block;margin-top:5px;">visits</span></div>
+          <span class="live-dot">3 here now</span>
+        </div>
+        <span class="tag">guestbook</span>
+        <div class="ph solid" style="height:210px;border-radius:10px;margin-top:10px;background:var(--card);overflow:hidden;">
+          <div style="position:absolute;inset:14px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;">
+            <div class="ph" style="width:110px;height:46px;border-radius:6px;transform:rotate(-2deg);">note</div>
+            <div class="ph img" style="width:60px;height:60px;border-radius:6px;transform:rotate(3deg);">gif</div>
+            <div class="ph" style="width:80px;height:42px;border-radius:6px;">sticker</div>
+            <div class="ph" style="width:130px;height:40px;border-radius:6px;transform:rotate(-2deg);">"was here ♡"</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- mobile: gallery + pricing -->
+    <div class="device mobile">
+      <div class="chrome"><i></i><i></i><i></i><span class="url">05 · gallery → 06 · pricing</span></div>
+      <div class="screen grid" style="padding:24px 16px;">
+        <span class="kicker">explore</span>
+        <div class="tline xl" style="width:70%;margin:12px 0 16px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:26px;">
+          <div class="ph img" style="height:120px;border-radius:10px;">space</div>
+          <div class="ph img" style="height:120px;border-radius:10px;">space</div>
+          <div class="ph img" style="height:120px;border-radius:10px;">space</div>
+          <div class="ph img" style="height:120px;border-radius:10px;">space</div>
+        </div>
+        <div style="text-align:center;margin-bottom:24px;"><span class="btn-ph ghost">see all spaces →</span></div>
+        <span class="kicker">plans</span>
+        <div class="tline xl" style="width:60%;margin:12px 0 14px;"></div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="ph solid" style="height:64px;border-radius:8px;justify-content:space-between;padding:0 16px;">free</div>
+          <div class="ph solid" style="height:74px;border-radius:8px;justify-content:space-between;padding:0 16px;background:var(--accent-soft);border:1.5px solid var(--accent);">plus</div>
+          <div class="ph solid" style="height:56px;border-radius:8px;border-style:dashed;">studio · soon</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- mobile: closing -->
+    <div class="device mobile">
+      <div class="chrome"><i></i><i></i><i></i><span class="url">07 · closing</span></div>
+      <div class="screen grid" style="padding:60px 16px;text-align:center;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-bottom:20px;"></span>
+        <div class="lines" style="align-items:center;gap:9px;"><div class="tline xl" style="width:90%;height:20px;"></div><div class="tline xl" style="width:70%;height:20px;"></div></div>
+        <div style="margin-top:28px;"><div class="field-ph"><span class="pre">myland.app/</span><span class="blank">____</span></div></div>
+        <div style="margin-top:12px;"><span class="btn-ph solid" style="width:100%;">create my space</span></div>
+        <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:46px;font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3);">
+          <span>about</span><span>privacy</span><span>terms</span><span>© 2026</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════ INTERACTION BEHAVIORS ════════════════════ -->
+  <h2 class="docsec">Interaction behaviors
+    <span class="hint">Performance-first. All motion is transform/opacity only, rAF-throttled, and disabled under <span class="mono">prefers-reduced-motion</span> (static fallback that still looks composed).</span>
+  </h2>
+  <div class="notes">
+    <div class="note"><div class="nh"><span class="num">1</span> Topbar</div><p>Transparent over the hero; gains a glass/blur background + hairline border once the user scrolls past the fold. The identity dot pulses slowly (~3s), matching the login screen.</p></div>
+    <div class="note"><div class="nh"><span class="num">2</span> Hero canvas — parallax &amp; depth</div><p>Hand-curated layout. Layers translate at different rates following the cursor (depth illusion); 1–2 elements use a slow float loop; the presence dot pulses. No real drag — a render, tuned for a strong, instant first impression.</p></div>
+    <div class="note"><div class="nh"><span class="num">3</span> Handle field</div><p>Type a handle → live availability check (reuses login validation). Mint state + ✓ when free, red hint when taken/invalid. Enter or button → register flow with the handle pre-filled.</p></div>
+    <div class="note"><div class="nh"><span class="num">4</span> Contrast reveal</div><p>On scroll-into-view: the rigid "list" stays flat and grey; the "space" side settles in with a soft stagger and keeps a gentle parallax. The contrast does the talking — no competitor named.</p></div>
+    <div class="note"><div class="nh"><span class="num">5</span> Kit pieces</div><p>Loose blocks float at slightly different phases. Hover lifts + straightens a piece (rotate→0, small scale), hinting these are movable objects, not menu items.</p></div>
+    <div class="note"><div class="nh"><span class="num">6</span> Guestbook wall</div><p>Entries appear to accumulate: on reveal they drop/fade in one by one, slightly rotated, like pinned scraps. Optional live tick adds a new mark every few seconds to sell "spaces gather history." Presence dot + visit counter animate up.</p></div>
+    <div class="note"><div class="nh"><span class="num">7</span> Gallery cards</div><p>Reuses the existing <b>BrowseCard / CanvasPreview</b>: live mini-canvas, cursor parallax, hover scale (~1.04) + brightness. Click → <span class="mono">/[handle]</span>. Seed profiles fill in until enough real, high-quality spaces exist.</p></div>
+    <div class="note"><div class="nh"><span class="num">8</span> Pricing</div><p>Calm 3-column block (Free · Plus · Studio-soon). Hover lifts a card; the recommended tier carries the mint accent. Structured so new tiers/feature rows can drop in without a redesign.</p></div>
+    <div class="note"><div class="nh">Global · section reveals</div><p>Each section fades/rises in on scroll (existing <span class="mono">fadeUp</span>), staggered children. Grain overlay + faint 48px grid persist site-wide as in-app.</p></div>
+  </div>
+
+  <!-- ════════════════════ COPY DECK ════════════════════ -->
+  <h2 class="docsec">Copy deck — near-final (english)
+    <span class="hint">Voice: personal, a little nostalgic, anti-corporate. Lowercase mono for UI/labels; sentence-case for headlines. Final wording to lock with you.</span>
+  </h2>
+
+  <div class="copy">
+    <div class="lbl">00 · topbar</div>
+    <div class="micro"><b>myLand</b> · SOCIAL OS &nbsp;|&nbsp; explore · sign in · <b>[ claim your space ]</b></div>
+  </div>
+
+  <div class="copy">
+    <div class="lbl">01 · hero</div>
+    <div class="h">Your own corner of the internet.</div>
+    <div class="sub">Not a profile. Not a feed. A space that's yours — build it, live in it, let people visit.</div>
+    <div class="micro">field · <b>myland.app/your-handle</b> &nbsp; primary · <b>claim your space →</b> &nbsp; secondary · explore spaces</div>
+  </div>
+
+  <div class="copy-grid">
+    <div class="copy">
+      <div class="lbl">02 · contrast</div>
+      <div class="h">Stop being a list of links.</div>
+      <div class="sub">Everyone else gives you tidy rows. We give you a canvas. Put your photo anywhere, drop a gif, pin a note — let the mess say who you are.</div>
+      <div class="micro">labels · <b>the usual</b> ↔ <b>myLand</b></div>
+    </div>
+    <div class="copy">
+      <div class="lbl">03 · the kit</div>
+      <div class="h">Blocks, not forms.</div>
+      <div class="sub">Drag in whatever represents you and arrange it like a room — not a résumé.</div>
+      <div class="micro">pieces · profile card · images &amp; gifs · video &amp; music · links · guestbook · notes · gallery</div>
+    </div>
+  </div>
+
+  <div class="copy">
+    <div class="lbl">04 · presence &amp; guestbook &nbsp;<span class="tag">centerpiece</span></div>
+    <div class="h">You don't post. You get visited.</div>
+    <div class="sub">Following someone isn't subscribing to their content — it's subscribing to their world.</div>
+    <div style="height:1px;background:var(--line);margin:18px 0;"></div>
+    <div class="h">Every visitor leaves a mark.</div>
+    <div class="sub">Notes, gifs, doodles, stickers. Your space remembers who passed through — and slowly fills with the people who've been here.</div>
+    <div class="micro">supporting · <b>3 here now</b> · <b>12,408 visits</b> · "alex was here ♡"</div>
+  </div>
+
+  <div class="copy-grid">
+    <div class="copy">
+      <div class="lbl">05 · gallery</div>
+      <div class="h">Step into a few spaces.</div>
+      <div class="sub">No two look alike. Have a wander.</div>
+      <div class="micro">cta · <b>see all spaces →</b></div>
+    </div>
+    <div class="copy">
+      <div class="lbl">06 · pricing</div>
+      <div class="h">Start free. Grow your space.</div>
+      <div class="sub">Your space is free, forever. Unlock more room, rare decorations and tools whenever you want them.</div>
+      <div class="micro">tiers · <b>Free</b> · <b>Plus</b> (recommended) · <b>Studio</b> (soon)</div>
+    </div>
+  </div>
+
+  <div class="copy">
+    <div class="lbl">07 · closing</div>
+    <div class="h big">The internet used to feel personal.<br>Make it personal again.</div>
+    <div class="micro">field · <b>myland.app/____</b> &nbsp; cta · <b>create my space</b> &nbsp; footer · about · privacy · terms · SOCIAL OS · © 2026</div>
+  </div>
+
+  <div style="margin-top:60px;padding:22px 24px;border:1px dashed var(--dash);border-radius:8px;background:var(--card);">
+    <div class="eyebrow" style="color:var(--accent);">next step</div>
+    <p style="margin-top:8px;font-size:14px;color:var(--ink-2);max-width:760px;">Validate this skeleton — section order, the guestbook emphasis, the pricing placement and the copy. Once you sign off (or mark edits), I move to <b>hi-fi</b>: the dark editorial skin, the real curated hero canvas with parallax, live gallery previews, and the working handle field — built as an interactive prototype you can click through.</p>
+  </div>
+
+</div>
+</body>
+</html>
