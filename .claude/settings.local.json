@@ -67,7 +67,20 @@
       "Bash(npx eslint *)",
       "Bash(xargs -I{} sh -c 'echo \"=== {} ===\"; cat {}')",
       "Bash(curl -s \"https://xfefrruwyrhkiijrhxtp.supabase.co/rest/v1/\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZWZycnV3eXJoa2lpanJoeHRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNzA3MTksImV4cCI6MjA5MTk0NjcxOX0.Q5xb4dv7bdUtz6id-C2GmDiMZr4lV1gd0q1o3pmBh6g\" -H \"Accept: application/openapi+json\")",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\landing-design\" -Recurse -Force | Select-Object FullName | ForEach-Object { $_.FullName } | Sort-Object)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\landing-design\\\\home\\\\assets\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\landing-design\\\\myland\\\\assets\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\src\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\" -Depth 1)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\src\\\\app\" | Select-Object Name, PSIsContainer | ForEach-Object { if \\($_.PSIsContainer\\) { \"$\\($_.Name\\)/\" } else { $_.Name } })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\src\\\\components\" | Select-Object Name, PSIsContainer | ForEach-Object { if \\($_.PSIsContainer\\) { \"$\\($_.Name\\)/\" } else { $_.Name } })",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\src\\\\app\\\\api\")",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\landing-design\" -Recurse -File)",
+      "Bash(Select-Object FullName, Length)",
+      "Bash(Format-Table -AutoSize)"
     ]
   }
 }

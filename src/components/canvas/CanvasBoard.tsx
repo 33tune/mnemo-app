@@ -1663,9 +1663,17 @@ export default function CanvasBoard({
 
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // Devuelve todos los elementos que contienen el punto (x,y), ordenados por zIndex desc
-  function getElementsAtPoint(x: number, y: number): { id: string; z: number }[] {
+  // Devuelve todos los elementos que contienen el punto (clientX,clientY), ordenados por zIndex desc.
+  // Element x/y/w/h are canvas-local coordinates, so clientX/clientY are converted via
+  // canvasWrapperRef's bounding rect (+scroll) before hit-testing — same conversion used
+  // elsewhere (toCanvasPos). Without this, the mobile canvas (centered, not at clientX=0)
+  // never matches any element.
+  function getElementsAtPoint(clientX: number, clientY: number): { id: string; z: number }[] {
     const hits: { id: string; z: number }[] = [];
+    const rect   = canvasWrapperRef.current?.getBoundingClientRect();
+    const scroll = canvasWrapperRef.current?.parentElement?.scrollTop ?? 0;
+    const x = rect ? clientX - rect.left : clientX;
+    const y = rect ? clientY - rect.top + scroll : clientY;
     const check = (el: { id: string; x: number; y: number; w: number; h: number; zIndex: number; layer: 0|1|2 }) => {
       if (x >= el.x && x <= el.x + el.w && y >= el.y && y <= el.y + el.h)
         hits.push({ id: el.id, z: el.zIndex + el.layer * 100 });
@@ -1677,8 +1685,8 @@ export default function CanvasBoard({
     texts.forEach(t => {
       const dom = textElRefs.current[t.id];
       if (!dom) return;
-      const rect = dom.getBoundingClientRect();
-      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom)
+      const r = dom.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom)
         hits.push({ id: t.id, z: t.zIndex + t.layer * 100 });
     });
     medias.forEach(check);
