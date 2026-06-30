@@ -259,18 +259,29 @@ h1.title .li { display: inline; }
   .hero { grid-template-columns: 1fr; gap: 6px; padding-top: clamp(96px,12vh,120px); }
   .intro { max-width: 680px; margin: 0 auto; text-align: center; }
   .eyebrow { justify-content: center; }
-  .lead { margin-left: auto; margin-right: auto; }
+  .lead { margin-left: auto; margin-right: auto; white-space: normal; max-width: 520px; }
   .claimwrap { margin-left: auto; margin-right: auto; }
   .cta-row { justify-content: center; }
-  .videowrap { margin-left: auto; margin-right: auto; }
-  .stage { margin-top: 40px; }
+  .videowrap { margin-left: auto; margin-right: auto; max-width: 680px; }
+  .stage { margin-top: 46px; max-width: 560px; }
+  .cue { display: none; }
   .grid { grid-template-columns: 1fr 1fr; }
   .plans { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
 }
 @media(max-width:620px){
+  .topbar { padding: 14px 18px; }
+  .brand { font-size: 20px; }
+  .brand .star { width: 26px; }
   .topnav .tlink.desk { display: none; }
-  h1.title { font-size: clamp(40px,12vw,64px); }
-  .lead { font-size: 16px; white-space: normal; }
+  .hero { padding-left: 18px; padding-right: 18px; padding-top: 92px; }
+  h1.title { font-size: clamp(38px,13vw,56px); white-space: normal; line-height: 1.02; }
+  h1.title .li { display: block; }
+  .lead { font-size: 15.5px; white-space: normal; }
+  .claim .pre { padding-left: 16px; font-size: 14px; }
+  .claim input { font-size: 14px; }
+  .cta-row { flex-direction: column; align-items: stretch; }
+  .cta-row .btn { width: 100%; }
+  .stage { margin-top: 38px; max-width: 420px; }
   .grid { grid-template-columns: 1fr; max-width: 380px; margin: 0 auto; }
   .footer { justify-content: center; text-align: center; }
 }
