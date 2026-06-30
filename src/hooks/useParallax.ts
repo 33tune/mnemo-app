@@ -9,6 +9,9 @@ export function useParallax() {
   const parallaxTarget  = useRef({ x: 0, y: 0 });
   const parallaxCurrent = useRef({ x: 0, y: 0 });
   const rafRef          = useRef<number>(0);
+  // scheduleRef holds a function that starts the RAF only when it isn't already running.
+  // Stored in a ref so handleMouseMoveParallax (defined outside the effect) can call it.
+  const scheduleRef     = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const loop = () => {
@@ -18,11 +21,20 @@ export function useParallax() {
         parallaxCurrent.current.x += dx * 0.06;
         parallaxCurrent.current.y += dy * 0.06;
         setParallaxOffset({ x: parallaxCurrent.current.x, y: parallaxCurrent.current.y });
+        rafRef.current = requestAnimationFrame(loop);
+      } else {
+        // No more movement — stop the loop instead of re-registering at 60fps idle.
+        rafRef.current = 0;
       }
-      rafRef.current = requestAnimationFrame(loop);
     };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
+    scheduleRef.current = () => {
+      if (!rafRef.current) rafRef.current = requestAnimationFrame(loop);
+    };
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      scheduleRef.current = null;
+    };
   }, []);
 
   function handleMouseMoveParallax(e: React.MouseEvent) {
@@ -32,6 +44,8 @@ export function useParallax() {
       x: (e.clientX - cx) * 1,
       y: (e.clientY - cy) * 1,
     };
+    // Start the loop only when there's actual movement to animate.
+    scheduleRef.current?.();
   }
 
   function getParallaxStyle(layer: 0 | 1 | 2, depth: number): CSSProperties {

@@ -1164,15 +1164,15 @@ export default function CanvasBoard({
     const batch = [...opsQueueRef.current];
     opsQueueRef.current = [];
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const userId = currentUserIdRef.current;
+      if (!userId) {
         // Re-enqueue: can't persist without auth
         opsQueueRef.current.unshift(...batch);
         return;
       }
+      const supabase = createClient();
       const rows = batch.map(({ op, canvas_type }) => ({
-        user_id: user.id,
+        user_id: userId,
         canvas_type,
         op,
       }));
@@ -1198,13 +1198,13 @@ export default function CanvasBoard({
     // Capture elements synchronously before any await so the snapshot is
     // consistent with the ops batch we're about to compact.
     const elementsAtCompact = elements;
+    const userId = currentUserIdRef.current;
+    if (!userId || session !== sessionIdRef.current) return;
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || session !== sessionIdRef.current) return;
     const { count } = await supabase
       .from("canvas_ops")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("canvas_type", mode);
     if (!count || count < 50) return;
     const state = await buildSaveState(elementsAtCompact);
@@ -1213,19 +1213,19 @@ export default function CanvasBoard({
     // Queue any assets that disappeared since the last save (non-blocking)
     const prevState = lastSavedStateRef.current;
     if (prevState) {
-      queueOrphanedAssets(user.id, prevState, state).catch(e =>
+      queueOrphanedAssets(userId, prevState, state).catch(e =>
         console.error("[storage-gc] queueOrphanedAssets failed:", e)
       );
     }
     lastSavedStateRef.current = state;
 
     const { error } = await supabase.from("canvases").upsert(
-      { user_id: user.id, type: mode, data: state, updated_at: new Date().toISOString() },
+      { user_id: userId, type: mode, data: state, updated_at: new Date().toISOString() },
       { onConflict: "user_id,type" }
     );
     if (error) { console.error("[COMPACT ERROR]", error); return; }
     await supabase.from("canvas_ops").delete()
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("canvas_type", mode);
   }
 

@@ -289,6 +289,7 @@ export default function BrowsePage() {
       const { data: canvases } = await sb
         .from("canvases")
         .select("user_id, data")
+        .eq("type", "space")
         .in("user_id", userIds);
 
       const canvasMap = new Map((canvases ?? []).map(c => [c.user_id, parseCanvas(c.data)]));
