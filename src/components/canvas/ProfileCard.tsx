@@ -5,6 +5,7 @@ import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
+import { useProfileViews } from "@/hooks/useProfileViews";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
@@ -21,12 +22,19 @@ const MONO = "'Space Mono', monospace";
 const PHOTO_SIZES = { sm: 52, md: 80, lg: 112 };
 const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
 
+function fmtNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 // Default free-mode positions (% of card)
 const FREE_DEFAULTS = {
   photo:  { x: 50, y: 25, s: 1 },
   name:   { x: 50, y: 53, s: 1 },
   handle: { x: 50, y: 63, s: 1 },
   bio:    { x: 50, y: 75, s: 1 },
+  views:  { x: 50, y: 88, s: 1 },
 } as const;
 
 const FONTS = CANVAS_FONTS;
@@ -76,13 +84,12 @@ interface Props {
   canInteract?:      boolean;
   currentUserId?:    string;
   ownerUserId?:      string;
-  onAddModule?:      (moduleType: "social" | "music" | "links" | "stats") => void;
   entryAnimStyle?:   CSSProperties;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
 
-type FreeKey = "photo" | "name" | "handle" | "bio";
+type FreeKey = "photo" | "name" | "handle" | "bio" | "views";
 type FreePos = Record<FreeKey, { x: number; y: number; s: number }>;
 
 function initFreePos(card: ProfileCardData): FreePos {
@@ -91,6 +98,7 @@ function initFreePos(card: ProfileCardData): FreePos {
     name:   { x: card.nameX   ?? FREE_DEFAULTS.name.x,   y: card.nameY   ?? FREE_DEFAULTS.name.y,   s: card.nameScale   ?? 1 },
     handle: { x: card.handleX ?? FREE_DEFAULTS.handle.x, y: card.handleY ?? FREE_DEFAULTS.handle.y, s: card.handleScale ?? 1 },
     bio:    { x: card.bioX    ?? FREE_DEFAULTS.bio.x,    y: card.bioY    ?? FREE_DEFAULTS.bio.y,    s: card.bioScale    ?? 1 },
+    views:  { x: card.viewsX  ?? FREE_DEFAULTS.views.x,  y: card.viewsY  ?? FREE_DEFAULTS.views.y,  s: card.viewsScale  ?? 1 },
   };
 }
 
@@ -99,7 +107,7 @@ function initFreePos(card: ProfileCardData): FreePos {
 function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, onRotateMD, updateProfile, locked, onToggleLock, canInteract,
-  currentUserId, ownerUserId, onAddModule, entryAnimStyle = {},
+  currentUserId, ownerUserId, entryAnimStyle = {},
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
@@ -109,6 +117,9 @@ function ProfileCard({
 
   // Layout mode
   const layout = (card.layout ?? "vertical") as "vertical" | "horizontal" | "free";
+
+  // Views counter — fetched once per mount, same hook used by StatsCardWidget
+  const { total: viewCount } = useProfileViews(ownerUserId);
 
   // Free-layout local position state (smooth drag without DB writes per frame)
   const [freePos, setFreePos] = useState<FreePos>(() => initFreePos(card));
@@ -120,7 +131,8 @@ function ProfileCard({
     setFreePos(initFreePos(card));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card.photoX, card.photoY, card.photoScale, card.nameX, card.nameY, card.nameScale,
-      card.handleX, card.handleY, card.handleScale, card.bioX, card.bioY, card.bioScale]);
+      card.handleX, card.handleY, card.handleScale, card.bioX, card.bioY, card.bioScale,
+      card.viewsX, card.viewsY, card.viewsScale]);
 
   // When switching to free, seed defaults if positions not yet set
   useEffect(() => {
@@ -132,8 +144,10 @@ function ProfileCard({
     if (card.nameY   == null) patch.nameY   = FREE_DEFAULTS.name.y;
     if (card.handleX == null) patch.handleX = FREE_DEFAULTS.handle.x;
     if (card.handleY == null) patch.handleY = FREE_DEFAULTS.handle.y;
-    if (card.bioX == null) patch.bioX = FREE_DEFAULTS.bio.x;
-    if (card.bioY == null) patch.bioY = FREE_DEFAULTS.bio.y;
+    if (card.bioX   == null) patch.bioX   = FREE_DEFAULTS.bio.x;
+    if (card.bioY   == null) patch.bioY   = FREE_DEFAULTS.bio.y;
+    if (card.viewsX == null) patch.viewsX = FREE_DEFAULTS.views.x;
+    if (card.viewsY == null) patch.viewsY = FREE_DEFAULTS.views.y;
     if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout]);
@@ -257,10 +271,11 @@ function ProfileCard({
       setFreePos(latest => {
         const pos = latest[key];
         const patch: Partial<ProfileCardData> = {};
-        if (key === "photo")  { patch.photoX = pos.x;  patch.photoY = pos.y;  if (isScale) patch.photoScale  = pos.s; }
-        if (key === "name")   { patch.nameX  = pos.x;  patch.nameY  = pos.y;  if (isScale) patch.nameScale   = pos.s; }
+        if (key === "photo")  { patch.photoX  = pos.x; patch.photoY  = pos.y; if (isScale) patch.photoScale  = pos.s; }
+        if (key === "name")   { patch.nameX   = pos.x; patch.nameY   = pos.y; if (isScale) patch.nameScale   = pos.s; }
         if (key === "handle") { patch.handleX = pos.x; patch.handleY = pos.y; if (isScale) patch.handleScale = pos.s; }
-        if (key === "bio") { patch.bioX = pos.x; patch.bioY = pos.y; if (isScale) patch.bioScale = pos.s; }
+        if (key === "bio")    { patch.bioX    = pos.x; patch.bioY    = pos.y; if (isScale) patch.bioScale    = pos.s; }
+        if (key === "views")  { patch.viewsX  = pos.x; patch.viewsY  = pos.y; if (isScale) patch.viewsScale  = pos.s; }
         updateProfile(card.id, patch);
         return latest;
       });
@@ -358,6 +373,11 @@ function ProfileCard({
             overflow: "hidden", minHeight: 0,
           } as CSSProperties}>{card.bio}</div>
         )}
+        {card.showViews && (
+          <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"] }}>
+            {fmtNum(viewCount)} views
+          </div>
+        )}
       </div>
     );
   }
@@ -387,6 +407,11 @@ function ProfileCard({
               lineHeight: 1.6, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
               overflow: "hidden", minHeight: 0,
             } as CSSProperties}>{card.bio}</div>
+          )}
+          {card.showViews && (
+            <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"] }}>
+              {fmtNum(viewCount)} views
+            </div>
           )}
         </div>
         {/* suppress unused warning */}
@@ -420,6 +445,13 @@ function ProfileCard({
               lineHeight: 1.6, maxWidth: 160, textAlign: "center",
               whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
             }}>{card.bio}</div>
+          </FreeWrap>
+        )}
+        {card.showViews && (
+          <FreeWrap elemKey="views">
+            <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"], whiteSpace: "nowrap" }}>
+              {fmtNum(viewCount)} views
+            </div>
           </FreeWrap>
         )}
         {/* Free-mode hint */}
@@ -692,6 +724,23 @@ function ProfileCard({
                     onMouseDown={e => e.stopPropagation()} placeholder="short bio..." maxLength={120} rows={2}
                     style={{ display: "block", width: "100%", marginTop: 6, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 3, padding: "6px 8px", color: "rgba(255,255,255,0.52)", fontFamily: MONO, fontSize: 9, letterSpacing: 0.3, resize: "none" as CSSProperties["resize"], outline: "none", lineHeight: 1.55, boxSizing: "border-box" as CSSProperties["boxSizing"] }} />
                 </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+                  <span style={MICRO}>mostrar views</span>
+                  <button
+                    onClick={() => updateProfile(card.id, { showViews: !(card.showViews ?? false) })}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{
+                      padding: "3px 8px", borderRadius: 4, cursor: "pointer",
+                      border: card.showViews ? "1px solid rgba(212,240,196,0.3)" : "1px solid rgba(255,255,255,0.1)",
+                      background: card.showViews ? "rgba(212,240,196,0.08)" : "rgba(255,255,255,0.04)",
+                      color: card.showViews ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.35)",
+                      fontFamily: MONO, fontSize: 8, letterSpacing: 1, textTransform: "uppercase" as CSSProperties["textTransform"],
+                    }}
+                  >
+                    {card.showViews ? "on" : "off"}
+                  </button>
+                </div>
               </div>
 
               <Div />
@@ -822,30 +871,6 @@ function ProfileCard({
                   )}
                 </div>
               </div>
-
-              {/* ════ MÓDULOS ════ */}
-              {onAddModule && (
-                <>
-                  <Div />
-                  <div>
-                    <PanelLabel>módulos</PanelLabel>
-                    <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>
-                      {(["social", "music", "links", "stats"] as const).map(mod => (
-                        <button key={mod}
-                          onMouseDown={e => e.stopPropagation()}
-                          onClick={() => onAddModule(mod)}
-                          style={{
-                            padding: "6px 10px", background: "rgba(255,255,255,0.06)",
-                            border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6,
-                            color: "rgba(255,255,255,0.55)", fontFamily: MONO,
-                            fontSize: 8, letterSpacing: 1, textTransform: "uppercase",
-                            cursor: "pointer",
-                          }}>+ {mod}</button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
 
               <Div />
 

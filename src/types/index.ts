@@ -181,6 +181,11 @@ export type ProfileCardData = {
   bioX?:           number;
   bioY?:           number;
   bioScale?:       number;
+  // Views counter
+  showViews?:      boolean;
+  viewsX?:         number;
+  viewsY?:         number;
+  viewsScale?:     number;
   // Typography
   font?:           TextFont;
   nameFont?:       TextFont;

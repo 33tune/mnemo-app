@@ -9,7 +9,6 @@ import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
 import MusicCardWidget from "./MusicCardWidget";
 import LinksCardWidget from "./LinksCardWidget";
-import StatsCardWidget from "./StatsCardWidget";
 import MediaCardWidget from "./MediaCardWidget";
 import ResizeHandles from "./ResizeHandles";
 import { SocialDock } from "./SocialDock";
@@ -707,7 +706,6 @@ export default function CanvasBoard({
   const visSocialCards = useMemo(() => inSpace ? socialCards.filter(c => c.isPublic)        : socialCards,  [inSpace, socialCards]);
   const visMusicCards  = useMemo(() => inSpace ? musicCards.filter(c => c.isPublic)         : musicCards,   [inSpace, musicCards]);
   const visLinksCards  = useMemo(() => inSpace ? linksCards.filter(c => c.isPublic)         : linksCards,   [inSpace, linksCards]);
-  const visStatsCards  = useMemo(() => inSpace ? statsCards.filter(c => c.isPublic)         : statsCards,   [inSpace, statsCards]);
 
   // ── Persistencia ─────────────────────────────────────────────────────────────
 
@@ -1727,8 +1725,6 @@ export default function CanvasBoard({
   function updateSocialCard(id: string, patch: Partial<SocialCardData>) { enqueueOp({ type: "update_social", id, patch }); }
   function updateMusicCard(id: string, patch: Partial<MusicCardData>) { enqueueOp({ type: "update_music", id, patch }); }
   function updateLinksCard(id: string, patch: Partial<LinksCardData>) { enqueueOp({ type: "update_links", id, patch }); }
-  function updateStatsCard(id: string, patch: Partial<StatsCardData>) { enqueueOp({ type: "update_stats", id, patch }); }
-
   function resolveModuleStyle<T extends { stackId?: string; bgColor?: string; bgImage?: string; bgMode?: "cover" | "repeat"; borderRadius?: number; variant?: ProfileCardVariant; opacity?: number; effects?: import("@/types").CardEffects }>(card: T): T {
     if (!card.stackId) return card;
     const anchor = profiles.find(p => p.stackId === card.stackId && p.isStackAnchor);
@@ -1761,56 +1757,19 @@ export default function CanvasBoard({
     };
   }
 
-  function handleAddModule(profileId: string, moduleType: "social" | "music" | "links" | "stats") {
+  function addLinksCard() {
     if (!canInteract) return;
-    const prof = elements.find(e => e.elementType === "profile" && e.id === profileId) as (ProfileCardData & { elementType: "profile" }) | undefined;
-    if (!prof) return;
-
-    // Ensure ProfileCard has a stackId and isStackAnchor
-    const stackId = prof.stackId ?? crypto.randomUUID();
-    if (!prof.stackId) enqueueOp({ type: "update_profile", id: profileId, patch: { stackId, isStackAnchor: true } });
-
-    // Find lowest Y among existing stack members to position new card below all
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stackEls = elements.filter(e => (e as any).stackId === stackId);
-    const bottomY = stackEls.reduce((acc, e) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const elH = (e as any).h ?? 0;
-      return Math.max(acc, e.y + elH);
-    }, prof.y + prof.h);
-
     zCounter.current += 1;
-    const newX = prof.x;
-    const newY = bottomY + 14;
-    const base = {
-      id: crypto.randomUUID(), x: newX, y: newY,
-      w: prof.w, zIndex: zCounter.current, layer: prof.layer, depth: prof.depth, rotation: 0,
-      stackId,
-      bgColor: prof.bgColor, bgImage: prof.bgImage, bgMode: prof.bgMode,
-      borderRadius: prof.borderRadius, opacity: prof.opacity, variant: prof.variant,
-      isPublic: prof.isPublic,
+    const vc = viewCenter();
+    const { x: lx, y: ly } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 200, 120);
+    const l: LinksCardData = {
+      id: crypto.randomUUID(), x: lx, y: ly,
+      w: 200, h: 120, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
+      links: [],
+      isPublic: inSpace ? true : undefined,
     };
-
-    if (moduleType === "social") {
-      const s: SocialCardData = { ...base, h: 80, socialLinks: [] };
-      enqueueOp({ type: "add_social", social: s });
-      setSelectedIds(new Set([s.id]));
-    } else if (moduleType === "music") {
-      const m: MusicCardData = { ...base, h: 72, musicUrl: "" };
-      enqueueOp({ type: "add_music", music: m });
-      setSelectedIds(new Set([m.id]));
-    } else if (moduleType === "links") {
-      const l: LinksCardData = { ...base, h: 120, links: [] };
-      enqueueOp({ type: "add_links", links: l });
-      setSelectedIds(new Set([l.id]));
-    } else {
-      const st: StatsCardData = {
-        ...base, h: 72,
-        stats: [{ id: "views", visible: true }],
-      };
-      enqueueOp({ type: "add_stats", stats: st });
-      setSelectedIds(new Set([st.id]));
-    }
+    enqueueOp({ type: "add_links", links: l });
+    setSelectedIds(new Set([l.id]));
   }
 
   function addMedia() {
@@ -2640,8 +2599,7 @@ export default function CanvasBoard({
           onToggleLock={()=>setElements(p=>p.map(e=>e.elementType==="profile"&&e.id===prof.id?{...e,locked:!e.locked}:e))}
           canInteract={canInteract}
           currentUserId={currentUserId}
-          ownerUserId={ownerUserId}
-          onAddModule={(moduleType) => handleAddModule(prof.id, moduleType)} />);
+          ownerUserId={ownerUserId} />);
       })}
 
 
@@ -2759,34 +2717,6 @@ export default function CanvasBoard({
         );
       })}
 
-      {/* ── STATS CARDS ── */}
-      {visStatsCards.map((sc, i) => {
-        const ps = getParallaxStyle(sc.layer, sc.depth);
-        const _entry = !canEdit ? { animation: `el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${Math.min(240+i*22,360)}ms both` } as React.CSSProperties : undefined;
-        const scEff = resolveModuleStyle(sc);
-        const anchor = profiles.find(p => p.stackId === sc.stackId && p.isStackAnchor);
-        return (
-          <WidgetBoundary key={sc.id} label="stats-card">
-            <StatsCardWidget
-              card={scEff}
-              isSel={selectedIds.has(sc.id)}
-              draggingId={dragging?.id ?? null}
-              parallaxTransform={ps.transform as string}
-              entryAnimStyle={_entry}
-              locked={!!sc.locked}
-              onMouseDown={sc.locked ? e => e.stopPropagation() : e => onElementMouseDown(sc.id, "stats", sc.x, sc.y, e)}
-              onClick={e => handleElementClick(sc.id, e)}
-              onResizeMD={sc.locked ? (_h: ResizeHandle, e: React.MouseEvent) => e.stopPropagation() : (h, e) => startSingleResize(sc.id, "stats", h, e)}
-              onRotateMD={sc.locked ? e => e.stopPropagation() : e => startRotate(sc.id, "stats", e, sc.x + sc.w / 2, sc.y + sc.h / 2)}
-              updateCard={updateStatsCard}
-              onToggleLock={() => setElements(p => p.map(e => e.elementType === "stats" && e.id === sc.id ? { ...e, locked: !e.locked } : e))}
-              canInteract={canInteract}
-              ownerUserId={anchor?.userId ?? ownerUserId ?? currentUserId}
-              onDelete={id => enqueueOp({ type: "delete_stats", id })}
-            />
-          </WidgetBoundary>
-        );
-      })}
 
       {/* ── CARDS ── */}
       {visCards.map((card,i)=>{
@@ -3029,6 +2959,7 @@ export default function CanvasBoard({
             {label:"Gallery",       fn:()=>{addGallery();             setMenuOpen(false);}},
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
+            {label:"Links",         fn:()=>{addLinksCard();           setMenuOpen(false);}},
             {label:"Media",         fn:()=>{addMedia();               setMenuOpen(false);}},
             {label:"Guestbook",     fn:()=>{addGuestbook();           setMenuOpen(false);}},
           ].map(item=>(
