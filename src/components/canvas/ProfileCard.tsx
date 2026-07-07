@@ -7,7 +7,7 @@ import { uploadToStorage } from "@/lib/storage";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { useProfileViews } from "@/hooks/useProfileViews";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
-import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
+import { bgImageStyle, detectBgModeFromFile } from "@/lib/bgStyle";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { UIButton, UISlider } from "@/components/ui";
 import ResizeHandles from "./ResizeHandles";
@@ -193,8 +193,7 @@ function ProfileCard({
   }
   async function handleBgImgUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return;
-    const { publicUrl: src } = await uploadToStorage(f);
-    const bgMode = await detectBgMode(src);
+    const [{ publicUrl: src }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
     updateProfile(card.id, {
       bgImage: src, bgColor: "", bgMode,
       effects: { ...card.effects, bg: { ...card.effects?.bg, image: src, color: undefined, imageMode: bgMode } },

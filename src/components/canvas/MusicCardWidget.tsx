@@ -7,7 +7,7 @@ import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { uploadToStorage } from "@/lib/storage";
-import { detectBgMode } from "@/lib/bgStyle";
+import { detectBgModeFromFile } from "@/lib/bgStyle";
 import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
 import { CANVAS_FONTS } from "@/lib/fontList";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
@@ -111,8 +111,7 @@ function MusicCardWidget({
   }
   async function handleBgUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return;
-    const { publicUrl } = await uploadToStorage(f);
-    const bgMode = await detectBgMode(publicUrl);
+    const [{ publicUrl }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
     updateCard(card.id, { bgImage: publicUrl, bgMode, effects: { ...card.effects, bg: { ...card.effects?.bg, image: publicUrl, imageMode: bgMode } } });
     if (bgImgRef.current) bgImgRef.current.value = "";
   }
@@ -239,7 +238,7 @@ function MusicCardWidget({
                     <ActionButton onClick={() => bgImgRef.current?.click()} fullWidth>
                       {bg?.image ? "Cambiar imagen" : "Imagen de fondo"}
                     </ActionButton>
-                    {bg?.image && <ActionButton variant="danger" onClick={() => patchBg({ image: undefined })} fullWidth>Quitar</ActionButton>}
+                    {bg?.image && <ActionButton variant="danger" onClick={() => updateCard(card.id, { bgImage: "", effects: { ...card.effects, bg: { ...card.effects?.bg, image: undefined } } })} fullWidth>Quitar</ActionButton>}
                   </div>
                 </div>
               </MenuSection>

@@ -23,7 +23,7 @@ import { useDragDrop } from "@/hooks/useDragDrop";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { uploadToStorage } from "@/lib/storage";
 import { queueOrphanedAssets } from "@/lib/storage/queueOrphanedAssets";
-import { bgImageStyle, detectBgMode } from "@/lib/bgStyle";
+import { bgImageStyle, detectBgModeFromFile } from "@/lib/bgStyle";
 import { splitPlacementPatch, mergeMobileState, filterHiddenDesktop, SHARED_WIDGET_KINDS } from "@/lib/mobileMerge";
 import { useChatWindows } from "@/hooks/useChatWindows";
 import { openOrCreateChat } from "@/lib/chat/openOrCreateChat";
@@ -2256,8 +2256,7 @@ export default function CanvasBoard({
   async function handleBgImage(e: React.ChangeEvent<HTMLInputElement>) {
     const f=e.target.files?.[0];
     if(!f||!bgCardId.current)return;
-    const { publicUrl: src } = await uploadToStorage(f);
-    const bgMode = await detectBgMode(src);
+    const [{ publicUrl: src }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
     updateCard(bgCardId.current,{bgImage:src,bgMode});
     bgCardId.current=null;
     if(bgImageRef.current)bgImageRef.current.value="";
