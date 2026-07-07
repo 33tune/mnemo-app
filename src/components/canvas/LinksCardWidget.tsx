@@ -24,24 +24,22 @@ type InternalDrag = {
   startMouseY: number;
 };
 
-function LinkBtn({ link, editMode, ownerUserId, iconColor, iconSize, showText, fontStyle, fontSize, onDragStart, isSelected, canInteract }: {
+// Shared interactive wrapper for both link kinds: owns hover/drag/click/tracking,
+// content is rendered by the caller so icon and button pills stay two renders, one behavior.
+function LinkItemFrame({ link, editMode, ownerUserId, onDragStart, isSelected, canInteract, style, children }: {
   link: ProfileLink;
   editMode: boolean;
   ownerUserId?: string;
-  iconColor: string;
-  iconSize: number;
-  showText: boolean;
-  fontStyle: string;
-  fontSize: number;
   onDragStart?: (e: React.MouseEvent, link: ProfileLink) => void;
   isSelected?: boolean;
   canInteract?: boolean;
+  style?: (hov: boolean) => CSSProperties;
+  children: (hov: boolean, label: string, safeUrl: string) => React.ReactNode;
 }) {
   const [hov, setHov] = useState(false);
   const safeUrl = !link.url ? null : link.url.startsWith("http") ? link.url : `https://${link.url}`;
   if (!safeUrl) return null;
-  const platform = detectPlatform(link.url);
-  const label = link.label || PLATFORM_LABELS[platform];
+  const label = link.kind === "button" ? (link.label || safeUrl) : (link.label || PLATFORM_LABELS[detectPlatform(link.url)]);
   return (
     <div
       onMouseEnter={() => setHov(true)}
@@ -56,27 +54,115 @@ function LinkBtn({ link, editMode, ownerUserId, iconColor, iconSize, showText, f
       }}
       title={label}
       style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
         cursor: canInteract && isSelected ? "grab" : "pointer",
-        opacity: hov ? 1 : 0.78,
         transition: "all 0.15s ease",
         userSelect: "none",
-        transform: hov ? "translateY(-1px)" : "translateY(0)",
         flexShrink: 0,
+        ...(style ? style(hov) : {}),
       }}
     >
-      <PlatformIcon platform={platform} size={iconSize} color={hov ? PLATFORM_COLORS[platform] : iconColor} />
-      {showText && (
+      {children(hov, label, safeUrl)}
+    </div>
+  );
+}
+
+function LinkBtn({ link, editMode, ownerUserId, iconColor, iconSize, showText, fontStyle, fontSize, onDragStart, isSelected, canInteract }: {
+  link: ProfileLink;
+  editMode: boolean;
+  ownerUserId?: string;
+  iconColor: string;
+  iconSize: number;
+  showText: boolean;
+  fontStyle: string;
+  fontSize: number;
+  onDragStart?: (e: React.MouseEvent, link: ProfileLink) => void;
+  isSelected?: boolean;
+  canInteract?: boolean;
+}) {
+  const platform = detectPlatform(link.url);
+  return (
+    <LinkItemFrame
+      link={link} editMode={editMode} ownerUserId={ownerUserId}
+      onDragStart={onDragStart} isSelected={isSelected} canInteract={canInteract}
+      style={hov => ({
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        opacity: hov ? 1 : 0.78,
+        transform: hov ? "translateY(-1px)" : "translateY(0)",
+      })}
+    >
+      {(hov, label) => (<>
+        <PlatformIcon platform={platform} size={iconSize} color={hov ? PLATFORM_COLORS[platform] : iconColor} />
+        {showText && (
+          <span style={{
+            fontFamily: fontStyle, fontSize, fontWeight: 600,
+            color: iconColor,
+            letterSpacing: 1, textTransform: "uppercase" as const,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120,
+          }}>
+            {label}
+          </span>
+        )}
+      </>)}
+    </LinkItemFrame>
+  );
+}
+
+// Appends a hex alpha suffix to a "#rrggbb" color (ColorSwatch always emits hex); passes through otherwise.
+export function withAlpha(color: string, alphaHex: string) {
+  return color.startsWith("#") && color.length === 7 ? `${color}${alphaHex}` : color;
+}
+
+// Button Link: reads its chrome from the same `effects` the card itself uses — no per-link
+// style fields, no separate menu — but at reduced weight/opacity so it reads as a lightweight
+// element sitting on the card's surface, not as a second card nested inside the first.
+function LinkButtonPill({ link, effects, borderRadius, textColor, fontStyle, fontSize, editMode, ownerUserId, onDragStart, isSelected, canInteract }: {
+  link: ProfileLink;
+  effects: CardEffects;
+  borderRadius: number;
+  textColor: string;
+  fontStyle: string;
+  fontSize: number;
+  editMode: boolean;
+  ownerUserId?: string;
+  onDragStart?: (e: React.MouseEvent, link: ProfileLink) => void;
+  isSelected?: boolean;
+  canInteract?: boolean;
+}) {
+  const bord   = effects.border;
+  const glow   = effects.glow;
+  const pad    = effects.padding ?? 14;
+  const py     = Math.max(4, Math.min(12, Math.round(pad * 0.4)));
+  const px     = Math.max(10, Math.min(22, Math.round(pad * 1.1)));
+  const blurPx = Math.min(effects.bg?.blur ?? 0, 8);
+  const glowInt = glow?.outer ? (glow.intensity ?? 0) : 0;
+  return (
+    <LinkItemFrame
+      link={link} editMode={editMode} ownerUserId={ownerUserId}
+      onDragStart={onDragStart} isSelected={isSelected} canInteract={canInteract}
+      style={hov => ({
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: `${py}px ${px}px`,
+        borderRadius: Math.min(borderRadius, 20),
+        background: withAlpha(effects.bg?.color ?? "#ffffff", hov ? "1c" : "10"),
+        border: `1px solid ${withAlpha(bord?.color ?? "#ffffff", hov ? "38" : "22")}`,
+        backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+        WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+        boxShadow: glowInt > 0
+          ? `0 0 ${Math.round(glowInt * (hov ? 14 : 9))}px ${withAlpha(glow!.color ?? "#a855f7", "40")}`
+          : undefined,
+        transform: hov ? "translateY(-1px)" : "translateY(0)",
+      })}
+    >
+      {(_hov, label) => (
         <span style={{
-          fontFamily: fontStyle, fontSize, fontWeight: 600,
-          color: iconColor,
-          letterSpacing: 1, textTransform: "uppercase" as const,
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120,
+          fontFamily: fontStyle, fontSize, fontWeight: 600, color: textColor,
+          letterSpacing: 0.4,
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 160,
         }}>
           {label}
         </span>
       )}
-    </div>
+    </LinkItemFrame>
   );
 }
 
@@ -105,9 +191,12 @@ function LinksCardWidget({
   ownerUserId, entryAnimStyle = {}, onDelete,
 }: Props) {
   const [menuOpen,     setMenuOpen]     = useState(false);
+  const [addKind,      setAddKind]      = useState<"icon" | "button">("icon");
   const [newUrl,       setNewUrl]       = useState("");
+  const [newLabel,     setNewLabel]     = useState("");
   const [editingId,    setEditingId]    = useState<string | null>(null);
   const [editUrl,      setEditUrl]      = useState("");
+  const [editLabel,    setEditLabel]    = useState("");
   const [portalPos,    setPortalPos]    = useState<{ left: number; top: number } | null>(null);
   const [internalDrag, setInternalDrag] = useState<InternalDrag | null>(null);
   const pendingPositions = useRef<Record<string, { x: number; y: number }>>({});
@@ -205,32 +294,33 @@ function LinksCardWidget({
   function addLink() {
     const url = newUrl.trim();
     if (!url || (card.links ?? []).length >= 12) return;
-    updateCard(card.id, {
-      links: [...(card.links ?? []), {
-        id: crypto.randomUUID(),
-        url,
-        label: PLATFORM_LABELS[detectPlatform(url)],
-      }],
-    });
-    setNewUrl("");
+    const link: ProfileLink = addKind === "button"
+      ? { id: crypto.randomUUID(), url, label: newLabel.trim() || url, kind: "button" }
+      : { id: crypto.randomUUID(), url, label: PLATFORM_LABELS[detectPlatform(url)] };
+    updateCard(card.id, { links: [...(card.links ?? []), link] });
+    setNewUrl(""); setNewLabel("");
   }
 
   function startEdit(link: ProfileLink) {
     setEditingId(link.id);
     setEditUrl(link.url);
+    setEditLabel(link.kind === "button" ? link.label : "");
   }
 
   function confirmEdit() {
     const url = editUrl.trim();
     if (url && editingId) {
       updateCard(card.id, {
-        links: (card.links ?? []).map(l =>
-          l.id === editingId ? { ...l, url, label: PLATFORM_LABELS[detectPlatform(url)] } : l
-        ),
+        links: (card.links ?? []).map(l => {
+          if (l.id !== editingId) return l;
+          if (l.kind === "button") return { ...l, url, label: editLabel.trim() || url };
+          return { ...l, url, label: PLATFORM_LABELS[detectPlatform(url)] };
+        }),
       });
     }
     setEditingId(null);
     setEditUrl("");
+    setEditLabel("");
   }
 
   const onLinkDragStart = useCallback((e: React.MouseEvent, link: ProfileLink) => {
@@ -338,19 +428,35 @@ function LinksCardWidget({
                       zIndex:    internalDrag?.id === link.id ? 10 : 1,
                     } : {}}
                   >
-                    <LinkBtn
-                      link={link}
-                      editMode={!!menuOpen}
-                      ownerUserId={ownerUserId}
-                      iconColor={iconColor}
-                      iconSize={iconSize}
-                      showText={displayMode === "icons-text"}
-                      fontStyle={fontStyle}
-                      fontSize={fontSize}
-                      onDragStart={onLinkDragStart}
-                      isSelected={isSel}
-                      canInteract={canInteract}
-                    />
+                    {link.kind === "button" ? (
+                      <LinkButtonPill
+                        link={link}
+                        effects={effectiveEffects}
+                        borderRadius={borderRadius}
+                        textColor={iconColor}
+                        fontStyle={fontStyle}
+                        fontSize={fontSize}
+                        editMode={!!menuOpen}
+                        ownerUserId={ownerUserId}
+                        onDragStart={onLinkDragStart}
+                        isSelected={isSel}
+                        canInteract={canInteract}
+                      />
+                    ) : (
+                      <LinkBtn
+                        link={link}
+                        editMode={!!menuOpen}
+                        ownerUserId={ownerUserId}
+                        iconColor={iconColor}
+                        iconSize={iconSize}
+                        showText={displayMode === "icons-text"}
+                        fontStyle={fontStyle}
+                        fontSize={fontSize}
+                        onDragStart={onLinkDragStart}
+                        isSelected={isSel}
+                        canInteract={canInteract}
+                      />
+                    )}
                   </div>
                 );
               })
@@ -455,26 +561,55 @@ function LinksCardWidget({
                     background: T.surface.raised, border: `1px solid ${T.border.subtle}`,
                     borderRadius: T.radius.sm, padding: "5px 8px",
                   }}>
-                    <PlatformIcon platform={detectPlatform(link.url)} size={12} color={T.text.secondary} />
+                    {link.kind === "button" ? (
+                      <div style={{ width: 12, height: 12, borderRadius: 2, border: `1px solid ${T.text.secondary}`, flexShrink: 0 }} />
+                    ) : (
+                      <PlatformIcon platform={detectPlatform(link.url)} size={12} color={T.text.secondary} />
+                    )}
                     {editingId === link.id ? (
-                      <TextInput
-                        value={editUrl}
-                        onChange={setEditUrl}
-                        onKeyDown={e => {
-                          if (e.key === "Enter") confirmEdit();
-                          if (e.key === "Escape") { setEditingId(null); setEditUrl(""); }
-                        }}
-                        placeholder="https://..."
-                        type="url"
-                        mono
-                        style={{ flex: 1 }}
-                      />
+                      link.kind === "button" ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
+                          <TextInput
+                            value={editLabel}
+                            onChange={setEditLabel}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") confirmEdit();
+                              if (e.key === "Escape") { setEditingId(null); setEditUrl(""); setEditLabel(""); }
+                            }}
+                            placeholder="Texto del botón"
+                          />
+                          <TextInput
+                            value={editUrl}
+                            onChange={setEditUrl}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") confirmEdit();
+                              if (e.key === "Escape") { setEditingId(null); setEditUrl(""); setEditLabel(""); }
+                            }}
+                            placeholder="https://..."
+                            type="url"
+                            mono
+                          />
+                        </div>
+                      ) : (
+                        <TextInput
+                          value={editUrl}
+                          onChange={setEditUrl}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") confirmEdit();
+                            if (e.key === "Escape") { setEditingId(null); setEditUrl(""); }
+                          }}
+                          placeholder="https://..."
+                          type="url"
+                          mono
+                          style={{ flex: 1 }}
+                        />
+                      )
                     ) : (
                       <span style={{
                         fontFamily: T.font.mono, fontSize: 9, color: T.text.muted, flex: 1,
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
-                        {link.url.replace(/^https?:\/\/(www\.)?/, "")}
+                        {link.kind === "button" ? link.label : link.url.replace(/^https?:\/\/(www\.)?/, "")}
                       </span>
                     )}
                     {link.x !== undefined && editingId !== link.id && (
@@ -510,28 +645,43 @@ function LinksCardWidget({
               </div>
             )}
 
-            {/* Add link — paste URL, platform auto-detected */}
+            {/* Add link — choose type, then paste (Icon Link) or type + paste (Button Link) */}
             {(card.links ?? []).length < 12 && (
-              <div style={{ display: "flex", gap: 6 }}>
-                <TextInput
-                  value={newUrl}
-                  onChange={setNewUrl}
-                  onKeyDown={e => e.key === "Enter" && addLink()}
-                  placeholder="instagram.com/usuario, github.com/user…"
-                  type="url"
-                  mono
-                  style={{ flex: 1 }}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <Tabs
+                  tabs={[{ id: "icon", label: "Icon Link" }, { id: "button", label: "Button Link" }]}
+                  active={addKind}
+                  onChange={v => setAddKind(v as "icon" | "button")}
                 />
-                <button
-                  onClick={addLink}
-                  onMouseDown={e => e.stopPropagation()}
-                  style={{
-                    height: T.comp.inputH, padding: "0 12px",
-                    background: T.surface.raised, border: `1px solid ${T.border.default}`,
-                    borderRadius: T.radius.md, color: T.text.secondary, fontFamily: T.font.mono,
-                    fontSize: 12, cursor: "pointer", flexShrink: 0,
-                  }}
-                >+</button>
+                {addKind === "button" && (
+                  <TextInput
+                    value={newLabel}
+                    onChange={setNewLabel}
+                    onKeyDown={e => e.key === "Enter" && addLink()}
+                    placeholder="Texto del botón"
+                  />
+                )}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <TextInput
+                    value={newUrl}
+                    onChange={setNewUrl}
+                    onKeyDown={e => e.key === "Enter" && addLink()}
+                    placeholder={addKind === "button" ? "https://..." : "instagram.com/usuario, github.com/user…"}
+                    type="url"
+                    mono
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    onClick={addLink}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{
+                      height: T.comp.inputH, padding: "0 12px",
+                      background: T.surface.raised, border: `1px solid ${T.border.default}`,
+                      borderRadius: T.radius.md, color: T.text.secondary, fontFamily: T.font.mono,
+                      fontSize: 12, cursor: "pointer", flexShrink: 0,
+                    }}
+                  >+</button>
+                </div>
               </div>
             )}
           </MenuSection>

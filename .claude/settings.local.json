@@ -83,7 +83,8 @@
       "Bash(Format-Table -AutoSize)",
       "Skill(run)",
       "Bash(grep -Hm1 '^description:' .claude/skills/*/SKILL.md)",
-      "Bash(ls .claude/skills)"
+      "Bash(ls .claude/skills)",
+      "Bash(echo \"TSC_EXIT:$?\")"
     ]
   }
 }

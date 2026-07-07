@@ -10,6 +10,7 @@ import { mergeMobileState, filterHiddenDesktop } from "@/lib/mobileMerge";
 import { getProfileCardEffects, getModuleCardEffects } from "@/lib/profileCardEffects";
 import CardLayers from "./CardLayers";
 import { SocialIconBtn, PlatformIcon, detectPlatform } from "./SocialIcons";
+import { withAlpha } from "./LinksCardWidget";
 import { musicLabel } from "./MusicCardWidget";
 import { fmtNum, StatItem } from "./StatsCardWidget";
 import { trackLinkClick } from "@/lib/trackLinkClick";
@@ -574,6 +575,37 @@ export default function MobilePublicCanvas({
                       const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
                       const platform = detectPlatform(link.url);
                       const label = link.label || safeUrl;
+                      if (link.kind === "button") {
+                        const pad    = effects.padding ?? 14;
+                        const py     = Math.max(4, Math.min(12, Math.round(pad * 0.4)));
+                        const px     = Math.max(10, Math.min(22, Math.round(pad * 1.1)));
+                        const bord   = effects.border;
+                        const glow   = effects.glow;
+                        const blurPx = Math.min(effects.bg?.blur ?? 0, 8);
+                        const glowInt = glow?.outer ? (glow.intensity ?? 0) : 0;
+                        return (
+                          <div key={link.id} style={hasPos ? { position: "absolute", left: link.x, top: link.y, transform: "translate(-50%,-50%)" } : { flexShrink: 0 }}>
+                            <a href={safeUrl} target="_blank" rel="noopener noreferrer"
+                              onClick={() => userId && trackLinkClick(userId, label, safeUrl)}
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                padding: `${py}px ${px}px`, borderRadius: Math.min(borderRadius, 20),
+                                background: withAlpha(effects.bg?.color ?? "#ffffff", "10"),
+                                border: `1px solid ${withAlpha(bord?.color ?? "#ffffff", "22")}`,
+                                backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+                                WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+                                boxShadow: glowInt > 0
+                                  ? `0 0 ${Math.round(glowInt * 9)}px ${withAlpha(glow!.color ?? "#a855f7", "40")}`
+                                  : undefined,
+                                textDecoration: "none",
+                              }}>
+                              <span style={{ fontFamily: fontStyle, fontSize, fontWeight: 600, color: iconColor, letterSpacing: 0.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 160 }}>
+                                {label}
+                              </span>
+                            </a>
+                          </div>
+                        );
+                      }
                       return (
                         <div key={link.id} style={hasPos ? { position: "absolute", left: link.x, top: link.y, transform: "translate(-50%,-50%)" } : { flexShrink: 0 }}>
                           <a href={safeUrl} target="_blank" rel="noopener noreferrer"

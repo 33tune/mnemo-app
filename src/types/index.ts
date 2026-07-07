@@ -108,6 +108,7 @@ export type ProfileLink = {
   url:   string;
   label: string;
   icon?: string;
+  kind?: "icon" | "button";
   x?:    number;
   y?:    number;
   scale?: number;
