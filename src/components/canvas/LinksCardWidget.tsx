@@ -1,15 +1,16 @@
 "use client";
 import { useState, useRef, useEffect, useCallback, memo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import type { LinksCardData, ProfileLink, TextFont, CardEffects } from "@/types";
+import type { LinksCardData, ProfileLink, CardEffects } from "@/types";
 import { trackLinkClick } from "@/lib/trackLinkClick";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
+import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgMode } from "@/lib/bgStyle";
-import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
+import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, Tabs, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
 import { CANVAS_FONTS } from "@/lib/fontList";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
@@ -23,11 +24,13 @@ type InternalDrag = {
   startMouseY: number;
 };
 
-function LinkBtn({ link, editMode, ownerUserId, baseColor, fontStyle, fontSize, onDragStart, isSelected, canInteract }: {
+function LinkBtn({ link, editMode, ownerUserId, iconColor, iconSize, showText, fontStyle, fontSize, onDragStart, isSelected, canInteract }: {
   link: ProfileLink;
   editMode: boolean;
   ownerUserId?: string;
-  baseColor: string;
+  iconColor: string;
+  iconSize: number;
+  showText: boolean;
   fontStyle: string;
   fontSize: number;
   onDragStart?: (e: React.MouseEvent, link: ProfileLink) => void;
@@ -36,7 +39,9 @@ function LinkBtn({ link, editMode, ownerUserId, baseColor, fontStyle, fontSize, 
 }) {
   const [hov, setHov] = useState(false);
   const safeUrl = !link.url ? null : link.url.startsWith("http") ? link.url : `https://${link.url}`;
-  if (!link.label && !safeUrl) return null;
+  if (!safeUrl) return null;
+  const platform = detectPlatform(link.url);
+  const label = link.label || PLATFORM_LABELS[platform];
   return (
     <div
       onMouseEnter={() => setHov(true)}
@@ -44,32 +49,33 @@ function LinkBtn({ link, editMode, ownerUserId, baseColor, fontStyle, fontSize, 
       onMouseDown={canInteract && isSelected && onDragStart ? e => onDragStart(e, link) : undefined}
       onClick={e => {
         e.stopPropagation();
-        if (!editMode && safeUrl) {
-          if (ownerUserId) trackLinkClick(ownerUserId, link.label, safeUrl);
+        if (!editMode) {
+          if (ownerUserId) trackLinkClick(ownerUserId, label, safeUrl);
           window.open(safeUrl, "_blank", "noopener,noreferrer");
         }
       }}
+      title={label}
       style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-        padding: "5px 14px", borderRadius: 100,
-        background: hov ? `${baseColor}24` : `${baseColor}12`,
-        border: `1px solid ${hov ? `${baseColor}48` : `${baseColor}20`}`,
-        cursor: canInteract && isSelected ? "grab" : (safeUrl ? "pointer" : "default"),
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        cursor: canInteract && isSelected ? "grab" : "pointer",
+        opacity: hov ? 1 : 0.78,
         transition: "all 0.15s ease",
         userSelect: "none",
         transform: hov ? "translateY(-1px)" : "translateY(0)",
+        flexShrink: 0,
       }}
     >
-      {link.icon && <span style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>{link.icon}</span>}
-      <span style={{
-        fontFamily: fontStyle, fontSize, fontWeight: 600,
-        color: hov ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)",
-        letterSpacing: 1.2, textTransform: "uppercase" as const,
-        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 140,
-        transition: "color 0.15s ease",
-      }}>
-        {link.label || safeUrl}
-      </span>
+      <PlatformIcon platform={platform} size={iconSize} color={hov ? PLATFORM_COLORS[platform] : iconColor} />
+      {showText && (
+        <span style={{
+          fontFamily: fontStyle, fontSize, fontWeight: 600,
+          color: iconColor,
+          letterSpacing: 1, textTransform: "uppercase" as const,
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120,
+        }}>
+          {label}
+        </span>
+      )}
     </div>
   );
 }
@@ -99,9 +105,9 @@ function LinksCardWidget({
   ownerUserId, entryAnimStyle = {}, onDelete,
 }: Props) {
   const [menuOpen,     setMenuOpen]     = useState(false);
-  const [newLabel,     setNewLabel]     = useState("");
   const [newUrl,       setNewUrl]       = useState("");
-  const [newIcon,      setNewIcon]      = useState("");
+  const [editingId,    setEditingId]    = useState<string | null>(null);
+  const [editUrl,      setEditUrl]      = useState("");
   const [portalPos,    setPortalPos]    = useState<{ left: number; top: number } | null>(null);
   const [internalDrag, setInternalDrag] = useState<InternalDrag | null>(null);
   const pendingPositions = useRef<Record<string, { x: number; y: number }>>({});
@@ -129,11 +135,18 @@ function LinksCardWidget({
       ...card.effects?.glow,
     },
     opacity: card.effects?.opacity ?? card.opacity,
+    padding: card.effects?.padding,
   };
 
   const borderRadius = effectiveEffects.border?.radius ?? 14;
-  const fontStyle    = FONTS.find(f => f.key === card.font)?.style ?? T.font.sans;
-  const fontSize     = card.textSize ?? 9;
+  const fontStyle     = FONTS.find(f => f.key === card.font)?.style ?? T.font.sans;
+  const fontSize      = card.textSize ?? 9;
+  const iconSize      = card.iconSize ?? 20;
+  const iconGap       = card.iconGap ?? 10;
+  const iconColor     = card.textColor || "rgba(255,255,255,0.75)";
+  const orientation   = card.iconOrientation ?? "horizontal";
+  const displayMode   = card.displayMode ?? "icons";
+  const contentPadding = effectiveEffects.padding ?? 14;
 
   const { onMouseMove: onInteractMove, onMouseLeave: onInteractLeave } =
     useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>);
@@ -190,16 +203,34 @@ function LinksCardWidget({
   }
 
   function addLink() {
-    if (!newUrl.trim()) return;
+    const url = newUrl.trim();
+    if (!url || (card.links ?? []).length >= 12) return;
     updateCard(card.id, {
       links: [...(card.links ?? []), {
         id: crypto.randomUUID(),
-        url: newUrl.trim(),
-        label: newLabel.trim(),
-        icon: newIcon.trim() || undefined,
+        url,
+        label: PLATFORM_LABELS[detectPlatform(url)],
       }],
     });
-    setNewUrl(""); setNewLabel(""); setNewIcon("");
+    setNewUrl("");
+  }
+
+  function startEdit(link: ProfileLink) {
+    setEditingId(link.id);
+    setEditUrl(link.url);
+  }
+
+  function confirmEdit() {
+    const url = editUrl.trim();
+    if (url && editingId) {
+      updateCard(card.id, {
+        links: (card.links ?? []).map(l =>
+          l.id === editingId ? { ...l, url, label: PLATFORM_LABELS[detectPlatform(url)] } : l
+        ),
+      });
+    }
+    setEditingId(null);
+    setEditUrl("");
   }
 
   const onLinkDragStart = useCallback((e: React.MouseEvent, link: ProfileLink) => {
@@ -284,8 +315,9 @@ function LinksCardWidget({
           <div style={{
             position: "absolute", inset: 0, borderRadius,
             ...(hasPositionedLinks ? {} : {
-              display: "flex", flexDirection: "column" as const, alignItems: "center",
-              justifyContent: "center", gap: 6, padding: "12px 14px",
+              display: "flex", flexDirection: orientation === "vertical" ? "column" as const : "row" as const,
+              flexWrap: "wrap" as const, alignItems: "center",
+              justifyContent: "center", gap: iconGap, padding: `${contentPadding}px`,
             }),
             overflow: "hidden",
           }}>
@@ -310,7 +342,9 @@ function LinksCardWidget({
                       link={link}
                       editMode={!!menuOpen}
                       ownerUserId={ownerUserId}
-                      baseColor="rgba(255,255,255"
+                      iconColor={iconColor}
+                      iconSize={iconSize}
+                      showText={displayMode === "icons-text"}
                       fontStyle={fontStyle}
                       fontSize={fontSize}
                       onDragStart={onLinkDragStart}
@@ -412,115 +446,92 @@ function LinksCardWidget({
 
           {/* CONTENIDO */}
           <MenuSection label="Contenido" first>
-            {/* Existing links */}
+            {/* Existing links — read-only row: icon + url + edit/delete */}
             {(card.links ?? []).length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: T.space[2], marginBottom: T.space[2] }}>
-                {(card.links ?? []).map((link, idx) => (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: T.space[2] }}>
+                {(card.links ?? []).map(link => (
                   <div key={link.id} style={{
-                    background: T.surface.input, border: `1px solid ${T.border.subtle}`,
-                    borderRadius: T.radius.sm, padding: `${T.space[2]}px`,
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: T.surface.raised, border: `1px solid ${T.border.subtle}`,
+                    borderRadius: T.radius.sm, padding: "5px 8px",
                   }}>
-                    <div style={{ display: "flex", gap: T.space[1], marginBottom: T.space[1] }}>
-                      <input
-                        value={link.icon ?? ""}
-                        onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, icon: e.target.value } : l) })}
-                        onMouseDown={e => e.stopPropagation()}
-                        placeholder="icon"
-                        maxLength={2}
-                        style={{
-                          width: 28, background: T.surface.raised, border: `1px solid ${T.border.subtle}`,
-                          borderRadius: T.radius.xs, padding: "3px 4px", color: T.text.primary,
-                          fontSize: 11, textAlign: "center", outline: "none", flexShrink: 0,
-                          fontFamily: T.font.sans,
+                    <PlatformIcon platform={detectPlatform(link.url)} size={12} color={T.text.secondary} />
+                    {editingId === link.id ? (
+                      <TextInput
+                        value={editUrl}
+                        onChange={setEditUrl}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") confirmEdit();
+                          if (e.key === "Escape") { setEditingId(null); setEditUrl(""); }
                         }}
+                        placeholder="https://..."
+                        type="url"
+                        mono
+                        style={{ flex: 1 }}
                       />
-                      <input
-                        value={link.label}
-                        onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, label: e.target.value } : l) })}
-                        onMouseDown={e => e.stopPropagation()}
-                        placeholder="label"
-                        style={{
-                          flex: 1, background: "transparent", border: "none",
-                          borderBottom: `1px solid ${T.border.default}`, outline: "none",
-                          color: T.text.secondary, fontFamily: T.font.mono, fontSize: T.size.xs,
-                          letterSpacing: "0.08em", textTransform: "uppercase" as const, padding: "2px 0 3px",
-                        }}
-                      />
-                      {link.x !== undefined && (
-                        <button
-                          title="Reset position"
-                          onClick={() => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, x: undefined, y: undefined } : l) })}
-                          onMouseDown={e => e.stopPropagation()}
-                          style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 12, cursor: "pointer", lineHeight: 1, padding: "0 2px", fontFamily: T.font.mono }}
-                        >o</button>
-                      )}
+                    ) : (
+                      <span style={{
+                        fontFamily: T.font.mono, fontSize: 9, color: T.text.muted, flex: 1,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {link.url.replace(/^https?:\/\/(www\.)?/, "")}
+                      </span>
+                    )}
+                    {link.x !== undefined && editingId !== link.id && (
                       <button
-                        onClick={() => updateCard(card.id, { links: (card.links ?? []).filter((_, i) => i !== idx) })}
+                        title="Restablecer posición"
+                        onClick={() => updateCard(card.id, { links: (card.links ?? []).map(l => l.id === link.id ? { ...l, x: undefined, y: undefined } : l) })}
                         onMouseDown={e => e.stopPropagation()}
-                        style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 14, cursor: "pointer", lineHeight: 1, padding: "0 2px" }}
-                      >×</button>
-                    </div>
-                    <input
-                      value={link.url}
-                      onChange={e => updateCard(card.id, { links: (card.links ?? []).map((l, i) => i === idx ? { ...l, url: e.target.value } : l) })}
+                        style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 10, cursor: "pointer", padding: "0 2px" }}
+                      >⊙</button>
+                    )}
+                    {editingId === link.id ? (
+                      <button
+                        title="Confirmar"
+                        onClick={confirmEdit}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{ background: "transparent", border: "none", color: T.text.secondary, fontSize: 12, cursor: "pointer", padding: "0 2px" }}
+                      >✓</button>
+                    ) : (
+                      <button
+                        title="Editar"
+                        onClick={() => startEdit(link)}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 11, cursor: "pointer", padding: "0 2px" }}
+                      >✎</button>
+                    )}
+                    <button
+                      onClick={() => updateCard(card.id, { links: (card.links ?? []).filter(l => l.id !== link.id) })}
                       onMouseDown={e => e.stopPropagation()}
-                      placeholder="https://..."
-                      type="url"
-                      style={{
-                        width: "100%", background: "transparent", border: `1px solid ${T.border.subtle}`,
-                        borderRadius: T.radius.xs, padding: "4px 7px", color: T.text.muted,
-                        fontFamily: T.font.mono, fontSize: T.size.xs - 1, letterSpacing: "0.03em",
-                        outline: "none", boxSizing: "border-box" as const,
-                      }}
-                    />
+                      style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 14, cursor: "pointer", lineHeight: 1, padding: "0 2px" }}
+                    >×</button>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Add link form */}
-            {(card.links ?? []).length < 8 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: T.space[1] }}>
-                <div style={{ display: "flex", gap: T.space[1] }}>
-                  <TextInput
-                    value={newLabel}
-                    onChange={setNewLabel}
-                    placeholder="label"
-                    style={{ flex: 1 }}
-                  />
-                  <input
-                    value={newIcon}
-                    onChange={e => setNewIcon(e.target.value)}
-                    onMouseDown={e => e.stopPropagation()}
-                    placeholder="icon"
-                    maxLength={2}
-                    style={{
-                      width: 36, background: T.surface.input, border: `1px solid ${T.border.subtle}`,
-                      borderRadius: T.radius.xs, padding: "5px 4px", color: T.text.primary,
-                      fontSize: 11, textAlign: "center", outline: "none", flexShrink: 0,
-                    }}
-                  />
-                </div>
-                <div style={{ display: "flex", gap: T.space[1] }}>
-                  <TextInput
-                    value={newUrl}
-                    onChange={setNewUrl}
-                    onKeyDown={e => e.key === "Enter" && addLink()}
-                    placeholder="https://..."
-                    type="url"
-                    mono
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    onClick={addLink}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{
-                      background: T.surface.raised, border: `1px solid ${T.border.default}`,
-                      borderRadius: T.radius.xs, color: T.text.secondary, fontFamily: T.font.mono,
-                      fontSize: T.size.xs, cursor: "pointer", padding: "5px 10px", flexShrink: 0,
-                    }}
-                  >+</button>
-                </div>
+            {/* Add link — paste URL, platform auto-detected */}
+            {(card.links ?? []).length < 12 && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <TextInput
+                  value={newUrl}
+                  onChange={setNewUrl}
+                  onKeyDown={e => e.key === "Enter" && addLink()}
+                  placeholder="instagram.com/usuario, github.com/user…"
+                  type="url"
+                  mono
+                  style={{ flex: 1 }}
+                />
+                <button
+                  onClick={addLink}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{
+                    height: T.comp.inputH, padding: "0 12px",
+                    background: T.surface.raised, border: `1px solid ${T.border.default}`,
+                    borderRadius: T.radius.md, color: T.text.secondary, fontFamily: T.font.mono,
+                    fontSize: 12, cursor: "pointer", flexShrink: 0,
+                  }}
+                >+</button>
               </div>
             )}
           </MenuSection>
@@ -552,6 +563,10 @@ function LinksCardWidget({
                 <MenuRow label="Glass">
                   <Toggle value={!!bg?.glass} onChange={v => patchBg({ glass: v })} />
                 </MenuRow>
+                <SliderRow label="Padding" min={0} max={40} step={1}
+                  value={effectiveEffects.padding ?? 14}
+                  onChange={v => updateCard(card.id, { effects: { ...card.effects, padding: v } })}
+                  unit="px" />
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
                   <MenuRow label="Gradiente">
@@ -592,36 +607,68 @@ function LinksCardWidget({
 
           <Divider />
 
-          {/* TEXTO */}
-          <MenuSection label="Texto">
+          {/* ÍCONOS */}
+          <MenuSection label="Íconos">
             <MenuRow label="Color">
               <ColorSwatch
                 value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
                 onChange={v => updateCard(card.id, { textColor: v })}
               />
             </MenuRow>
-            <SliderRow label="Tamaño" min={7} max={18} step={0.5}
-              value={card.textSize ?? 9}
-              onChange={v => updateCard(card.id, { textSize: v })}
+            <SliderRow label="Tamaño" min={12} max={40} step={1}
+              value={iconSize}
+              onChange={v => updateCard(card.id, { iconSize: v })}
+              unit="px" />
+            <SliderRow label="Separación" min={0} max={40} step={1}
+              value={iconGap}
+              onChange={v => updateCard(card.id, { iconGap: v })}
               unit="px" />
             <div style={{ marginTop: T.space[2] }}>
               <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
-                Fuente
+                Orientación
               </div>
-              <div style={{ display: "flex", gap: T.space[1], flexWrap: "wrap" as const, maxHeight: 120, overflowY: "auto" }}>
-                {FONTS.map(f => (
-                  <button key={f.key} onMouseDown={e => e.stopPropagation()} onClick={() => updateCard(card.id, { font: f.key })}
-                    style={{
-                      padding: `${T.space[1]}px ${T.space[2]}px`, borderRadius: T.radius.xs, cursor: "pointer",
-                      border: card.font === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
-                      background: card.font === f.key ? T.surface.overlay : T.surface.input,
-                      color: card.font === f.key ? T.text.primary : T.text.muted,
-                      fontFamily: f.style, fontSize: T.size.xs, letterSpacing: "0.02em",
-                    }}
-                  >{f.label}</button>
-                ))}
-              </div>
+              <Tabs
+                tabs={[{ id: "horizontal", label: "Horizontal" }, { id: "vertical", label: "Vertical" }]}
+                active={orientation}
+                onChange={v => updateCard(card.id, { iconOrientation: v as "horizontal" | "vertical" })}
+              />
             </div>
+            <div style={{ marginTop: T.space[3] }}>
+              <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
+                Mostrar
+              </div>
+              <Tabs
+                tabs={[{ id: "icons", label: "Solo íconos" }, { id: "icons-text", label: "Íconos + texto" }]}
+                active={displayMode}
+                onChange={v => updateCard(card.id, { displayMode: v as "icons" | "icons-text" })}
+              />
+            </div>
+            {displayMode === "icons-text" && (
+              <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
+                <SliderRow label="Tamaño texto" min={7} max={18} step={0.5}
+                  value={fontSize}
+                  onChange={v => updateCard(card.id, { textSize: v })}
+                  unit="px" />
+                <div style={{ marginTop: T.space[2] }}>
+                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
+                    Fuente
+                  </div>
+                  <div style={{ display: "flex", gap: T.space[1], flexWrap: "wrap" as const, maxHeight: 120, overflowY: "auto" }}>
+                    {FONTS.map(f => (
+                      <button key={f.key} onMouseDown={e => e.stopPropagation()} onClick={() => updateCard(card.id, { font: f.key })}
+                        style={{
+                          padding: `${T.space[1]}px ${T.space[2]}px`, borderRadius: T.radius.xs, cursor: "pointer",
+                          border: card.font === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
+                          background: card.font === f.key ? T.surface.overlay : T.surface.input,
+                          color: card.font === f.key ? T.text.primary : T.text.muted,
+                          fontFamily: f.style, fontSize: T.size.xs, letterSpacing: "0.02em",
+                        }}
+                      >{f.label}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </MenuSection>
 
           <Divider />

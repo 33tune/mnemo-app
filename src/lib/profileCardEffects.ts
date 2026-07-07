@@ -53,6 +53,7 @@ export function getModuleCardEffects(card: ModuleCardEffectsSource, defaultRadiu
       ...card.effects?.glow,
     },
     opacity: card.effects?.opacity ?? card.opacity,
+    padding: card.effects?.padding,
   };
 }
 

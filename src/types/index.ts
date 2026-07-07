@@ -308,6 +308,10 @@ export type LinksCardData = {
   textColor?:    string;
   textSize?:     number;
   font?:         TextFont;
+  iconSize?:     number;
+  iconGap?:      number;
+  iconOrientation?: "horizontal" | "vertical";
+  displayMode?:  "icons" | "icons-text";
   effects?:      CardEffects;
 };
 
@@ -434,6 +438,7 @@ export type CardEffects = {
     floatSpeed?: number;
   };
   opacity?: number;
+  padding?: number;
 };
 
 // ── Space-level identity settings ────────────────────────────────────────────

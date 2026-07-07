@@ -80,7 +80,10 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\src\\\\app\\\\api\")",
       "Bash(Get-ChildItem \"C:\\\\Users\\\\Nico\\\\Desktop\\\\mnemo.app\\\\landing-design\" -Recurse -File)",
       "Bash(Select-Object FullName, Length)",
-      "Bash(Format-Table -AutoSize)"
+      "Bash(Format-Table -AutoSize)",
+      "Skill(run)",
+      "Bash(grep -Hm1 '^description:' .claude/skills/*/SKILL.md)",
+      "Bash(ls .claude/skills)"
     ]
   }
 }

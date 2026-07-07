@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { mergeMobileState, filterHiddenDesktop } from "@/lib/mobileMerge";
 import { getProfileCardEffects, getModuleCardEffects } from "@/lib/profileCardEffects";
 import CardLayers from "./CardLayers";
-import { SocialIconBtn, detectPlatform } from "./SocialIcons";
+import { SocialIconBtn, PlatformIcon, detectPlatform } from "./SocialIcons";
 import { musicLabel } from "./MusicCardWidget";
 import { fmtNum, StatItem } from "./StatsCardWidget";
 import { trackLinkClick } from "@/lib/trackLinkClick";
@@ -543,10 +543,16 @@ export default function MobilePublicCanvas({
           {(state.linksCards ?? []).map(card => {
             const fontStyle = getFontStyle(card.font, SANS);
             const fontSize  = card.textSize ?? 9;
+            const iconSize  = card.iconSize ?? 20;
+            const iconGap   = card.iconGap ?? 10;
+            const iconColor = card.textColor || "rgba(255,255,255,0.75)";
+            const orientation = card.iconOrientation ?? "horizontal";
+            const showText  = card.displayMode === "icons-text";
             const links     = (card.links ?? []).filter(l => l.url);
             const hasPositionedLinks = links.some(l => l.x !== undefined && l.y !== undefined);
             const effects = getModuleCardEffects(card, 14);
             const borderRadius = effects.border?.radius ?? 14;
+            const contentPadding = effects.padding ?? 14;
             return (
               <div key={card.id} style={{
                 position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
@@ -556,26 +562,29 @@ export default function MobilePublicCanvas({
                 <CardLayers cardId={card.id} effects={effects} borderRadius={borderRadius}>
                   <div style={{
                     position: "absolute", inset: 0, borderRadius,
-                    ...(hasPositionedLinks ? {} : { display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 14px" }),
+                    ...(hasPositionedLinks ? {} : {
+                      display: "flex", flexDirection: orientation === "vertical" ? "column" as const : "row" as const,
+                      flexWrap: "wrap" as const, alignItems: "center", justifyContent: "center",
+                      gap: iconGap, padding: `${contentPadding}px`,
+                    }),
                     overflow: "hidden",
                   }}>
                     {links.map(link => {
                       const hasPos  = link.x !== undefined && link.y !== undefined;
                       const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
+                      const platform = detectPlatform(link.url);
+                      const label = link.label || safeUrl;
                       return (
-                        <div key={link.id} style={hasPos ? { position: "absolute", left: link.x, top: link.y, transform: "translate(-50%,-50%)" } : {}}>
+                        <div key={link.id} style={hasPos ? { position: "absolute", left: link.x, top: link.y, transform: "translate(-50%,-50%)" } : { flexShrink: 0 }}>
                           <a href={safeUrl} target="_blank" rel="noopener noreferrer"
-                            onClick={() => userId && trackLinkClick(userId, link.label, safeUrl)}
-                            style={{
-                              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                              padding: "5px 14px", borderRadius: 100,
-                              background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)",
-                              textDecoration: "none",
-                            }}>
-                            {link.icon && <span style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>{link.icon}</span>}
-                            <span style={{ fontFamily: fontStyle, fontSize, fontWeight: 600, color: "rgba(255,255,255,0.6)", letterSpacing: 1.2, textTransform: "uppercase" as const, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 140 }}>
-                              {link.label || safeUrl}
-                            </span>
+                            onClick={() => userId && trackLinkClick(userId, label, safeUrl)}
+                            style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
+                            <PlatformIcon platform={platform} size={iconSize} color={iconColor} />
+                            {showText && (
+                              <span style={{ fontFamily: fontStyle, fontSize, fontWeight: 600, color: iconColor, letterSpacing: 1, textTransform: "uppercase" as const, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120 }}>
+                                {label}
+                              </span>
+                            )}
                           </a>
                         </div>
                       );
