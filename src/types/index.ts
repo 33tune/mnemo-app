@@ -159,6 +159,7 @@ export type ProfileCardData = {
   name:            string;
   handle:          string;
   status:          string;
+  location?:       string;
   bio?:            string;
   // Photo positioning
   photoX:          number;
@@ -179,6 +180,9 @@ export type ProfileCardData = {
   statusX?:        number;
   statusY?:        number;
   statusScale?:    number;
+  locationX?:      number;
+  locationY?:      number;
+  locationScale?:  number;
   bioX?:           number;
   bioY?:           number;
   bioScale?:       number;
@@ -194,6 +198,7 @@ export type ProfileCardData = {
   bioFontSize?:    number;
   statusFont?:     TextFont;
   statusFontSize?: number;
+  locationFontSize?: number;
   textColor?:      string;
   // Style
   bgColor:         string;

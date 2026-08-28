@@ -13,7 +13,6 @@ import MediaCardWidget from "./MediaCardWidget";
 import ResizeHandles from "./ResizeHandles";
 import { SocialDock } from "./SocialDock";
 import Topbar from "./Topbar";
-import ViewModeSwitcher from "./ViewModeSwitcher";
 import CardMenu from "./CardMenu";
 import GalleryWidget from "./GalleryWidget";
 import ProfileCard from "./ProfileCard";
@@ -488,8 +487,6 @@ export default function CanvasBoard({
   const lastSavedStateRef = useRef<CanvasState | null>(null);
   // ── Mode switching ───────────────────────────────────────────────────────────
   const canvasModeRef  = useRef<CanvasMode>("home");
-  const canvasIds      = useRef<Record<CanvasMode, string | null>>({ home: null, space: null, space_mobile: null });
-  const modeStates     = useRef<Record<CanvasMode, CanvasState | null>>({ home: null, space: null, space_mobile: null });
   // ── Ops queue ────────────────────────────────────────────────────────────────
   const hasLoadedRef       = useRef(false);
   const sessionIdRef       = useRef(0);
@@ -1603,6 +1600,9 @@ export default function CanvasBoard({
 
   // ── Cambio de modo — el useEffect([canvasMode]) maneja flush + reset + carga ──
   async function switchMode(newMode: CanvasMode) {
+    // Mobile View editing is retired — "space" is the only editable composition now.
+    // space_mobile rows keep rendering read-only via mergeMobileState for legacy compat.
+    if (newMode === "space_mobile") return;
     if (newMode === canvasModeRef.current) return;
 
     const activeEl = document.activeElement as HTMLElement;
@@ -2324,10 +2324,6 @@ export default function CanvasBoard({
         onAnalytics={canEdit ? () => setView("analytics") : undefined}
       />
 
-      {canEdit && isSpaceCanvas(canvasMode) && view === "canvas" && (
-        <ViewModeSwitcher canvasMode={canvasMode} onSwitch={switchMode} />
-      )}
-
       {view==="canvas"&&(creatingCard||rotating||addingText)&&(
         <div style={{position:"fixed",top:58,left:"50%",transform:"translateX(-50%)",background:"rgba(10,10,12,0.92)",color:"rgba(255,255,255,0.4)",padding:"5px 14px",borderRadius:6,zIndex:700,fontFamily:MONO,fontSize:9,letterSpacing:2,textTransform:"uppercase",border:"1px solid rgba(255,255,255,0.06)",pointerEvents:"none"}}>
           {addingText?"click to place text":rotating?"rotating":"draw the area"}
@@ -2358,26 +2354,7 @@ export default function CanvasBoard({
       {view === "canvas" && (
       <div suppressHydrationWarning style={{
         position: "relative", zIndex: 1, flexShrink: 0,
-        ...(canvasMode === "space_mobile" ? {
-          display: "flex", flexDirection: "column", alignItems: "center",
-          paddingTop: 16,
-          width: "100%",
-        } : {}),
       }}>
-      {/* Phone chrome shown in space_mobile editor */}
-      {canvasMode === "space_mobile" && canEdit && (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          width: MOBILE_CANVAS_W, padding: "6px 12px", marginBottom: 0,
-          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-          borderBottom: "none", borderRadius: "16px 16px 0 0",
-          fontFamily: MONO, fontSize: 8, letterSpacing: 1.5, color: "rgba(255,255,255,0.3)",
-        }}>
-          <span>390px</span>
-          <span style={{ width: 32, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.12)", display: "block", margin: "0 auto" }} />
-          <span>MOBILE</span>
-        </div>
-      )}
       {/* ── Viewer scale wrapper: reserves correct document-flow dimensions while canvas is CSS-scaled ── */}
       <div suppressHydrationWarning style={!canEdit ? {
         width: viewerContentW > 0 ? viewerW * viewerScale : "100%",
@@ -2396,7 +2373,6 @@ export default function CanvasBoard({
         flexShrink: 0,
         transform: !canEdit ? `scale(${viewerScale})` : undefined,
         transformOrigin: "top left",
-        ...(canvasMode === "space_mobile" && canEdit ? { border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 16px 16px" } : {}),
         ...(!canEdit ? { animation: "land-reveal 0.18s ease both" } : {}),
       }}
         onDragEnter={e => {

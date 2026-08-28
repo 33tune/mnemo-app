@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
+import { getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { useProfileViews } from "@/hooks/useProfileViews";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 import { bgImageStyle, detectBgModeFromFile } from "@/lib/bgStyle";
@@ -16,6 +16,8 @@ import { useCardInteractions } from "@/hooks/useCardInteractions";
 import PersonalizePanel from "./PersonalizePanel";
 import CardLayers from "./CardLayers";
 import { Collapsible } from "@/ui";
+import ProfileIdentityMenu from "./ProfileIdentityMenu";
+import ProfileMetadataMenu from "./ProfileMetadataMenu";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -28,16 +30,40 @@ function fmtNum(n: number): string {
   return String(n);
 }
 
-// Default free-mode positions (% of card)
-const FREE_DEFAULTS = {
-  photo:  { x: 50, y: 25, s: 1 },
-  name:   { x: 50, y: 53, s: 1 },
-  handle: { x: 50, y: 63, s: 1 },
-  bio:    { x: 50, y: 75, s: 1 },
-  views:  { x: 50, y: 88, s: 1 },
-} as const;
+// ── Positionable fields (Free Mode) ─────────────────────────────────────────────
+// Single source of truth for every field that can be dragged/scaled in free layout.
+// initFreePos, the free-mode default-seeding effect, and the drag-persist patch in
+// startFreeDrag all derive from this table instead of hardcoding each key separately.
+type PosFieldKey =
+  | "photoX" | "photoY" | "photoScale"
+  | "nameX" | "nameY" | "nameScale"
+  | "handleX" | "handleY" | "handleScale"
+  | "statusX" | "statusY" | "statusScale"
+  | "locationX" | "locationY" | "locationScale"
+  | "bioX" | "bioY" | "bioScale"
+  | "viewsX" | "viewsY" | "viewsScale";
 
-const FONTS = CANVAS_FONTS;
+interface PositionableField {
+  key:        "photo" | "name" | "handle" | "descriptor" | "location" | "bio" | "views";
+  defaultX:   number;
+  defaultY:   number;
+  xField:     PosFieldKey;
+  yField:     PosFieldKey;
+  scaleField: PosFieldKey;
+}
+
+// Existing defaults (photo/name/handle/bio/views) are unchanged from before this
+// refactor — descriptor/location are new entries slotted into the existing gap
+// between handle (63) and bio (75) so nothing already saved shifts visually.
+const POSITIONABLE_FIELDS: PositionableField[] = [
+  { key: "photo",      defaultX: 50, defaultY: 25, xField: "photoX",      yField: "photoY",      scaleField: "photoScale" },
+  { key: "name",       defaultX: 50, defaultY: 53, xField: "nameX",       yField: "nameY",       scaleField: "nameScale" },
+  { key: "handle",     defaultX: 50, defaultY: 63, xField: "handleX",     yField: "handleY",     scaleField: "handleScale" },
+  { key: "descriptor", defaultX: 50, defaultY: 67, xField: "statusX",     yField: "statusY",     scaleField: "statusScale" },
+  { key: "location",   defaultX: 50, defaultY: 71, xField: "locationX",   yField: "locationY",   scaleField: "locationScale" },
+  { key: "bio",        defaultX: 50, defaultY: 75, xField: "bioX",        yField: "bioY",        scaleField: "bioScale" },
+  { key: "views",      defaultX: 50, defaultY: 88, xField: "viewsX",      yField: "viewsY",      scaleField: "viewsScale" },
+];
 
 const VARIANTS: { key: ProfileCardVariant; label: string }[] = [
   { key: "classic", label: "CL" },
@@ -89,17 +115,19 @@ interface Props {
 
 // ── Free-mode position state ──────────────────────────────────────────────────
 
-type FreeKey = "photo" | "name" | "handle" | "bio" | "views";
+type FreeKey = PositionableField["key"];
 type FreePos = Record<FreeKey, { x: number; y: number; s: number }>;
 
 function initFreePos(card: ProfileCardData): FreePos {
-  return {
-    photo:  { x: card.photoX  ?? FREE_DEFAULTS.photo.x,  y: card.photoY  ?? FREE_DEFAULTS.photo.y,  s: card.photoScale  ?? 1 },
-    name:   { x: card.nameX   ?? FREE_DEFAULTS.name.x,   y: card.nameY   ?? FREE_DEFAULTS.name.y,   s: card.nameScale   ?? 1 },
-    handle: { x: card.handleX ?? FREE_DEFAULTS.handle.x, y: card.handleY ?? FREE_DEFAULTS.handle.y, s: card.handleScale ?? 1 },
-    bio:    { x: card.bioX    ?? FREE_DEFAULTS.bio.x,    y: card.bioY    ?? FREE_DEFAULTS.bio.y,    s: card.bioScale    ?? 1 },
-    views:  { x: card.viewsX  ?? FREE_DEFAULTS.views.x,  y: card.viewsY  ?? FREE_DEFAULTS.views.y,  s: card.viewsScale  ?? 1 },
-  };
+  const pos = {} as FreePos;
+  for (const f of POSITIONABLE_FIELDS) {
+    pos[f.key] = {
+      x: (card[f.xField] as number | undefined) ?? f.defaultX,
+      y: (card[f.yField] as number | undefined) ?? f.defaultY,
+      s: (card[f.scaleField] as number | undefined) ?? 1,
+    };
+  }
+  return pos;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -112,7 +140,6 @@ function ProfileCard({
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
   const [menuOpen,     setMenuOpen]     = useState(false);
-  const [editingField, setEditingField] = useState<"name" | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Layout mode
@@ -130,24 +157,17 @@ function ProfileCard({
     if (isDraggingFree.current) return;
     setFreePos(initFreePos(card));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card.photoX, card.photoY, card.photoScale, card.nameX, card.nameY, card.nameScale,
-      card.handleX, card.handleY, card.handleScale, card.bioX, card.bioY, card.bioScale,
-      card.viewsX, card.viewsY, card.viewsScale]);
+  }, POSITIONABLE_FIELDS.flatMap(f => [card[f.xField], card[f.yField], card[f.scaleField]]));
 
-  // When switching to free, seed defaults if positions not yet set
+  // When switching to free, seed defaults if positions not yet set (existing cards
+  // that never had descriptor/location keep those two unset until the user drags them).
   useEffect(() => {
     if (layout !== "free") return;
     const patch: Partial<ProfileCardData> = {};
-    if (card.photoX  == null) patch.photoX  = FREE_DEFAULTS.photo.x;
-    if (card.photoY  == null) patch.photoY  = FREE_DEFAULTS.photo.y;
-    if (card.nameX   == null) patch.nameX   = FREE_DEFAULTS.name.x;
-    if (card.nameY   == null) patch.nameY   = FREE_DEFAULTS.name.y;
-    if (card.handleX == null) patch.handleX = FREE_DEFAULTS.handle.x;
-    if (card.handleY == null) patch.handleY = FREE_DEFAULTS.handle.y;
-    if (card.bioX   == null) patch.bioX   = FREE_DEFAULTS.bio.x;
-    if (card.bioY   == null) patch.bioY   = FREE_DEFAULTS.bio.y;
-    if (card.viewsX == null) patch.viewsX = FREE_DEFAULTS.views.x;
-    if (card.viewsY == null) patch.viewsY = FREE_DEFAULTS.views.y;
+    for (const f of POSITIONABLE_FIELDS) {
+      if (card[f.xField] == null) (patch as Record<PosFieldKey, number>)[f.xField] = f.defaultX;
+      if (card[f.yField] == null) (patch as Record<PosFieldKey, number>)[f.yField] = f.defaultY;
+    }
     if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout]);
@@ -179,7 +199,7 @@ function ProfileCard({
   }, [menuOpen, card.x, card.y, card.w, card.h]);
 
   useEffect(() => {
-    if (!isSel) { setMenuOpen(false); setEditingField(null); }
+    if (!isSel) { setMenuOpen(false); }
   }, [isSel]);
 
   // ── Uploads ──
@@ -269,12 +289,9 @@ function ProfileCard({
       // Persist final state (single DB write on mouseup)
       setFreePos(latest => {
         const pos = latest[key];
-        const patch: Partial<ProfileCardData> = {};
-        if (key === "photo")  { patch.photoX  = pos.x; patch.photoY  = pos.y; if (isScale) patch.photoScale  = pos.s; }
-        if (key === "name")   { patch.nameX   = pos.x; patch.nameY   = pos.y; if (isScale) patch.nameScale   = pos.s; }
-        if (key === "handle") { patch.handleX = pos.x; patch.handleY = pos.y; if (isScale) patch.handleScale = pos.s; }
-        if (key === "bio")    { patch.bioX    = pos.x; patch.bioY    = pos.y; if (isScale) patch.bioScale    = pos.s; }
-        if (key === "views")  { patch.viewsX  = pos.x; patch.viewsY  = pos.y; if (isScale) patch.viewsScale  = pos.s; }
+        const field = POSITIONABLE_FIELDS.find(f => f.key === key)!;
+        const patch = { [field.xField]: pos.x, [field.yField]: pos.y } as Record<PosFieldKey, number>;
+        if (isScale) patch[field.scaleField] = pos.s;
         updateProfile(card.id, patch);
         return latest;
       });
@@ -301,6 +318,61 @@ function ProfileCard({
             </svg>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // ── Field content renderers ───────────────────────────────────────────────
+  // One definition per field, reused by all three layouts. Each layout stays
+  // responsible for wrapping/positioning; only the `style` delta between
+  // layouts is passed in, so existing output (vertical/horizontal/free) is
+  // unchanged — only descriptor/location are genuinely new content.
+
+  function NameLine({ style }: { style?: CSSProperties }) {
+    return (
+      <div style={{ fontFamily: globalFont, fontSize: nameFontSize, fontWeight: 700, color: primaryColor, lineHeight: 1.2, ...style }}>
+        {card.name}
+      </div>
+    );
+  }
+
+  function HandleLine({ style }: { style?: CSSProperties }) {
+    return (
+      <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 0.4, ...style }}>
+        @{card.handle}
+      </div>
+    );
+  }
+
+  function DescriptorLine({ style }: { style?: CSSProperties }) {
+    return (
+      <div style={{ fontFamily: MONO, fontSize: 9, color: secondaryColor, letterSpacing: 0.5, ...style }}>
+        {card.status}
+      </div>
+    );
+  }
+
+  function LocationLine({ style }: { style?: CSSProperties }) {
+    return (
+      <div style={{ fontFamily: MONO, fontSize: 8, color: faintColor, letterSpacing: 0.3, ...style }}>
+        ● {card.location}
+      </div>
+    );
+  }
+
+  function BioText({ style }: { style?: CSSProperties }) {
+    return (
+      <div style={{
+        fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
+        lineHeight: 1.6, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"], ...style,
+      } as CSSProperties}>{card.bio}</div>
+    );
+  }
+
+  function ViewsLine({ style }: { style?: CSSProperties }) {
+    return (
+      <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"], ...style }}>
+        {fmtNum(viewCount)} views
       </div>
     );
   }
@@ -354,29 +426,12 @@ function ProfileCard({
         alignItems: "center", padding: `${pad}px`, gap, zIndex: 3, overflow: "hidden",
       }}>
         <AvatarEl />
-        {card.name && (
-          <div style={{ fontFamily: globalFont, fontSize: nameFontSize, fontWeight: 700, color: primaryColor, lineHeight: 1.2, textAlign: "center", marginTop: variant === "minimal" ? 2 : 4 }}>
-            {card.name}
-          </div>
-        )}
-        {card.handle && (
-          <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 0.4, marginTop: -2 }}>
-            @{card.handle}
-          </div>
-        )}
-        {card.bio && (
-          <div style={{
-            fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
-            maxWidth: "100%", textAlign: "center", lineHeight: 1.6,
-            whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
-            overflow: "hidden", minHeight: 0,
-          } as CSSProperties}>{card.bio}</div>
-        )}
-        {card.showViews && (
-          <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"] }}>
-            {fmtNum(viewCount)} views
-          </div>
-        )}
+        {card.name && <NameLine style={{ textAlign: "center", marginTop: variant === "minimal" ? 2 : 4 }} />}
+        {card.handle && <HandleLine style={{ marginTop: -2 }} />}
+        {card.status && <DescriptorLine style={{ textAlign: "center" }} />}
+        {card.location && <LocationLine style={{ textAlign: "center" }} />}
+        {card.bio && <BioText style={{ maxWidth: "100%", textAlign: "center", overflow: "hidden", minHeight: 0 }} />}
+        {card.showViews && <ViewsLine />}
       </div>
     );
   }
@@ -390,28 +445,12 @@ function ProfileCard({
       }}>
         <AvatarEl style={{ flexShrink: 0 }} />
         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
-          {card.name && (
-            <div style={{ fontFamily: globalFont, fontSize: nameFontSize, fontWeight: 700, color: primaryColor, lineHeight: 1.2 }}>
-              {card.name}
-            </div>
-          )}
-          {card.handle && (
-            <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 0.4 }}>
-              @{card.handle}
-            </div>
-          )}
-          {card.bio && (
-            <div style={{
-              fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
-              lineHeight: 1.6, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
-              overflow: "hidden", minHeight: 0,
-            } as CSSProperties}>{card.bio}</div>
-          )}
-          {card.showViews && (
-            <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"] }}>
-              {fmtNum(viewCount)} views
-            </div>
-          )}
+          {card.name && <NameLine />}
+          {card.handle && <HandleLine />}
+          {card.status && <DescriptorLine />}
+          {card.location && <LocationLine />}
+          {card.bio && <BioText style={{ overflow: "hidden", minHeight: 0 }} />}
+          {card.showViews && <ViewsLine />}
         </div>
         {/* suppress unused warning */}
         <span style={{ display: "none" }}>{photoW}</span>
@@ -423,36 +462,12 @@ function ProfileCard({
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 3 }}>
         <FreeWrap elemKey="photo"><AvatarEl /></FreeWrap>
-        {card.name && (
-          <FreeWrap elemKey="name">
-            <div style={{ fontFamily: globalFont, fontSize: nameFontSize, fontWeight: 700, color: primaryColor, lineHeight: 1.2, whiteSpace: "nowrap" }}>
-              {card.name}
-            </div>
-          </FreeWrap>
-        )}
-        {card.handle && (
-          <FreeWrap elemKey="handle">
-            <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 0.4, whiteSpace: "nowrap" }}>
-              @{card.handle}
-            </div>
-          </FreeWrap>
-        )}
-        {card.bio && (
-          <FreeWrap elemKey="bio">
-            <div style={{
-              fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
-              lineHeight: 1.6, maxWidth: 160, textAlign: "center",
-              whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"],
-            }}>{card.bio}</div>
-          </FreeWrap>
-        )}
-        {card.showViews && (
-          <FreeWrap elemKey="views">
-            <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"], whiteSpace: "nowrap" }}>
-              {fmtNum(viewCount)} views
-            </div>
-          </FreeWrap>
-        )}
+        {card.name && <FreeWrap elemKey="name"><NameLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
+        {card.handle && <FreeWrap elemKey="handle"><HandleLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
+        {card.status && <FreeWrap elemKey="descriptor"><DescriptorLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
+        {card.location && <FreeWrap elemKey="location"><LocationLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
+        {card.bio && <FreeWrap elemKey="bio"><BioText style={{ maxWidth: 160, textAlign: "center" }} /></FreeWrap>}
+        {card.showViews && <FreeWrap elemKey="views"><ViewsLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
         {/* Free-mode hint */}
         {canInteract && (
           <div style={{
@@ -518,7 +533,6 @@ function ProfileCard({
                 setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
               } else setPortalPos(null);
               setMenuOpen(next);
-              if (!next) setEditingField(null);
             }}
             style={{
               position: "absolute", top: -10, left: -10, width: 20, height: 20, borderRadius: "50%",
@@ -652,94 +666,28 @@ function ProfileCard({
 
               {/* ════ IDENTIDAD ════ */}
               <div className="pcfg-s pcfg-s2">
-                <PanelLabel>identidad</PanelLabel>
+                <ProfileIdentityMenu
+                  name={card.name}
+                  nameFontSize={card.nameFontSize}
+                  font={font}
+                  textColor={card.textColor}
+                  globalFont={globalFont}
+                  onChange={patch => updateProfile(card.id, patch)}
+                />
+              </div>
 
-                {editingField === "name" ? (
-                  <input autoFocus className="pcfg-inline"
-                    value={card.name}
-                    onChange={e => updateProfile(card.id, { name: e.target.value })}
-                    onBlur={() => setEditingField(null)}
-                    onKeyDown={e => e.key === "Enter" && setEditingField(null)}
-                    onMouseDown={e => e.stopPropagation()}
-                    placeholder="nombre"
-                    style={{ width: "100%", color: "rgba(255,255,255,0.92)", fontSize: 22, fontWeight: 700, fontFamily: globalFont, letterSpacing: "-0.4px", lineHeight: 1.15, padding: "0 0 4px", borderBottom: "1px solid rgba(255,255,255,0.22)", boxSizing: "border-box" }}
-                  />
-                ) : (
-                  <div onClick={() => setEditingField("name")}
-                    style={{ fontSize: 22, fontWeight: 700, fontFamily: globalFont, letterSpacing: "-0.4px", lineHeight: 1.15, color: card.name ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.15)", cursor: "text", paddingBottom: 4 }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = "0.75")}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = "1")}>
-                    {card.name || "nombre"}
-                  </div>
-                )}
+              <Div />
 
-                <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "8px 0 10px" }} />
-
-                {/* Name size */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={MICRO}>tamaño nombre</span>
-                  <input type="range" min={10} max={32} step={1}
-                    value={card.nameFontSize ?? 15}
-                    onChange={e => updateProfile(card.id, { nameFontSize: Number(e.target.value) })}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
-                  <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", minWidth: 22 }}>{card.nameFontSize ?? 15}</span>
-                </div>
-
-                {/* Bio size */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={MICRO}>tamaño bio</span>
-                  <input type="range" min={7} max={18} step={1}
-                    value={card.bioFontSize ?? 8}
-                    onChange={e => updateProfile(card.id, { bioFontSize: Number(e.target.value) })}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
-                  <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", minWidth: 22 }}>{card.bioFontSize ?? 8}</span>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={MICRO}>font</span>
-                    <select value={font} onChange={e => updateProfile(card.id, { font: e.target.value as TextFont })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ background: "transparent", border: "none", outline: "none", color: "rgba(255,255,255,0.45)", fontSize: 11, fontFamily: SANS, cursor: "pointer" }}>
-                      {FONTS.map(f => <option key={f.key} value={f.key} style={{ background: "#09090b" }}>{f.label}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={MICRO}>color</span>
-                    <div style={{ width: 20, height: 20, borderRadius: 2, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
-                      <input type="color" value={card.textColor ?? "#ffffff"}
-                        onChange={e => updateProfile(card.id, { textColor: e.target.value })}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{ width: "140%", height: "140%", transform: "translate(-14%,-14%)", border: "none", cursor: "pointer" }} />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 14 }}>
-                  <span style={MICRO}>bio</span>
-                  <textarea value={card.bio ?? ""} onChange={e => updateProfile(card.id, { bio: e.target.value })}
-                    onMouseDown={e => e.stopPropagation()} placeholder="short bio..." maxLength={120} rows={2}
-                    style={{ display: "block", width: "100%", marginTop: 6, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 3, padding: "6px 8px", color: "rgba(255,255,255,0.52)", fontFamily: MONO, fontSize: 9, letterSpacing: 0.3, resize: "none" as CSSProperties["resize"], outline: "none", lineHeight: 1.55, boxSizing: "border-box" as CSSProperties["boxSizing"] }} />
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
-                  <span style={MICRO}>mostrar views</span>
-                  <button
-                    onClick={() => updateProfile(card.id, { showViews: !(card.showViews ?? false) })}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{
-                      padding: "3px 8px", borderRadius: 4, cursor: "pointer",
-                      border: card.showViews ? "1px solid rgba(212,240,196,0.3)" : "1px solid rgba(255,255,255,0.1)",
-                      background: card.showViews ? "rgba(212,240,196,0.08)" : "rgba(255,255,255,0.04)",
-                      color: card.showViews ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.35)",
-                      fontFamily: MONO, fontSize: 8, letterSpacing: 1, textTransform: "uppercase" as CSSProperties["textTransform"],
-                    }}
-                  >
-                    {card.showViews ? "on" : "off"}
-                  </button>
-                </div>
+              {/* ════ METADATA ════ */}
+              <div className="pcfg-s pcfg-s2">
+                <ProfileMetadataMenu
+                  status={card.status}
+                  location={card.location}
+                  bio={card.bio}
+                  bioFontSize={card.bioFontSize}
+                  showViews={card.showViews}
+                  onChange={patch => updateProfile(card.id, patch)}
+                />
               </div>
 
               <Div />
