@@ -113,11 +113,12 @@ export default function CardLayers({
         backdropFilter:       isGlass ? "blur(20px)" : undefined,
         WebkitBackdropFilter: isGlass ? "blur(20px)" : undefined,
       }} />
-      {/* ── Layer 0b: Border + shadow (always full opacity) ── */}
+      {/* ── Layer 0b: Border + shadow ── */}
       <div style={{
         position: "absolute", inset: 0, borderRadius: rad,
         border,
         boxShadow,
+        opacity: bord?.opacity ?? 1,
         pointerEvents: "none",
       }} />
 

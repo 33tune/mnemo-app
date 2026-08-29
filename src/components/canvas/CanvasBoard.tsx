@@ -1806,11 +1806,16 @@ export default function CanvasBoard({
     if (!canInteract) return;
     if (profiles.length > 0) return;
     zCounter.current += 1;
-    const vc = viewCenter();
-    const { x: px, y: py } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 260, 220);
+    // The Presentation Card is the singleton anchor of the profile — it always
+    // spawns centered horizontally on the canvas, at a fixed vertical anchor
+    // (not view-dependent jitter like every other addX()). It can't be dragged,
+    // so this is the only place its position is ever set.
+    const w = 260, h = 220;
+    const px = effectiveW / 2 - w / 2;
+    const py = 160;
     const p: ProfileCardData = {
       id: crypto.randomUUID(), x: px, y: py,
-      w: 260, h: 220, zIndex: zCounter.current, layer: 2, depth: 0.5, rotation: 0,
+      w, h, zIndex: zCounter.current, layer: 2, depth: 0.5, rotation: 0,
       photo: "", name: "", status: "", handle: userHandle,
       userId: currentUserId,
       photoX: 50, photoY: 34, textX: 50, textY: 72,
@@ -2564,14 +2569,10 @@ export default function CanvasBoard({
         const _fd=!canEdit?Math.min(80+i*22,240):0;
         const _entry=!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`} as any:undefined;
         return (<ProfileCard key={prof.id} card={prof} isSel={selectedIds.has(prof.id)} draggingId={dragging?.id??null} parallaxTransform={ps.transform as string} entryAnimStyle={_entry}
-          locked={!!prof.locked}
-          onMouseDown={prof.locked?e=>e.stopPropagation():e=>onElementMouseDown(prof.id,"profile",prof.x,prof.y,e)}
+          onMouseDown={e=>e.stopPropagation()}
           onClick={e=>handleElementClick(prof.id,e)}
-
-          onResizeMD={prof.locked?(_h:ResizeHandle,e:React.MouseEvent)=>e.stopPropagation():(h,e)=>startSingleResize(prof.id,"profile",h,e)}
-          onRotateMD={prof.locked?e=>e.stopPropagation():e=>{const el=document.querySelector(`[data-profile-id="${prof.id}"]`) as HTMLElement;if(el){const r=el.getBoundingClientRect();startRotate(prof.id,"profile",e,r.left+r.width/2,r.top+r.height/2);}else startRotate(prof.id,"profile",e,prof.x+prof.w/2,prof.y+prof.h/2);}}
+          onResizeMD={(h,e)=>startSingleResize(prof.id,"profile",h,e)}
           updateProfile={updateProfile}
-          onToggleLock={()=>setElements(p=>p.map(e=>e.elementType==="profile"&&e.id===prof.id?{...e,locked:!e.locked}:e))}
           canInteract={canInteract}
           currentUserId={currentUserId}
           ownerUserId={ownerUserId} />);

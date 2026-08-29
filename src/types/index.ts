@@ -412,6 +412,7 @@ export type CardEffects = {
     color?: string;
     width?: number;     // 0–6px
     radius?: number;    // 0–60px
+    opacity?: number;   // 0–1
   };
   glow?: {
     color?: string;

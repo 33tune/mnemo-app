@@ -1,95 +1,78 @@
 "use client";
-import { useState, type CSSProperties } from "react";
-import type { TextFont } from "@/types";
-import { CANVAS_FONTS } from "@/lib/fontList";
-
-const SANS = "'DM Sans', sans-serif";
-const MONO = "'Space Mono', monospace";
-const FONTS = CANVAS_FONTS;
-
-const MICRO: CSSProperties = {
-  fontFamily: MONO, fontSize: 8, letterSpacing: 2,
-  color: "rgba(255,255,255,0.22)", textTransform: "uppercase",
-  flexShrink: 0, userSelect: "none",
-};
-
-function PanelLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: 14, userSelect: "none" }}>
-      {children}
-    </div>
-  );
-}
+import { useRef, useState } from "react";
+import { uploadToStorage } from "@/lib/storage";
+import { T, MenuSection, MenuRow, ActionButton } from "@/ui";
 
 interface ProfileIdentityMenuProps {
-  name:          string;
-  nameFontSize?: number;
-  font:          TextFont;
-  textColor?:    string;
-  globalFont:    string;
-  onChange:      (patch: { name?: string; nameFontSize?: number; font?: TextFont; textColor?: string }) => void;
+  photo:    string;
+  name:     string;
+  handle:   string;
+  onChange: (patch: { photo?: string; name?: string }) => void;
 }
 
-// Identity only: name, its typography, and the global font/color used across the card.
-// Bio/views/descriptor/location live in ProfileMetadataMenu — see [[project_mnemo]] split rationale.
-export default function ProfileIdentityMenu({ name, nameFontSize, font, textColor, globalFont, onChange }: ProfileIdentityMenuProps) {
+// DATOS: quién sos. Foto, nombre y handle (de cuenta, solo lectura) — nada visual acá,
+// eso vive en ESTILO → Tipografía. Ver [[ProfileMetadataMenu]] para descriptor/ubicación/bio/views.
+export default function ProfileIdentityMenu({ photo, name, handle, onChange }: ProfileIdentityMenuProps) {
   const [editingName, setEditingName] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const { publicUrl } = await uploadToStorage(f);
+    onChange({ photo: publicUrl });
+    if (photoRef.current) photoRef.current.value = "";
+  }
 
   return (
-    <div className="pcfg-s pcfg-s2">
-      <PanelLabel>identidad</PanelLabel>
-
-      {editingName ? (
-        <input autoFocus className="pcfg-inline"
-          value={name}
-          onChange={e => onChange({ name: e.target.value })}
-          onBlur={() => setEditingName(false)}
-          onKeyDown={e => e.key === "Enter" && setEditingName(false)}
-          onMouseDown={e => e.stopPropagation()}
-          placeholder="nombre"
-          style={{ width: "100%", color: "rgba(255,255,255,0.92)", fontSize: 22, fontWeight: 700, fontFamily: globalFont, letterSpacing: "-0.4px", lineHeight: 1.15, padding: "0 0 4px", borderBottom: "1px solid rgba(255,255,255,0.22)", boxSizing: "border-box" }}
-        />
-      ) : (
-        <div onClick={() => setEditingName(true)}
-          style={{ fontSize: 22, fontWeight: 700, fontFamily: globalFont, letterSpacing: "-0.4px", lineHeight: 1.15, color: name ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.15)", cursor: "text", paddingBottom: 4 }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = "0.75")}
-          onMouseLeave={e => (e.currentTarget.style.opacity = "1")}>
-          {name || "nombre"}
-        </div>
-      )}
-
-      <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "8px 0 10px" }} />
-
-      {/* Name size */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={MICRO}>tamaño nombre</span>
-        <input type="range" min={10} max={32} step={1}
-          value={nameFontSize ?? 15}
-          onChange={e => onChange({ nameFontSize: Number(e.target.value) })}
-          onMouseDown={e => e.stopPropagation()}
-          style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
-        <span style={{ fontFamily: MONO, fontSize: 8, color: "rgba(255,255,255,0.3)", minWidth: 22 }}>{nameFontSize ?? 15}</span>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={MICRO}>font</span>
-          <select value={font} onChange={e => onChange({ font: e.target.value as TextFont })}
-            onMouseDown={e => e.stopPropagation()}
-            style={{ background: "transparent", border: "none", outline: "none", color: "rgba(255,255,255,0.45)", fontSize: 11, fontFamily: SANS, cursor: "pointer" }}>
-            {FONTS.map(f => <option key={f.key} value={f.key} style={{ background: "#09090b" }}>{f.label}</option>)}
-          </select>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <span style={MICRO}>color</span>
-          <div style={{ width: 20, height: 20, borderRadius: 2, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
-            <input type="color" value={textColor ?? "#ffffff"}
-              onChange={e => onChange({ textColor: e.target.value })}
-              onMouseDown={e => e.stopPropagation()}
-              style={{ width: "140%", height: "140%", transform: "translate(-14%,-14%)", border: "none", cursor: "pointer" }} />
+    <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
+      <MenuSection label="Foto" first>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div onClick={() => photoRef.current?.click()} style={{
+            width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
+            overflow: "hidden", cursor: "pointer",
+            border: `1px solid ${T.border.default}`, background: T.surface.raised,
+          }}>
+            {photo
+              ? <img src={photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.text.muted} strokeWidth="1.5" strokeLinecap="round">
+                    <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                  </svg>
+                </div>}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <ActionButton onClick={() => photoRef.current?.click()}>subir</ActionButton>
+            {photo && <ActionButton variant="danger" onClick={() => onChange({ photo: "" })}>quitar</ActionButton>}
           </div>
         </div>
-      </div>
+        <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
+      </MenuSection>
+
+      <MenuSection label="Nombre">
+        {editingName ? (
+          <input autoFocus
+            value={name}
+            onChange={e => onChange({ name: e.target.value })}
+            onBlur={() => setEditingName(false)}
+            onKeyDown={e => e.key === "Enter" && setEditingName(false)}
+            onMouseDown={e => e.stopPropagation()}
+            placeholder="nombre"
+            style={{ width: "100%", background: "transparent", color: T.text.primary, fontSize: 18, fontWeight: 600, fontFamily: T.font.sans, padding: "6px 0", borderBottom: `1px solid ${T.border.default}`, boxSizing: "border-box", outline: "none" }}
+          />
+        ) : (
+          <div onClick={() => setEditingName(true)}
+            style={{ fontSize: 18, fontWeight: 600, fontFamily: T.font.sans, color: name ? T.text.primary : T.text.muted, cursor: "text", padding: "6px 0", borderBottom: `1px solid ${T.border.subtle}` }}>
+            {name || "nombre"}
+          </div>
+        )}
+      </MenuSection>
+
+      <MenuSection label="Handle">
+        <MenuRow>
+          <span style={{ fontFamily: T.font.mono, fontSize: T.size.sm, color: T.text.muted }}>@{handle}</span>
+        </MenuRow>
+      </MenuSection>
     </div>
   );
 }

@@ -3,21 +3,16 @@ import { useState, useRef, useEffect, useCallback, memo, type CSSProperties } fr
 import { createPortal } from "react-dom";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from "@/types";
-import { uploadToStorage } from "@/lib/storage";
 import { getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { useProfileViews } from "@/hooks/useProfileViews";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
-import { bgImageStyle, detectBgModeFromFile } from "@/lib/bgStyle";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
-import { UIButton, UISlider } from "@/components/ui";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
-import PersonalizePanel from "./PersonalizePanel";
 import CardLayers from "./CardLayers";
-import { Collapsible } from "@/ui";
-import ProfileIdentityMenu from "./ProfileIdentityMenu";
-import ProfileMetadataMenu from "./ProfileMetadataMenu";
+import { MenuPanel } from "@/ui";
+import ProfileConfigMenu from "./ProfileConfigMenu";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -65,20 +60,6 @@ const POSITIONABLE_FIELDS: PositionableField[] = [
   { key: "views",      defaultX: 50, defaultY: 88, xField: "viewsX",      yField: "viewsY",      scaleField: "viewsScale" },
 ];
 
-const VARIANTS: { key: ProfileCardVariant; label: string }[] = [
-  { key: "classic", label: "CL" },
-  { key: "glass",   label: "GL" },
-  { key: "guns",    label: "GN" },
-  { key: "minimal", label: "MN" },
-  { key: "poster",  label: "PS" },
-];
-
-const LAYOUTS: { key: "vertical" | "horizontal" | "free"; label: string; desc: string }[] = [
-  { key: "vertical",   label: "Vertical",    desc: "Foto arriba, identidad debajo" },
-  { key: "horizontal", label: "Horizontal",  desc: "Foto izquierda, identidad derecha" },
-  { key: "free",       label: "Libre",       desc: "Posicionamiento manual libre" },
-];
-
 function fontStyle(font: TextFont | undefined, fallback = SANS): string {
   return getCanvasFontStyle(font, fallback);
 }
@@ -103,10 +84,7 @@ interface Props {
   onMouseDown:       (e: React.MouseEvent) => void;
   onClick:           (e: React.MouseEvent) => void;
   onResizeMD:        (handle: ResizeHandle, e: React.MouseEvent) => void;
-  onRotateMD:        (e: React.MouseEvent) => void;
   updateProfile:     (id: string, patch: Partial<ProfileCardData>) => void;
-  locked?:           boolean;
-  onToggleLock?:     () => void;
   canInteract?:      boolean;
   currentUserId?:    string;
   ownerUserId?:      string;
@@ -134,7 +112,7 @@ function initFreePos(card: ProfileCardData): FreePos {
 
 function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
-  onMouseDown, onClick, onResizeMD, onRotateMD, updateProfile, locked, onToggleLock, canInteract,
+  onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {},
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
@@ -186,7 +164,7 @@ function ProfileCard({
     const compute = () => {
       if (!cardRef.current) return;
       const r = cardRef.current.getBoundingClientRect();
-      const MENU_W = 272, GAP = 10;
+      const MENU_W = 288, GAP = 10;
       const left = r.right + GAP + MENU_W > window.innerWidth
         ? Math.max(4, r.left - MENU_W - GAP)
         : r.right + GAP;
@@ -202,24 +180,6 @@ function ProfileCard({
     if (!isSel) { setMenuOpen(false); }
   }, [isSel]);
 
-  // ── Uploads ──
-  const photoRef  = useRef<HTMLInputElement>(null);
-  const bgImgRef  = useRef<HTMLInputElement>(null);
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]; if (!f) return;
-    const { publicUrl } = await uploadToStorage(f);
-    updateProfile(card.id, { photo: publicUrl });
-    if (photoRef.current) photoRef.current.value = "";
-  }
-  async function handleBgImgUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]; if (!f) return;
-    const [{ publicUrl: src }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
-    updateProfile(card.id, {
-      bgImage: src, bgColor: "", bgMode,
-      effects: { ...card.effects, bg: { ...card.effects?.bg, image: src, color: undefined, imageMode: bgMode } },
-    });
-    if (bgImgRef.current) bgImgRef.current.value = "";
-  }
 
   // ── Visual values ──
   const photoSizeKey   = card.photoSize ?? "md";
@@ -528,7 +488,7 @@ function ProfileCard({
               const next = !menuOpen;
               if (next && cardRef.current) {
                 const r = cardRef.current.getBoundingClientRect();
-                const MENU_W = 272, GAP = 10;
+                const MENU_W = 288, GAP = 10;
                 const left = r.right + GAP + MENU_W > window.innerWidth ? Math.max(4, r.left - MENU_W - GAP) : r.right + GAP;
                 setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
               } else setPortalPos(null);
@@ -553,327 +513,20 @@ function ProfileCard({
           </div>
         )}
 
-        {/* ── Lock handle ── */}
-        {isSel && canInteract && onToggleLock && (
-          <div
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => { e.stopPropagation(); onToggleLock(); }}
-            style={{
-              position: "absolute", top: -22, right: 0, width: 16, height: 16, borderRadius: 4,
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              background: locked ? "rgba(255,180,60,0.15)" : "rgba(255,255,255,0.06)",
-              border: locked ? "1px solid rgba(255,180,60,0.3)" : "1px solid rgba(255,255,255,0.07)",
-              color: locked ? "rgba(255,180,60,0.9)" : "rgba(255,255,255,0.32)", zIndex: 20,
-              transition: `all 0.12s ${EASE}`,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.15)"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-          >
-            {locked ? (
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            ) : (
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
-              </svg>
-            )}
-          </div>
-        )}
-
-        {/* ── Rotate handle ── */}
-        {isSel && canInteract && !locked && (
-          <div
-            onMouseDown={e => { e.stopPropagation(); onRotateMD(e); }}
-            style={{
-              position: "absolute", top: -10, right: -10, width: 20, height: 20, borderRadius: "50%",
-              background: "rgba(12,12,14,0.96)", border: "1px solid rgba(255,255,255,0.1)",
-              cursor: "crosshair", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.4)", transition: `all 0.12s ${EASE}`,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(212,240,196,0.4)"; e.currentTarget.style.background = "rgba(212,240,196,0.08)"; e.currentTarget.style.transform = "scale(1.12)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "rgba(12,12,14,0.96)"; e.currentTarget.style.transform = "scale(1)"; }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.5 2v6h-6" /><path d="M21.34 15.57a10 10 0 1 1-.57-8.38" />
-            </svg>
-          </div>
-        )}
-
         {/* ── Resize handles ── */}
-        {isSel && canInteract && !locked && <ResizeHandles onResizeMD={onResizeMD} light={isLight} />}
+        {/* Position and rotation are fixed by design (singleton presentation card) —
+            no lock/rotate affordances. Resize stays until Forma/proporciones is designed. */}
+        {isSel && canInteract && <ResizeHandles onResizeMD={onResizeMD} light={isLight} />}
 
         {/* ── Config menu ── */}
-        <style>{`
-          .pcfg::-webkit-scrollbar { width: 4px; }
-          .pcfg::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-          .pcfg::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-          .pcfg-inline { background: transparent; border: none; outline: none; }
-          @keyframes pcfg-in { from { opacity: 0; transform: translateX(6px) scale(0.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
-          .pcfg { animation: pcfg-in 0.14s cubic-bezier(0.2,0.8,0.2,1) both; }
-          @keyframes pcfg-up { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-          .pcfg-s  { animation: pcfg-up 0.18s cubic-bezier(0.2,0.8,0.2,1) both; }
-          .pcfg-s1 { animation-delay: 0ms; } .pcfg-s2 { animation-delay: 40ms; }
-          .pcfg-s3 { animation-delay: 72ms; } .pcfg-s4 { animation-delay: 104ms; }
-          .pcfg button:active { transform: scale(0.95) !important; transition-duration: 0.06s !important; }
-        `}</style>
-
         {menuOpen && canInteract && portalPos && createPortal(
-          <div
-            className="pcfg"
-            onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
-            onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}
-            style={{
-              position: "fixed", left: portalPos.left, top: portalPos.top,
-              width: 272, background: "#09090b", border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: 6, padding: "20px 16px 24px", zIndex: 999999,
-              boxShadow: "0 8px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04)",
-              fontFamily: SANS, display: "flex", flexDirection: "column",
-              maxHeight: `calc(100vh - ${portalPos.top + 8}px)`,
-              overflowY: "auto", scrollbarWidth: "thin" as CSSProperties["scrollbarWidth"],
-            } as CSSProperties}
-          >
-            {<>
-
-              {/* ════ FOTO ════ */}
-              <div className="pcfg-s pcfg-s1">
-                <PanelLabel>foto</PanelLabel>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                  <div onClick={() => photoRef.current?.click()} style={{
-                    width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
-                    overflow: "hidden", cursor: "pointer",
-                    border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)",
-                    transition: `transform 0.12s ${EASE}, border-color 0.12s`,
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "scale(1.06)"; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.22)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "scale(1)"; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.1)"; }}>
-                    {card.photo
-                      ? <img src={card.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round">
-                            <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                          </svg>
-                        </div>}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5, paddingTop: 3 }}>
-                    <UIButton onClick={() => photoRef.current?.click()}>upload</UIButton>
-                    {card.photo && <UIButton onClick={() => updateProfile(card.id, { photo: "" })} danger>remove</UIButton>}
-                  </div>
-                </div>
-              </div>
-
-              <Div />
-
-              {/* ════ IDENTIDAD ════ */}
-              <div className="pcfg-s pcfg-s2">
-                <ProfileIdentityMenu
-                  name={card.name}
-                  nameFontSize={card.nameFontSize}
-                  font={font}
-                  textColor={card.textColor}
-                  globalFont={globalFont}
-                  onChange={patch => updateProfile(card.id, patch)}
-                />
-              </div>
-
-              <Div />
-
-              {/* ════ METADATA ════ */}
-              <div className="pcfg-s pcfg-s2">
-                <ProfileMetadataMenu
-                  status={card.status}
-                  location={card.location}
-                  bio={card.bio}
-                  bioFontSize={card.bioFontSize}
-                  showViews={card.showViews}
-                  onChange={patch => updateProfile(card.id, patch)}
-                />
-              </div>
-
-              <Div />
-
-              {/* ════ LAYOUT ════ */}
-              <div className="pcfg-s pcfg-s3">
-                <PanelLabel>layout</PanelLabel>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {LAYOUTS.map(l => (
-                    <button key={l.key}
-                      onMouseDown={e => e.stopPropagation()}
-                      onClick={() => updateProfile(card.id, { layout: l.key })}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "7px 10px", borderRadius: 5, cursor: "pointer", textAlign: "left",
-                        border: layout === l.key ? "1px solid rgba(212,240,196,0.3)" : "1px solid rgba(255,255,255,0.07)",
-                        background: layout === l.key ? "rgba(212,240,196,0.08)" : "rgba(255,255,255,0.02)",
-                        transition: "all 0.1s ease",
-                      }}>
-                      <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: layout === l.key ? "rgba(212,240,196,0.85)" : "rgba(255,255,255,0.45)" }}>
-                        {l.label}
-                      </span>
-                      <span style={{ fontFamily: MONO, fontSize: 7, color: layout === l.key ? "rgba(212,240,196,0.45)" : "rgba(255,255,255,0.2)" }}>
-                        {l.desc}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ marginTop: 12 }}>
-                  <span style={MICRO}>variante</span>
-                  <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                    {VARIANTS.map(v => (
-                      <button key={v.key} onClick={() => updateProfile(card.id, { variant: v.key })}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{
-                          flex: 1, padding: "5px 0", borderRadius: 4,
-                          border: variant === v.key ? "1px solid rgba(212,240,196,0.38)" : "1px solid rgba(255,255,255,0.08)",
-                          background: variant === v.key ? "rgba(212,240,196,0.1)" : "rgba(255,255,255,0.03)",
-                          color: variant === v.key ? "rgba(212,240,196,0.9)" : "rgba(255,255,255,0.38)",
-                          fontFamily: MONO, fontSize: 8, letterSpacing: 0.5, cursor: "pointer",
-                          transition: `all 0.12s ${EASE}`,
-                        }}>
-                        {v.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <Div />
-
-              {/* ════ ESTILO ════ */}
-              <div className="pcfg-s pcfg-s3">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <PanelLabel inline>estilo</PanelLabel>
-                  {(effectiveEffects.bg?.color || effectiveEffects.bg?.image) && (
-                    <button onClick={() => updateProfile(card.id, { bgColor: "", bgImage: "", effects: { ...card.effects, bg: { ...card.effects?.bg, color: undefined, image: undefined } } })}
-                      style={{ background: "transparent", border: "none", padding: 0, color: "rgba(255,255,255,0.22)", fontSize: 9, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}
-                      onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.65)"}
-                      onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.22)"}>clear</button>
-                  )}
-                </div>
-
-                {/* Border */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, flexShrink: 0 }}>border</span>
-                  <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-                    {effectiveEffects.border?.color && <div style={{ position: "absolute", inset: 0, background: effectiveEffects.border.color }} />}
-                    <input type="color" value={effectiveEffects.border?.color?.startsWith("#") ? effectiveEffects.border.color : "#ffffff"}
-                      onChange={e => updateProfile(card.id, { effects: { ...card.effects, border: { ...card.effects?.border, color: e.target.value } } })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
-                  </div>
-                  <input type="range" min={0} max={6} step={1} value={effectiveEffects.border?.width ?? 1}
-                    onChange={e => updateProfile(card.id, { effects: { ...card.effects, border: { ...card.effects?.border, width: Number(e.target.value) } } })}
-                    onMouseDown={e => e.stopPropagation()} style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
-                  {effectiveEffects.border?.color && (
-                    <button onClick={() => updateProfile(card.id, { borderColor: "", effects: { ...card.effects, border: { ...card.effects?.border, color: undefined, width: undefined } } })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
-                  )}
-                </div>
-
-                {/* Glow */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: 1, color: "rgba(255,255,255,0.22)", textTransform: "uppercase" as const, flexShrink: 0 }}>glow</span>
-                  <div style={{ position: "relative", width: 28, height: 20, borderRadius: 3, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", flexShrink: 0 }}>
-                    {effectiveEffects.glow?.color && <div style={{ position: "absolute", inset: 0, background: effectiveEffects.glow.color }} />}
-                    <input type="color" value={effectiveEffects.glow?.color?.startsWith("#") ? effectiveEffects.glow.color : "#a855f7"}
-                      onChange={e => updateProfile(card.id, { effects: { ...card.effects, glow: { ...card.effects?.glow, color: e.target.value } } })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
-                  </div>
-                  <input type="range" min={0} max={1} step={0.05} value={effectiveEffects.glow?.intensity ?? 0}
-                    onChange={e => {
-                      const v = Number(e.target.value);
-                      updateProfile(card.id, { effects: { ...card.effects, glow: { ...card.effects?.glow, intensity: v, outer: v > 0 } } });
-                    }}
-                    onMouseDown={e => e.stopPropagation()} style={{ flex: 1, accentColor: "rgba(212,240,196,0.8)" }} />
-                  {(effectiveEffects.glow?.intensity ?? 0) > 0 && (
-                    <button onClick={() => updateProfile(card.id, { glowIntensity: 0, effects: { ...card.effects, glow: { ...card.effects?.glow, intensity: 0, outer: false } } })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.22)", fontSize: 12, cursor: "pointer", padding: "0 2px" }}>×</button>
-                  )}
-                </div>
-
-                {/* Bg color */}
-                <div style={{ position: "relative", height: 34, borderRadius: 4, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", marginBottom: 10, transition: `border-color 0.12s ${EASE}` }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.2)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)"; }}>
-                  {!effectiveEffects.bg?.color && !effectiveEffects.bg?.image && (
-                    <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(255,255,255,0.02)", backgroundImage: "repeating-linear-gradient(45deg,rgba(255,255,255,0.04) 0,rgba(255,255,255,0.04) 1px,transparent 1px,transparent 9px)" }} />
-                  )}
-                  {(effectiveEffects.bg?.color || effectiveEffects.bg?.image) && (
-                    <div style={{ position: "absolute", inset: 0, ...(effectiveEffects.bg.image ? bgImageStyle(effectiveEffects.bg.image, effectiveEffects.bg.imageMode) : { background: effectiveEffects.bg.color }) }} />
-                  )}
-                  <input type="color" value={effectiveEffects.bg?.color?.startsWith("#") ? effectiveEffects.bg.color : "#141416"}
-                    onChange={e => updateProfile(card.id, { bgImage: "", effects: { ...card.effects, bg: { ...card.effects?.bg, color: e.target.value, image: undefined } } })}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }} />
-                </div>
-
-                <div style={{ display: "flex", gap: 5 }}>
-                  <div style={{ flex: 1 }}><UIButton onClick={() => bgImgRef.current?.click()} full>image / gif</UIButton></div>
-                  {effectiveEffects.bg?.image && (
-                    <div style={{ flex: 1 }}><UIButton onClick={() => updateProfile(card.id, { bgImage: "", effects: { ...card.effects, bg: { ...card.effects?.bg, image: undefined } } })} danger full>remove</UIButton></div>
-                  )}
-                </div>
-              </div>
-
-              <Div />
-
-              {/* ════ DISEÑO ════ */}
-              <div className="pcfg-s pcfg-s4">
-                <PanelLabel>diseño</PanelLabel>
-                <UISlider label="opacity" value={Math.round((card.effects?.opacity ?? card.opacity) * 100)} unit="%" min={10} max={100}
-                  onChange={v => updateProfile(card.id, { effects: { ...card.effects, opacity: v / 100 } })}
-                  onMouseDown={e => e.stopPropagation()} />
-                <div style={{ marginTop: 20 }}>
-                  <UISlider label="radius" value={effectiveEffects.border?.radius ?? card.borderRadius} unit="px" min={0} max={60}
-                    onChange={v => updateProfile(card.id, { borderRadius: v, effects: { ...card.effects, border: { ...card.effects?.border, radius: v } } })}
-                    onMouseDown={e => e.stopPropagation()} />
-                </div>
-              </div>
-
-              <Div />
-
-              <Collapsible label="Efectos avanzados">
-                <PersonalizePanel
-                  effects={card.effects}
-                  onChange={newEffects => updateProfile(card.id, { effects: newEffects })}
-                  isProfileCard
-                />
-              </Collapsible>
-
-            </>}
-          </div>
+          <MenuPanel pos={portalPos} width={288} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
+            <ProfileConfigMenu card={card} onChange={patch => updateProfile(card.id, patch)} />
+          </MenuPanel>
         , document.body)}
       </div>
-
-      <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
-      <input ref={bgImgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleBgImgUpload} />
     </>
   );
-}
-
-// ── Design tokens ─────────────────────────────────────────────────────────────
-
-const MICRO: CSSProperties = {
-  fontFamily: MONO, fontSize: 8, letterSpacing: 2,
-  color: "rgba(255,255,255,0.22)", textTransform: "uppercase",
-  flexShrink: 0, userSelect: "none",
-};
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function PanelLabel({ children, inline }: { children: React.ReactNode; inline?: boolean }) {
-  return (
-    <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginBottom: inline ? 0 : 14, userSelect: "none" }}>
-      {children}
-    </div>
-  );
-}
-function Div() {
-  return <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "22px 0" }} />;
 }
 
 function areProfilePropsEqual(prev: Props, next: Props): boolean {
@@ -881,7 +534,6 @@ function areProfilePropsEqual(prev: Props, next: Props): boolean {
     prev.card              === next.card &&
     prev.isSel             === next.isSel &&
     prev.draggingId        === next.draggingId &&
-    prev.locked            === next.locked &&
     prev.canInteract       === next.canInteract &&
     prev.parallaxTransform === next.parallaxTransform &&
     prev.currentUserId     === next.currentUserId &&

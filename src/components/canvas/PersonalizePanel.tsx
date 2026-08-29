@@ -1,9 +1,11 @@
 "use client";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import type { CardEffects } from "@/types";
-import { T, Tabs, SliderRow, Toggle, ColorSwatch, MenuSection, MenuRow, Divider } from "@/ui";
+import { uploadToStorage } from "@/lib/storage";
+import { detectBgModeFromFile } from "@/lib/bgStyle";
+import { T, Tabs, SliderRow, Toggle, ColorSwatch, MenuSection, MenuRow, ActionButton, Divider, Collapsible } from "@/ui";
 
-type Tab = "fondo" | "efectos" | "animar";
+type Tab = "fondo" | "forma" | "efectos";
 
 interface PersonalizePanelProps {
   effects?:       CardEffects;
@@ -15,8 +17,8 @@ interface PersonalizePanelProps {
 export default function PersonalizePanel({ effects, onChange, isProfileCard, tabs: allowedTabs }: PersonalizePanelProps) {
   const allTabs: { id: Tab; label: string }[] = [
     { id: "fondo",   label: "Fondo"   },
+    { id: "forma",   label: "Forma"   },
     { id: "efectos", label: "Efectos" },
-    { id: "animar",  label: "Animar"  },
   ];
   const visibleTabs = allowedTabs ? allTabs.filter(t => allowedTabs.includes(t.id)) : allTabs;
   const [activeTab, setActiveTab] = useState<Tab>(visibleTabs[0]?.id ?? "fondo");
@@ -54,6 +56,15 @@ export default function PersonalizePanel({ effects, onChange, isProfileCard, tab
 
   const anyGlow = !!(glow?.outer || glow?.inner);
 
+  const bgImgRef = useRef<HTMLInputElement>(null);
+  async function handleBgImgUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const [{ publicUrl: src }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
+    patchBg({ image: src, color: undefined, imageMode: bgMode });
+    if (bgImgRef.current) bgImgRef.current.value = "";
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {visibleTabs.length > 1 && (
@@ -84,6 +95,14 @@ export default function PersonalizePanel({ effects, onChange, isProfileCard, tab
             <Toggle value={!!bg?.glass} onChange={v => patchBg({ glass: v })} />
           </MenuRow>
 
+          <MenuSection label="Imagen / GIF">
+            <div style={{ display: "flex", gap: 6 }}>
+              <ActionButton fullWidth onClick={() => bgImgRef.current?.click()}>subir</ActionButton>
+              {bg?.image && <ActionButton variant="danger" onClick={() => patchBg({ image: undefined })}>quitar</ActionButton>}
+            </div>
+            <input ref={bgImgRef} type="file" accept="image/*,image/gif" style={{ display: "none" }} onChange={handleBgImgUpload} />
+          </MenuSection>
+
           <Divider />
 
           <MenuSection label="Gradiente">
@@ -111,6 +130,31 @@ export default function PersonalizePanel({ effects, onChange, isProfileCard, tab
         </div>
       )}
 
+      {/* ── FORMA ── */}
+      {activeTab === "forma" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
+          <MenuSection label="Borde" first>
+            <MenuRow label="Color">
+              <ColorSwatch
+                value={bord?.color ?? "#ffffff"}
+                onChange={v => patchBorder({ color: v })}
+                clearable={!!bord?.color}
+                onClear={() => patchBorder({ color: undefined })}
+              />
+            </MenuRow>
+          </MenuSection>
+
+          <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? 1}
+            onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`} />
+
+          <SliderRow label="Radio" min={0} max={60} step={1} value={bord?.radius ?? 14}
+            onChange={v => patchBorder({ radius: v })} unit="px" />
+
+          <SliderRow label="Opacidad del borde" min={0} max={1} step={0.01} value={bord?.opacity ?? 1}
+            onChange={v => patchBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+        </div>
+      )}
+
       {/* ── EFECTOS ── */}
       {activeTab === "efectos" && (
         <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
@@ -134,99 +178,77 @@ export default function PersonalizePanel({ effects, onChange, isProfileCard, tab
             )}
           </MenuSection>
 
-          <Divider />
+          <Collapsible label="Más efectos">
+            <MenuSection label="Sombra" first>
+              <MenuRow label="Color">
+                <ColorSwatch value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} />
+              </MenuRow>
+              <SliderRow label="Intensidad" min={0} max={1} step={0.01}
+                value={sh?.intensity ?? 0}
+                onChange={v => patchShadow({ intensity: v })}
+                fmt={v => `${Math.round(v * 100)}%`} />
+            </MenuSection>
 
-          <MenuSection label="Sombra">
-            <MenuRow label="Color">
-              <ColorSwatch value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} />
-            </MenuRow>
-            <SliderRow label="Intensidad" min={0} max={1} step={0.01}
-              value={sh?.intensity ?? 0}
-              onChange={v => patchShadow({ intensity: v })}
-              fmt={v => `${Math.round(v * 100)}%`} />
-          </MenuSection>
+            <Divider />
 
-          <Divider />
+            <MenuSection label="Flotacion">
+              <MenuRow label="Activar">
+                <Toggle value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} />
+              </MenuRow>
+              {anim?.floating && (
+                <>
+                  <SliderRow label="Altura" min={2} max={24} step={1}
+                    value={anim?.floatHeight ?? 8}
+                    onChange={v => patchAnimations({ floatHeight: v })} unit="px" />
+                  <SliderRow label="Velocidad" min={1} max={8} step={0.5}
+                    value={anim?.floatSpeed ?? 3}
+                    onChange={v => patchAnimations({ floatSpeed: v })} fmt={v => `${v}s`} />
+                </>
+              )}
+            </MenuSection>
 
-          <MenuSection label="Borde">
-            <MenuRow label="Color">
-              <ColorSwatch
-                value={bord?.color ?? "#ffffff"}
-                onChange={v => patchBorder({ color: v })}
-                clearable={!!bord?.color}
-                onClear={() => patchBorder({ color: undefined })}
-              />
-            </MenuRow>
-            <SliderRow label="Grosor" min={0} max={6} step={0.5}
-              value={bord?.width ?? 1}
-              onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`} />
-            <SliderRow label="Radio" min={0} max={60} step={1}
-              value={bord?.radius ?? 14}
-              onChange={v => patchBorder({ radius: v })} unit="px" />
-          </MenuSection>
-        </div>
-      )}
+            <Divider />
 
-      {/* ── ANIMAR ── */}
-      {activeTab === "animar" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
-          <MenuSection label="Flotacion" first>
-            <MenuRow label="Activar">
-              <Toggle value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} />
-            </MenuRow>
-            {anim?.floating && (
-              <>
-                <SliderRow label="Altura" min={2} max={24} step={1}
-                  value={anim?.floatHeight ?? 8}
-                  onChange={v => patchAnimations({ floatHeight: v })} unit="px" />
-                <SliderRow label="Velocidad" min={1} max={8} step={0.5}
-                  value={anim?.floatSpeed ?? 3}
-                  onChange={v => patchAnimations({ floatSpeed: v })} fmt={v => `${v}s`} />
-              </>
-            )}
-          </MenuSection>
+            <MenuSection label="Inclinacion 3D">
+              <MenuRow label="Activar">
+                <Toggle value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} />
+              </MenuRow>
+              {inter?.tilt3d && (
+                <SliderRow label="Intensidad" min={1} max={isProfileCard ? 20 : 15} step={0.5}
+                  value={inter?.tiltIntensity ?? (isProfileCard ? 10 : 6)}
+                  onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${v}°`} />
+              )}
+            </MenuSection>
 
-          <Divider />
+            <Divider />
 
-          <MenuSection label="Inclinacion 3D">
-            <MenuRow label="Activar">
-              <Toggle value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} />
-            </MenuRow>
-            {inter?.tilt3d && (
-              <SliderRow label="Intensidad" min={1} max={isProfileCard ? 20 : 15} step={0.5}
-                value={inter?.tiltIntensity ?? (isProfileCard ? 10 : 6)}
-                onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${v}°`} />
-            )}
-          </MenuSection>
+            <MenuSection label="Spotlight">
+              <MenuRow label="Activar">
+                <Toggle value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} />
+              </MenuRow>
+              {inter?.spotlight && (
+                <>
+                  <MenuRow label="Color">
+                    <ColorSwatch
+                      value={inter?.spotlightColor?.startsWith("#") ? inter.spotlightColor : "#ffffff"}
+                      onChange={v => patchInteractions({ spotlightColor: v })}
+                    />
+                  </MenuRow>
+                  <SliderRow label="Radio" min={20} max={100} step={1}
+                    value={inter?.spotlightSize ?? 65}
+                    onChange={v => patchInteractions({ spotlightSize: v })} unit="%" />
+                </>
+              )}
+            </MenuSection>
 
-          <Divider />
+            <Divider />
 
-          <MenuSection label="Spotlight">
-            <MenuRow label="Activar">
-              <Toggle value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} />
-            </MenuRow>
-            {inter?.spotlight && (
-              <>
-                <MenuRow label="Color">
-                  <ColorSwatch
-                    value={inter?.spotlightColor?.startsWith("#") ? inter.spotlightColor : "#ffffff"}
-                    onChange={v => patchInteractions({ spotlightColor: v })}
-                  />
-                </MenuRow>
-                <SliderRow label="Radio" min={20} max={100} step={1}
-                  value={inter?.spotlightSize ?? 65}
-                  onChange={v => patchInteractions({ spotlightSize: v })} unit="%" />
-              </>
-            )}
-          </MenuSection>
-
-          <Divider />
-
-          <MenuSection label="Hover">
-            <MenuRow label="Glow al pasar">
-              <Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} />
-            </MenuRow>
-          </MenuSection>
+            <MenuSection label="Hover">
+              <MenuRow label="Glow al pasar">
+                <Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} />
+              </MenuRow>
+            </MenuSection>
+          </Collapsible>
         </div>
       )}
     </div>
