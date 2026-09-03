@@ -2,13 +2,15 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { ProfileCardData, CardEffects, CardFormat } from "@/types";
-import { T, MenuSection, SliderRow } from "@/ui";
-import { resolveCardSize, sizeScaleFromDimensions } from "@/lib/cardGeometry";
+import { T, MenuSection } from "@/ui";
+import { getCardConstraints, clampCardSize } from "@/lib/cardGeometry";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileTypographyMenu from "./ProfileTypographyMenu";
 import PersonalizePanel from "./PersonalizePanel";
 
+// Internal ids only — never shown as UI copy (see FormatTile). The label here
+// is just the hover tooltip; the tile itself communicates the geometry visually.
 const FORMATS: { key: CardFormat; label: string }[] = [
   { key: "vertical",   label: "Vertical" },
   { key: "horizontal", label: "Horizontal" },
@@ -84,7 +86,7 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
         <Doors>
           <Door label="Fondo"      desc="color, imagen, blur"       onClick={() => setView("estilo/fondo")} />
           <Door label="Tipografía" desc="fuente, tamaños, color"    onClick={() => setView("estilo/tipografia")} />
-          <Door label="Forma"      desc="formato, tamaño, borde"    onClick={() => setView("estilo/forma")} />
+          <Door label="Forma"      desc="geometría, borde"          onClick={() => setView("estilo/forma")} />
           <Door label="Efectos"    desc="glow, sombra, más"         onClick={() => setView("estilo/efectos")} />
         </Doors>
       )}
@@ -180,43 +182,71 @@ function Door({ label, desc, onClick }: { label: string; desc: string; onClick: 
   );
 }
 
-// ── Geometry (Stage 1 test control — format + size only, no composition yet) ─
+// ── Geometry ───────────────────────────────────────────────────────────────
+// Format = geometry/ratio family only. Size lives exclusively in w/h, set by
+// dragging the canvas resize handles — there is deliberately no size control
+// here, so w/h never has two competing sources of truth (see Stage 3B-fix).
+
+function formatPreviewRatio(key: CardFormat): number {
+  const c = getCardConstraints(key);
+  return c.ratioKind === "fixed" ? c.ratio! : (c.ratioRange![0] + c.ratioRange![1]) / 2;
+}
 
 function GeometryControls({ card, onChange }: { card: ProfileCardData; onChange: (patch: Partial<ProfileCardData>) => void }) {
   const format = card.format ?? "vertical";
-  const sizeScale = card.sizeScale ?? sizeScaleFromDimensions(format, card.w);
 
   function setFormat(next: CardFormat) {
-    const { w, h } = resolveCardSize(next, sizeScale, card.w, card.h);
-    onChange({ format: next, w, h });
-  }
-
-  function setSize(t: number) {
-    const { w, h } = resolveCardSize(format, t, card.w, card.h);
-    onChange({ sizeScale: t, w, h });
+    if (next === format) return;
+    // Re-project the card's CURRENT actual size into the new format's
+    // constraints (ratio + min/max) — w/h is the only source of truth for
+    // size, format never drives it. Center-x is preserved the same way
+    // useDragDrop's handle-resize does it (fixed center, x re-derived from
+    // the new width) so a format switch never displaces the card sideways.
+    const { w: nw, h: nh } = clampCardSize(next, card.w, card.h);
+    const nx = Math.round(card.x + card.w / 2 - nw / 2);
+    onChange({ format: next, w: nw, h: nh, x: nx });
   }
 
   return (
-    <MenuSection label="Formato y tamaño" first>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: T.space[3] }}>
+    <MenuSection label="Formato" first>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {FORMATS.map(f => (
-          <button key={f.key}
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => { e.stopPropagation(); setFormat(f.key); }}
-            style={{
-              padding: "5px 10px", borderRadius: T.radius.sm, cursor: "pointer",
-              border: format === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.default}`,
-              background: format === f.key ? T.surface.overlay : "transparent",
-              color: format === f.key ? T.text.primary : T.text.secondary,
-              fontFamily: T.font.sans, fontSize: T.size.xs,
-            }}
-          >
-            {f.label}
-          </button>
+          <FormatTile key={f.key} label={f.label} selected={format === f.key}
+            ratio={formatPreviewRatio(f.key)} onClick={() => setFormat(f.key)} />
         ))}
       </div>
-      <SliderRow label="Tamaño" min={0} max={1} step={0.01} value={sizeScale}
-        onChange={setSize} fmt={v => `${Math.round(v * 100)}%`} />
     </MenuSection>
+  );
+}
+
+// Visual-only picker: each tile draws a small rectangle in the format's own
+// proportion instead of a technical name — the shape communicates the
+// geometry directly. Labels exist only as hover tooltips (see FORMATS above);
+// no format name is rendered as visible copy.
+const TILE = 44;
+const SHAPE_MAX = 28;
+
+function FormatTile({ label, ratio, selected, onClick }: { label: string; ratio: number; selected: boolean; onClick: () => void }) {
+  const w = ratio >= 1 ? SHAPE_MAX : SHAPE_MAX * ratio;
+  const h = ratio >= 1 ? SHAPE_MAX / ratio : SHAPE_MAX;
+  return (
+    <button
+      title={label}
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => { e.stopPropagation(); onClick(); }}
+      style={{
+        width: TILE, height: TILE, display: "flex", alignItems: "center", justifyContent: "center",
+        borderRadius: T.radius.sm, cursor: "pointer", flexShrink: 0,
+        border: selected ? `1px solid ${T.border.strong}` : `1px solid ${T.border.default}`,
+        background: selected ? T.surface.overlay : "transparent",
+        transition: "background 0.12s, border-color 0.12s",
+      }}
+    >
+      <div style={{
+        width: w, height: h, borderRadius: 3,
+        border: `1.5px solid ${selected ? T.text.primary : T.text.secondary}`,
+        background: selected ? "rgba(255,255,255,0.10)" : "transparent",
+      }} />
+    </button>
   );
 }

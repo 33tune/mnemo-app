@@ -1812,14 +1812,17 @@ export default function CanvasBoard({
     // (not view-dependent jitter like every other addX()). It can't be dragged,
     // so this is the only place its position is ever set.
     const format: CardFormat = "vertical";
-    const sizeScale = 0.3;
-    const { w, h } = resolveCardSize(format, sizeScale);
+    // 0.3 is only a starting-size helper (30% of the format's width range) —
+    // w/h below is the actual, sole source of truth for size from this point
+    // on; sizeScale is intentionally never stored (see Stage 3B-fix notes on
+    // GeometryControls in ProfileConfigMenu.tsx).
+    const { w, h } = resolveCardSize(format, 0.3);
     const px = effectiveW / 2 - w / 2;
     const py = 160;
     const p: ProfileCardData = {
       id: crypto.randomUUID(), x: px, y: py,
       w, h, zIndex: zCounter.current, layer: 2, depth: 0.5, rotation: 0,
-      format, sizeScale,
+      format,
       pfpAnchorX: 0.5, pfpAnchorY: 0.5,
       photo: "", name: "", status: "", handle: userHandle,
       userId: currentUserId,

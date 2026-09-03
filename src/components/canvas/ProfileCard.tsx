@@ -508,10 +508,13 @@ function ProfileCard({
       pfp: { anchorX: anchor.x, anchorY: anchor.y, size: avatarSize },
       content: {
         name:       { present: !!card.name,     length: card.name?.length ?? 0 },
-        handle:     { present: !!card.handle,   length: card.handle?.length ?? 0 },
+        // +1/+2: HandleLine/LocationLine below render "@handle" and "● location"
+        // — the engine must reserve space for the prefix it can't see here, or
+        // the estimate undershoots and the real text clips.
+        handle:     { present: !!card.handle,   length: (card.handle?.length ?? 0) + 1 },
         bio:        { present: !!card.bio,      length: card.bio?.length ?? 0 },
         descriptor: { present: !!card.status,   length: card.status?.length ?? 0 },
-        location:   { present: !!card.location, length: card.location?.length ?? 0 },
+        location:   { present: !!card.location, length: (card.location?.length ?? 0) + 2 },
         views:      { present: !!card.showViews },
       },
       typography: { nameFontSize, bioFontSize: card.bioFontSize ?? 8 },
@@ -553,22 +556,22 @@ function ProfileCard({
         )}
         {boxes.name && card.name && (
           <div style={{ position: "absolute", left: boxes.name.x, top: boxes.name.y, width: boxes.name.w, height: boxes.name.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <NameLine style={{ whiteSpace: "nowrap" }} />
+            <NameLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
           </div>
         )}
         {boxes.handle && card.handle && (
           <div style={{ position: "absolute", left: boxes.handle.x, top: boxes.handle.y, width: boxes.handle.w, height: boxes.handle.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <HandleLine style={{ whiteSpace: "nowrap" }} />
+            <HandleLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
           </div>
         )}
         {boxes.descriptor && card.status && (
           <div style={{ position: "absolute", left: boxes.descriptor.x, top: boxes.descriptor.y, width: boxes.descriptor.w, height: boxes.descriptor.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <DescriptorLine style={{ whiteSpace: "nowrap" }} />
+            <DescriptorLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
           </div>
         )}
         {boxes.location && card.location && (
           <div style={{ position: "absolute", left: boxes.location.x, top: boxes.location.y, width: boxes.location.w, height: boxes.location.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <LocationLine style={{ whiteSpace: "nowrap" }} />
+            <LocationLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
           </div>
         )}
         {boxes.bio && card.bio && (
@@ -583,7 +586,7 @@ function ProfileCard({
         )}
         {boxes.views && card.showViews && (
           <div style={{ position: "absolute", left: boxes.views.x, top: boxes.views.y, width: boxes.views.w, height: boxes.views.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <ViewsLine style={{ whiteSpace: "nowrap" }} />
+            <ViewsLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
           </div>
         )}
       </div>

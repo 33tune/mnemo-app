@@ -281,10 +281,17 @@ function resolveAxis(
     actualPfpMain = Math.max(padding, Math.min(rawPfpMain, Math.max(padding, maxPfpMain)));
     contentMainStart = actualPfpMain + pfp.size + gap;
   } else {
-    // [CONTENT][gap][PFP]
+    // [CONTENT][gap][PFP] — content hugs wherever the pfp actually lands (mirrors
+    // the !reverse branch above), instead of being pinned to the padding edge.
+    // Previously content stayed glued to `padding` regardless of the pfp's
+    // resolved position: whenever content was narrow and the box was wide, that
+    // left a large, arbitrary gap between pfp and content that the proximity
+    // score term correctly penalized — which made row-reverse/column-reverse
+    // score far worse than the anchor fidelity alone would justify, effectively
+    // stopping the pfp from ever reaching that side. See Stage 3B-fix notes.
     const minPfpMain = padding + contentMain + gap;
     actualPfpMain = Math.min(boxMain - padding - pfp.size, Math.max(rawPfpMain, Math.min(minPfpMain, boxMain - padding - pfp.size)));
-    contentMainStart = padding;
+    contentMainStart = actualPfpMain - gap - contentMain;
   }
   const anchorDistanceMain = Math.abs(rawPfpMain - actualPfpMain);
 
