@@ -3,7 +3,8 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor, SharedWidgetKind, Placement, HiddenMap, PlacementMap } from "@/types";
+import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor, SharedWidgetKind, Placement, HiddenMap, PlacementMap, CardFormat } from "@/types";
+import { resolveCardSize } from "@/lib/cardGeometry";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
@@ -1810,12 +1811,16 @@ export default function CanvasBoard({
     // spawns centered horizontally on the canvas, at a fixed vertical anchor
     // (not view-dependent jitter like every other addX()). It can't be dragged,
     // so this is the only place its position is ever set.
-    const w = 260, h = 220;
+    const format: CardFormat = "vertical";
+    const sizeScale = 0.3;
+    const { w, h } = resolveCardSize(format, sizeScale);
     const px = effectiveW / 2 - w / 2;
     const py = 160;
     const p: ProfileCardData = {
       id: crypto.randomUUID(), x: px, y: py,
       w, h, zIndex: zCounter.current, layer: 2, depth: 0.5, rotation: 0,
+      format, sizeScale,
+      pfpAnchorX: 0.5, pfpAnchorY: 0.5,
       photo: "", name: "", status: "", handle: userHandle,
       userId: currentUserId,
       photoX: 50, photoY: 34, textX: 50, textY: 72,

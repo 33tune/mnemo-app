@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
-import type { CanvasElement } from "@/types";
+import type { CanvasElement, CardFormat } from "@/types";
+import { getCardConstraints, clampCardSize } from "@/lib/cardGeometry";
 
 export type ResizeHandle = "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w";
 
@@ -91,7 +92,7 @@ export function useDragDrop({
 
   const didDrag      = useRef(false);
   const dragOffset   = useRef({ x: 0, y: 0 });
-  const resizeStart  = useRef({ x: 0, y: 0, w: 0, h: 0, ex: 0, ey: 0, handle: "se" as ResizeHandle, ratio: 0, items: [] as GroupBoundsItem[] });
+  const resizeStart  = useRef({ x: 0, y: 0, w: 0, h: 0, ex: 0, ey: 0, handle: "se" as ResizeHandle, ratio: 0, items: [] as GroupBoundsItem[], format: undefined as CardFormat | undefined });
   const dragStartPos = useRef<Record<string, { x: number; y: number }>>({});
   const lastRotation = useRef(0);
   const lastResize   = useRef<{ w?: number; h?: number; size?: number; x?: number; y?: number }>({});
@@ -124,7 +125,7 @@ export function useDragDrop({
     bounds: { x: number; y: number; w: number; h: number; items: GroupBoundsItem[] }
   ) {
     e.preventDefault(); e.stopPropagation();
-    resizeStart.current = { x: e.clientX, y: e.clientY, w: bounds.w, h: bounds.h, ex: bounds.x, ey: bounds.y, handle: "se", ratio: 0, items: bounds.items };
+    resizeStart.current = { x: e.clientX, y: e.clientY, w: bounds.w, h: bounds.h, ex: bounds.x, ey: bounds.y, handle: "se", ratio: 0, items: bounds.items, format: undefined };
     setResizing({ type: "group" });
   }
 
@@ -140,14 +141,20 @@ export function useDragDrop({
     if (!el) return;
     if (type === "text") {
       const sz = isFinite(el.size) && el.size > 0 ? el.size : 16;
-      resizeStart.current = { x: e.clientX, y: e.clientY, w: sz, h: sz, ex: el.x ?? 0, ey: el.y ?? 0, handle, ratio: 0, items: [] };
+      resizeStart.current = { x: e.clientX, y: e.clientY, w: sz, h: sz, ex: el.x ?? 0, ey: el.y ?? 0, handle, ratio: 0, items: [], format: undefined };
     } else {
       const w = isFinite(el.w) && el.w > 0 ? el.w : 80;
       const h = isFinite(el.h) && el.h > 0 ? el.h : 60;
-      const ratio = type === "image"
+      const format: CardFormat | undefined = type === "profile" ? (el.format ?? "vertical") : undefined;
+      let ratio = type === "image"
         ? (el.naturalW > 0 && el.naturalH > 0 ? el.naturalH / el.naturalW : h / w)
         : 0;
-      resizeStart.current = { x: e.clientX, y: e.clientY, w, h, ex: el.x ?? 0, ey: el.y ?? 0, handle, ratio, items: [] };
+      if (type === "profile") {
+        const fc = getCardConstraints(format);
+        // Reuse the same corner-anchored ratio-lock math as images (h/w form).
+        ratio = fc.ratioKind === "fixed" ? 1 / fc.ratio! : 0;
+      }
+      resizeStart.current = { x: e.clientX, y: e.clientY, w, h, ex: el.x ?? 0, ey: el.y ?? 0, handle, ratio, items: [], format };
     }
     setResizing({ type, id, handle });
   }
@@ -240,6 +247,26 @@ export function useDragDrop({
         const ns=Math.max(10,Math.min(300,Math.round(w+(dx+dy)/2)));
         lastResize.current = { size: ns };
         setElements(p=>p.map(el=>el.id===resizing.id&&el.elementType==="text"?{...el,size:ns}:el));
+        return;
+      }
+
+      if (resizing.type === "profile") {
+        // The Presentation Card is the singleton, centered anchor of the profile —
+        // resize must never move it. Every handle resolves to a new w/h (min/max +
+        // aspect ratio come from its format, not a generic floor), then x/y are
+        // always re-derived from the fixed drag-start center/top, overriding
+        // whatever computeResize's per-handle anchor math produced for them.
+        const { format } = resizeStart.current;
+        const fc = getCardConstraints(format);
+        const raw = computeResize(handle, dx, dy, w, h, ex, ey, ratio, ratio > 0, fc.minW, fc.minH);
+        const { w: nw, h: nh } = clampCardSize(format, raw.nw, raw.nh);
+        const centerX = ex + w / 2;
+        const nx = Math.round(centerX - nw / 2);
+        const ny = ey;
+        lastResize.current = { w: nw, h: nh, x: nx, y: ny };
+        setElements(p => p.map(el =>
+          el.id === resizing.id && el.elementType === "profile" ? { ...el, x: nx, y: ny, w: nw, h: nh } : el
+        ));
         return;
       }
 

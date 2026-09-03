@@ -1,12 +1,21 @@
 "use client";
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import type { ProfileCardData, CardEffects } from "@/types";
-import { T } from "@/ui";
+import type { ProfileCardData, CardEffects, CardFormat } from "@/types";
+import { T, MenuSection, SliderRow } from "@/ui";
+import { resolveCardSize, sizeScaleFromDimensions } from "@/lib/cardGeometry";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileTypographyMenu from "./ProfileTypographyMenu";
 import PersonalizePanel from "./PersonalizePanel";
+
+const FORMATS: { key: CardFormat; label: string }[] = [
+  { key: "vertical",   label: "Vertical" },
+  { key: "horizontal", label: "Horizontal" },
+  { key: "square",     label: "Cuadrado" },
+  { key: "phone",      label: "Teléfono" },
+  { key: "card",       label: "Tarjeta" },
+];
 
 type View = "root" | "datos" | "estilo" | "estilo/fondo" | "estilo/tipografia" | "estilo/forma" | "estilo/efectos";
 
@@ -73,10 +82,10 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
 
       {view === "estilo" && (
         <Doors>
-          <Door label="Fondo"      desc="color, imagen, blur"     onClick={() => setView("estilo/fondo")} />
-          <Door label="Tipografía" desc="fuente, tamaños, color"  onClick={() => setView("estilo/tipografia")} />
-          <Door label="Forma"      desc="borde, radio"            onClick={() => setView("estilo/forma")} />
-          <Door label="Efectos"    desc="glow, sombra, más"       onClick={() => setView("estilo/efectos")} />
+          <Door label="Fondo"      desc="color, imagen, blur"       onClick={() => setView("estilo/fondo")} />
+          <Door label="Tipografía" desc="fuente, tamaños, color"    onClick={() => setView("estilo/tipografia")} />
+          <Door label="Forma"      desc="formato, tamaño, borde"    onClick={() => setView("estilo/forma")} />
+          <Door label="Efectos"    desc="glow, sombra, más"         onClick={() => setView("estilo/efectos")} />
         </Doors>
       )}
 
@@ -95,7 +104,10 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
       )}
 
       {view === "estilo/forma" && (
-        <PersonalizePanel tabs={["forma"]} effects={card.effects} onChange={patchEffects} isProfileCard />
+        <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
+          <GeometryControls card={card} onChange={onChange} />
+          <PersonalizePanel tabs={["forma"]} effects={card.effects} onChange={patchEffects} isProfileCard />
+        </div>
       )}
 
       {view === "estilo/efectos" && (
@@ -165,5 +177,46 @@ function Door({ label, desc, onClick }: { label: string; desc: string; onClick: 
       <span style={{ fontFamily: T.font.sans, fontSize: 15, fontWeight: 600, color: T.text.primary }}>{label}</span>
       <span style={{ fontFamily: T.font.mono, fontSize: T.size.xs, color: T.text.muted }}>{desc}</span>
     </button>
+  );
+}
+
+// ── Geometry (Stage 1 test control — format + size only, no composition yet) ─
+
+function GeometryControls({ card, onChange }: { card: ProfileCardData; onChange: (patch: Partial<ProfileCardData>) => void }) {
+  const format = card.format ?? "vertical";
+  const sizeScale = card.sizeScale ?? sizeScaleFromDimensions(format, card.w);
+
+  function setFormat(next: CardFormat) {
+    const { w, h } = resolveCardSize(next, sizeScale, card.w, card.h);
+    onChange({ format: next, w, h });
+  }
+
+  function setSize(t: number) {
+    const { w, h } = resolveCardSize(format, t, card.w, card.h);
+    onChange({ sizeScale: t, w, h });
+  }
+
+  return (
+    <MenuSection label="Formato y tamaño" first>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: T.space[3] }}>
+        {FORMATS.map(f => (
+          <button key={f.key}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); setFormat(f.key); }}
+            style={{
+              padding: "5px 10px", borderRadius: T.radius.sm, cursor: "pointer",
+              border: format === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.default}`,
+              background: format === f.key ? T.surface.overlay : "transparent",
+              color: format === f.key ? T.text.primary : T.text.secondary,
+              fontFamily: T.font.sans, fontSize: T.size.xs,
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      <SliderRow label="Tamaño" min={0} max={1} step={0.01} value={sizeScale}
+        onChange={setSize} fmt={v => `${Math.round(v * 100)}%`} />
+    </MenuSection>
   );
 }

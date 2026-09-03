@@ -13,11 +13,16 @@ import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
+import { computeComposition, type CompositionStrategy, type ElementBox } from "@/lib/cardComposition";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
 const PHOTO_SIZES = { sm: 52, md: 80, lg: 112 };
 const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
+// Reflow transition for composed-layout content boxes — never applied to the
+// pfp box itself (see startAnchorDrag / renderComposed): it must track the
+// mouse 1:1 with zero lag, so it never gets a transition, dragging or not.
+const REFLOW_TRANSITION = `left 0.2s ${EASE}, top 0.2s ${EASE}, width 0.2s ${EASE}, height 0.2s ${EASE}`;
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -150,6 +155,20 @@ function ProfileCard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout]);
 
+  // ── Composition-engine PFP anchor (Stage 3B) ──────────────────────────────
+  // Local state drives the drag in real time; pfpAnchorX/Y are only written
+  // to the card on mouseup (see startAnchorDrag) — no per-frame persistence.
+  const [anchor, setAnchor] = useState(() => ({ x: card.pfpAnchorX ?? 0.5, y: card.pfpAnchorY ?? 0.5 }));
+  const isDraggingAnchor = useRef(false);
+  // Winning strategy from the last computeComposition() call, fed back in as
+  // `incumbent` so hysteresis holds across the whole drag, not just at rest.
+  const incumbentRef = useRef<CompositionStrategy | undefined>(undefined);
+
+  useEffect(() => {
+    if (isDraggingAnchor.current) return;
+    setAnchor({ x: card.pfpAnchorX ?? 0.5, y: card.pfpAnchorY ?? 0.5 });
+  }, [card.pfpAnchorX, card.pfpAnchorY]);
+
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
   const effectiveEffects: CardEffects = getProfileCardEffects(card);
@@ -259,6 +278,41 @@ function ProfileCard({
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [canInteract, layout, freePos, card.id, updateProfile]);
+
+  // ── Composition-engine PFP drag (Stage 3B) ────────────────────────────────
+  // Moves the PFP anchor within the card's padded content area. 1:1 with the
+  // mouse, no throttling — anchor state updates every mousemove, but the
+  // card is only patched once, on mouseup (see onUp below).
+  const startAnchorDrag = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canInteract || layout === "free") return;
+
+    isDraggingAnchor.current = true;
+    const startMX = e.clientX, startMY = e.clientY;
+    const startAnchor = { ...anchor };
+    const availW = Math.max(1, card.w - 2 * pad - avatarSize);
+    const availH = Math.max(1, card.h - 2 * pad - avatarSize);
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = (ev.clientX - startMX) / availW;
+      const dy = (ev.clientY - startMY) / availH;
+      setAnchor({
+        x: Math.max(0, Math.min(1, startAnchor.x + dx)),
+        y: Math.max(0, Math.min(1, startAnchor.y + dy)),
+      });
+    };
+    const onUp = () => {
+      isDraggingAnchor.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      setAnchor(latest => {
+        updateProfile(card.id, { pfpAnchorX: latest.x, pfpAnchorY: latest.y });
+        return latest;
+      });
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [canInteract, layout, anchor, card.id, card.w, card.h, pad, avatarSize, updateProfile]);
 
   // ── Element renderers ─────────────────────────────────────────────────────
 
@@ -440,6 +494,102 @@ function ProfileCard({
     );
   }
 
+  // ── Composed layout (Stage 3B) ────────────────────────────────────────────
+  // Replaces the manual vertical/horizontal flex stacks: the user only moves
+  // the PFP (startAnchorDrag → anchor), and computeComposition() decides
+  // where everything else goes. renderVertical/renderHorizontal above stay
+  // defined but unused — legacy cleanup is a separate later stage.
+  function renderComposed() {
+    const result = computeComposition({
+      format: card.format ?? "vertical",
+      boxW: card.w,
+      boxH: card.h,
+      padding: pad,
+      pfp: { anchorX: anchor.x, anchorY: anchor.y, size: avatarSize },
+      content: {
+        name:       { present: !!card.name,     length: card.name?.length ?? 0 },
+        handle:     { present: !!card.handle,   length: card.handle?.length ?? 0 },
+        bio:        { present: !!card.bio,      length: card.bio?.length ?? 0 },
+        descriptor: { present: !!card.status,   length: card.status?.length ?? 0 },
+        location:   { present: !!card.location, length: card.location?.length ?? 0 },
+        views:      { present: !!card.showViews },
+      },
+      typography: { nameFontSize, bioFontSize: card.bioFontSize ?? 8 },
+      incumbent: incumbentRef.current,
+    });
+    incumbentRef.current = result.strategy;
+    const { boxes } = result;
+    const isAnchorDraggable = canInteract && layout !== "free";
+
+    // While actively dragging, the pfp box always renders at the raw
+    // anchor-derived position (same padding+anchor*(avail-size) formula the
+    // engine itself uses — see resolveAxis/resolveCentered in
+    // cardComposition.ts) rather than boxes.pfp, so it tracks the mouse 1:1
+    // even in the rare case the engine had to compromise (anchorDistance>0)
+    // to keep content readable. Content boxes still use the engine's
+    // (possibly compromised) result, so they stay consistent with each
+    // other; only the pfp visual can momentarily diverge from them, and it
+    // reconciles instantly (no transition) once the drag ends.
+    const pfpBox: ElementBox | undefined = isDraggingAnchor.current
+      ? {
+          x: pad + anchor.x * Math.max(0, card.w - 2 * pad - avatarSize),
+          y: pad + anchor.y * Math.max(0, card.h - 2 * pad - avatarSize),
+          w: avatarSize, h: avatarSize,
+        }
+      : boxes.pfp;
+
+    return (
+      <div style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "hidden" }}>
+        {pfpBox && (
+          <div
+            style={{
+              position: "absolute", left: pfpBox.x, top: pfpBox.y, width: pfpBox.w, height: pfpBox.h,
+              cursor: isAnchorDraggable ? "grab" : "default",
+            }}
+            onMouseDown={isAnchorDraggable ? startAnchorDrag : undefined}
+          >
+            <AvatarEl size={pfpBox.w} style={{ width: "100%", height: "100%" }} />
+          </div>
+        )}
+        {boxes.name && card.name && (
+          <div style={{ position: "absolute", left: boxes.name.x, top: boxes.name.y, width: boxes.name.w, height: boxes.name.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+            <NameLine style={{ whiteSpace: "nowrap" }} />
+          </div>
+        )}
+        {boxes.handle && card.handle && (
+          <div style={{ position: "absolute", left: boxes.handle.x, top: boxes.handle.y, width: boxes.handle.w, height: boxes.handle.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+            <HandleLine style={{ whiteSpace: "nowrap" }} />
+          </div>
+        )}
+        {boxes.descriptor && card.status && (
+          <div style={{ position: "absolute", left: boxes.descriptor.x, top: boxes.descriptor.y, width: boxes.descriptor.w, height: boxes.descriptor.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+            <DescriptorLine style={{ whiteSpace: "nowrap" }} />
+          </div>
+        )}
+        {boxes.location && card.location && (
+          <div style={{ position: "absolute", left: boxes.location.x, top: boxes.location.y, width: boxes.location.w, height: boxes.location.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+            <LocationLine style={{ whiteSpace: "nowrap" }} />
+          </div>
+        )}
+        {boxes.bio && card.bio && (
+          <div style={{ position: "absolute", left: boxes.bio.x, top: boxes.bio.y, width: boxes.bio.w, height: boxes.bio.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+            <BioText style={{
+              display: "-webkit-box",
+              WebkitLineClamp: boxes.bio.lines ?? 1,
+              WebkitBoxOrient: "vertical" as CSSProperties["WebkitBoxOrient"],
+              overflow: "hidden",
+            }} />
+          </div>
+        )}
+        {boxes.views && card.showViews && (
+          <div style={{ position: "absolute", left: boxes.views.x, top: boxes.views.y, width: boxes.views.w, height: boxes.views.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+            <ViewsLine style={{ whiteSpace: "nowrap" }} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -473,9 +623,14 @@ function ProfileCard({
                   : "linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.52))",
               }} />
             )}
-            {layout === "vertical"   && renderVertical()}
-            {layout === "horizontal" && renderHorizontal()}
-            {layout === "free"       && renderFree()}
+            {/* Stage 3B: composed layout (computeComposition) is now the live
+                path for every reachable state (default/"vertical"/"horizontal" —
+                there is no UI to pick between those two anymore). "free" is
+                the only legacy path still actually rendered; renderVertical/
+                renderHorizontal stay defined above, unused, for a later
+                cleanup stage — see Stage 3B plan. */}
+            {layout === "free" && renderFree()}
+            {layout !== "free" && renderComposed()}
           </div>
         </CardLayers>
 

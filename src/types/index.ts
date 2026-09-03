@@ -103,6 +103,10 @@ export type PhotoSize = "sm" | "md" | "lg";
 
 export type ProfileCardVariant = "classic" | "glass" | "guns" | "minimal" | "poster";
 
+// Structural geometry only — NOT a visual preset. Does not touch color/font/
+// effects/content. brochure/miniProfile are reserved for later, not wired yet.
+export type CardFormat = "vertical" | "horizontal" | "square" | "phone" | "card";
+
 export type ProfileLink = {
   id:    string;
   url:   string;
@@ -154,6 +158,16 @@ export type ProfileCardData = {
   layer:           0 | 1 | 2;
   depth:           number;
   rotation:        number;
+  // Geometry — structural format + size, independent of layout/variant.
+  // Legacy-safe: absent on any card means "vertical" default (see cardGeometry.ts).
+  format?:         CardFormat;
+  sizeScale?:      number; // 0-1, see resolveCardSize() in cardGeometry.ts
+  // Composition (Stage 3B) — where the user dragged the PFP, 0-1 normalized
+  // within the card's padded content area. Feeds computeComposition() in
+  // cardComposition.ts. Independent of the legacy photoX/photoY (free mode,
+  // 0-100, % of the whole card) below — do not conflate the two.
+  pfpAnchorX?:     number;
+  pfpAnchorY?:     number;
   // Identity
   photo:           string;
   name:            string;
