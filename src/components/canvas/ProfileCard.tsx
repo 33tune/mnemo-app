@@ -14,6 +14,7 @@ import CardLayers from "./CardLayers";
 import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
 import { computeComposition, type CompositionStrategy, type ElementBox } from "@/lib/cardComposition";
+import { nextAnchorAxis } from "@/lib/anchorDrag";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -23,6 +24,9 @@ const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
 // pfp box itself (see startAnchorDrag / renderComposed): it must track the
 // mouse 1:1 with zero lag, so it never gets a transition, dragging or not.
 const REFLOW_TRANSITION = `left 0.2s ${EASE}, top 0.2s ${EASE}, width 0.2s ${EASE}, height 0.2s ${EASE}`;
+// TEMP 3B.2-A instrumentation — investigating the reported PFP-drag teleport
+// bug in horizontal format. Remove once the root cause is confirmed and fixed.
+const DEBUG_ANCHOR = process.env.NODE_ENV !== "production";
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -290,22 +294,25 @@ function ProfileCard({
     isDraggingAnchor.current = true;
     const startMX = e.clientX, startMY = e.clientY;
     const startAnchor = { ...anchor };
-    const availW = Math.max(1, card.w - 2 * pad - avatarSize);
-    const availH = Math.max(1, card.h - 2 * pad - avatarSize);
+    if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousedown", { startAnchor, cardW: card.w, cardH: card.h, pad, avatarSize, format: card.format });
+    // Raw geometric room on each axis — deliberately NOT floored to a minimum.
+    // See nextAnchorAxis in anchorDrag.ts for why a degenerate axis (<=0) must
+    // freeze instead of becoming hypersensitive.
+    const rawAvailW = card.w - 2 * pad - avatarSize;
+    const rawAvailH = card.h - 2 * pad - avatarSize;
 
     const onMove = (ev: MouseEvent) => {
-      const dx = (ev.clientX - startMX) / availW;
-      const dy = (ev.clientY - startMY) / availH;
-      setAnchor({
-        x: Math.max(0, Math.min(1, startAnchor.x + dx)),
-        y: Math.max(0, Math.min(1, startAnchor.y + dy)),
-      });
+      const nextX = nextAnchorAxis(startAnchor.x, ev.clientX - startMX, rawAvailW);
+      const nextY = nextAnchorAxis(startAnchor.y, ev.clientY - startMY, rawAvailH);
+      if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousemove", { clientX: ev.clientX, clientY: ev.clientY, nextX, nextY });
+      setAnchor({ x: nextX, y: nextY });
     };
     const onUp = () => {
       isDraggingAnchor.current = false;
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
       setAnchor(latest => {
+        if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mouseup — persisting", latest);
         updateProfile(card.id, { pfpAnchorX: latest.x, pfpAnchorY: latest.y });
         return latest;
       });
@@ -500,6 +507,7 @@ function ProfileCard({
   // where everything else goes. renderVertical/renderHorizontal above stay
   // defined but unused — legacy cleanup is a separate later stage.
   function renderComposed() {
+    const incumbentBefore = incumbentRef.current;
     const result = computeComposition({
       format: card.format ?? "vertical",
       boxW: card.w,
@@ -518,7 +526,7 @@ function ProfileCard({
         views:      { present: !!card.showViews },
       },
       typography: { nameFontSize, bioFontSize: card.bioFontSize ?? 8 },
-      incumbent: incumbentRef.current,
+      incumbent: incumbentBefore,
     });
     incumbentRef.current = result.strategy;
     const { boxes } = result;
@@ -540,6 +548,14 @@ function ProfileCard({
           w: avatarSize, h: avatarSize,
         }
       : boxes.pfp;
+
+    if (DEBUG_ANCHOR) {
+      console.log("[3B2A-DEBUG] render", {
+        isDragging: isDraggingAnchor.current, anchor,
+        incumbentBefore, strategyAfter: result.strategy,
+        pfpFromEngine: boxes.pfp, pfpRendered: pfpBox,
+      });
+    }
 
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "hidden" }}>
@@ -600,7 +616,10 @@ function ProfileCard({
       <div
         ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
-        onClick={onClick}
+        onClick={e => {
+          if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] card onClick", { anchor, isDragging: isDraggingAnchor.current, pfpAnchorX: card.pfpAnchorX, pfpAnchorY: card.pfpAnchorY });
+          onClick(e);
+        }}
         onMouseMove={onInteractMove}
         onMouseLeave={onInteractLeave}
         style={{

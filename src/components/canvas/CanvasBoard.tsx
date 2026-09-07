@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor, SharedWidgetKind, Placement, HiddenMap, PlacementMap, CardFormat } from "@/types";
 import { resolveCardSize } from "@/lib/cardGeometry";
+import { resolveBulkDeleteIds } from "@/lib/canvasSelectionGuards";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
@@ -1050,7 +1051,13 @@ export default function CanvasBoard({
 
       // DELETE / BACKSPACE — same path as trash: enqueueOp handles storage + DB cleanup
       if (e.key === "Delete" || e.key === "Backspace") {
-        const ids = selIdsRef.current;
+        const rawIds = selIdsRef.current;
+        if (!rawIds.size) return;
+        // A deliberate solo selection can still delete the Presentation Card
+        // (that's the only way to remove one today), but a multi-select bulk
+        // delete must never sweep it up as a passenger — same singleton
+        // guard as drag-to-trash/marquee.
+        const ids = resolveBulkDeleteIds(rawIds, elementsRef.current);
         if (!ids.size) return;
         // Snapshot before deleting so the undo fn can re-add them
         const snapshot = structuredClone(elementsRef.current.filter(el => ids.has(el.id)));
@@ -1660,6 +1667,28 @@ export default function CanvasBoard({
     router.push("/login");
   }
 
+  // ── Decorative vs functional (3B.2-A) ───────────────────────────────────────
+  // A decorative image (no linkUrl) must never block a functional element
+  // (ProfileCard/Social/Music/Links/Stats/Guestbook) sitting underneath it —
+  // see rectOverlapsAnyFunctional's call site on the image render below.
+  // Scoped to `image` deliberately: every decorative element in the product
+  // today (frames, stickers, overlays) is implemented as a CanvasImage — there
+  // is no separate element type for them yet. linkUrl presence is treated as
+  // the decorative/interactive signal (per product spec); no new field added
+  // for this stage.
+  function rectOverlapsAnyFunctional(r: { x: number; y: number; w: number; h: number }): boolean {
+    const overlaps = (a: { x: number; y: number; w: number; h: number }) =>
+      r.x < a.x + a.w && r.x + r.w > a.x && r.y < a.y + a.h && r.y + r.h > a.y;
+    return (
+      profiles.some(overlaps) ||
+      socialCards.some(overlaps) ||
+      musicCards.some(overlaps) ||
+      linksCards.some(overlaps) ||
+      statsCards.some(overlaps) ||
+      guestbooks.some(overlaps)
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Devuelve todos los elementos que contienen el punto (clientX,clientY), ordenados por zIndex desc.
@@ -2088,7 +2117,10 @@ export default function CanvasBoard({
       cards.forEach(c       => { if (selectedIds.has(c.id))  toDelete.push({ id: c.id,  type: "card"      }); });
       texts.forEach(t       => { if (selectedIds.has(t.id))  toDelete.push({ id: t.id,  type: "text"      }); });
       galleries.forEach(g   => { if (selectedIds.has(g.id)) toDelete.push({ id: g.id,  type: "gallery"   }); });
-      profiles.forEach(p    => { if (selectedIds.has(p.id)) toDelete.push({ id: p.id,  type: "profile"   }); });
+      // Deliberately excluded: the Presentation Card can only ever be a
+      // passenger in this selection (see useDragDrop's handleDragUp, which
+      // already refuses to remove it from local state), so it must never be
+      // queued for a "delete_profile" persistence op here either.
       medias.forEach(m      => { if (selectedIds.has(m.id))  toDelete.push({ id: m.id,  type: "media"     }); });
       guestbooks.forEach(g  => { if (selectedIds.has(g.id)) toDelete.push({ id: g.id,  type: "guestbook" }); });
       socialCards.forEach(s => { if (selectedIds.has(s.id)) toDelete.push({ id: s.id,  type: "social"    }); });
@@ -2448,7 +2480,7 @@ export default function CanvasBoard({
         const _fy=!canEdit?Math.round((_cy-(img.y+img.h/2))*0.40):0;
         const _fd=!canEdit?Math.min(i*22,200):0;
         return (
-          <div key={img.id} ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100+(isSel?SELECTION_Z_BOOST:0),cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",pointerEvents:(!canInteract&&!img.linkUrl)?"none":undefined,transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
+          <div key={img.id} ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100+(isSel?SELECTION_Z_BOOST:0),cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",pointerEvents:!img.linkUrl&&(!canInteract||rectOverlapsAnyFunctional(img))?"none":undefined,transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
             onMouseDown={e=>{if(!img.locked)onElementMouseDown(img.id,"image",img.x,img.y,e);else e.stopPropagation();}}
             onClick={e=>handleElementClick(img.id,e)}
 

@@ -2,6 +2,7 @@
 import { useState, useRef } from "react";
 import type { CanvasElement, CardFormat } from "@/types";
 import { getCardConstraints, clampCardSize } from "@/lib/cardGeometry";
+import { applyGroupDragDelta, filterTrashDeletion } from "@/lib/canvasSelectionGuards";
 
 export type ResizeHandle = "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w";
 
@@ -200,23 +201,14 @@ export function useDragDrop({
       const sp = dragStartPos.current[dragging.id];
       if (!sp) return;
       const dx = nx - sp.x, dy = ny - sp.y;
-      setElements(p => p.map(el => {
-        const startPos = dragStartPos.current[el.id];
-        if (!startPos) return el;
-        const rawX = startPos.x + dx;
-        const rawY = startPos.y + dy;
-        if (canvasBounds) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const elW = (el as any).w ?? 0;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const elH = (el as any).h ?? 0;
-          return { ...el,
-            x: Math.max(0, Math.min(canvasBounds.w - elW, rawX)),
-            y: Math.max(canvasBounds.topOffset, Math.min(canvasBounds.h - elH, rawY)),
-          } as CanvasElement;
-        }
-        return { ...el, x: rawX, y: rawY } as CanvasElement;
-      }));
+      // The Presentation Card is a singleton anchor — it can end up with a
+      // dragStartPos entry as a passenger in a multi-select drag (e.g. it was
+      // swept into selectedIds by the marquee, then the user drags a
+      // different selected element), but it must never actually move as a
+      // result of that generic group-drag. Its own direct mousedown never
+      // reaches this path at all (see CanvasBoard's ProfileCard wiring), so
+      // applyGroupDragDelta's exclusion only ever fires for the passenger case.
+      setElements(p => applyGroupDragDelta(p, dragStartPos.current, dx, dy, canvasBounds));
       const tr = trashRef.current;
       if (tr) {
         const r = tr.getBoundingClientRect();
@@ -320,8 +312,10 @@ export function useDragDrop({
 
     if (rotating) { setRotating(null); return { wasDeleted: false, moved: [], rotated, resized: null }; }
     if (dragging && overTrash) {
-      const del = new Set(selectedIds);
-      setElements(p => p.filter(el => !del.has(el.id)));
+      // Same singleton guard as the move path above: a group drag-to-trash
+      // must never delete the Presentation Card just because it was swept
+      // into the selection as a passenger.
+      setElements(p => filterTrashDeletion(p, selectedIds));
       setDragging(null); setResizing(null); setOverTrash(false);
       return { wasDeleted: true, moved: [], rotated, resized };
     }
