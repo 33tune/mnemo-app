@@ -27,6 +27,11 @@ const REFLOW_TRANSITION = `left 0.2s ${EASE}, top 0.2s ${EASE}, width 0.2s ${EAS
 // TEMP 3B.2-A instrumentation — investigating the reported PFP-drag teleport
 // bug in horizontal format. Remove once the root cause is confirmed and fixed.
 const DEBUG_ANCHOR = process.env.NODE_ENV !== "production";
+// Unconditional canary (NOT gated by DEBUG_ANCHOR) — proves this module actually
+// loaded in the running bundle and shows what DEBUG_ANCHOR resolved to. If this
+// line never shows up in the console, the problem is environment/route/bundle,
+// not the instrumentation below it.
+console.log("[3B2A-DEBUG] module loaded", { DEBUG_ANCHOR, NODE_ENV: process.env.NODE_ENV });
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -131,6 +136,17 @@ function ProfileCard({
 
   // Layout mode
   const layout = (card.layout ?? "vertical") as "vertical" | "horizontal" | "free";
+  // Decides whether the PFP div even gets a mousedown handler at all — see
+  // startAnchorDrag's onMouseDown wiring below. If this is false, dragging the
+  // PFP produces zero events and therefore zero [3B2A-DEBUG] logs, by design —
+  // that's the #1 thing to rule out before concluding "the bug doesn't happen".
+  const isAnchorDraggable = canInteract && layout !== "free";
+  if (DEBUG_ANCHOR) {
+    console.log("[3B2A-DEBUG] render — interactivity", {
+      id: card.id, canInteract, layout, isAnchorDraggable, format: card.format,
+      renderBranch: layout === "free" ? "renderFree (legacy — no anchor drag at all)" : "renderComposed",
+    });
+  }
 
   // Views counter — fetched once per mount, same hook used by StatsCardWidget
   const { total: viewCount } = useProfileViews(ownerUserId);
@@ -289,12 +305,20 @@ function ProfileCard({
   // card is only patched once, on mouseup (see onUp below).
   const startAnchorDrag = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!canInteract || layout === "free") return;
+    // Logged BEFORE the guard on purpose: if canInteract/layout flip this to a
+    // bail-out, this is the only line that will still tell us the handler was
+    // actually invoked at all (previously the mousedown log sat after this
+    // guard and would silently never fire in that case — see 3B.2-A QA notes).
+    if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousedown — handler invoked", { canInteract, layout });
+    if (!canInteract || layout === "free") {
+      if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousedown — blocked by guard, drag will NOT start", { canInteract, layout });
+      return;
+    }
 
     isDraggingAnchor.current = true;
     const startMX = e.clientX, startMY = e.clientY;
     const startAnchor = { ...anchor };
-    if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousedown", { startAnchor, cardW: card.w, cardH: card.h, pad, avatarSize, format: card.format });
+    if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousedown — drag starting", { startAnchor, cardW: card.w, cardH: card.h, pad, avatarSize, format: card.format });
     // Raw geometric room on each axis — deliberately NOT floored to a minimum.
     // See nextAnchorAxis in anchorDrag.ts for why a degenerate axis (<=0) must
     // freeze instead of becoming hypersensitive.
@@ -530,7 +554,6 @@ function ProfileCard({
     });
     incumbentRef.current = result.strategy;
     const { boxes } = result;
-    const isAnchorDraggable = canInteract && layout !== "free";
 
     // While actively dragging, the pfp box always renders at the raw
     // anchor-derived position (same padding+anchor*(avail-size) formula the
@@ -550,7 +573,7 @@ function ProfileCard({
       : boxes.pfp;
 
     if (DEBUG_ANCHOR) {
-      console.log("[3B2A-DEBUG] render", {
+      console.log("[3B2A-DEBUG] render — composition", {
         isDragging: isDraggingAnchor.current, anchor,
         incumbentBefore, strategyAfter: result.strategy,
         pfpFromEngine: boxes.pfp, pfpRendered: pfpBox,
