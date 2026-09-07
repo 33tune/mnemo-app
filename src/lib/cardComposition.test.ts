@@ -161,3 +161,84 @@ test("hysteresis: incumbent is kept for a small anchor nudge, but yields once th
   const flipped = computeComposition({ ...base, pfp: { anchorX: 0.95, anchorY: 0.5, size: 80 }, incumbent: settled.strategy });
   assert.notEqual(flipped.strategy, settled.strategy);
 });
+
+// ── Stage 3B.2-B: PFP authority (regression for the 3B.2-A/B anchor-drag bug) ─
+// Before this stage, row/row-reverse/column/column-reverse could silently
+// clamp the pfp away from the anchor when heavy content needed the room —
+// this is the exact scenario (horizontal format, heavy metadata, anchor
+// pushed to an extreme) that produced a real, reported "pfp renders far from
+// where it was dragged" bug. The pfp position must now be anchor-exact
+// regardless of how much content is present or how badly it has to degrade.
+test("PFP position is anchor-exact under heavy content that forces degradation, for every strategy", () => {
+  const heavyContent = content({
+    bio: { present: true, length: 300 },
+    descriptor: { present: true, length: 40 },
+    location: { present: true, length: 40 },
+    views: { present: true },
+  });
+  const base: Omit<CompositionInput, "pfp"> = {
+    format: "horizontal", boxW: 320, boxH: 150, padding: 20,
+    content: heavyContent, typography: TYPO,
+  };
+  for (const anchorX of [0, 0.05, 0.5, 0.874, 0.95, 1]) {
+    const r = computeComposition({ ...base, pfp: { anchorX, anchorY: 0.5, size: 80 } });
+    const expectedX = 20 + anchorX * (320 - 40 - 80);
+    assert.ok(
+      Math.abs(r.boxes.pfp!.x - expectedX) < 1,
+      `anchorX=${anchorX}: pfp.x=${r.boxes.pfp!.x}, expected ~${expectedX} (strategy=${r.strategy}, dropped=${r.dropped.join(",")})`
+    );
+  }
+});
+
+// ── Stage 3B.2-B: text alignment ──────────────────────────────────────────────
+test("textAlign left/center/right shifts rows within the content block without moving the block itself", () => {
+  const base: CompositionInput = {
+    format: "vertical", boxW: 240, boxH: 320, padding: 20,
+    pfp: { anchorX: 0.5, anchorY: 0.1, size: 70 },
+    content: content({ name: { present: true, length: 4 }, handle: { present: true, length: 14 } }),
+    typography: TYPO,
+  };
+  const left   = computeComposition({ ...base, textAlign: "left" });
+  const center = computeComposition({ ...base, textAlign: "center" });
+  const right  = computeComposition({ ...base, textAlign: "right" });
+
+  // Handle (14 chars) is wider than name (4 chars) in this scenario, so it's
+  // the block's own width — under "left" both rows share the same local x=0
+  // (flush with the block's left edge); under "right", handle (the widest
+  // row) stays put while name shifts right to align its own right edge with
+  // the block's; "center" must land strictly between the two.
+  assert.equal(left.boxes.name!.x, left.boxes.handle!.x, "left: both rows flush with the block's left edge");
+  assert.ok(right.boxes.name!.x > right.boxes.handle!.x, "right: shorter row (name) shifts right of the widest row (handle)");
+  assert.ok(
+    center.boxes.name!.x > left.boxes.name!.x && center.boxes.name!.x < right.boxes.name!.x,
+    "center must land strictly between left and right"
+  );
+
+  // The block's own position in the card (driven by anchor/topology, not
+  // textAlign) must stay identical across all three — only the row's
+  // position WITHIN the block changes.
+  assert.equal(left.boxes.pfp!.x, right.boxes.pfp!.x);
+  assert.equal(left.strategy, right.strategy);
+});
+
+// ── Stage 3B.2-B: text width estimation includes letter-spacing ──────────────
+// Regression for "CEO OF MYLAND" -> "CEO OF MYLA..." — the descriptor box the
+// engine allocates must be wide enough to include the letter-spacing gaps
+// DescriptorLine actually renders with (see TEXT_METRICS in cardComposition.ts),
+// not just charCount*fontSize*avgCharWidth.
+test("descriptor box width accounts for letter-spacing, not just naive char width", () => {
+  const status = "CEO OF MYLAND";
+  const naiveWidth = status.length * 9 * 0.6; // old formula, no letter-spacing, no safety margin
+  const input: CompositionInput = {
+    format: "horizontal", boxW: 500, boxH: 200, padding: 20,
+    pfp: { anchorX: 0, anchorY: 0.5, size: 80 },
+    content: content({ descriptor: { present: true, length: status.length } }),
+    typography: TYPO,
+  };
+  const r = computeComposition(input);
+  assert.ok(r.boxes.descriptor, "descriptor should have a box");
+  assert.ok(
+    r.boxes.descriptor!.w > naiveWidth,
+    `descriptor box (${r.boxes.descriptor!.w}) should be wider than the naive pre-fix estimate (${naiveWidth})`
+  );
+});

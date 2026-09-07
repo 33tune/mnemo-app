@@ -7,6 +7,11 @@ import {
   clampCardSize,
   resolveCardSize,
   sizeScaleFromDimensions,
+  getPfpSizeBounds,
+  resolvePfpSize,
+  pfpRadiusToPercent,
+  PFP_SIZE_MIN,
+  PFP_SIZE_MAX,
 } from "./cardGeometry";
 import type { CardFormat } from "@/types";
 
@@ -77,4 +82,43 @@ test("sizeScaleFromDimensions is the approximate inverse of resolveCardSize's wi
       assert.ok(Math.abs(back - t) < 0.02, `${f} t=${t}: round-trip gave ${back}`);
     }
   }
+});
+
+// ── PFP size (Stage 3B.2-B) ──────────────────────────────────────────────────
+
+test("getPfpSizeBounds never exceeds the card's shorter axis minus padding on both sides", () => {
+  for (const [boxW, boxH, padding] of [[400, 300, 20], [140, 249, 14], [80, 80, 20]] as [number, number, number][]) {
+    const { min, max } = getPfpSizeBounds(boxW, boxH, padding);
+    assert.ok(max <= Math.min(boxW, boxH) - 2 * padding + 0.001, `max=${max} exceeds the box`);
+    assert.ok(min <= max, `min=${min} > max=${max}`);
+  }
+});
+
+test("resolvePfpSize clamps a custom override into the card's bounds", () => {
+  // Tiny card: even a huge requested override must clamp down to what fits.
+  const clamped = resolvePfpSize("md", 500, 100, 100, 20);
+  const { max } = getPfpSizeBounds(100, 100, 20);
+  assert.equal(clamped, max);
+  assert.ok(clamped <= PFP_SIZE_MAX && clamped >= PFP_SIZE_MIN);
+});
+
+test("resolvePfpSize falls back to the legacy sm/md/lg preset when no override is set", () => {
+  assert.equal(resolvePfpSize("sm", undefined, 400, 400, 20), 52);
+  assert.equal(resolvePfpSize("md", undefined, 400, 400, 20), 80);
+  assert.equal(resolvePfpSize("lg", undefined, 400, 400, 20), 112);
+  assert.equal(resolvePfpSize(undefined, undefined, 400, 400, 20), 80, "undefined photoSize defaults to md");
+});
+
+// ── PFP radius (Stage 3B.2-B) ─────────────────────────────────────────────────
+
+test("pfpRadiusToPercent: 0 is square, 100 is a full circle, undefined defaults to circle", () => {
+  assert.equal(pfpRadiusToPercent(0), 0);
+  assert.equal(pfpRadiusToPercent(100), 50);
+  assert.equal(pfpRadiusToPercent(undefined), 50);
+  assert.equal(pfpRadiusToPercent(50), 25);
+});
+
+test("pfpRadiusToPercent clamps out-of-range input", () => {
+  assert.equal(pfpRadiusToPercent(-20), 0);
+  assert.equal(pfpRadiusToPercent(150), 50);
 });

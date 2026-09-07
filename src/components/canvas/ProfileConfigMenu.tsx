@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { ProfileCardData, CardEffects, CardFormat } from "@/types";
 import { T, MenuSection } from "@/ui";
-import { getCardConstraints, clampCardSize } from "@/lib/cardGeometry";
+import { getCardConstraints, clampCardSize, getCardPadding } from "@/lib/cardGeometry";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileTypographyMenu from "./ProfileTypographyMenu";
@@ -70,6 +70,12 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
             photo={card.photo}
             name={card.name}
             handle={card.handle}
+            photoSize={card.photoSize}
+            pfpSizePx={card.pfpSizePx}
+            pfpRadius={card.pfpRadius}
+            cardW={card.w}
+            cardH={card.h}
+            pad={getCardPadding(card.variant)}
             onChange={onChange}
           />
           <ProfileMetadataMenu
@@ -101,6 +107,7 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
           nameFontSize={card.nameFontSize}
           bioFontSize={card.bioFontSize}
           textColor={card.textColor}
+          textAlign={card.textAlign}
           onChange={onChange}
         />
       )}

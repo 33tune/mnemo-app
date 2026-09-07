@@ -1,13 +1,19 @@
 /**
- * Guards that keep the singleton Presentation Card out of generic,
- * multi-element operations (group drag, drag-to-trash, bulk keyboard delete)
- * that were never designed with a "this element can never move / be
- * bulk-deleted" exception in mind. Pure, no React — see 3B.2-A.
+ * Guards around the singleton Presentation Card's interaction contract. Pure,
+ * no React — see 3B.2-A/3B.2-B.
  *
- * The card can still legitimately end up in a multi-selection (the marquee
- * doesn't exclude it, by design — it stays selectable and resizeable). These
- * guards are what actually stop it from moving or getting swept away as a
- * passenger once that selection is dragged, trashed, or bulk-deleted.
+ * Two families:
+ * - Multi-element guards (applyGroupDragDelta, filterTrashDeletion,
+ *   resolveBulkDeleteIds): keep the card out of generic, multi-element
+ *   operations (group drag, drag-to-trash, bulk keyboard delete) that were
+ *   never designed with a "this element can never move / be bulk-deleted"
+ *   exception in mind. The card can still legitimately end up in a
+ *   multi-selection (the marquee doesn't exclude it, by design — it stays
+ *   selectable and resizeable); these guards stop it from moving or getting
+ *   swept away as a passenger once that selection is dragged, trashed, or
+ *   bulk-deleted.
+ * - Single-element guard (isPfpAnchorDraggable): governs the card's OWN PFP
+ *   drag — requires the card to be individually selected first.
  */
 
 export interface DraggableLike {
@@ -79,4 +85,22 @@ export function resolveBulkDeleteIds<T extends { id: string; elementType: string
   if (selectedIds.size <= 1) return selectedIds;
   const byId = new Map(elements.map(el => [el.id, el]));
   return new Set([...selectedIds].filter(id => byId.get(id)?.elementType !== "profile"));
+}
+
+/**
+ * Whether the Presentation Card's PFP anchor-drag can start at all (Stage
+ * 3B.2-B) — requires the card to be interactable, in a composed (non-legacy
+ * "free") layout, AND currently selected. Before this guard, a bare
+ * click-and-drag on the avatar of an UNselected card would move it — no
+ * deliberate "you're now interacting with this card" gesture was required.
+ * Used identically by both the PFP's onMouseDown wiring and startAnchorDrag's
+ * own internal guard in ProfileCard.tsx, so the two can never independently
+ * disagree about whether a drag is actually allowed to proceed.
+ */
+export function isPfpAnchorDraggable(
+  canInteract: boolean | undefined,
+  layout: "vertical" | "horizontal" | "free",
+  isSel: boolean,
+): boolean {
+  return !!canInteract && layout !== "free" && isSel;
 }

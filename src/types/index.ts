@@ -168,6 +168,14 @@ export type ProfileCardData = {
   // 0-100, % of the whole card) below — do not conflate the two.
   pfpAnchorX?:     number;
   pfpAnchorY?:     number;
+  // PFP size/shape (Stage 3B.2-B) — continuous overrides. Absent means "use
+  // the legacy photoSize preset" / "full circle", so every existing card
+  // renders unchanged. See resolvePfpSize() in cardGeometry.ts.
+  pfpSizePx?:      number;
+  pfpRadius?:      number; // 0-100: 0 = square corners, 100 = full circle.
+  // Text alignment of the identity/content block — orthogonal to where the
+  // composition engine places that block (anchor-driven). See cardComposition.ts.
+  textAlign?:      "left" | "center" | "right";
   // Identity
   photo:           string;
   name:            string;

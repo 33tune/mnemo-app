@@ -15,37 +15,16 @@ import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
 import { computeComposition, type CompositionStrategy, type ElementBox } from "@/lib/cardComposition";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
+import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES } from "@/lib/cardGeometry";
+import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
-const PHOTO_SIZES = { sm: 52, md: 80, lg: 112 };
 const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
 // Reflow transition for composed-layout content boxes — never applied to the
 // pfp box itself (see startAnchorDrag / renderComposed): it must track the
 // mouse 1:1 with zero lag, so it never gets a transition, dragging or not.
 const REFLOW_TRANSITION = `left 0.2s ${EASE}, top 0.2s ${EASE}, width 0.2s ${EASE}, height 0.2s ${EASE}`;
-// TEMP 3B.2-A instrumentation — investigating the reported PFP-drag teleport
-// bug in horizontal format. Remove once the root cause is confirmed and fixed.
-// NODE_ENV alone would keep this dark on the deployed (production) build the
-// bug actually needs to be reproduced on. Explicit opt-in instead — a
-// production visitor doing neither of the two things below gets zero extra
-// console output; dev keeps getting it for free, no opt-in needed there.
-function resolveDebugAnchor(): boolean {
-  if (process.env.NODE_ENV !== "production") return true;
-  if (typeof window === "undefined") return false; // SSR pass, no URL/localStorage to check
-  try {
-    return new URLSearchParams(window.location.search).get("debug_anchor") === "1"
-      || window.localStorage.getItem("mnemo_debug_anchor") === "1";
-  } catch {
-    return false;
-  }
-}
-const DEBUG_ANCHOR = resolveDebugAnchor();
-// Unconditional canary (NOT gated by DEBUG_ANCHOR) — proves this module actually
-// loaded in the running bundle and shows what DEBUG_ANCHOR resolved to. If this
-// line never shows up in the console, the problem is environment/route/bundle,
-// not the instrumentation below it.
-console.log("[3B2A-DEBUG] module loaded", { DEBUG_ANCHOR, NODE_ENV: process.env.NODE_ENV });
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -151,16 +130,10 @@ function ProfileCard({
   // Layout mode
   const layout = (card.layout ?? "vertical") as "vertical" | "horizontal" | "free";
   // Decides whether the PFP div even gets a mousedown handler at all — see
-  // startAnchorDrag's onMouseDown wiring below. If this is false, dragging the
-  // PFP produces zero events and therefore zero [3B2A-DEBUG] logs, by design —
-  // that's the #1 thing to rule out before concluding "the bug doesn't happen".
-  const isAnchorDraggable = canInteract && layout !== "free";
-  if (DEBUG_ANCHOR) {
-    console.log("[3B2A-DEBUG] render — interactivity", {
-      id: card.id, canInteract, layout, isAnchorDraggable, format: card.format,
-      renderBranch: layout === "free" ? "renderFree (legacy — no anchor drag at all)" : "renderComposed",
-    });
-  }
+  // startAnchorDrag's onMouseDown wiring below. Requires the card to be
+  // individually selected first (Stage 3B.2-B) — see isPfpAnchorDraggable's
+  // own doc comment for why.
+  const isAnchorDraggable = isPfpAnchorDraggable(canInteract, layout, isSel);
 
   // Views counter — fetched once per mount, same hook used by StatsCardWidget
   const { total: viewCount } = useProfileViews(ownerUserId);
@@ -235,10 +208,22 @@ function ProfileCard({
 
 
   // ── Visual values ──
+  const gap = variant === "minimal" ? 5 : 7;
+  const pad = getCardPadding(variant);
+
   const photoSizeKey   = card.photoSize ?? "md";
-  const basePx         = PHOTO_SIZES[photoSizeKey];
-  const avatarSize     = variant === "guns" || variant === "poster" ? Math.max(basePx, 88) :
-                         variant === "minimal" ? Math.min(basePx, 56) : basePx;
+  // Variant nudge applies to the BASE (pre-clamp) diameter — whether that
+  // base came from the legacy sm/md/lg preset or the new continuous
+  // override — so the card-bound clamp (resolvePfpSize) always has the final
+  // word and a small/awkward card can never be forced past its own bounds by
+  // a variant's min/max nudge (see cardGeometry.ts's resolvePfpSize).
+  const pfpBaseNudged =
+    variant === "guns" || variant === "poster" ? Math.max(card.pfpSizePx ?? PFP_PHOTO_SIZES[photoSizeKey], 88) :
+    variant === "minimal" ? Math.min(card.pfpSizePx ?? PFP_PHOTO_SIZES[photoSizeKey], 56) :
+    card.pfpSizePx ?? PFP_PHOTO_SIZES[photoSizeKey];
+  const avatarSize     = resolvePfpSize(photoSizeKey, pfpBaseNudged, card.w, card.h, pad);
+  const avatarRadiusPct = pfpRadiusToPercent(card.pfpRadius);
+  const textAlign      = card.textAlign ?? "left";
   const nameFontSize   = card.nameFontSize ?? (variant === "guns" || variant === "poster" ? 17 : 15);
   const font           = card.font ?? "DM Sans";
   const isLight        = luminance(effectiveEffects.bg?.color ?? card.bgColor) > 0.5;
@@ -256,9 +241,6 @@ function ProfileCard({
       : `2px solid ${withOpacity(baseColor, 0.14)}`;
   const avatarShadow = variant === "guns" || variant === "poster"
     ? `0 6px 28px ${withOpacity(baseColor, 0.14)}` : "none";
-
-  const gap = variant === "minimal" ? 5 : 7;
-  const pad = variant === "minimal" ? 14 : 20;
 
   // ── Free-mode drag ────────────────────────────────────────────────────────
 
@@ -319,20 +301,14 @@ function ProfileCard({
   // card is only patched once, on mouseup (see onUp below).
   const startAnchorDrag = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // Logged BEFORE the guard on purpose: if canInteract/layout flip this to a
-    // bail-out, this is the only line that will still tell us the handler was
-    // actually invoked at all (previously the mousedown log sat after this
-    // guard and would silently never fire in that case — see 3B.2-A QA notes).
-    if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousedown — handler invoked", { canInteract, layout });
-    if (!canInteract || layout === "free") {
-      if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousedown — blocked by guard, drag will NOT start", { canInteract, layout });
-      return;
-    }
+    // Same guard as the PFP's onMouseDown wiring (isAnchorDraggable above) —
+    // duplicated here as a defensive check via the same pure function, so the
+    // two can never independently disagree about whether a drag may proceed.
+    if (!isPfpAnchorDraggable(canInteract, layout, isSel)) return;
 
     isDraggingAnchor.current = true;
     const startMX = e.clientX, startMY = e.clientY;
     const startAnchor = { ...anchor };
-    if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousedown — drag starting", { startAnchor, cardW: card.w, cardH: card.h, pad, avatarSize, format: card.format });
     // Raw geometric room on each axis — deliberately NOT floored to a minimum.
     // See nextAnchorAxis in anchorDrag.ts for why a degenerate axis (<=0) must
     // freeze instead of becoming hypersensitive.
@@ -342,7 +318,6 @@ function ProfileCard({
     const onMove = (ev: MouseEvent) => {
       const nextX = nextAnchorAxis(startAnchor.x, ev.clientX - startMX, rawAvailW);
       const nextY = nextAnchorAxis(startAnchor.y, ev.clientY - startMY, rawAvailH);
-      if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mousemove", { clientX: ev.clientX, clientY: ev.clientY, nextX, nextY });
       setAnchor({ x: nextX, y: nextY });
     };
     const onUp = () => {
@@ -350,21 +325,20 @@ function ProfileCard({
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
       setAnchor(latest => {
-        if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] mouseup — persisting", latest);
         updateProfile(card.id, { pfpAnchorX: latest.x, pfpAnchorY: latest.y });
         return latest;
       });
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [canInteract, layout, anchor, card.id, card.w, card.h, pad, avatarSize, updateProfile]);
+  }, [canInteract, layout, isSel, anchor, card.id, card.w, card.h, pad, avatarSize, updateProfile]);
 
   // ── Element renderers ─────────────────────────────────────────────────────
 
   function AvatarEl({ size = avatarSize, style }: { size?: number; style?: CSSProperties }) {
     return (
       <div style={{
-        width: size, height: size, borderRadius: "50%", overflow: "hidden",
+        width: size, height: size, borderRadius: `${avatarRadiusPct}%`, overflow: "hidden",
         border: avatarBorder, background: "rgba(255,255,255,0.06)",
         boxShadow: avatarShadow, flexShrink: 0, ...style,
       }}>
@@ -389,7 +363,7 @@ function ProfileCard({
 
   function NameLine({ style }: { style?: CSSProperties }) {
     return (
-      <div style={{ fontFamily: globalFont, fontSize: nameFontSize, fontWeight: 700, color: primaryColor, lineHeight: 1.2, ...style }}>
+      <div style={{ fontFamily: globalFont, fontSize: nameFontSize, fontWeight: 700, color: primaryColor, lineHeight: 1.2, textAlign, ...style }}>
         {card.name}
       </div>
     );
@@ -397,7 +371,7 @@ function ProfileCard({
 
   function HandleLine({ style }: { style?: CSSProperties }) {
     return (
-      <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 0.4, ...style }}>
+      <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 0.4, textAlign, ...style }}>
         @{card.handle}
       </div>
     );
@@ -405,7 +379,7 @@ function ProfileCard({
 
   function DescriptorLine({ style }: { style?: CSSProperties }) {
     return (
-      <div style={{ fontFamily: MONO, fontSize: 9, color: secondaryColor, letterSpacing: 0.5, ...style }}>
+      <div style={{ fontFamily: MONO, fontSize: 9, color: secondaryColor, letterSpacing: 0.5, textAlign, ...style }}>
         {card.status}
       </div>
     );
@@ -413,7 +387,7 @@ function ProfileCard({
 
   function LocationLine({ style }: { style?: CSSProperties }) {
     return (
-      <div style={{ fontFamily: MONO, fontSize: 8, color: faintColor, letterSpacing: 0.3, ...style }}>
+      <div style={{ fontFamily: MONO, fontSize: 8, color: faintColor, letterSpacing: 0.3, textAlign, ...style }}>
         ● {card.location}
       </div>
     );
@@ -423,14 +397,14 @@ function ProfileCard({
     return (
       <div style={{
         fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
-        lineHeight: 1.6, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"], ...style,
+        lineHeight: 1.6, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"], textAlign, ...style,
       } as CSSProperties}>{card.bio}</div>
     );
   }
 
   function ViewsLine({ style }: { style?: CSSProperties }) {
     return (
-      <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"], ...style }}>
+      <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"], textAlign, ...style }}>
         {fmtNum(viewCount)} views
       </div>
     );
@@ -565,34 +539,18 @@ function ProfileCard({
       },
       typography: { nameFontSize, bioFontSize: card.bioFontSize ?? 8 },
       incumbent: incumbentBefore,
+      textAlign,
     });
     incumbentRef.current = result.strategy;
     const { boxes } = result;
 
-    // While actively dragging, the pfp box always renders at the raw
-    // anchor-derived position (same padding+anchor*(avail-size) formula the
-    // engine itself uses — see resolveAxis/resolveCentered in
-    // cardComposition.ts) rather than boxes.pfp, so it tracks the mouse 1:1
-    // even in the rare case the engine had to compromise (anchorDistance>0)
-    // to keep content readable. Content boxes still use the engine's
-    // (possibly compromised) result, so they stay consistent with each
-    // other; only the pfp visual can momentarily diverge from them, and it
-    // reconciles instantly (no transition) once the drag ends.
-    const pfpBox: ElementBox | undefined = isDraggingAnchor.current
-      ? {
-          x: pad + anchor.x * Math.max(0, card.w - 2 * pad - avatarSize),
-          y: pad + anchor.y * Math.max(0, card.h - 2 * pad - avatarSize),
-          w: avatarSize, h: avatarSize,
-        }
-      : boxes.pfp;
-
-    if (DEBUG_ANCHOR) {
-      console.log("[3B2A-DEBUG] render — composition", {
-        isDragging: isDraggingAnchor.current, anchor,
-        incumbentBefore, strategyAfter: result.strategy,
-        pfpFromEngine: boxes.pfp, pfpRendered: pfpBox,
-      });
-    }
+    // The pfp is authoritative in the engine itself now (Stage 3B.2-B) —
+    // boxes.pfp IS the raw anchor-derived position for every strategy, with
+    // no compromise, dragging or not. No separate raw-formula branch is
+    // needed here anymore (see cardComposition.ts's resolveAxis/resolveCentered
+    // and the 3B.2-A/B PFP-anchor-drag postmortem for why that used to exist
+    // and what it caused).
+    const pfpBox: ElementBox | undefined = boxes.pfp;
 
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "hidden" }}>
@@ -653,10 +611,7 @@ function ProfileCard({
       <div
         ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
-        onClick={e => {
-          if (DEBUG_ANCHOR) console.log("[3B2A-DEBUG] card onClick", { anchor, isDragging: isDraggingAnchor.current, pfpAnchorX: card.pfpAnchorX, pfpAnchorY: card.pfpAnchorY });
-          onClick(e);
-        }}
+        onClick={onClick}
         onMouseMove={onInteractMove}
         onMouseLeave={onInteractLeave}
         style={{

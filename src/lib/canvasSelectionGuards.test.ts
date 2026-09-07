@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyGroupDragDelta, filterTrashDeletion, resolveBulkDeleteIds } from "./canvasSelectionGuards";
+import { applyGroupDragDelta, filterTrashDeletion, resolveBulkDeleteIds, isPfpAnchorDraggable } from "./canvasSelectionGuards";
 
 interface El { id: string; elementType: string; x: number; y: number; w?: number; h?: number }
 
@@ -78,4 +78,18 @@ test("resolveBulkDeleteIds returns an empty set if every non-profile id in the m
   // the profile; a truly stale id (present in selection, absent from
   // elements) is left for the caller to filter when building the snapshot.
   assert.deepEqual(result, new Set(["already-deleted"]));
+});
+
+// ── isPfpAnchorDraggable (Stage 3B.2-B) ───────────────────────────────────────
+
+test("isPfpAnchorDraggable requires the card to be selected", () => {
+  assert.equal(isPfpAnchorDraggable(true, "vertical", false), false);
+  assert.equal(isPfpAnchorDraggable(true, "vertical", true), true);
+});
+
+test("isPfpAnchorDraggable still requires canInteract and non-free layout, even when selected", () => {
+  assert.equal(isPfpAnchorDraggable(false, "vertical", true), false);
+  assert.equal(isPfpAnchorDraggable(undefined, "vertical", true), false);
+  assert.equal(isPfpAnchorDraggable(true, "free", true), false);
+  assert.equal(isPfpAnchorDraggable(true, "horizontal", true), true);
 });

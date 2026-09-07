@@ -1,20 +1,35 @@
 "use client";
 import { useRef, useState } from "react";
+import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { T, MenuSection, MenuRow, ActionButton } from "@/ui";
+import { T, MenuSection, MenuRow, SliderRow, ActionButton } from "@/ui";
+import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
+
+type IdentityPatch = Partial<Pick<ProfileCardData, "photo" | "name" | "pfpSizePx" | "pfpRadius">>;
 
 interface ProfileIdentityMenuProps {
-  photo:    string;
-  name:     string;
-  handle:   string;
-  onChange: (patch: { photo?: string; name?: string }) => void;
+  photo:      string;
+  name:       string;
+  handle:     string;
+  photoSize?: ProfileCardData["photoSize"];
+  pfpSizePx?: number;
+  pfpRadius?: number;
+  cardW:      number;
+  cardH:      number;
+  pad:        number;
+  onChange:   (patch: IdentityPatch) => void;
 }
 
 // DATOS: quién sos. Foto, nombre y handle (de cuenta, solo lectura) — nada visual acá,
 // eso vive en ESTILO → Tipografía. Ver [[ProfileMetadataMenu]] para descriptor/ubicación/bio/views.
-export default function ProfileIdentityMenu({ photo, name, handle, onChange }: ProfileIdentityMenuProps) {
+// Tamaño/forma del PFP viven acá (no en Tipografía) porque son propiedades de la
+// foto misma, igual que subirla/quitarla — ver resolvePfpSize/pfpRadiusToPercent
+// en cardGeometry.ts, la misma fuente de verdad que usa ProfileCard.tsx al renderizar.
+export default function ProfileIdentityMenu({ photo, name, handle, photoSize, pfpSizePx, pfpRadius, cardW, cardH, pad, onChange }: ProfileIdentityMenuProps) {
   const [editingName, setEditingName] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
+  const { min: sizeMin, max: sizeMax } = getPfpSizeBounds(cardW, cardH, pad);
+  const currentSize = resolvePfpSize(photoSize, pfpSizePx, cardW, cardH, pad);
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -47,6 +62,13 @@ export default function ProfileIdentityMenu({ photo, name, handle, onChange }: P
           </div>
         </div>
         <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
+
+        <SliderRow label="Tamaño" min={sizeMin} max={sizeMax} step={1} value={currentSize} unit="px"
+          onChange={v => onChange({ pfpSizePx: v })} />
+
+        <SliderRow label="Forma" min={0} max={100} step={1} value={pfpRadius ?? 100} unit="%"
+          fmt={v => pfpRadiusToPercent(v) === 50 ? "○" : pfpRadiusToPercent(v) === 0 ? "□" : `${Math.round(v)}%`}
+          onChange={v => onChange({ pfpRadius: v })} />
       </MenuSection>
 
       <MenuSection label="Nombre">

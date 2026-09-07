@@ -137,3 +137,60 @@ export function sizeScaleFromDimensions(format: CardFormat | undefined, w: numbe
   if (c.maxW === c.minW) return 0.5;
   return Math.max(0, Math.min(1, (w - c.minW) / (c.maxW - c.minW)));
 }
+
+// ── PFP size (Stage 3B.2-B) ──────────────────────────────────────────────────
+// Legacy preset diameters (sm/md/lg), kept as the fallback for any card that
+// has never touched the new continuous slider — see resolvePfpSize below.
+export const PFP_PHOTO_SIZES: Record<"sm" | "md" | "lg", number> = { sm: 52, md: 80, lg: 112 };
+export const PFP_SIZE_MIN = 32;
+export const PFP_SIZE_MAX = 160;
+
+/** Card content padding — depends only on variant. Single source of truth
+ * shared by ProfileCard.tsx's render and ProfileConfigMenu.tsx's size-slider
+ * bounds, so they can't independently drift apart. */
+export function getCardPadding(variant: string | undefined): number {
+  return variant === "minimal" ? 14 : 20;
+}
+
+/**
+ * Hard ceiling so the avatar never exceeds the card's own box, regardless of
+ * what's persisted or what a variant nudge (see ProfileCard.tsx) asks for —
+ * the diameter plus padding on both sides must fit the shorter axis.
+ */
+export function getPfpSizeBounds(boxW: number, boxH: number, padding: number): { min: number; max: number } {
+  const hardMax = Math.max(PFP_SIZE_MIN, Math.min(PFP_SIZE_MAX, Math.min(boxW, boxH) - 2 * padding));
+  return { min: PFP_SIZE_MIN, max: hardMax };
+}
+
+/**
+ * Resolves the avatar's diameter: the continuous px override if the user has
+ * set one via the size slider, else the legacy sm/md/lg preset — either way,
+ * clamped into the card's current bounds. Single source of truth for "how
+ * big is the pfp", shared by ProfileCard.tsx's render and the slider's live
+ * value/range, so they can never independently disagree (see the 3B.2-A/B
+ * PFP-anchor postmortem for why two call sites deriving "the same" number
+ * separately is exactly how that bug happened).
+ */
+export function resolvePfpSize(
+  photoSize: "sm" | "md" | "lg" | undefined,
+  pfpSizePx: number | undefined,
+  boxW: number,
+  boxH: number,
+  padding: number,
+): number {
+  const base = pfpSizePx ?? PFP_PHOTO_SIZES[photoSize ?? "md"];
+  const { min, max } = getPfpSizeBounds(boxW, boxH, padding);
+  return Math.max(min, Math.min(max, base));
+}
+
+/**
+ * Maps the 0-100 continuous shape slider to a CSS border-radius percentage:
+ * 0 = square corners (0%), 100 = a full circle (50%, the point at which
+ * border-radius stops changing a square box's visual shape further).
+ * Undefined defaults to 100 (circle) — every existing card's pfp keeps
+ * rendering exactly as it did before this field existed.
+ */
+export function pfpRadiusToPercent(pfpRadius: number | undefined): number {
+  const pct = Math.max(0, Math.min(100, pfpRadius ?? 100));
+  return (pct / 100) * 50;
+}

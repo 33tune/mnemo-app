@@ -5,26 +5,38 @@
  * for whatever the estimate gets wrong. Same architectural family as
  * cardGeometry.ts and mobileMerge.ts: constants + pure functions, no state.
  *
- * MODEL (see Stage 2 design discussion for the full reasoning):
+ * MODEL (see Stage 2 design discussion for the full reasoning; PFP-authority
+ * model revised in Stage 3B.2-B — see below):
  * - format/geometry (cardGeometry.ts) decide the box. This file never touches w/h.
  * - 5 fixed structural PRIMITIVES ("row" | "row-reverse" | "column" |
  *   "column-reverse" | "centered") are internal topologies, never exposed to
  *   the user as presets/positions.
- * - Everything else — gap, alignment, offsets, how much of the content block
- *   fits — is computed continuously from anchorX/anchorY (0-1, where the user
- *   dragged the PFP) and the actual content present.
+ * - The PFP is AUTHORITATIVE: its box is always the literal anchorX/anchorY
+ *   position (padding + anchor*(avail-size)), for every topology, with no
+ *   exception and no compromise — never clamped or nudged to make content
+ *   fit. This was NOT always true: through Stage 3B.2-A, row/row-reverse/
+ *   column/column-reverse could silently reposition the PFP away from the
+ *   anchor when content needed the room (scored via a now-removed
+ *   "anchorDistance" term), which is what let the persisted anchor and the
+ *   rendered position disagree — see the 3B.2-A/B PFP-anchor-drag postmortem.
+ *   The content block is what negotiates for whatever room is left once the
+ *   PFP's position is fixed — never the other way around.
+ * - Content alignment (textAlign, resolveContentBlock) and content POSITION
+ *   (which topology, i.e. anchor-driven placement) are independent: textAlign
+ *   only affects how rows sit within the content block's own bounding width;
+ *   it never changes where that block sits in the card.
  * - Candidates are generated for all 5 primitives on every call, scored, and
- *   the highest score wins. "anchorDistance" (see resolveAxis) is the key
- *   term: it measures how much a given topology had to pull the PFP away
- *   from the literal anchor point to keep content readable in that order —
- *   this is *why* row loses to row-reverse as the anchor drags right, with
- *   no hardcoded left/right rule anywhere.
+ *   the highest score wins — purely on visual-quality terms now (density,
+ *   proximity, balance, alignment, how much had to be dropped): with the PFP
+ *   fixed, whichever topology leaves the most usable room for content
+ *   naturally tends to win, with no anchor-fidelity term needed to steer it.
  */
 import type { CardFormat } from "@/types";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
 export type CompositionStrategy = "row" | "row-reverse" | "column" | "column-reverse" | "centered";
+export type TextAlign = "left" | "center" | "right";
 
 export interface PfpInput {
   /** 0-1, continuous, normalized within the card's padded content area. */
@@ -65,6 +77,9 @@ export interface CompositionInput {
   typography: CompositionTypographyInput;
   /** Strategy that won last tick, for hysteresis. Omit on a cold call (page load). */
   incumbent?: CompositionStrategy;
+  /** Text alignment within the content block — independent of WHERE the
+   * composition engine places that block (anchor-driven). Defaults to "left". */
+  textAlign?: TextAlign;
 }
 
 export type ElementRole = "pfp" | "name" | "handle" | "bio" | "descriptor" | "location" | "views";
@@ -102,15 +117,30 @@ const FORMAT_BIAS: Record<CardFormat, Partial<Record<CompositionStrategy, number
 
 // Heuristic text metrics — average proportional-font char width as a fraction
 // of font size, and line-height factors. Approximate by design (see file header).
+//
+// letterSpacing* mirrors the CSS letter-spacing actually applied to each role
+// in ProfileCard.tsx (HandleLine/DescriptorLine/LocationLine/ViewsLine) — the
+// estimator used to omit this entirely, which under-measured every mono-font
+// role by (charCount-1)*letterSpacing px. For a 13-char descriptor at 0.5px
+// spacing that's only ~6px, but combined with an already-tight charW average
+// it was consistently enough to push real rendered text past the box the
+// engine allocated for it, triggering the CSS ellipsis fallback on content
+// that should have fit (see Stage 3B.2-B QA: "CEO OF MYLAND" -> "CEO OF MYLA...").
+// SAFETY_MARGIN_PX is deliberately asymmetric: a slightly-too-wide box just
+// wastes a few px of card whitespace (invisible); a slightly-too-narrow one
+// truncates a word (very visible) — so estimates are biased to over- rather
+// than under-shoot.
 const TEXT_METRICS = {
-  nameCharW: 0.55, nameLineH: 1.3,
+  nameCharW: 0.58, nameLineH: 1.3, nameLetterSpacing: 0,
   monoCharW: 0.6,  monoLineH: 1.4,   // handle/descriptor/location/views (Space Mono is fixed-width-ish)
+  handleLetterSpacing: 0.4, descriptorLetterSpacing: 0.5, locationLetterSpacing: 0.3,
   bioCharW: 0.55,  bioLineH: 1.5,
   monoFontSize: 9,                   // handle/descriptor size is fixed today, not user-configurable
   locationFontSize: 8,
   viewsFontSize: 9,
-  viewsWidthPx: 70,                  // "1.2K views" — not length-dependent
+  viewsWidthPx: 84,                  // "12.3K views" @ letterSpacing 1.5 + uppercase — not length-dependent
 };
+const SAFETY_MARGIN_PX = 3;
 
 const GAP_MIN = 8, GAP_MAX = 32;
 // Natural PFP-content gap band, as a fraction of PFP size — used by the proximity score term.
@@ -127,7 +157,6 @@ const W = {
   overflow: 50,          // defensive; cardGeometry's minimums should make this unreachable in practice
   dropped: 30,            // per fully-dropped optional role
   bioClampLine: 8,        // per line cut below bio's natural estimate
-  anchorDistance: 0.4,    // per px of compromise between raw anchor and achievable position
   edgeViolation: 500,     // defensive
   density: 300,
   proximity: 100,
@@ -138,8 +167,13 @@ const W = {
 
 // ── Text estimation (pure, heuristic — see file header) ──────────────────────
 
-function estimateLineWidth(length: number, fontSize: number, charW: number): number {
-  return length * fontSize * charW;
+// letterSpacingPx: the (charCount-1) gaps a real rendered line actually has —
+// see TEXT_METRICS's header comment for why this used to be omitted and what
+// that cost. SAFETY_MARGIN_PX is added to every non-empty estimate, biasing
+// the box the engine allocates to be slightly generous rather than tight.
+function estimateLineWidth(length: number, fontSize: number, charW: number, letterSpacingPx = 0): number {
+  if (length <= 0) return 0;
+  return length * fontSize * charW + Math.max(0, length - 1) * letterSpacingPx + SAFETY_MARGIN_PX;
 }
 
 /** Lines needed to fit `length` chars of bio in `availWidth`, unbounded (degradation clamps later). */
@@ -147,6 +181,13 @@ function estimateBioLines(length: number, fontSize: number, availWidth: number):
   if (length <= 0) return 0;
   const lineWidth = estimateLineWidth(length, fontSize, TEXT_METRICS.bioCharW);
   return Math.max(1, Math.ceil(lineWidth / Math.max(1, availWidth)));
+}
+
+/** x offset for a row of width `rowW` within a block of width `blockWidth`. */
+function alignRowX(rowW: number, blockWidth: number, align: TextAlign): number {
+  if (align === "center") return Math.max(0, (blockWidth - rowW) / 2);
+  if (align === "right") return Math.max(0, blockWidth - rowW);
+  return 0;
 }
 
 // ── Content block resolution (always a vertical stack) ────────────────────────
@@ -172,6 +213,7 @@ function resolveContentBlock(
   availWidth: number,
   availHeight: number,
   gap: number,
+  textAlign: TextAlign = "left",
 ): ResolvedContent {
   const dropped: ElementRole[] = [];
   const active = {
@@ -188,10 +230,10 @@ function resolveContentBlock(
 
   function measure(): { height: number; rows: { role: ElementRole; h: number; w: number }[] } {
     const rows: { role: ElementRole; h: number; w: number }[] = [];
-    if (active.name) rows.push({ role: "name", h: typography.nameFontSize * TEXT_METRICS.nameLineH, w: Math.min(availWidth, estimateLineWidth(content.name.length ?? 0, typography.nameFontSize, TEXT_METRICS.nameCharW)) });
-    if (active.handle) rows.push({ role: "handle", h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.handle.length ?? 0, TEXT_METRICS.monoFontSize, TEXT_METRICS.monoCharW)) });
-    if (active.descriptor) rows.push({ role: "descriptor", h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.descriptor.length ?? 0, TEXT_METRICS.monoFontSize, TEXT_METRICS.monoCharW)) });
-    if (active.location) rows.push({ role: "location", h: TEXT_METRICS.locationFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.location.length ?? 0, TEXT_METRICS.locationFontSize, TEXT_METRICS.monoCharW)) });
+    if (active.name) rows.push({ role: "name", h: typography.nameFontSize * TEXT_METRICS.nameLineH, w: Math.min(availWidth, estimateLineWidth(content.name.length ?? 0, typography.nameFontSize, TEXT_METRICS.nameCharW, TEXT_METRICS.nameLetterSpacing)) });
+    if (active.handle) rows.push({ role: "handle", h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.handle.length ?? 0, TEXT_METRICS.monoFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.handleLetterSpacing)) });
+    if (active.descriptor) rows.push({ role: "descriptor", h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.descriptor.length ?? 0, TEXT_METRICS.monoFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.descriptorLetterSpacing)) });
+    if (active.location) rows.push({ role: "location", h: TEXT_METRICS.locationFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.location.length ?? 0, TEXT_METRICS.locationFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.locationLetterSpacing)) });
     if (active.bio && bioLines > 0) rows.push({ role: "bio", h: bioLines * typography.bioFontSize * TEXT_METRICS.bioLineH, w: availWidth });
     if (active.views) rows.push({ role: "views", h: TEXT_METRICS.viewsFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, TEXT_METRICS.viewsWidthPx) });
     const height = rows.reduce((sum, r) => sum + r.h, 0) + Math.max(0, rows.length - 1) * gap;
@@ -218,15 +260,18 @@ function resolveContentBlock(
   // truncation is the real safety net for what this compression visually implies.
   const squeeze = m.height > availHeight && m.height > 0 ? availHeight / m.height : 1;
 
-  // Stack the surviving rows top-to-bottom, left-aligned within availWidth.
+  // Stack the surviving rows top-to-bottom, each aligned per `textAlign`
+  // within the block's own width (the widest row) — independent of WHERE
+  // this whole block ends up in the card (that's the topology's job, done
+  // by the caller via contentMainStart/contentCrossStart/blockOffsetX).
+  const width = m.rows.length > 0 ? Math.max(...m.rows.map(r => r.w)) : 0;
   const boxes: Partial<Record<ElementRole, ElementBox>> = {};
   let y = 0;
   for (const row of m.rows) {
     const h = row.h * squeeze;
-    boxes[row.role] = { x: 0, y, w: row.w, h, ...(row.role === "bio" ? { lines: bioLines } : {}) };
+    boxes[row.role] = { x: alignRowX(row.w, width, textAlign), y, w: row.w, h, ...(row.role === "bio" ? { lines: bioLines } : {}) };
     y += h + gap * squeeze;
   }
-  const width = m.rows.length > 0 ? Math.max(...m.rows.map(r => r.w)) : 0;
   return { boxes, dropped, width, height: Math.min(m.height, availHeight) };
 }
 
@@ -235,7 +280,6 @@ function resolveContentBlock(
 interface AxisResolution {
   boxes: Partial<Record<ElementRole, ElementBox>>;
   dropped: ElementRole[];
-  anchorDistance: number;
   contentWidth: number;
   contentHeight: number;
 }
@@ -243,15 +287,22 @@ interface AxisResolution {
 /**
  * Generic resolver for the 4 non-centered primitives. mainAxis is the axis
  * PFP and content are ordered along; `reverse` flips which comes first.
- * anchorDistance = how far the achievable PFP position had to move from the
- * literal anchor to keep content readable in that order — see file header.
+ *
+ * PFP-authoritative (Stage 3B.2-B): the pfp's position on both axes is always
+ * the literal anchor-derived value, computed FIRST and never adjusted — see
+ * file header. Content then negotiates for whatever room is actually left
+ * once the pfp's position is fixed (as opposed to the pre-3B.2-B order, which
+ * sized content against a pfp-position-independent budget and only THEN
+ * clamped the pfp to make room for it if that budget turned out wrong — that
+ * two-way negotiation is what let the pfp silently end up somewhere other
+ * than the anchor).
  */
 function resolveAxis(
   mainAxis: "x" | "y",
   reverse: boolean,
   input: CompositionInput,
 ): AxisResolution {
-  const { boxW, boxH, padding, pfp, content, typography } = input;
+  const { boxW, boxH, padding, pfp, content, typography, textAlign } = input;
   const boxMain = mainAxis === "x" ? boxW : boxH;
   const boxCross = mainAxis === "x" ? boxH : boxW;
   const anchorMain = mainAxis === "x" ? pfp.anchorX : pfp.anchorY;
@@ -261,45 +312,41 @@ function resolveAxis(
   const availCross = Math.max(0, boxCross - 2 * padding);
   const gap = Math.max(GAP_MIN, Math.min(GAP_MAX, availMain * 0.06));
 
-  // Content's dimension along mainAxis is negotiated (tight); along cross is generous.
-  // row-like (mainAxis=x): content width negotiated, content height generous (=boxCross avail).
-  // column-like (mainAxis=y): content height negotiated, content width generous (=boxCross avail).
-  const negotiatedMainSpace = Math.max(0, availMain - pfp.size - gap);
+  // Authoritative pfp position on both axes — always in-bounds by
+  // construction (anchor∈[0,1], avail-pfp.size floored at 0), so no clamp is
+  // needed or applied.
+  const actualPfpMain = padding + anchorMain * Math.max(0, availMain - pfp.size);
+  const actualPfpCross = padding + anchorCross * Math.max(0, availCross - pfp.size);
+
+  // Content's dimension along mainAxis is negotiated against whatever room
+  // the now-fixed pfp position actually leaves; along cross it's generous
+  // (=availCross), same as before.
+  let contentMainStart: number;
+  let negotiatedMainSpace: number;
+  if (!reverse) {
+    // [PFP][gap][CONTENT] — content starts right after the pfp, however far
+    // right that turned out to be; whatever's left to the box edge is its budget.
+    contentMainStart = actualPfpMain + pfp.size + gap;
+    negotiatedMainSpace = Math.max(0, (boxMain - padding) - contentMainStart);
+  } else {
+    // [CONTENT][gap][PFP] — budget is whatever sits between the padding edge
+    // and the pfp; content still hugs the pfp (computed below, once its own
+    // resolved width is known) rather than pinning to the padding edge.
+    negotiatedMainSpace = Math.max(0, actualPfpMain - gap - padding);
+    contentMainStart = padding; // placeholder, overwritten below once contentMain is known
+  }
+
   const contentAvailWidth  = mainAxis === "x" ? negotiatedMainSpace : availCross;
   const contentAvailHeight = mainAxis === "x" ? availCross : negotiatedMainSpace;
 
-  const resolved = resolveContentBlock(content, typography, contentAvailWidth, contentAvailHeight, Math.min(gap, 10));
+  const resolved = resolveContentBlock(content, typography, contentAvailWidth, contentAvailHeight, Math.min(gap, 10), textAlign);
   const contentMain = mainAxis === "x" ? resolved.width : resolved.height;
   const contentCross = mainAxis === "x" ? resolved.height : resolved.width;
 
-  const rawPfpMain = padding + anchorMain * Math.max(0, availMain - pfp.size);
-  let actualPfpMain: number;
-  let contentMainStart: number;
-  if (!reverse) {
-    // [PFP][gap][CONTENT]
-    const maxPfpMain = boxMain - padding - pfp.size - gap - contentMain;
-    actualPfpMain = Math.max(padding, Math.min(rawPfpMain, Math.max(padding, maxPfpMain)));
-    contentMainStart = actualPfpMain + pfp.size + gap;
-  } else {
-    // [CONTENT][gap][PFP] — content hugs wherever the pfp actually lands (mirrors
-    // the !reverse branch above), instead of being pinned to the padding edge.
-    // Previously content stayed glued to `padding` regardless of the pfp's
-    // resolved position: whenever content was narrow and the box was wide, that
-    // left a large, arbitrary gap between pfp and content that the proximity
-    // score term correctly penalized — which made row-reverse/column-reverse
-    // score far worse than the anchor fidelity alone would justify, effectively
-    // stopping the pfp from ever reaching that side. See Stage 3B-fix notes.
-    const minPfpMain = padding + contentMain + gap;
-    actualPfpMain = Math.min(boxMain - padding - pfp.size, Math.max(rawPfpMain, Math.min(minPfpMain, boxMain - padding - pfp.size)));
-    contentMainStart = actualPfpMain - gap - contentMain;
-  }
-  const anchorDistanceMain = Math.abs(rawPfpMain - actualPfpMain);
+  if (reverse) contentMainStart = actualPfpMain - gap - contentMain; // hug the pfp
 
-  const rawPfpCross = padding + anchorCross * Math.max(0, availCross - pfp.size);
-  const actualPfpCross = Math.max(padding, Math.min(rawPfpCross, Math.max(padding, boxCross - padding - pfp.size)));
   const pfpCrossCenter = actualPfpCross + pfp.size / 2;
   const contentCrossStart = Math.max(padding, Math.min(pfpCrossCenter - contentCross / 2, Math.max(padding, boxCross - padding - contentCross)));
-  const anchorDistanceCross = Math.abs(rawPfpCross - actualPfpCross);
 
   const pfpBox: ElementBox = mainAxis === "x"
     ? { x: actualPfpMain, y: actualPfpCross, w: pfp.size, h: pfp.size }
@@ -315,7 +362,6 @@ function resolveAxis(
   return {
     boxes,
     dropped: resolved.dropped,
-    anchorDistance: anchorDistanceMain + anchorDistanceCross,
     contentWidth: mainAxis === "x" ? contentMain : contentCross,
     contentHeight: mainAxis === "x" ? contentCross : contentMain,
   };
@@ -324,15 +370,17 @@ function resolveAxis(
 // ── Centered topology ──────────────────────────────────────────────────────
 
 function resolveCentered(input: CompositionInput): AxisResolution {
-  const { boxW, boxH, padding, pfp, content, typography } = input;
+  const { boxW, boxH, padding, pfp, content, typography, textAlign } = input;
   const availW = Math.max(0, boxW - 2 * padding);
   const availH = Math.max(0, boxH - 2 * padding);
 
-  const rawX = padding + pfp.anchorX * Math.max(0, availW - pfp.size);
-  const rawY = padding + pfp.anchorY * Math.max(0, availH - pfp.size);
-  const actualX = Math.max(padding, Math.min(rawX, Math.max(padding, boxW - padding - pfp.size)));
-  const actualY = Math.max(padding, Math.min(rawY, Math.max(padding, boxH - padding - pfp.size)));
-  const anchorDistance = Math.abs(rawX - actualX) + Math.abs(rawY - actualY);
+  // Authoritative pfp position — always in-bounds by construction (anchor∈[0,1]),
+  // same as resolveAxis. This was already effectively true before Stage 3B.2-B
+  // (the clamp below was already a no-op for any anchor∈[0,1] — hence this
+  // strategy's pre-existing "anchorDistance-free by construction" test), now
+  // made explicit by dropping the dead clamp/anchorDistance computation.
+  const actualX = padding + pfp.anchorX * Math.max(0, availW - pfp.size);
+  const actualY = padding + pfp.anchorY * Math.max(0, availH - pfp.size);
 
   const leftMargin = actualX - padding;
   const rightMargin = boxW - padding - (actualX + pfp.size);
@@ -370,19 +418,23 @@ function resolveCentered(input: CompositionInput): AxisResolution {
     } else dropped.push("location");
   } else if (content.location.present) dropped.push("location");
 
-  const resolvedBelow = resolveContentBlock(belowContent, typography, availW, belowSpace, gap);
+  const resolvedBelow = resolveContentBlock(belowContent, typography, availW, belowSpace, gap, textAlign);
   dropped.push(...resolvedBelow.dropped);
   const belowY = actualY + pfp.size + gap;
+  // Position of the BLOCK as a whole (centered under the pfp) — a topology
+  // concern — is independent of textAlign, which only governs how rows sit
+  // WITHIN that block (already baked into resolvedBelow.boxes[role].x by
+  // resolveContentBlock). Previously this force-centered every row
+  // individually against the full card width, which both ignored textAlign
+  // and threw away resolveContentBlock's own (left-by-default) row alignment.
+  const blockOffsetX = padding + Math.max(0, (availW - resolvedBelow.width) / 2);
   for (const [role, box] of Object.entries(resolvedBelow.boxes) as [ElementRole, ElementBox][]) {
-    // Centered horizontally within the box, not left-aligned.
-    const centeredX = padding + Math.max(0, (availW - box.w) / 2);
-    boxes[role] = { ...box, x: centeredX, y: box.y + belowY };
+    boxes[role] = { ...box, x: box.x + blockOffsetX, y: box.y + belowY };
   }
 
   return {
     boxes,
     dropped,
-    anchorDistance,
     contentWidth: availW,
     contentHeight: resolvedBelow.height + gap + pfp.size,
   };
@@ -405,7 +457,7 @@ function stddev(values: number[]): number {
 
 function scoreResolution(
   strategy: CompositionStrategy,
-  res: { boxes: Partial<Record<ElementRole, ElementBox>>; dropped: ElementRole[]; anchorDistance: number },
+  res: { boxes: Partial<Record<ElementRole, ElementBox>>; dropped: ElementRole[] },
   input: CompositionInput,
 ): number {
   const { boxW, boxH, padding, pfp, format } = input;
@@ -442,8 +494,6 @@ function scoreResolution(
     score -= Math.max(0, natural - bioBox.lines) * W.bioClampLine;
   }
 
-  score -= res.anchorDistance * W.anchorDistance;
-
   const totalArea = entries.reduce((sum, b) => sum + b.w * b.h, 0);
   const boxArea = Math.max(1, boxW * boxH);
   const density = totalArea / boxArea;
@@ -473,15 +523,19 @@ function scoreResolution(
     score -= stddev(margins) * W.balance;
   }
 
-  // Alignment: variance along each strategy's own reference line — left edge for
-  // row/column (left-aligned stacks), horizontal center for "centered" (each row
-  // is deliberately centered on its own width, so left edges legitimately differ
-  // there; the thing that should line up is the center line, not the edge).
+  // Alignment: variance along the reference line that actually matches
+  // input.textAlign — left edge, right edge, or center line. This must track
+  // textAlign (not the strategy) so choosing "right"/"center" text alignment
+  // never itself biases which topology wins: a topology-selection decision
+  // driven by textAlign would violate the "these are two independent things"
+  // contract (see file header) just as surely as the pre-3B.2-B anchor
+  // compromise did for position.
   const contentRoles: ElementRole[] = ["name", "handle", "bio", "descriptor", "location", "views"];
+  const align = input.textAlign ?? "left";
   const alignmentCoords = contentRoles
     .map(r => boxes[r])
     .filter((b): b is ElementBox => b != null)
-    .map(b => strategy === "centered" ? b.x + b.w / 2 : b.x);
+    .map(b => align === "center" ? b.x + b.w / 2 : align === "right" ? b.x + b.w : b.x);
   score -= stddev(alignmentCoords) * W.alignment;
 
   score += FORMAT_BIAS[format]?.[strategy] ?? 0;
