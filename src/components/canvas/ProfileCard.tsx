@@ -26,7 +26,21 @@ const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
 const REFLOW_TRANSITION = `left 0.2s ${EASE}, top 0.2s ${EASE}, width 0.2s ${EASE}, height 0.2s ${EASE}`;
 // TEMP 3B.2-A instrumentation — investigating the reported PFP-drag teleport
 // bug in horizontal format. Remove once the root cause is confirmed and fixed.
-const DEBUG_ANCHOR = process.env.NODE_ENV !== "production";
+// NODE_ENV alone would keep this dark on the deployed (production) build the
+// bug actually needs to be reproduced on. Explicit opt-in instead — a
+// production visitor doing neither of the two things below gets zero extra
+// console output; dev keeps getting it for free, no opt-in needed there.
+function resolveDebugAnchor(): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  if (typeof window === "undefined") return false; // SSR pass, no URL/localStorage to check
+  try {
+    return new URLSearchParams(window.location.search).get("debug_anchor") === "1"
+      || window.localStorage.getItem("mnemo_debug_anchor") === "1";
+  } catch {
+    return false;
+  }
+}
+const DEBUG_ANCHOR = resolveDebugAnchor();
 // Unconditional canary (NOT gated by DEBUG_ANCHOR) — proves this module actually
 // loaded in the running bundle and shows what DEBUG_ANCHOR resolved to. If this
 // line never shows up in the console, the problem is environment/route/bundle,
