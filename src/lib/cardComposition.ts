@@ -645,8 +645,22 @@ function resolveBlock(
  * location or views out of the way, but never the pfp, and moving location
  * never pushes identity.
  */
-export function computeBlockLayout(input: CompositionInput, overrides?: BlockOverrides): CompositionResult {
+export interface BlockLayoutResult extends CompositionResult {
+  /** Bounding box of the identity group (name+handle+descriptor+bio) in its
+   * FINAL position — i.e. boxes.name/handle/descriptor/bio's union after any
+   * override/overlap resolution. Exposed so callers (the drag UI) have a
+   * single rect to use as the group's hit-area and drag-start reference,
+   * without re-deriving the union themselves (see 3B.3-B). Undefined only if
+   * none of name/handle/descriptor/bio are present at all. */
+  identityRect?: ElementBox;
+}
+
+export function computeBlockLayout(input: CompositionInput, overrides?: BlockOverrides): BlockLayoutResult {
   const base = computeComposition(input);
+  const identityBase = unionBox(
+    IDENTITY_ROLES.map(role => base.boxes[role]).filter((b): b is ElementBox => b != null),
+  );
+
   // No overrides at all: return the base composition completely untouched.
   // Re-running it through the anti-overlap pipeline below would NOT
   // necessarily be a no-op — that pipeline enforces BLOCK_MIN_GAP (a
@@ -656,24 +670,26 @@ export function computeBlockLayout(input: CompositionInput, overrides?: BlockOve
   // byte-identical to calling computeComposition() directly (see the
   // regression test), which is the actual compatibility contract (existing
   // cards have none of these fields and must render unchanged).
-  if (!overrides?.identity && !overrides?.location && !overrides?.views) return base;
+  if (!overrides?.identity && !overrides?.location && !overrides?.views) {
+    return { ...base, identityRect: identityBase };
+  }
 
   const { boxW, boxH, padding } = input;
   const boxes = { ...base.boxes };
   const obstacles: Rect[] = boxes.pfp ? [boxes.pfp] : [];
+  let identityRect = identityBase;
 
   // ── Identity group (name/handle/descriptor/bio) — moved as one block ──────
-  const identityEntries = IDENTITY_ROLES
-    .map(role => [role, boxes[role]] as const)
-    .filter((e): e is [ElementRole, ElementBox] => e[1] != null);
-  const identityBase = unionBox(identityEntries.map(([, b]) => b));
-
   if (identityBase && identityBase.w > 0 && identityBase.h > 0) {
+    const identityEntries = IDENTITY_ROLES
+      .map(role => [role, boxes[role]] as const)
+      .filter((e): e is [ElementRole, ElementBox] => e[1] != null);
     const resolved = resolveBlock(identityBase, overrides?.identity, obstacles, boxW, boxH, padding);
     const dx = resolved.x - identityBase.x, dy = resolved.y - identityBase.y;
     if (dx !== 0 || dy !== 0) {
       for (const [role, b] of identityEntries) boxes[role] = { ...b, x: b.x + dx, y: b.y + dy };
     }
+    identityRect = { ...identityBase, x: resolved.x, y: resolved.y };
     obstacles.push(resolved);
   }
 
@@ -690,5 +706,5 @@ export function computeBlockLayout(input: CompositionInput, overrides?: BlockOve
     boxes.views = { ...boxes.views, x: resolved.x, y: resolved.y };
   }
 
-  return { ...base, boxes };
+  return { ...base, boxes, identityRect };
 }

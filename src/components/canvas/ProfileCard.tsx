@@ -15,8 +15,24 @@ import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
 import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides } from "@/lib/cardComposition";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
+import { rectToAnchor, snapAxis, snappedPoint } from "@/lib/blockConstraints";
 import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
+
+// ── Draggable block keys (Stage 3B.3-B) ─────────────────────────────────────
+// Identity = name+handle+descriptor+bio, moved as one block — see
+// computeBlockLayout()'s identityRect in cardComposition.ts. Location/Views
+// are single boxes already. PFP has its own separate, older anchor system
+// (pfpAnchorX/Y, startAnchorDrag) and is NOT one of these — see Stage 3B.2-B.
+type BlockKey = "identity" | "location" | "views";
+const BLOCK_ANCHOR_FIELDS: Record<BlockKey, readonly [
+  "identityAnchorX" | "locationAnchorX" | "viewsAnchorX",
+  "identityAnchorY" | "locationAnchorY" | "viewsAnchorY",
+]> = {
+  identity: ["identityAnchorX", "identityAnchorY"],
+  location: ["locationAnchorX", "locationAnchorY"],
+  views:    ["viewsAnchorX", "viewsAnchorY"],
+};
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -176,6 +192,37 @@ function ProfileCard({
     setAnchor({ x: card.pfpAnchorX ?? 0.5, y: card.pfpAnchorY ?? 0.5 });
   }, [card.pfpAnchorX, card.pfpAnchorY]);
 
+  // ── Constrained-freeform block anchors (Stage 3B.3-B) ─────────────────────
+  // Same pattern as the PFP anchor above: local state drives the drag in real
+  // time (no per-frame persistence), undefined means "no override, let
+  // computeBlockLayout fall back to the automatic base composition for this
+  // block" — see BlockOverrides in cardComposition.ts.
+  type Anchor2D = { x: number; y: number };
+  const [blockAnchors, setBlockAnchors] = useState<Record<BlockKey, Anchor2D | undefined>>(() => ({
+    identity: card.identityAnchorX != null && card.identityAnchorY != null ? { x: card.identityAnchorX, y: card.identityAnchorY } : undefined,
+    location: card.locationAnchorX != null && card.locationAnchorY != null ? { x: card.locationAnchorX, y: card.locationAnchorY } : undefined,
+    views:    card.viewsAnchorX    != null && card.viewsAnchorY    != null ? { x: card.viewsAnchorX,    y: card.viewsAnchorY    } : undefined,
+  }));
+  // Which block (if any) is actively being dragged right now — a ref (not
+  // state) because its only two jobs are (a) guarding the sync-from-props
+  // effect below against clobbering an in-progress drag, exactly like
+  // isDraggingAnchor does for the PFP, and (b) a read inside render for the
+  // subtle "grabbing" cursor/outline, which the mousemove-driven re-renders
+  // below already keep fresh from the very first drag tick — no separate
+  // state needed just for that.
+  const draggingBlockRef = useRef<BlockKey | null>(null);
+
+  useEffect(() => {
+    setBlockAnchors(prev => ({
+      identity: draggingBlockRef.current === "identity" ? prev.identity
+        : (card.identityAnchorX != null && card.identityAnchorY != null ? { x: card.identityAnchorX, y: card.identityAnchorY } : undefined),
+      location: draggingBlockRef.current === "location" ? prev.location
+        : (card.locationAnchorX != null && card.locationAnchorY != null ? { x: card.locationAnchorX, y: card.locationAnchorY } : undefined),
+      views: draggingBlockRef.current === "views" ? prev.views
+        : (card.viewsAnchorX != null && card.viewsAnchorY != null ? { x: card.viewsAnchorX, y: card.viewsAnchorY } : undefined),
+    }));
+  }, [card.identityAnchorX, card.identityAnchorY, card.locationAnchorX, card.locationAnchorY, card.viewsAnchorX, card.viewsAnchorY]);
+
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
   const effectiveEffects: CardEffects = getProfileCardEffects(card);
@@ -332,6 +379,63 @@ function ProfileCard({
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [canInteract, layout, isSel, anchor, card.id, card.w, card.h, pad, avatarSize, updateProfile]);
+
+  // ── Constrained-freeform block drag (Stage 3B.3-B) ────────────────────────
+  // Same 1:1-with-the-mouse, persist-only-on-mouseup shape as startAnchorDrag
+  // above, generalized to whichever block is being dragged. `startAnchor`/
+  // `blockW`/`blockH` are passed in from the JSX at mousedown time (not
+  // closed over via deps) because they depend on computeBlockLayout's
+  // CURRENT result — the block's size/position from THIS render, which the
+  // component itself has no other stable reference to.
+  //
+  // The engine (computeBlockLayout), not this handler, decides where the
+  // block actually ends up: every mousemove writes the raw+snapped anchor to
+  // React state, which re-renders through the exact same computeBlockLayout
+  // call renderComposed() always uses. That call re-resolves bounds/overlap
+  // against the other blocks on every tick — this is intentional, not a perf
+  // shortcut we're skipping: it's what makes a block visually resist/nudge
+  // near an obstacle DURING the drag itself (the "magnetism protecting the
+  // composition" feel), rather than only snapping into place after the fact.
+  const startBlockDrag = useCallback((
+    e: React.MouseEvent,
+    key: BlockKey,
+    startAnchor: Anchor2D,
+    blockW: number,
+    blockH: number,
+  ) => {
+    e.stopPropagation();
+    if (!isPfpAnchorDraggable(canInteract, layout, isSel)) return;
+
+    draggingBlockRef.current = key;
+    const startMX = e.clientX, startMY = e.clientY;
+    const rawAvailW = card.w - 2 * pad - blockW;
+    const rawAvailH = card.h - 2 * pad - blockH;
+    let snappedX = snappedPoint(startAnchor.x);
+    let snappedY = snappedPoint(startAnchor.y);
+
+    const onMove = (ev: MouseEvent) => {
+      const rawX = nextAnchorAxis(startAnchor.x, ev.clientX - startMX, rawAvailW);
+      const rawY = nextAnchorAxis(startAnchor.y, ev.clientY - startMY, rawAvailH);
+      const nextX = snapAxis(rawX, snappedX); snappedX = snappedPoint(nextX);
+      const nextY = snapAxis(rawY, snappedY); snappedY = snappedPoint(nextY);
+      setBlockAnchors(prev => ({ ...prev, [key]: { x: nextX, y: nextY } }));
+    };
+    const onUp = () => {
+      draggingBlockRef.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      setBlockAnchors(prev => {
+        const latest = prev[key];
+        if (latest) {
+          const [fx, fy] = BLOCK_ANCHOR_FIELDS[key];
+          updateProfile(card.id, { [fx]: latest.x, [fy]: latest.y } as Partial<ProfileCardData>);
+        }
+        return prev;
+      });
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [canInteract, layout, isSel, card.id, card.w, card.h, pad, updateProfile]);
 
   // ── Element renderers ─────────────────────────────────────────────────────
 
@@ -524,13 +628,15 @@ function ProfileCard({
   // cleanup is a separate later stage.
   function renderComposed() {
     const incumbentBefore = incumbentRef.current;
+    // Local drag state (blockAnchors), not the raw card props — this is what
+    // makes computeBlockLayout re-resolve live on every mousemove-driven
+    // re-render during a drag (see startBlockDrag above). Falls back to the
+    // persisted value automatically: blockAnchors is synced from card.* by
+    // the effect above whenever nothing's being dragged.
     const blockOverrides: BlockOverrides = {
-      identity: card.identityAnchorX != null && card.identityAnchorY != null
-        ? { x: card.identityAnchorX, y: card.identityAnchorY } : undefined,
-      location: card.locationAnchorX != null && card.locationAnchorY != null
-        ? { x: card.locationAnchorX, y: card.locationAnchorY } : undefined,
-      views: card.viewsAnchorX != null && card.viewsAnchorY != null
-        ? { x: card.viewsAnchorX, y: card.viewsAnchorY } : undefined,
+      identity: blockAnchors.identity,
+      location: blockAnchors.location,
+      views: blockAnchors.views,
     };
     const result = computeBlockLayout({
       format: card.format ?? "vertical",
@@ -554,7 +660,7 @@ function ProfileCard({
       textAlign,
     }, blockOverrides);
     incumbentRef.current = result.strategy;
-    const { boxes } = result;
+    const { boxes, identityRect } = result;
 
     // The pfp is authoritative in the engine itself now (Stage 3B.2-B) —
     // boxes.pfp IS the raw anchor-derived position for every strategy, with
@@ -563,6 +669,37 @@ function ProfileCard({
     // and the 3B.2-A/B PFP-anchor-drag postmortem for why that used to exist
     // and what it caused).
     const pfpBox: ElementBox | undefined = boxes.pfp;
+
+    // Subtle drag affordance (Stage 3B.3-B, §7 — no permanent handles/boxes):
+    // a faint dashed outline appears ONLY on the block actively being
+    // dragged, and only then. Deliberately not applied on hover — this isn't
+    // meant to read as "an editor full of boxes", just a momentary
+    // confirmation of which block your drag grabbed.
+    const dragOutline = (key: BlockKey): CSSProperties =>
+      draggingBlockRef.current === key ? { outline: `1px dashed ${withOpacity(baseColor, 0.35)}`, outlineOffset: 2 } : {};
+    // The block being actively dragged must track the mouse with zero lag
+    // (§1) — REFLOW_TRANSITION exists for the OPPOSITE case, a block smoothly
+    // sliding out of the way because something ELSE moved (e.g. dragging the
+    // pfp displacing identity, or dragging identity displacing location).
+    // Applying it to the block under the mouse itself would reintroduce
+    // exactly the lag §1 rules out.
+    const dragTransition = (key: BlockKey): string => draggingBlockRef.current === key ? "none" : REFLOW_TRANSITION;
+
+    const startIdentityDrag = (e: React.MouseEvent) => {
+      if (!identityRect) return;
+      const start = blockAnchors.identity ?? rectToAnchor(identityRect, identityRect.w, identityRect.h, card.w, card.h, pad);
+      startBlockDrag(e, "identity", start, identityRect.w, identityRect.h);
+    };
+    const startLocationDrag = (e: React.MouseEvent) => {
+      if (!boxes.location) return;
+      const start = blockAnchors.location ?? rectToAnchor(boxes.location, boxes.location.w, boxes.location.h, card.w, card.h, pad);
+      startBlockDrag(e, "location", start, boxes.location.w, boxes.location.h);
+    };
+    const startViewsDrag = (e: React.MouseEvent) => {
+      if (!boxes.views) return;
+      const start = blockAnchors.views ?? rectToAnchor(boxes.views, boxes.views.w, boxes.views.h, card.w, card.h, pad);
+      startBlockDrag(e, "views", start, boxes.views.w, boxes.views.h);
+    };
 
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "hidden" }}>
@@ -577,38 +714,65 @@ function ProfileCard({
             <AvatarEl size={pfpBox.w} style={{ width: "100%", height: "100%" }} />
           </div>
         )}
-        {boxes.name && card.name && (
-          <div style={{ position: "absolute", left: boxes.name.x, top: boxes.name.y, width: boxes.name.w, height: boxes.name.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <NameLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
-          </div>
-        )}
-        {boxes.handle && card.handle && (
-          <div style={{ position: "absolute", left: boxes.handle.x, top: boxes.handle.y, width: boxes.handle.w, height: boxes.handle.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <HandleLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
-          </div>
-        )}
-        {boxes.descriptor && card.status && (
-          <div style={{ position: "absolute", left: boxes.descriptor.x, top: boxes.descriptor.y, width: boxes.descriptor.w, height: boxes.descriptor.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <DescriptorLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+        {identityRect && (identityRect.w > 0 || identityRect.h > 0) && (
+          <div
+            style={{
+              position: "absolute", left: identityRect.x, top: identityRect.y,
+              width: identityRect.w, height: identityRect.h,
+              transition: dragTransition("identity"),
+              cursor: isAnchorDraggable ? "grab" : "default",
+              borderRadius: 2, ...dragOutline("identity"),
+            }}
+            onMouseDown={isAnchorDraggable ? startIdentityDrag : undefined}
+          >
+            {boxes.name && card.name && (
+              <div style={{ position: "absolute", left: boxes.name.x - identityRect.x, top: boxes.name.y - identityRect.y, width: boxes.name.w, height: boxes.name.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+                <NameLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+              </div>
+            )}
+            {boxes.handle && card.handle && (
+              <div style={{ position: "absolute", left: boxes.handle.x - identityRect.x, top: boxes.handle.y - identityRect.y, width: boxes.handle.w, height: boxes.handle.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+                <HandleLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+              </div>
+            )}
+            {boxes.descriptor && card.status && (
+              <div style={{ position: "absolute", left: boxes.descriptor.x - identityRect.x, top: boxes.descriptor.y - identityRect.y, width: boxes.descriptor.w, height: boxes.descriptor.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+                <DescriptorLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+              </div>
+            )}
+            {boxes.bio && card.bio && (
+              <div style={{ position: "absolute", left: boxes.bio.x - identityRect.x, top: boxes.bio.y - identityRect.y, width: boxes.bio.w, height: boxes.bio.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+                <BioText style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: boxes.bio.lines ?? 1,
+                  WebkitBoxOrient: "vertical" as CSSProperties["WebkitBoxOrient"],
+                  overflow: "hidden",
+                }} />
+              </div>
+            )}
           </div>
         )}
         {boxes.location && card.location && (
-          <div style={{ position: "absolute", left: boxes.location.x, top: boxes.location.y, width: boxes.location.w, height: boxes.location.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+          <div
+            style={{
+              position: "absolute", left: boxes.location.x, top: boxes.location.y, width: boxes.location.w, height: boxes.location.h,
+              overflow: "hidden", transition: dragTransition("location"), cursor: isAnchorDraggable ? "grab" : "default",
+              borderRadius: 2, ...dragOutline("location"),
+            }}
+            onMouseDown={isAnchorDraggable ? startLocationDrag : undefined}
+          >
             <LocationLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
           </div>
         )}
-        {boxes.bio && card.bio && (
-          <div style={{ position: "absolute", left: boxes.bio.x, top: boxes.bio.y, width: boxes.bio.w, height: boxes.bio.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-            <BioText style={{
-              display: "-webkit-box",
-              WebkitLineClamp: boxes.bio.lines ?? 1,
-              WebkitBoxOrient: "vertical" as CSSProperties["WebkitBoxOrient"],
-              overflow: "hidden",
-            }} />
-          </div>
-        )}
         {boxes.views && card.showViews && (
-          <div style={{ position: "absolute", left: boxes.views.x, top: boxes.views.y, width: boxes.views.w, height: boxes.views.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+          <div
+            style={{
+              position: "absolute", left: boxes.views.x, top: boxes.views.y, width: boxes.views.w, height: boxes.views.h,
+              overflow: "hidden", transition: dragTransition("views"), cursor: isAnchorDraggable ? "grab" : "default",
+              borderRadius: 2, ...dragOutline("views"),
+            }}
+            onMouseDown={isAnchorDraggable ? startViewsDrag : undefined}
+          >
             <ViewsLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
           </div>
         )}

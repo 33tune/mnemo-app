@@ -442,3 +442,84 @@ test("small card sizes degrade coherently under computeBlockLayout, never overfl
     assert.ok(b.x + b.w <= input.boxW + 0.5 && b.y + b.h <= input.boxH + 0.5, `box overflows: ${JSON.stringify(b)}`);
   }
 });
+
+// ── Stage 3B.3-B: drag integration — anchor grid + explicit priority ─────────
+// Covers the etapa's own numbered list (X/Y at 0, 0.5, 1; drag-against-bounds;
+// drag-that-overlaps; explicit priority ordering). The mouse-driven parts of
+// 3B.3-B (mousedown/mousemove/mouseup, updateProfile persistence, "don't move
+// the whole ProfileCard") live in ProfileCard.tsx and this repo has no DOM/
+// component-testing harness (no jsdom or React Testing Library configured) —
+// those are verified by code review (see the summary) and manual QA, exactly
+// how the PFP's own drag was verified in 3B.2-A/B. What's tested here is
+// everything the drag calls into: computeBlockLayout + blockConstraints.
+
+test("location resolves correctly for every combination of X,Y in {0, 0.5, 1}", () => {
+  const input = baseInput();
+  for (const x of [0, 0.5, 1]) {
+    for (const y of [0, 0.5, 1]) {
+      const layout = computeBlockLayout(input, { location: { x, y } });
+      const b = layout.boxes.location!;
+      assert.ok(Number.isFinite(b.x) && Number.isFinite(b.y), `non-finite result at (${x},${y})`);
+      assert.ok(b.x >= 19.5 && b.y >= 19.5 && b.x + b.w <= input.boxW - 19.5 && b.y + b.h <= input.boxH - 19.5,
+        `out of bounds at anchor (${x},${y}): ${JSON.stringify(b)}`);
+    }
+  }
+});
+
+test("identity resolves correctly for every combination of X,Y in {0, 0.5, 1}", () => {
+  const input = baseInput();
+  for (const x of [0, 0.5, 1]) {
+    for (const y of [0, 0.5, 1]) {
+      const layout = computeBlockLayout(input, { identity: { x, y } });
+      for (const role of ["name", "handle", "descriptor", "bio"] as const) {
+        const b = layout.boxes[role];
+        if (!b) continue;
+        assert.ok(Number.isFinite(b.x) && Number.isFinite(b.y), `${role}: non-finite result at (${x},${y})`);
+        assert.ok(b.x >= 19.5 && b.y >= 19.5 && b.x + b.w <= input.boxW - 19.5 && b.y + b.h <= input.boxH - 19.5,
+          `${role}: out of bounds at anchor (${x},${y}): ${JSON.stringify(b)}`);
+      }
+    }
+  }
+});
+
+test("priority is exactly PFP > Identity > Location > Views: a higher-priority block dragged onto a lower one keeps its own requested position untouched", () => {
+  const input = baseInput();
+  // Deliberately away from the pfp's own footprint (x:[125,195], y:[39,109]
+  // in this 320x300 card) — this test isolates identity/location/views
+  // priority specifically; identity yielding to the PFP is already covered
+  // by the "PFP outranks every block" test below.
+  const target = { x: 0.1, y: 0.7 };
+
+  // Identity dragged onto where Location/Views would want to be: identity's
+  // OWN position must land exactly on the raw anchor (nothing to yield to,
+  // pfp isn't there) — it's Location/Views that must move instead.
+  const layout = computeBlockLayout(input, { identity: target, location: target, views: target });
+  const identityUnion = (["name", "handle", "descriptor", "bio"] as const)
+    .map(r => layout.boxes[r]).filter((b): b is ElementBox => b != null);
+  assert.ok(layout.identityRect, "identityRect should be present");
+  const expected = { x: 20 + target.x * (input.boxW - 40 - layout.identityRect!.w), y: 20 + target.y * (input.boxH - 40 - layout.identityRect!.h) };
+  assert.ok(Math.abs(layout.identityRect!.x - expected.x) < 1 && Math.abs(layout.identityRect!.y - expected.y) < 1,
+    `identity should sit exactly at its raw anchor (unyielding): got ${JSON.stringify(layout.identityRect)}, expected ~${JSON.stringify(expected)}`);
+
+  const loc = layout.boxes.location!, views = layout.boxes.views!;
+  for (const b of identityUnion) {
+    assert.ok(!boxesOverlap(b, loc), "location must have yielded away from identity");
+  }
+  assert.ok(!boxesOverlap(loc, views) , "views must have yielded away from location too");
+});
+
+test("PFP outranks every block: dragging identity onto the pfp moves identity away, never the pfp", () => {
+  const input = baseInput();
+  const layout = computeBlockLayout(input, { identity: { x: input.pfp.anchorX, y: input.pfp.anchorY } });
+  const expectedPfp = computeComposition(input).boxes.pfp;
+  assert.deepEqual(layout.boxes.pfp, expectedPfp, "pfp must be completely unaffected by any block override");
+});
+
+test("a profile with no block anchors at all behaves identically to the pre-3B.3 engine (compatibility)", () => {
+  const input = baseInput();
+  const withUndefinedOverrides = computeBlockLayout(input, { identity: undefined, location: undefined, views: undefined });
+  const withNoOverridesArg = computeBlockLayout(input);
+  const plain = computeComposition(input);
+  assert.deepEqual(withUndefinedOverrides.boxes, plain.boxes);
+  assert.deepEqual(withNoOverridesArg.boxes, plain.boxes);
+});
