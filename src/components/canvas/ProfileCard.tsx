@@ -13,7 +13,7 @@ import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
-import { computeComposition, type CompositionStrategy, type ElementBox } from "@/lib/cardComposition";
+import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides } from "@/lib/cardComposition";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
@@ -513,14 +513,26 @@ function ProfileCard({
     );
   }
 
-  // ── Composed layout (Stage 3B) ────────────────────────────────────────────
-  // Replaces the manual vertical/horizontal flex stacks: the user only moves
-  // the PFP (startAnchorDrag → anchor), and computeComposition() decides
-  // where everything else goes. renderVertical/renderHorizontal above stay
-  // defined but unused — legacy cleanup is a separate later stage.
+  // ── Composed layout (Stage 3B / 3B.3) ─────────────────────────────────────
+  // The user moves the PFP (startAnchorDrag → anchor) and, as of Stage 3B.3,
+  // may additionally override where the identity group (name+handle+
+  // descriptor+bio, moved as one block)/location/views sit — see
+  // computeBlockLayout in cardComposition.ts. No drag UI wires those
+  // overrides yet (that's 3B.3-B); with none of the three set, this produces
+  // byte-identical output to the plain computeComposition() call it replaces.
+  // renderVertical/renderHorizontal above stay defined but unused — legacy
+  // cleanup is a separate later stage.
   function renderComposed() {
     const incumbentBefore = incumbentRef.current;
-    const result = computeComposition({
+    const blockOverrides: BlockOverrides = {
+      identity: card.identityAnchorX != null && card.identityAnchorY != null
+        ? { x: card.identityAnchorX, y: card.identityAnchorY } : undefined,
+      location: card.locationAnchorX != null && card.locationAnchorY != null
+        ? { x: card.locationAnchorX, y: card.locationAnchorY } : undefined,
+      views: card.viewsAnchorX != null && card.viewsAnchorY != null
+        ? { x: card.viewsAnchorX, y: card.viewsAnchorY } : undefined,
+    };
+    const result = computeBlockLayout({
       format: card.format ?? "vertical",
       boxW: card.w,
       boxH: card.h,
@@ -540,7 +552,7 @@ function ProfileCard({
       typography: { nameFontSize, bioFontSize: card.bioFontSize ?? 8 },
       incumbent: incumbentBefore,
       textAlign,
-    });
+    }, blockOverrides);
     incumbentRef.current = result.strategy;
     const { boxes } = result;
 
@@ -637,10 +649,11 @@ function ProfileCard({
                   : "linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.52))",
               }} />
             )}
-            {/* Stage 3B: composed layout (computeComposition) is now the live
-                path for every reachable state (default/"vertical"/"horizontal" —
-                there is no UI to pick between those two anymore). "free" is
-                the only legacy path still actually rendered; renderVertical/
+            {/* Stage 3B/3B.3: composed layout (computeBlockLayout, built on
+                computeComposition) is now the live path for every reachable
+                state (default/"vertical"/"horizontal" — there is no UI to
+                pick between those two anymore). "free" is the only legacy
+                path still actually rendered; renderVertical/
                 renderHorizontal stay defined above, unused, for a later
                 cleanup stage — see Stage 3B plan. */}
             {layout === "free" && renderFree()}

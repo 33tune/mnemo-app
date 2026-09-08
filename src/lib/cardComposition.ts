@@ -30,8 +30,24 @@
  *   proximity, balance, alignment, how much had to be dropped): with the PFP
  *   fixed, whichever topology leaves the most usable room for content
  *   naturally tends to win, with no anchor-fidelity term needed to steer it.
+ *
+ * STAGE 3B.3 — constrained freeform (see computeBlockLayout at the bottom):
+ * computeComposition() above is unchanged and IS the "base composition" —
+ * the automatic, anchor-free-for-content layout used whenever a block has no
+ * override. computeBlockLayout() wraps it: PFP stays exactly as
+ * computeComposition produced it (still the only authoritative anchor system
+ * — no second one introduced here), while Name+Handle+Descriptor+Bio (one
+ * group, "identity"), Location, and Views may each additionally have an
+ * independent normalized-anchor override. An overridden block is resolved
+ * through blockConstraints.ts's generic anchor->rect->anti-overlap pipeline
+ * instead of the base composition's position; a block with no override keeps
+ * its base-composition position untouched (byte-identical output — see the
+ * "no overrides" regression test). Blocks are resolved in a fixed priority
+ * order (pfp, then identity, then location, then views) so a moved block
+ * only ever displaces a LOWER-priority one, never a higher one.
  */
 import type { CardFormat } from "@/types";
+import { resolveBlockPosition, resolveOverlap, type Rect } from "./blockConstraints";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -573,4 +589,106 @@ export function computeComposition(input: CompositionInput): CompositionResult {
     score: candidateScores[winner],
     candidateScores,
   };
+}
+
+// ── Constrained freeform block layout (Stage 3B.3) ────────────────────────────
+
+/** One optional normalized anchor override per independently-positionable
+ * block. Absent = "use the base composition's own placement for this block". */
+export interface BlockOverrides {
+  identity?: { x: number; y: number };
+  location?: { x: number; y: number };
+  views?: { x: number; y: number };
+}
+
+const IDENTITY_ROLES: ElementRole[] = ["name", "handle", "descriptor", "bio"];
+const BLOCK_MIN_GAP = 8;
+
+function unionBox(boxes: ElementBox[]): ElementBox | undefined {
+  if (boxes.length === 0) return undefined;
+  const minX = Math.min(...boxes.map(b => b.x));
+  const minY = Math.min(...boxes.map(b => b.y));
+  const maxX = Math.max(...boxes.map(b => b.x + b.w));
+  const maxY = Math.max(...boxes.map(b => b.y + b.h));
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+/** override -> resolve via the anchor pipeline (user dragged it); no override
+ * -> just re-validate the base composition's own rect against obstacles
+ * (exact no-op when nothing upstream moved — no anchor round-trip needed
+ * since we already have the pixel rect). */
+function resolveBlock(
+  baseRect: ElementBox,
+  override: { x: number; y: number } | undefined,
+  obstacles: Rect[],
+  boxW: number,
+  boxH: number,
+  padding: number,
+): Rect {
+  return override
+    ? resolveBlockPosition(override.x, override.y, baseRect.w, baseRect.h, obstacles, boxW, boxH, padding, BLOCK_MIN_GAP)
+    : resolveOverlap(baseRect, obstacles, boxW, boxH, padding, BLOCK_MIN_GAP);
+}
+
+/**
+ * Wraps computeComposition() with independent, overridable positioning for
+ * the identity group (name+handle+descriptor+bio, moved as one block),
+ * location, and views — see the file header's Stage 3B.3 section. Same
+ * CompositionResult shape as computeComposition(); with no overrides at all
+ * the output is identical to calling computeComposition() directly (see the
+ * "no overrides" regression test in cardComposition.test.ts).
+ *
+ * Resolution order is fixed priority, not arbitrary: pfp (untouched, already
+ * authoritative) -> identity -> location -> views. Each later block treats
+ * every earlier one as an obstacle, so a moved block only ever displaces a
+ * LOWER-priority block, never a higher one — moving identity can push
+ * location or views out of the way, but never the pfp, and moving location
+ * never pushes identity.
+ */
+export function computeBlockLayout(input: CompositionInput, overrides?: BlockOverrides): CompositionResult {
+  const base = computeComposition(input);
+  // No overrides at all: return the base composition completely untouched.
+  // Re-running it through the anti-overlap pipeline below would NOT
+  // necessarily be a no-op — that pipeline enforces BLOCK_MIN_GAP (a
+  // deliberate breathing-room minimum for freeform dragging), while the base
+  // composition itself only guarantees zero literal overlap, not any
+  // particular gap. Skipping entirely here is what keeps "no overrides yet"
+  // byte-identical to calling computeComposition() directly (see the
+  // regression test), which is the actual compatibility contract (existing
+  // cards have none of these fields and must render unchanged).
+  if (!overrides?.identity && !overrides?.location && !overrides?.views) return base;
+
+  const { boxW, boxH, padding } = input;
+  const boxes = { ...base.boxes };
+  const obstacles: Rect[] = boxes.pfp ? [boxes.pfp] : [];
+
+  // ── Identity group (name/handle/descriptor/bio) — moved as one block ──────
+  const identityEntries = IDENTITY_ROLES
+    .map(role => [role, boxes[role]] as const)
+    .filter((e): e is [ElementRole, ElementBox] => e[1] != null);
+  const identityBase = unionBox(identityEntries.map(([, b]) => b));
+
+  if (identityBase && identityBase.w > 0 && identityBase.h > 0) {
+    const resolved = resolveBlock(identityBase, overrides?.identity, obstacles, boxW, boxH, padding);
+    const dx = resolved.x - identityBase.x, dy = resolved.y - identityBase.y;
+    if (dx !== 0 || dy !== 0) {
+      for (const [role, b] of identityEntries) boxes[role] = { ...b, x: b.x + dx, y: b.y + dy };
+    }
+    obstacles.push(resolved);
+  }
+
+  // ── Location — independent block ───────────────────────────────────────────
+  if (boxes.location) {
+    const resolved = resolveBlock(boxes.location, overrides?.location, obstacles, boxW, boxH, padding);
+    boxes.location = { ...boxes.location, x: resolved.x, y: resolved.y };
+    obstacles.push(resolved);
+  }
+
+  // ── Views — independent block ──────────────────────────────────────────────
+  if (boxes.views) {
+    const resolved = resolveBlock(boxes.views, overrides?.views, obstacles, boxW, boxH, padding);
+    boxes.views = { ...boxes.views, x: resolved.x, y: resolved.y };
+  }
+
+  return { ...base, boxes };
 }

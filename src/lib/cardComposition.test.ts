@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeComposition, type CompositionContentInput, type CompositionInput, type ElementBox } from "./cardComposition";
+import { computeComposition, computeBlockLayout, type CompositionContentInput, type CompositionInput, type ElementBox, type BlockOverrides } from "./cardComposition";
 
 function content(overrides: Partial<CompositionContentInput> = {}): CompositionContentInput {
   return {
@@ -241,4 +241,204 @@ test("descriptor box width accounts for letter-spacing, not just naive char widt
     r.boxes.descriptor!.w > naiveWidth,
     `descriptor box (${r.boxes.descriptor!.w}) should be wider than the naive pre-fix estimate (${naiveWidth})`
   );
+});
+
+// ── Stage 3B.3: computeBlockLayout (constrained freeform blocks) ─────────────
+
+function fullContent(overrides: Partial<CompositionContentInput> = {}): CompositionContentInput {
+  return content({
+    bio: { present: true, length: 60 },
+    descriptor: { present: true, length: 20 },
+    location: { present: true, length: 18 },
+    views: { present: true },
+    ...overrides,
+  });
+}
+
+function boxesOverlap(a: ElementBox, b: ElementBox): boolean {
+  const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  return ox > 0.5 && oy > 0.5;
+}
+
+function baseInput(overrides: Partial<CompositionInput> = {}): CompositionInput {
+  return {
+    format: "card", boxW: 320, boxH: 300, padding: 20,
+    pfp: { anchorX: 0.5, anchorY: 0.1, size: 70 },
+    content: fullContent(),
+    typography: TYPO,
+    ...overrides,
+  };
+}
+
+test("computeBlockLayout matches computeComposition exactly when no overrides are given", () => {
+  const input = baseInput();
+  const base = computeComposition(input);
+  const layout = computeBlockLayout(input);
+  assert.deepEqual(layout.boxes, base.boxes);
+  assert.equal(layout.strategy, base.strategy);
+});
+
+test("PFP stays exactly as computeComposition placed it, unaffected by block overrides", () => {
+  const input = baseInput();
+  const base = computeComposition(input);
+  const overrides: BlockOverrides = { identity: { x: 0.1, y: 0.9 }, location: { x: 0.9, y: 0.9 }, views: { x: 0.9, y: 0.1 } };
+  const layout = computeBlockLayout(input, overrides);
+  assert.deepEqual(layout.boxes.pfp, base.boxes.pfp);
+});
+
+test("identity group never leaves the card bounds, even at extreme override anchors", () => {
+  const input = baseInput();
+  for (const anchor of [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 0 }, { x: 0, y: 1 }]) {
+    const layout = computeBlockLayout(input, { identity: anchor });
+    for (const role of ["name", "handle", "descriptor", "bio"] as const) {
+      const b = layout.boxes[role];
+      if (!b) continue;
+      assert.ok(b.x >= 20 - 0.5 && b.y >= 20 - 0.5, `${role} outside top-left at anchor ${JSON.stringify(anchor)}: ${JSON.stringify(b)}`);
+      assert.ok(b.x + b.w <= input.boxW - 20 + 0.5 && b.y + b.h <= input.boxH - 20 + 0.5, `${role} outside bottom-right at anchor ${JSON.stringify(anchor)}: ${JSON.stringify(b)}`);
+    }
+  }
+});
+
+test("location never leaves the card bounds, even at extreme override anchors", () => {
+  const input = baseInput();
+  for (const anchor of [{ x: 0, y: 0 }, { x: 1, y: 1 }]) {
+    const layout = computeBlockLayout(input, { location: anchor });
+    const b = layout.boxes.location!;
+    assert.ok(b.x >= 20 - 0.5 && b.y >= 20 - 0.5);
+    assert.ok(b.x + b.w <= input.boxW - 20 + 0.5 && b.y + b.h <= input.boxH - 20 + 0.5);
+  }
+});
+
+test("views never leaves the card bounds, even at extreme override anchors", () => {
+  const input = baseInput();
+  for (const anchor of [{ x: 0, y: 0 }, { x: 1, y: 1 }]) {
+    const layout = computeBlockLayout(input, { views: anchor });
+    const b = layout.boxes.views!;
+    assert.ok(b.x >= 20 - 0.5 && b.y >= 20 - 0.5);
+    assert.ok(b.x + b.w <= input.boxW - 20 + 0.5 && b.y + b.h <= input.boxH - 20 + 0.5);
+  }
+});
+
+test("identity cannot overlap the pfp even when dragged directly onto it", () => {
+  const input = baseInput();
+  const layout = computeBlockLayout(input, { identity: { x: input.pfp.anchorX, y: input.pfp.anchorY } });
+  const pfp = layout.boxes.pfp!;
+  for (const role of ["name", "handle", "descriptor", "bio"] as const) {
+    const b = layout.boxes[role];
+    if (b) assert.ok(!boxesOverlap(pfp, b), `${role} overlaps pfp: ${JSON.stringify(b)}`);
+  }
+});
+
+test("location cannot overlap the identity group even when dragged onto it", () => {
+  const input = baseInput();
+  const identityAnchor = { x: 0.2, y: 0.7 };
+  const layout = computeBlockLayout(input, { identity: identityAnchor, location: identityAnchor });
+  const identityUnion = ["name", "handle", "descriptor", "bio"]
+    .map(r => layout.boxes[r as "name"])
+    .filter((b): b is ElementBox => b != null);
+  const loc = layout.boxes.location!;
+  for (const b of identityUnion) assert.ok(!boxesOverlap(b, loc), `location overlaps identity role box: ${JSON.stringify(b)}`);
+});
+
+test("views cannot overlap identity or location even when dragged onto them", () => {
+  const input = baseInput();
+  const target = { x: 0.5, y: 0.5 };
+  const layout = computeBlockLayout(input, { identity: target, location: target, views: target });
+  const views = layout.boxes.views!;
+  const others = (["name", "handle", "descriptor", "bio", "location"] as const)
+    .map(r => layout.boxes[r]).filter((b): b is ElementBox => b != null);
+  for (const b of others) assert.ok(!boxesOverlap(b, views), `views overlaps: ${JSON.stringify(b)}`);
+});
+
+test("block anchors survive a resize: still valid (in bounds, non-overlapping) at a different card size", () => {
+  const overrides: BlockOverrides = { identity: { x: 0.1, y: 0.6 }, location: { x: 0.8, y: 0.3 }, views: { x: 0.8, y: 0.8 } };
+  for (const [boxW, boxH] of [[320, 300], [420, 260], [280, 380]] as [number, number][]) {
+    const input = baseInput({ boxW, boxH });
+    const layout = computeBlockLayout(input, overrides);
+    const all = (["name", "handle", "descriptor", "bio", "location", "views"] as const)
+      .map(r => layout.boxes[r]).filter((b): b is ElementBox => b != null);
+    for (const b of all) {
+      assert.ok(b.x >= 19.5 && b.y >= 19.5 && b.x + b.w <= boxW - 19.5 && b.y + b.h <= boxH - 19.5,
+        `out of bounds at ${boxW}x${boxH}: ${JSON.stringify(b)}`);
+    }
+    for (let i = 0; i < all.length; i++) {
+      for (let j = i + 1; j < all.length; j++) {
+        assert.ok(!boxesOverlap(all[i], all[j]), `overlap at ${boxW}x${boxH} between boxes ${i} and ${j}`);
+      }
+    }
+    if (layout.boxes.pfp) all.push(layout.boxes.pfp);
+    for (let i = 0; i < all.length; i++) {
+      for (let j = i + 1; j < all.length; j++) {
+        assert.ok(!boxesOverlap(all[i], all[j]), `overlap (incl. pfp) at ${boxW}x${boxH} between boxes ${i} and ${j}`);
+      }
+    }
+  }
+});
+
+test("every card format produces a valid (in-bounds, non-overlapping) block layout with overrides applied", () => {
+  const overrides: BlockOverrides = { identity: { x: 0.15, y: 0.75 }, location: { x: 0.85, y: 0.15 }, views: { x: 0.85, y: 0.85 } };
+  const formats: CompositionInput["format"][] = ["vertical", "horizontal", "square", "phone", "card"];
+  for (const format of formats) {
+    const input = baseInput({ format, boxW: format === "horizontal" ? 500 : 260, boxH: format === "horizontal" ? 180 : 380 });
+    const layout = computeBlockLayout(input, overrides);
+    const all = (["name", "handle", "descriptor", "bio", "location", "views", "pfp"] as const)
+      .map(r => layout.boxes[r]).filter((b): b is ElementBox => b != null);
+    for (const b of all) {
+      assert.ok(b.x >= 19.5 && b.y >= 19.5 && b.x + b.w <= input.boxW - 19.5 && b.y + b.h <= input.boxH - 19.5,
+        `${format}: box out of bounds: ${JSON.stringify(b)}`);
+    }
+    for (let i = 0; i < all.length; i++) {
+      for (let j = i + 1; j < all.length; j++) {
+        assert.ok(!boxesOverlap(all[i], all[j]), `${format}: overlap between boxes ${i} and ${j}`);
+      }
+    }
+  }
+});
+
+test("long text content still gets reasonable room, not dropped or clamped without need, under computeBlockLayout", () => {
+  const input = baseInput({ content: fullContent({ bio: { present: true, length: 300 } }) });
+  const layout = computeBlockLayout(input);
+  assert.ok(!layout.dropped.includes("name"));
+  assert.ok(!layout.dropped.includes("handle"));
+  if (layout.boxes.bio) assert.ok((layout.boxes.bio.lines ?? 0) >= 1, "bio should be clamped via lines, never fully dropped");
+});
+
+test("textAlign does not change the identity block's position, only internal row alignment", () => {
+  const overrides: BlockOverrides = { identity: { x: 0.3, y: 0.4 } };
+  const left = computeBlockLayout(baseInput({ textAlign: "left" }), overrides);
+  const right = computeBlockLayout(baseInput({ textAlign: "right" }), overrides);
+  for (const role of ["name", "handle", "descriptor", "bio"] as const) {
+    const l = left.boxes[role], r = right.boxes[role];
+    if (!l || !r) continue;
+    assert.equal(l.y, r.y, `${role}: y should be identical`);
+    assert.equal(l.w, r.w, `${role}: w should be identical`);
+  }
+});
+
+test("all four blocks (pfp, identity, location, views) coexist without drops when there's enough room", () => {
+  const input = baseInput({ boxW: 420, boxH: 420, format: "square" });
+  const layout = computeBlockLayout(input);
+  assert.ok(layout.boxes.pfp);
+  assert.ok(layout.boxes.name);
+  assert.ok(layout.boxes.handle);
+  assert.ok(layout.boxes.location);
+  assert.ok(layout.boxes.views);
+  assert.equal(layout.dropped.length, 0, `unexpected drops: ${layout.dropped.join(",")}`);
+});
+
+test("small card sizes degrade coherently under computeBlockLayout, never overflowing bounds", () => {
+  const input: CompositionInput = {
+    format: "phone", boxW: 140, boxH: 249, padding: 14,
+    pfp: { anchorX: 0.5, anchorY: 0.5, size: 52 },
+    content: fullContent({ bio: { present: true, length: 400 } }),
+    typography: TYPO,
+  };
+  const layout = computeBlockLayout(input, { location: { x: 0.9, y: 0.9 }, views: { x: 0.1, y: 0.9 } });
+  const all = (["name", "handle", "descriptor", "bio", "location", "views", "pfp"] as const)
+    .map(r => layout.boxes[r]).filter((b): b is ElementBox => b != null);
+  for (const b of all) {
+    assert.ok(b.x >= -0.5 && b.y >= -0.5, `box starts outside: ${JSON.stringify(b)}`);
+    assert.ok(b.x + b.w <= input.boxW + 0.5 && b.y + b.h <= input.boxH + 0.5, `box overflows: ${JSON.stringify(b)}`);
+  }
 });

@@ -176,6 +176,19 @@ export type ProfileCardData = {
   // Text alignment of the identity/content block — orthogonal to where the
   // composition engine places that block (anchor-driven). See cardComposition.ts.
   textAlign?:      "left" | "center" | "right";
+  // Block position overrides (Stage 3B.3) — same normalized-anchor model as
+  // pfpAnchorX/Y (0-1 within the card's padded content area), one pair per
+  // semantic block. Absent means "no override, use the automatic base
+  // composition" (computeComposition's existing placement) — every existing
+  // card has none of these set and renders exactly as before. See
+  // computeBlockLayout() in cardComposition.ts. Independent of the legacy
+  // nameX/nameY/etc. (free mode) below — do not conflate the two.
+  identityAnchorX?: number; // Name + Handle + Descriptor + Bio, moved as one group
+  identityAnchorY?: number;
+  locationAnchorX?: number;
+  locationAnchorY?: number;
+  viewsAnchorX?:    number;
+  viewsAnchorY?:    number;
   // Identity
   photo:           string;
   name:            string;
