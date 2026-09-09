@@ -80,25 +80,31 @@ export function rectToAnchor(
 
 // ── Magnetism / snapping (with hysteresis) ────────────────────────────────────
 
-const MAGNETIC_POINTS = [0, 0.5, 1];
+export const MAGNETIC_POINTS = [0, 0.5, 1];
 const ATTRACT_RADIUS = 0.06; // pulls toward a magnetic point once this close
 const RELEASE_RADIUS = 0.12; // must drift this far from a snapped point to let go
 
 /**
- * Pulls a raw 0-1 axis value toward the nearest magnetic point (edge/center/
- * edge) when close enough, otherwise passes it through unchanged (continuous
- * positioning). `snappedTo` is the magnetic point this axis was snapped to
- * on the PREVIOUS call (undefined if it wasn't) — passing it back in is what
- * creates the hysteresis band: already-snapped uses the wider RELEASE_RADIUS
- * before letting go, unsnapped uses the narrower ATTRACT_RADIUS before
- * grabbing on. Without this a slow drag right at the boundary would flap
- * between snapped/unsnapped every frame.
+ * Pulls a raw 0-1 axis value toward the nearest magnetic point when close
+ * enough, otherwise passes it through unchanged (continuous positioning).
+ * `snappedTo` is the point this axis was snapped to on the PREVIOUS call
+ * (undefined if it wasn't) — passing it back in is what creates the
+ * hysteresis band: already-snapped uses the wider RELEASE_RADIUS before
+ * letting go, unsnapped uses the narrower ATTRACT_RADIUS before grabbing on.
+ * Without this a slow drag right at the boundary would flap between
+ * snapped/unsnapped every frame.
+ *
+ * `points` defaults to the standard edge/center/edge grid {0, 0.5, 1} used by
+ * every block's own anchor. Stage 3B.4 callers (whole-card centering, PFP-
+ * center alignment for a dragged block) pass a different/extended set — same
+ * hysteresis math, just a different candidate list, so there is only ever
+ * ONE snapping system in this codebase, never a parallel one.
  */
-export function snapAxis(raw: number, snappedTo: number | undefined): number {
+export function snapAxis(raw: number, snappedTo: number | undefined, points: readonly number[] = MAGNETIC_POINTS): number {
   const radius = snappedTo != null ? RELEASE_RADIUS : ATTRACT_RADIUS;
-  let nearest = MAGNETIC_POINTS[0];
+  let nearest = points[0];
   let nearestDist = Infinity;
-  for (const p of MAGNETIC_POINTS) {
+  for (const p of points) {
     const d = Math.abs(raw - p);
     if (d < nearestDist) { nearest = p; nearestDist = d; }
   }
@@ -113,10 +119,40 @@ export function snapAxis(raw: number, snappedTo: number | undefined): number {
   return nearestDist <= radius ? nearest : raw;
 }
 
-/** Which magnetic point (if any) `value` is currently snapped to — feed the
- * result back into the next snapAxis call as `snappedTo` for hysteresis. */
-export function snappedPoint(value: number): number | undefined {
-  return MAGNETIC_POINTS.includes(value) ? value : undefined;
+/** Which point (if any) `value` is currently snapped to — feed the result
+ * back into the next snapAxis call as `snappedTo` for hysteresis. Must be
+ * called with the SAME `points` list snapAxis produced `value` with. */
+export function snappedPoint(value: number, points: readonly number[] = MAGNETIC_POINTS): number | undefined {
+  return points.includes(value) ? value : undefined;
+}
+
+// ── 1-D anchor <-> pixel, unpadded (Stage 3B.4) ───────────────────────────────
+// Same normalization idea as anchorToRect/rectToAnchor above, but for a single
+// axis with no padding — used for positioning a whole element across a free
+// span rather than a child inside a padded box (e.g. the ProfileCard
+// container's own x across the canvas width). Kept separate from the 2D pair
+// instead of calling them with a dummy y/h: those model a padded box holding
+// child elements, this models one bare axis of travel.
+export function axisAnchorToPixel(anchor: number, available: number): number {
+  return Math.max(0, Math.min(1, anchor)) * Math.max(0, available);
+}
+export function axisPixelToAnchor(pixel: number, available: number): number {
+  return available > 0 ? Math.max(0, Math.min(1, pixel / available)) : 0.5;
+}
+
+/**
+ * Extra magnetic candidate (Stage 3B.4): the anchor value that would align a
+ * block's own CENTER with `targetCenterPx` on one axis — offered alongside
+ * the standard {0,0.5,1} self-anchor grid so a dragged block can snap into
+ * alignment with another element (e.g. the pfp) without becoming a fixed
+ * zone/preset (it's just one more point snapAxis may or may not pull toward).
+ * Returns undefined when there's no room on this axis, or the aligned anchor
+ * would fall outside [0,1] (the alignment isn't reachable at all).
+ */
+export function centerAlignAnchor(targetCenterPx: number, blockSize: number, available: number, padding: number): number | undefined {
+  if (available <= 0) return undefined;
+  const a = (targetCenterPx - blockSize / 2 - padding) / available;
+  return a >= 0 && a <= 1 ? a : undefined;
 }
 
 // ── Anti-overlap ─────────────────────────────────────────────────────────────

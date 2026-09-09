@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { anchorToRect, rectToAnchor, snapAxis, snappedPoint, resolveOverlap, resolveBlockPosition } from "./blockConstraints";
+import {
+  anchorToRect, rectToAnchor, snapAxis, snappedPoint, resolveOverlap, resolveBlockPosition,
+  axisAnchorToPixel, axisPixelToAnchor, centerAlignAnchor,
+} from "./blockConstraints";
 
 test("anchorToRect never leaves the padded box, for any anchor in [0,1]", () => {
   for (const a of [0, 0.1, 0.5, 0.874, 1]) {
@@ -123,4 +126,91 @@ test("resolveBlockPosition composes anchor resolution and overlap resolution", (
   const result = resolveBlockPosition(0, 0, 60, 30, [pfp], 300, 200, 20, 8);
   assert.ok(result.x >= 20 && result.y >= 20);
   assert.ok(result.x + result.w <= 280 + 1e-9 && result.y + result.h <= 180 + 1e-9);
+});
+
+// ── Stage 3B.4: generalized snapAxis/snappedPoint (custom points) ────────────
+// Whole-card centering (item 1) and PFP-center block alignment (item 2) both
+// reuse snapAxis/snappedPoint with a different candidate list instead of a
+// second hysteresis system — these tests cover that generalization, plus a
+// regression check that the default {0,0.5,1} grid is byte-identical to 3B.3.
+
+test("snapAxis with a single custom point only pulls toward that point, never toward 0/1", () => {
+  assert.equal(snapAxis(0.52, undefined, [0.5]), 0.5);
+  // Close to 0 but 0 is not in the candidate list — passes through unchanged.
+  assert.equal(snapAxis(0.02, undefined, [0.5]), 0.02);
+  assert.equal(snapAxis(0.98, undefined, [0.5]), 0.98);
+});
+
+test("snapAxis custom-points hysteresis: escape works the same as the default grid", () => {
+  const snappedAt = snapAxis(0.5, undefined, [0.5]);
+  assert.equal(snappedAt, 0.5);
+  assert.equal(snapAxis(0.58, snappedPoint(snappedAt, [0.5]), [0.5]), 0.5); // within release radius -> stays
+  assert.equal(snapAxis(0.7, snappedPoint(snappedAt, [0.5]), [0.5]), 0.7); // released -> continuous
+});
+
+test("snapAxis/snappedPoint default parameter is unchanged from the pre-3B.4 {0,0.5,1} grid", () => {
+  assert.equal(snapAxis(0.02, undefined), 0);
+  assert.equal(snapAxis(0.48, undefined), 0.5);
+  assert.equal(snapAxis(0.97, undefined), 1);
+  assert.equal(snappedPoint(0.5), 0.5);
+  assert.equal(snappedPoint(0.3), undefined);
+});
+
+test("snapAxis merges the default grid with an extra alignment candidate (identity-to-pfp use case)", () => {
+  const points = [0, 0.5, 1, 0.73];
+  assert.equal(snapAxis(0.74, undefined, points), 0.73, "should pull toward the extra candidate, not just the grid");
+  assert.equal(snapAxis(0.02, undefined, points), 0, "grid points must still work alongside the extra candidate");
+});
+
+// ── Stage 3B.4: 1-D anchor <-> pixel (whole-card centering) ──────────────────
+
+test("axisAnchorToPixel/axisPixelToAnchor are exact inverses across the available range", () => {
+  const available = 240;
+  for (const a of [0, 0.25, 0.5, 0.75, 1]) {
+    const px = axisAnchorToPixel(a, available);
+    assert.ok(Math.abs(axisPixelToAnchor(px, available) - a) < 1e-9);
+  }
+});
+
+test("axisAnchorToPixel clamps anchor into [0,1] and never returns a negative available", () => {
+  assert.equal(axisAnchorToPixel(-0.5, 240), 0);
+  assert.equal(axisAnchorToPixel(1.5, 240), 240);
+  assert.equal(axisAnchorToPixel(0.5, -10), 0);
+});
+
+test("axisPixelToAnchor clamps out-of-range pixels and falls back to 0.5 with no room", () => {
+  assert.equal(axisPixelToAnchor(-40, 240), 0);
+  assert.equal(axisPixelToAnchor(400, 240), 1);
+  assert.equal(axisPixelToAnchor(120, 0), 0.5);
+});
+
+test("axisAnchorToPixel(0.5, ...) is exact horizontal centering: x + w/2 == available/2 + w/2", () => {
+  const canvasW = 800, cardW = 320;
+  const available = canvasW - cardW;
+  const x = axisAnchorToPixel(0.5, available);
+  assert.equal(x, (canvasW - cardW) / 2, "anchor 0.5 must be the exact centered x");
+});
+
+// ── Stage 3B.4: centerAlignAnchor (PFP-center block alignment) ───────────────
+
+test("centerAlignAnchor recreates a target center exactly (round-trip through anchorToRect)", () => {
+  const boxW = 300, padding = 20, blockW = 60;
+  const targetCenterPx = 150;
+  const available = boxW - 2 * padding - blockW;
+  const a = centerAlignAnchor(targetCenterPx, blockW, available, padding);
+  assert.ok(a != null, "expected a reachable alignment anchor");
+  const rect = anchorToRect(a!, 0, blockW, 10, boxW, 100, padding);
+  assert.ok(Math.abs((rect.x + blockW / 2) - targetCenterPx) < 1e-9, `center mismatch: ${rect.x + blockW / 2} vs ${targetCenterPx}`);
+});
+
+test("centerAlignAnchor returns undefined when there's no room on the axis", () => {
+  assert.equal(centerAlignAnchor(150, 60, 0, 20), undefined);
+  assert.equal(centerAlignAnchor(150, 60, -5, 20), undefined);
+});
+
+test("centerAlignAnchor returns undefined when the aligned anchor would fall outside [0,1]", () => {
+  // Target center far to the left of the box: aligning would need a negative anchor.
+  assert.equal(centerAlignAnchor(-500, 60, 200, 20), undefined);
+  // Target center far to the right: would need anchor > 1.
+  assert.equal(centerAlignAnchor(5000, 60, 200, 20), undefined);
 });

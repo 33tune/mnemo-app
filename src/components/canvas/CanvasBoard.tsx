@@ -1838,8 +1838,9 @@ export default function CanvasBoard({
     zCounter.current += 1;
     // The Presentation Card is the singleton anchor of the profile — it always
     // spawns centered horizontally on the canvas, at a fixed vertical anchor
-    // (not view-dependent jitter like every other addX()). It can't be dragged,
-    // so this is the only place its position is ever set.
+    // (not view-dependent jitter like every other addX()). As of Stage 3B.4
+    // it CAN be dragged afterward (see ProfileCard.tsx's startCardDrag) — this
+    // is just its deliberate, deterministic starting position.
     const format: CardFormat = "vertical";
     // 0.3 is only a starting-size helper (30% of the format's width range) —
     // w/h below is the actual, sole source of truth for size from this point
@@ -2615,7 +2616,8 @@ export default function CanvasBoard({
           updateProfile={updateProfile}
           canInteract={canInteract}
           currentUserId={currentUserId}
-          ownerUserId={ownerUserId} />);
+          ownerUserId={ownerUserId}
+          canvasWidth={effectiveW} />);
       })}
 
 
