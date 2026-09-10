@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   anchorToRect, rectToAnchor, snapAxis, snappedPoint, resolveOverlap, resolveBlockPosition,
-  axisAnchorToPixel, axisPixelToAnchor, centerAlignAnchor,
+  centerAlignAnchor,
 } from "./blockConstraints";
 
 test("anchorToRect never leaves the padded box, for any anchor in [0,1]", () => {
@@ -128,11 +128,13 @@ test("resolveBlockPosition composes anchor resolution and overlap resolution", (
   assert.ok(result.x + result.w <= 280 + 1e-9 && result.y + result.h <= 180 + 1e-9);
 });
 
-// ── Stage 3B.4: generalized snapAxis/snappedPoint (custom points) ────────────
-// Whole-card centering (item 1) and PFP-center block alignment (item 2) both
-// reuse snapAxis/snappedPoint with a different candidate list instead of a
-// second hysteresis system — these tests cover that generalization, plus a
-// regression check that the default {0,0.5,1} grid is byte-identical to 3B.3.
+// ── Stage 3B.4-A: generalized snapAxis/snappedPoint (custom points) ──────────
+// The PFP's own center-of-card magnetism (ProfileCard.tsx's PFP_CENTER_POINT,
+// literally [0.5]) and PFP-center block alignment (Stage 3B.4) both reuse
+// snapAxis/snappedPoint with a different candidate list instead of a second
+// hysteresis system — these tests cover that generalization (center pull,
+// intermediate pass-through, escape, hysteresis), plus a regression check
+// that the default {0,0.5,1} grid is byte-identical to 3B.3.
 
 test("snapAxis with a single custom point only pulls toward that point, never toward 0/1", () => {
   assert.equal(snapAxis(0.52, undefined, [0.5]), 0.5);
@@ -148,6 +150,20 @@ test("snapAxis custom-points hysteresis: escape works the same as the default gr
   assert.equal(snapAxis(0.7, snappedPoint(snappedAt, [0.5]), [0.5]), 0.7); // released -> continuous
 });
 
+test("PFP center magnetism: X and Y snap independently (one axis at the center point doesn't drag the other along)", () => {
+  const points = [0.5]; // == ProfileCard.tsx's PFP_CENTER_POINT
+  // X sits right at the center and snaps; Y is far from center and must stay continuous.
+  const x = snapAxis(0.51, undefined, points);
+  const y = snapAxis(0.1, undefined, points);
+  assert.equal(x, 0.5);
+  assert.equal(y, 0.1);
+  // Once X is snapped, dragging Y around freely must never perturb X's own
+  // hysteresis state — each axis carries its own independent snappedTo ref.
+  const snappedX = snappedPoint(x, points);
+  assert.equal(snapAxis(0.9, undefined, points), 0.9);
+  assert.equal(snapAxis(0.53, snappedX, points), 0.5);
+});
+
 test("snapAxis/snappedPoint default parameter is unchanged from the pre-3B.4 {0,0.5,1} grid", () => {
   assert.equal(snapAxis(0.02, undefined), 0);
   assert.equal(snapAxis(0.48, undefined), 0.5);
@@ -160,35 +176,6 @@ test("snapAxis merges the default grid with an extra alignment candidate (identi
   const points = [0, 0.5, 1, 0.73];
   assert.equal(snapAxis(0.74, undefined, points), 0.73, "should pull toward the extra candidate, not just the grid");
   assert.equal(snapAxis(0.02, undefined, points), 0, "grid points must still work alongside the extra candidate");
-});
-
-// ── Stage 3B.4: 1-D anchor <-> pixel (whole-card centering) ──────────────────
-
-test("axisAnchorToPixel/axisPixelToAnchor are exact inverses across the available range", () => {
-  const available = 240;
-  for (const a of [0, 0.25, 0.5, 0.75, 1]) {
-    const px = axisAnchorToPixel(a, available);
-    assert.ok(Math.abs(axisPixelToAnchor(px, available) - a) < 1e-9);
-  }
-});
-
-test("axisAnchorToPixel clamps anchor into [0,1] and never returns a negative available", () => {
-  assert.equal(axisAnchorToPixel(-0.5, 240), 0);
-  assert.equal(axisAnchorToPixel(1.5, 240), 240);
-  assert.equal(axisAnchorToPixel(0.5, -10), 0);
-});
-
-test("axisPixelToAnchor clamps out-of-range pixels and falls back to 0.5 with no room", () => {
-  assert.equal(axisPixelToAnchor(-40, 240), 0);
-  assert.equal(axisPixelToAnchor(400, 240), 1);
-  assert.equal(axisPixelToAnchor(120, 0), 0.5);
-});
-
-test("axisAnchorToPixel(0.5, ...) is exact horizontal centering: x + w/2 == available/2 + w/2", () => {
-  const canvasW = 800, cardW = 320;
-  const available = canvasW - cardW;
-  const x = axisAnchorToPixel(0.5, available);
-  assert.equal(x, (canvasW - cardW) / 2, "anchor 0.5 must be the exact centered x");
 });
 
 // ── Stage 3B.4: centerAlignAnchor (PFP-center block alignment) ───────────────

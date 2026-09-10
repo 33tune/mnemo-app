@@ -95,10 +95,11 @@ const RELEASE_RADIUS = 0.12; // must drift this far from a snapped point to let 
  * snapped/unsnapped every frame.
  *
  * `points` defaults to the standard edge/center/edge grid {0, 0.5, 1} used by
- * every block's own anchor. Stage 3B.4 callers (whole-card centering, PFP-
- * center alignment for a dragged block) pass a different/extended set — same
- * hysteresis math, just a different candidate list, so there is only ever
- * ONE snapping system in this codebase, never a parallel one.
+ * every block's own anchor. Stage 3B.4-A callers (pfp center-of-card
+ * magnetism, PFP-center alignment for a dragged block) pass a
+ * different/extended set — same hysteresis math, just a different candidate
+ * list, so there is only ever ONE snapping system in this codebase, never a
+ * parallel one.
  */
 export function snapAxis(raw: number, snappedTo: number | undefined, points: readonly number[] = MAGNETIC_POINTS): number {
   const radius = snappedTo != null ? RELEASE_RADIUS : ATTRACT_RADIUS;
@@ -124,20 +125,6 @@ export function snapAxis(raw: number, snappedTo: number | undefined, points: rea
  * called with the SAME `points` list snapAxis produced `value` with. */
 export function snappedPoint(value: number, points: readonly number[] = MAGNETIC_POINTS): number | undefined {
   return points.includes(value) ? value : undefined;
-}
-
-// ── 1-D anchor <-> pixel, unpadded (Stage 3B.4) ───────────────────────────────
-// Same normalization idea as anchorToRect/rectToAnchor above, but for a single
-// axis with no padding — used for positioning a whole element across a free
-// span rather than a child inside a padded box (e.g. the ProfileCard
-// container's own x across the canvas width). Kept separate from the 2D pair
-// instead of calling them with a dummy y/h: those model a padded box holding
-// child elements, this models one bare axis of travel.
-export function axisAnchorToPixel(anchor: number, available: number): number {
-  return Math.max(0, Math.min(1, anchor)) * Math.max(0, available);
-}
-export function axisPixelToAnchor(pixel: number, available: number): number {
-  return available > 0 ? Math.max(0, Math.min(1, pixel / available)) : 0.5;
 }
 
 /**

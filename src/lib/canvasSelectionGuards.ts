@@ -4,14 +4,15 @@
  *
  * Two families:
  * - Multi-element guards (applyGroupDragDelta, filterTrashDeletion,
- *   resolveBulkDeleteIds): keep the card out of generic, multi-element
- *   operations (group drag, drag-to-trash, bulk keyboard delete) that were
- *   never designed with a "this element can never move / be bulk-deleted"
- *   exception in mind. The card can still legitimately end up in a
- *   multi-selection (the marquee doesn't exclude it, by design — it stays
- *   selectable and resizeable); these guards stop it from moving or getting
- *   swept away as a passenger once that selection is dragged, trashed, or
- *   bulk-deleted.
+ *   resolveBulkDeleteIds, isMarqueeSelectable): keep the card out of generic,
+ *   multi-element operations (group drag, drag-to-trash, bulk keyboard
+ *   delete, marquee/rectangle selection) that were never designed with a
+ *   "this element can never move / be bulk-deleted / drag-selected"
+ *   exception in mind. The card can still be selected directly (a click on
+ *   it, or added via shift-click) — isMarqueeSelectable only excludes the
+ *   drag-a-rectangle path; the other guards then stop it from moving or
+ *   getting swept away as a passenger if it ends up in a multi-selection
+ *   formed some other way.
  * - Single-element guard (isPfpAnchorDraggable): governs the card's OWN PFP
  *   drag — requires the card to be individually selected first.
  */
@@ -85,6 +86,17 @@ export function resolveBulkDeleteIds<T extends { id: string; elementType: string
   if (selectedIds.size <= 1) return selectedIds;
   const byId = new Map(elements.map(el => [el.id, el]));
   return new Set([...selectedIds].filter(id => byId.get(id)?.elementType !== "profile"));
+}
+
+/**
+ * Whether an element type may be picked up by a marquee/rectangle selection
+ * (Stage 3B.4-A) — only the Presentation Card is excluded, so a drag-select
+ * rectangle that visually crosses it never adds it to the resulting
+ * selection, even fully enclosing it. Direct selection (a click on the card)
+ * is a completely separate path in CanvasBoard.tsx and is untouched by this.
+ */
+export function isMarqueeSelectable(elementType: string): boolean {
+  return elementType !== "profile";
 }
 
 /**

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyGroupDragDelta, filterTrashDeletion, resolveBulkDeleteIds, isPfpAnchorDraggable } from "./canvasSelectionGuards";
+import { applyGroupDragDelta, filterTrashDeletion, resolveBulkDeleteIds, isMarqueeSelectable, isPfpAnchorDraggable } from "./canvasSelectionGuards";
 
 interface El { id: string; elementType: string; x: number; y: number; w?: number; h?: number }
 
@@ -78,6 +78,26 @@ test("resolveBulkDeleteIds returns an empty set if every non-profile id in the m
   // the profile; a truly stale id (present in selection, absent from
   // elements) is left for the caller to filter when building the snapshot.
   assert.deepEqual(result, new Set(["already-deleted"]));
+});
+
+// ── isMarqueeSelectable (Stage 3B.4-A) ────────────────────────────────────────
+
+test("isMarqueeSelectable excludes only the profile element type", () => {
+  assert.equal(isMarqueeSelectable("profile"), false);
+  assert.equal(isMarqueeSelectable("image"), true);
+  assert.equal(isMarqueeSelectable("card"), true);
+  assert.equal(isMarqueeSelectable("gallery"), true);
+});
+
+test("marquee rectangle hit-test (mirroring CanvasBoard's loop) never selects the profile, even when the rect fully encloses it", () => {
+  const start = els();
+  const rect = { x: 0, y: 0, w: 1000, h: 1000 }; // encloses every fixture element
+  const hit = (ex: number, ey: number, ew: number, eh: number) =>
+    ex < rect.x + rect.w && ex + ew > rect.x && ey < rect.y + rect.h && ey + eh > rect.y;
+  const selected = start
+    .filter(el => isMarqueeSelectable(el.elementType) && hit(el.x, el.y, el.w ?? 0, el.h ?? 0))
+    .map(el => el.id);
+  assert.deepEqual(selected.sort(), ["image-1", "image-2"], "profile-1 must never appear in a marquee result");
 });
 
 // ── isPfpAnchorDraggable (Stage 3B.2-B) ───────────────────────────────────────

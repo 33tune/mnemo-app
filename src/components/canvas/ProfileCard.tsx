@@ -16,8 +16,7 @@ import ProfileConfigMenu from "./ProfileConfigMenu";
 import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides } from "@/lib/cardComposition";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
-  rectToAnchor, snapAxis, snappedPoint, MAGNETIC_POINTS,
-  axisAnchorToPixel, axisPixelToAnchor, centerAlignAnchor,
+  rectToAnchor, snapAxis, snappedPoint, MAGNETIC_POINTS, centerAlignAnchor,
 } from "@/lib/blockConstraints";
 import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
@@ -44,11 +43,10 @@ const EASE = "cubic-bezier(0.2,0.8,0.2,1)";
 // pfp box itself (see startAnchorDrag / renderComposed): it must track the
 // mouse 1:1 with zero lag, so it never gets a transition, dragging or not.
 const REFLOW_TRANSITION = `left 0.2s ${EASE}, top 0.2s ${EASE}, width 0.2s ${EASE}, height 0.2s ${EASE}`;
-// Mirrors CanvasBoard's canvasBounds.topOffset (topbar height) — the same
-// lower bound every other draggable widget's live drag already clamps to
-// (see applyGroupDragDelta in canvasSelectionGuards.ts). No upper bound: the
-// canvas scrolls vertically with no fixed height (Stage 3B.4 item 1).
-const CANVAS_TOP_OFFSET = 44;
+// The pfp's own center-of-card magnetism (Stage 3B.4-A) — a single point,
+// not the {0,0.5,1} grid the composition blocks use (see startBlockDrag) —
+// pulling toward dead-center on both axes, continuous everywhere else.
+const PFP_CENTER_POINT = [0.5] as const;
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -120,11 +118,6 @@ interface Props {
   currentUserId?:    string;
   ownerUserId?:      string;
   entryAnimStyle?:   CSSProperties;
-  // Stage 3B.4: canvas-wide horizontal span the container drag/centering
-  // magnetism resolves against — see startCardDrag. Not needed for anything
-  // else in this component (internal composition only ever cares about the
-  // card's own w/h).
-  canvasWidth:       number;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -149,7 +142,7 @@ function initFreePos(card: ProfileCardData): FreePos {
 function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
-  currentUserId, ownerUserId, entryAnimStyle = {}, canvasWidth,
+  currentUserId, ownerUserId, entryAnimStyle = {},
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
@@ -235,69 +228,6 @@ function ProfileCard({
         : (card.viewsAnchorX != null && card.viewsAnchorY != null ? { x: card.viewsAnchorX, y: card.viewsAnchorY } : undefined),
     }));
   }, [card.identityAnchorX, card.identityAnchorY, card.locationAnchorX, card.locationAnchorY, card.viewsAnchorX, card.viewsAnchorY]);
-
-  // ── Container drag: move the whole ProfileCard (Stage 3B.4) ───────────────
-  // Same local-state-during-drag / persist-on-mouseup shape as every other
-  // drag in this file. Deliberately its OWN, separate mousedown/mousemove/
-  // mouseup cycle — NOT useDragDrop's startDrag/handleDragMove — so the
-  // singleton-card guards in canvasSelectionGuards.ts (applyGroupDragDelta
-  // excludes elementType==="profile", filterTrashDeletion protects it from
-  // drag-to-trash) stay fully intact and untouched: this drag never enters
-  // useDragDrop's `dragging` state at all, so it can never be swept into a
-  // multi-element group-drag, and a group-drag of OTHER elements can never
-  // move this card either.
-  const [cardPos, setCardPos] = useState(() => ({ x: card.x, y: card.y }));
-  const isDraggingCardRef = useRef(false);
-  const snappedCardXRef = useRef<number | undefined>(undefined);
-  // Only the center point is magnetic here (not the {0,0.5,1} grid the
-  // internal blocks use) — item 1 asked for centering to be easy, not for
-  // the card to also want to hug the canvas edges.
-  const CARD_CENTER_POINT = [0.5] as const;
-
-  useEffect(() => {
-    if (isDraggingCardRef.current) return;
-    setCardPos({ x: card.x, y: card.y });
-  }, [card.x, card.y]);
-
-  const startCardDrag = useCallback((e: React.MouseEvent) => {
-    // Requires the card to already be selected — same deliberate
-    // "you're now interacting with this card" gesture isPfpAnchorDraggable
-    // enforces for the pfp/blocks (a bare click-drag on an unselected card
-    // only selects it; a second click-drag actually moves it).
-    if (!canInteract || !isSel) return;
-    e.stopPropagation();
-    isDraggingCardRef.current = true;
-    const startMX = e.clientX, startMY = e.clientY;
-    const startX = card.x, startY = card.y;
-    const availW = Math.max(0, canvasWidth - card.w);
-    snappedCardXRef.current = snappedPoint(axisPixelToAnchor(startX, availW), CARD_CENTER_POINT);
-
-    const onMove = (ev: MouseEvent) => {
-      const rawX = startX + (ev.clientX - startMX);
-      // Free on Y — no vertical magnetism (Stage 3B.4 item 1 decision): the
-      // desktop canvas scrolls vertically with no fixed height, so there is
-      // no stable "vertical center" to pull toward. Only clamp the top edge
-      // (mirrors every other widget's canvasBounds.topOffset) — no bottom
-      // clamp, canvas scrolls.
-      const nextY = Math.max(CANVAS_TOP_OFFSET, startY + (ev.clientY - startMY));
-      const rawAnchorX = axisPixelToAnchor(rawX, availW);
-      const snappedAnchorX = snapAxis(rawAnchorX, snappedCardXRef.current, CARD_CENTER_POINT);
-      snappedCardXRef.current = snappedPoint(snappedAnchorX, CARD_CENTER_POINT);
-      setCardPos({ x: axisAnchorToPixel(snappedAnchorX, availW), y: nextY });
-    };
-    const onUp = () => {
-      isDraggingCardRef.current = false;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      setCardPos(prev => {
-        updateProfile(card.id, { x: Math.round(prev.x), y: Math.round(prev.y) });
-        return prev;
-      });
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canInteract, isSel, card.x, card.y, card.w, card.id, canvasWidth, updateProfile]);
 
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
@@ -422,6 +352,14 @@ function ProfileCard({
   // Moves the PFP anchor within the card's padded content area. 1:1 with the
   // mouse, no throttling — anchor state updates every mousemove, but the
   // card is only patched once, on mouseup (see onUp below).
+  //
+  // Stage 3B.4-A: center magnetism lives HERE, not on the card container
+  // (which is fixed-position, see Stage 3B.4-A notes above isPfpAnchorDraggable
+  // usage). Reuses the same snapAxis/snappedPoint hysteresis every other
+  // anchor drag in this file uses (startBlockDrag), just with a single custom
+  // candidate — PFP_CENTER_POINT — instead of the {0,0.5,1} block grid: pure
+  // continuous positioning elsewhere, pulled toward dead-center X=0.5/Y=0.5,
+  // escapable by continuing to drag past the release radius.
   const startAnchorDrag = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     // Same guard as the PFP's onMouseDown wiring (isAnchorDraggable above) —
@@ -437,10 +375,14 @@ function ProfileCard({
     // freeze instead of becoming hypersensitive.
     const rawAvailW = card.w - 2 * pad - avatarSize;
     const rawAvailH = card.h - 2 * pad - avatarSize;
+    let snappedX = snappedPoint(startAnchor.x, PFP_CENTER_POINT);
+    let snappedY = snappedPoint(startAnchor.y, PFP_CENTER_POINT);
 
     const onMove = (ev: MouseEvent) => {
-      const nextX = nextAnchorAxis(startAnchor.x, ev.clientX - startMX, rawAvailW);
-      const nextY = nextAnchorAxis(startAnchor.y, ev.clientY - startMY, rawAvailH);
+      const rawX = nextAnchorAxis(startAnchor.x, ev.clientX - startMX, rawAvailW);
+      const rawY = nextAnchorAxis(startAnchor.y, ev.clientY - startMY, rawAvailH);
+      const nextX = snapAxis(rawX, snappedX, PFP_CENTER_POINT); snappedX = snappedPoint(nextX, PFP_CENTER_POINT);
+      const nextY = snapAxis(rawY, snappedY, PFP_CENTER_POINT); snappedY = snappedPoint(nextY, PFP_CENTER_POINT);
       setAnchor({ x: nextX, y: nextY });
     };
     const onUp = () => {
@@ -877,16 +819,16 @@ function ProfileCard({
     <>
       <div
         ref={cardRef}
-        onMouseDown={menuOpen ? e => e.stopPropagation() : e => { onMouseDown(e); startCardDrag(e); }}
+        onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
         onClick={onClick}
         onMouseMove={onInteractMove}
         onMouseLeave={onInteractLeave}
         style={{
-          position: "absolute", left: cardPos.x, top: cardPos.y, width: card.w, height: card.h,
+          position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
           zIndex: card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
           transform: `${parallaxTransform} rotate(${card.rotation}deg)`,
           willChange: "transform", userSelect: "none",
-          cursor: draggingId === card.id || isDraggingCardRef.current ? "grabbing" : menuOpen ? "default" : "grab",
+          cursor: draggingId === card.id ? "grabbing" : menuOpen ? "default" : "grab",
           ...entryAnimStyle,
         }}
       >
@@ -951,10 +893,8 @@ function ProfileCard({
         )}
 
         {/* ── Resize handles ── */}
-        {/* Rotation is fixed by design (singleton presentation card) — no rotate
-            affordance. Position is draggable as of Stage 3B.4 (see
-            startCardDrag) via the card's own background, not these handles —
-            resize stays until Forma/proporciones is designed. */}
+        {/* Position and rotation are fixed by design (singleton presentation card) —
+            no lock/rotate affordances. Resize stays until Forma/proporciones is designed. */}
         {isSel && canInteract && <ResizeHandles onResizeMD={onResizeMD} light={isLight} />}
 
         {/* ── Config menu ── */}
@@ -976,8 +916,7 @@ function areProfilePropsEqual(prev: Props, next: Props): boolean {
     prev.canInteract       === next.canInteract &&
     prev.parallaxTransform === next.parallaxTransform &&
     prev.currentUserId     === next.currentUserId &&
-    prev.ownerUserId       === next.ownerUserId &&
-    prev.canvasWidth       === next.canvasWidth
+    prev.ownerUserId       === next.ownerUserId
   );
 }
 export default memo(ProfileCard, areProfilePropsEqual);

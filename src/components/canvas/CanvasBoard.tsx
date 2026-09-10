@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor, SharedWidgetKind, Placement, HiddenMap, PlacementMap, CardFormat } from "@/types";
 import { resolveCardSize } from "@/lib/cardGeometry";
-import { resolveBulkDeleteIds } from "@/lib/canvasSelectionGuards";
+import { resolveBulkDeleteIds, isMarqueeSelectable } from "@/lib/canvasSelectionGuards";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
@@ -1838,9 +1838,8 @@ export default function CanvasBoard({
     zCounter.current += 1;
     // The Presentation Card is the singleton anchor of the profile — it always
     // spawns centered horizontally on the canvas, at a fixed vertical anchor
-    // (not view-dependent jitter like every other addX()). As of Stage 3B.4
-    // it CAN be dragged afterward (see ProfileCard.tsx's startCardDrag) — this
-    // is just its deliberate, deterministic starting position.
+    // (not view-dependent jitter like every other addX()). It can't be dragged,
+    // so this is the only place its position is ever set.
     const format: CardFormat = "vertical";
     // 0.3 is only a starting-size helper (30% of the format's width range) —
     // w/h below is the actual, sole source of truth for size from this point
@@ -2102,7 +2101,11 @@ export default function CanvasBoard({
         visCards.forEach(c => { if(hit(c.x,c.y,c.w,c.h)) ns.add(c.id); });
         visTexts.forEach(t => { const tw=(t.content?.length??4)*t.size*0.55; const th=t.size*1.6; if(hit(t.x,t.y,tw,th)) ns.add(t.id); });
         visGalleries.forEach(g => { if(hit(g.x,g.y,g.w,g.h)) ns.add(g.id); });
-        visProfiles.forEach(p    => { if(hit(p.x,p.y,p.w,p.h)) ns.add(p.id); });
+        // Deliberately excluded via isMarqueeSelectable: the Presentation
+        // Card is a fixed-position singleton and must never be pulled into a
+        // marquee/rectangle selection (Stage 3B.4-A) — it stays selectable
+        // via its own direct click, just not via drag-select.
+        if (isMarqueeSelectable("profile")) visProfiles.forEach(p => { if(hit(p.x,p.y,p.w,p.h)) ns.add(p.id); });
         visMedias.forEach(m      => { if(hit(m.x,m.y,m.w,m.h)) ns.add(m.id); });
         visGuestbooks.forEach(g  => { if(hit(g.x,g.y,g.w,g.h)) ns.add(g.id); });
         setSelectedIds(ns);
@@ -2616,8 +2619,7 @@ export default function CanvasBoard({
           updateProfile={updateProfile}
           canInteract={canInteract}
           currentUserId={currentUserId}
-          ownerUserId={ownerUserId}
-          canvasWidth={effectiveW} />);
+          ownerUserId={ownerUserId} />);
       })}
 
 
