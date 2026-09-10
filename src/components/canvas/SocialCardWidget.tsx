@@ -183,7 +183,7 @@ function SocialCardWidget({
               (card.socialLinks ?? []).map(sl => {
                 const hasPos = sl.x !== undefined && sl.y !== undefined;
                 return (
-                  <div key={sl.id} data-icon-id={sl.id}
+                  <div key={sl.id} data-icon-id={sl.id} data-canvas-hot=""
                     onMouseDown={isSel && canInteract ? e => onIconMouseDown(e, sl) : undefined}
                     style={hasPos ? { position: "absolute", left: sl.x, top: sl.y, transform: "translate(-50%,-50%)", cursor: isSel && canInteract ? "grab" : "default", zIndex: internalDrag?.id === sl.id ? 10 : 1 } : { cursor: isSel && canInteract ? "grab" : "default", flexShrink: 0 }}
                   >

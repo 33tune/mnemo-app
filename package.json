@@ -4,7 +4,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test src/lib/cardGeometry.test.ts src/lib/cardComposition.test.ts src/lib/anchorDrag.test.ts src/lib/canvasSelectionGuards.test.ts src/lib/blockConstraints.test.ts"
+    "test": "tsx --test src/lib/cardGeometry.test.ts src/lib/cardComposition.test.ts src/lib/anchorDrag.test.ts src/lib/canvasSelectionGuards.test.ts src/lib/blockConstraints.test.ts src/lib/hitStack.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",

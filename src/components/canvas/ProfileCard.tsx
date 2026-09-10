@@ -738,6 +738,7 @@ function ProfileCard({
       <div style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "hidden" }}>
         {pfpBox && (
           <div
+            data-canvas-hot=""
             style={{
               position: "absolute", left: pfpBox.x, top: pfpBox.y, width: pfpBox.w, height: pfpBox.h,
               cursor: isAnchorDraggable ? "grab" : "default",
@@ -861,6 +862,7 @@ function ProfileCard({
         {/* ── Gear handle ── */}
         {isSel && canInteract && (
           <div
+            data-canvas-hot=""
             onMouseDown={e => e.stopPropagation()}
             onClick={e => {
               e.stopPropagation();

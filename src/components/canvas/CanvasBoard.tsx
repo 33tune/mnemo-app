@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor, SharedWidgetKind, Placement, HiddenMap, PlacementMap, CardFormat } from "@/types";
 import { resolveCardSize } from "@/lib/cardGeometry";
 import { resolveBulkDeleteIds, isMarqueeSelectable } from "@/lib/canvasSelectionGuards";
+import { shouldImageIgnorePointerEvents, nextIdInHitCycle, resolveImageMouseDownTarget } from "@/lib/hitStack";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
@@ -1667,15 +1668,14 @@ export default function CanvasBoard({
     router.push("/login");
   }
 
-  // ── Decorative vs functional (3B.2-A) ───────────────────────────────────────
-  // A decorative image (no linkUrl) must never block a functional element
-  // (ProfileCard/Social/Music/Links/Stats/Guestbook) sitting underneath it —
-  // see rectOverlapsAnyFunctional's call site on the image render below.
-  // Scoped to `image` deliberately: every decorative element in the product
-  // today (frames, stickers, overlays) is implemented as a CanvasImage — there
-  // is no separate element type for them yet. linkUrl presence is treated as
-  // the decorative/interactive signal (per product spec); no new field added
-  // for this stage.
+  // ── Decorative vs functional (3B.2-A, revised 3B.4-B) ───────────────────────
+  // Cheap broad-phase filter: does this image's bounding rect overlap any
+  // functional element (ProfileCard/Social/Music/Links/Stats/Guestbook) at
+  // all? As of 3B.4-B this no longer drives pointer-events (see
+  // shouldImageIgnorePointerEvents in hitStack.ts — editor-mode images are
+  // always DOM-interactive now, resolved instead by layered hit-testing/
+  // cycling). It's kept as a gate deciding whether it's even worth doing the
+  // more expensive elementFromPoint peek below on a given mousedown.
   function rectOverlapsAnyFunctional(r: { x: number; y: number; w: number; h: number }): boolean {
     const overlaps = (a: { x: number; y: number; w: number; h: number }) =>
       r.x < a.x + a.w && r.x + r.w > a.x && r.y < a.y + a.h && r.y + r.h > a.y;
@@ -1687,6 +1687,53 @@ export default function CanvasBoard({
       statsCards.some(overlaps) ||
       guestbooks.some(overlaps)
     );
+  }
+
+  // ── Mechanism B: peek past a decorative image for a real hot control ───────
+  // Only ever called when rectOverlapsAnyFunctional has already said the
+  // clicked image overlaps something functional — never on a plain, isolated
+  // image. Temporarily hides every unlinked decorative image's pointer
+  // events (there are usually only a handful on screen), asks the browser
+  // what's REALLY at this pixel via elementFromPoint, then restores them
+  // immediately — same "ask the real DOM when stored geometry isn't enough"
+  // approach getElementsAtPoint already uses for text elements via
+  // textElRefs, just one step further. Handles any depth of image stacking
+  // (image over image over ProfileCard) in one query, no recursion needed.
+  function peekHotControlAt(clientX: number, clientY: number): Element | null {
+    const hidden: HTMLElement[] = [];
+    imgElRefs.current.forEach((node, id) => {
+      const img = images.find(i => i.id === id);
+      if (img && !img.linkUrl) { hidden.push(node); node.style.pointerEvents = "none"; }
+    });
+    const under = hidden.length > 0 ? document.elementFromPoint(clientX, clientY) : null;
+    hidden.forEach(node => { node.style.pointerEvents = ""; });
+    return under?.closest("[data-canvas-hot]") ?? null;
+  }
+
+  // Re-delivers a same-spot click gesture (mousedown, mouseup, click, all
+  // synchronous, zero movement) to the real DOM node found by
+  // peekHotControlAt, so React's own listeners on that node (and its
+  // ancestors, via normal bubbling) fire exactly as if the covering image
+  // weren't there at all — e.g. a gear icon's onClick, a Social/Music link's
+  // native navigation, a Guestbook submit button, or ProfileCard's own
+  // selection (its onClick). No manual re-implementation of any module's own
+  // interaction logic — every control keeps behaving exactly as it already
+  // does when nothing covers it.
+  //
+  // Deliberate scope limit: this forwards ONE discrete click, not a live,
+  // continuing drag — e.g. clicking the PFP through a covering image starts
+  // and instantly ends its own drag cycle (a harmless no-op position write,
+  // or just a ProfileCard selection if the pfp wasn't already drag-armed).
+  // Actually dragging the PFP itself still requires clicking where nothing
+  // covers it. Bridging a full live drag through a decorative layer would
+  // need holding the image non-interactive for the whole gesture — real
+  // added complexity for a case product only asked to not be blocked, not to
+  // be fully drag-through-able.
+  function forwardMouseDownTo(target: Element, e: React.MouseEvent) {
+    const opts = { bubbles: true, cancelable: true, view: window, clientX: e.clientX, clientY: e.clientY, button: e.button };
+    target.dispatchEvent(new MouseEvent("mousedown", opts));
+    target.dispatchEvent(new MouseEvent("mouseup", opts));
+    target.dispatchEvent(new MouseEvent("click", opts));
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1739,10 +1786,9 @@ export default function CanvasBoard({
   // Si el elemento ya está seleccionado, cicla al siguiente en zIndex
   function clickThrough(id: string, e: React.MouseEvent): boolean {
     if (selectedIds.size !== 1 || !selectedIds.has(id)) return false;
-    const hits = getElementsAtPoint(e.clientX, e.clientY);
-    const idx = hits.findIndex(h => h.id === id);
-    if (idx === -1 || hits.length < 2) return false;
-    setSelectedIds(new Set([hits[(idx + 1) % hits.length].id]));
+    const nextId = nextIdInHitCycle(getElementsAtPoint(e.clientX, e.clientY), id);
+    if (nextId === undefined) return false;
+    setSelectedIds(new Set([nextId]));
     return true;
   }
 
@@ -2484,8 +2530,31 @@ export default function CanvasBoard({
         const _fy=!canEdit?Math.round((_cy-(img.y+img.h/2))*0.40):0;
         const _fd=!canEdit?Math.min(i*22,200):0;
         return (
-          <div key={img.id} ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100+(isSel?SELECTION_Z_BOOST:0),cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",pointerEvents:!img.linkUrl&&(!canInteract||rectOverlapsAnyFunctional(img))?"none":undefined,transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
-            onMouseDown={e=>{if(!img.locked)onElementMouseDown(img.id,"image",img.x,img.y,e);else e.stopPropagation();}}
+          <div key={img.id} ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100+(isSel?SELECTION_Z_BOOST:0),cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",pointerEvents:shouldImageIgnorePointerEvents(!!canInteract,!!img.linkUrl)?"none":undefined,transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
+            onMouseDown={e=>{
+              if(img.locked){e.stopPropagation();return;}
+              // Mechanism B (Stage 3B.4-B): only worth peeking past this image
+              // at all when it's a fresh, unlinked, unselected click AND its
+              // bounding rect overlaps something functional in the first
+              // place — the common case (a standalone or non-overlapping
+              // image) never pays for an elementFromPoint call.
+              const worthPeeking = canInteract && !e.shiftKey && !img.linkUrl && !isSel && rectOverlapsAnyFunctional(img);
+              const hot = worthPeeking ? peekHotControlAt(e.clientX, e.clientY) : null;
+              if (resolveImageMouseDownTarget(!!img.linkUrl, isSel, !!hot) === "hot-control") {
+                e.preventDefault();
+                e.stopPropagation();
+                // The real mouseup/click for THIS gesture will still land on
+                // the image itself (nothing changed which DOM node is really
+                // topmost) — selChangedRef swallows that follow-up click in
+                // handleElementClick so it can't select/click-through the
+                // image right after we've just redirected this gesture to
+                // the hot control underneath.
+                selChangedRef.current = true;
+                forwardMouseDownTo(hot!, e);
+                return;
+              }
+              onElementMouseDown(img.id,"image",img.x,img.y,e);
+            }}
             onClick={e=>handleElementClick(img.id,e)}
 
             onDoubleClick={e=>{e.stopPropagation();zCounter.current++;setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,zIndex:zCounter.current}:e));}}>

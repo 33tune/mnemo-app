@@ -428,6 +428,7 @@ export default function GuestbookWidget({
             {/* Settings gear — only when owner is editing */}
             {isSel && canInteract && (
               <div
+                data-canvas-hot=""
                 onMouseDown={e => e.stopPropagation()}
                 onClick={e => {
                   e.stopPropagation();
@@ -601,6 +602,7 @@ export default function GuestbookWidget({
           )}
 
           <textarea
+            data-canvas-hot=""
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSend(); } }}
@@ -661,6 +663,7 @@ export default function GuestbookWidget({
                 </span>
               ) : (
                 <button
+                  data-canvas-hot=""
                   onClick={e => { e.stopPropagation(); handleSend(); }}
                   disabled={!canSend}
                   style={{

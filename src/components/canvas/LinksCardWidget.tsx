@@ -419,6 +419,7 @@ function LinksCardWidget({
                   <div
                     key={link.id}
                     data-link-id={link.id}
+                    data-canvas-hot=""
                     style={hasPos ? {
                       position:  "absolute",
                       left:      link.x,

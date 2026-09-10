@@ -135,6 +135,7 @@ function MusicCardWidget({
       >
         <CardLayers cardId={card.id} effects={effectiveEffects} isSel={isSel} borderRadius={borderRadius}>
           <a href={hasUrl ? href : undefined} target="_blank" rel="noopener noreferrer"
+            data-canvas-hot={hasUrl ? "" : undefined}
             onClick={e => { if (menuOpen || !hasUrl) e.preventDefault(); e.stopPropagation(); }}
             onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
             style={{ position: "absolute", inset: 0, borderRadius, display: "flex", alignItems: "center", gap: 10, padding: "0 14px", textDecoration: "none", cursor: hasUrl ? "pointer" : "default", opacity: hov && hasUrl ? 1 : 0.85, transition: "opacity 0.12s ease" }}>

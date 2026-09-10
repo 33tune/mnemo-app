@@ -100,6 +100,18 @@ test("marquee rectangle hit-test (mirroring CanvasBoard's loop) never selects th
   assert.deepEqual(selected.sort(), ["image-1", "image-2"], "profile-1 must never appear in a marquee result");
 });
 
+test("marquee still selects a decorative image that visually overlaps the profile (Stage 3B.4-B): only the profile itself is excluded", () => {
+  const start = [...els(), { id: "image-over-profile", elementType: "image", x: 120, y: 180, w: 60, h: 60 }];
+  const rect = { x: 0, y: 0, w: 1000, h: 1000 };
+  const hit = (ex: number, ey: number, ew: number, eh: number) =>
+    ex < rect.x + rect.w && ex + ew > rect.x && ey < rect.y + rect.h && ey + eh > rect.y;
+  const selected = start
+    .filter(el => isMarqueeSelectable(el.elementType) && hit(el.x, el.y, el.w ?? 0, el.h ?? 0))
+    .map(el => el.id);
+  assert.ok(selected.includes("image-over-profile"), "the overlapping image must still be marquee-selectable");
+  assert.ok(!selected.includes("profile-1"), "the profile must stay excluded even though an image sits on top of it");
+});
+
 // ── isPfpAnchorDraggable (Stage 3B.2-B) ───────────────────────────────────────
 
 test("isPfpAnchorDraggable requires the card to be selected", () => {
