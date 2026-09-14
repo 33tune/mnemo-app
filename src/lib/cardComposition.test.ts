@@ -523,3 +523,124 @@ test("a profile with no block anchors at all behaves identically to the pre-3B.3
   assert.deepEqual(withUndefinedOverrides.boxes, plain.boxes);
   assert.deepEqual(withNoOverridesArg.boxes, plain.boxes);
 });
+
+// ── Identity bounding-box fix: the box must track its own content, not the
+// whole width it's allowed to use for wrapping. Root cause: resolveContentBlock
+// gave bio's row an unconditional w=availWidth (needed for its wrap-height
+// math), and identityRect is the union of every role's box — so any card with
+// a bio (nearly all of them) got an identityRect as wide as the whole
+// negotiated content column, regardless of how little of it the actual text
+// used. Fix: bio's row now reports its own natural (single-line) ink width
+// when it fits on one line, matching how name/handle/descriptor already
+// worked, and only falls back to availWidth when it genuinely needs to wrap.
+
+const shortIdentityContent = content({
+  name: { present: true, length: 5 }, handle: { present: true, length: 6 }, bio: { present: true, length: 12 },
+});
+const longIdentityContent = content({
+  name: { present: true, length: 30 }, handle: { present: true, length: 20 }, bio: { present: true, length: 220 },
+});
+
+test("identity: short content produces a small bounding box, not the whole available width", () => {
+  const input = baseInput({ boxW: 400, boxH: 300, content: shortIdentityContent });
+  const layout = computeBlockLayout(input);
+  assert.ok(layout.identityRect, "identityRect should be present");
+  assert.ok(layout.identityRect!.w < 150, `expected a tight box for short content, got w=${layout.identityRect!.w}`);
+});
+
+test("identity: long content (long name/handle and a long, wrapping bio) produces a wider bounding box than short content", () => {
+  const shortLayout = computeBlockLayout(baseInput({ boxW: 400, boxH: 300, content: shortIdentityContent }));
+  const longLayout  = computeBlockLayout(baseInput({ boxW: 400, boxH: 300, content: longIdentityContent }));
+  assert.ok(longLayout.identityRect!.w > shortLayout.identityRect!.w,
+    `long content should be wider: short=${shortLayout.identityRect!.w}, long=${longLayout.identityRect!.w}`);
+});
+
+test("identity: a bio long enough to wrap onto multiple lines gets a width/height consistent with its real line count, not a single-line assumption", () => {
+  const input = baseInput({ boxW: 360, boxH: 300, content: longIdentityContent });
+  const layout = computeBlockLayout(input);
+  const bio = layout.boxes.bio!;
+  assert.ok((bio.lines ?? 0) >= 2, `expected bio to wrap onto multiple lines, got lines=${bio.lines}`);
+  const expectedH = (bio.lines ?? 0) * TYPO.bioFontSize * 1.5; // TEXT_METRICS.bioLineH
+  assert.ok(Math.abs(bio.h - expectedH) < 0.5, `bio.h=${bio.h} should match lines*fontSize*lineHeight=${expectedH}`);
+  assert.ok(bio.w > 100, "a wrapped multi-line bio should still use a generous wrap width, not shrink to a single-line ink estimate");
+});
+
+test("identity: bounding box width is identical across left/center/right text alignment (a short block stays tight regardless of alignment)", () => {
+  const widths = (["left", "center", "right"] as const).map(textAlign =>
+    computeBlockLayout(baseInput({ boxW: 400, boxH: 300, content: shortIdentityContent, textAlign })).identityRect!.w
+  );
+  assert.ok(widths.every(w => w < 150), `all should be tight: ${widths}`);
+  assert.equal(widths[0], widths[1], "left vs center width mismatch");
+  assert.equal(widths[1], widths[2], "center vs right width mismatch");
+});
+
+test("identity CAN move substantially horizontally inside a wide card when its content is short (the actual bug: a short identity's box used to be as wide as the whole available column, leaving ~0 room to move)", () => {
+  const input = baseInput({
+    boxW: 500, boxH: 260, padding: 20,
+    pfp: { anchorX: 0, anchorY: 0, size: 60 },
+    content: shortIdentityContent,
+  });
+  const layout = computeBlockLayout(input, { identity: { x: 1, y: 0.5 } }); // drag fully to the right
+  const rect = layout.identityRect!;
+  assert.ok(rect.w < 150, `expected a tight box, got w=${rect.w}`);
+  assert.ok(rect.x + rect.w > input.boxW - 20 - 5, `identity should reach the right edge when dragged there: got x=${rect.x}, w=${rect.w}`);
+  assert.ok(rect.x > input.boxW / 2, `identity should have moved well past the horizontal midline: got x=${rect.x}`);
+});
+
+test("identity with short content still respects card bounds at every extreme anchor", () => {
+  const input = baseInput({ boxW: 400, boxH: 300, content: shortIdentityContent });
+  for (const anchor of [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 0 }, { x: 0, y: 1 }]) {
+    const layout = computeBlockLayout(input, { identity: anchor });
+    const rect = layout.identityRect!;
+    assert.ok(rect.x >= 20 - 0.5 && rect.y >= 20 - 0.5, `outside top-left at ${JSON.stringify(anchor)}: ${JSON.stringify(rect)}`);
+    assert.ok(rect.x + rect.w <= input.boxW - 20 + 0.5 && rect.y + rect.h <= input.boxH - 20 + 0.5, `outside bottom-right at ${JSON.stringify(anchor)}: ${JSON.stringify(rect)}`);
+  }
+});
+
+test("anti-overlap still keeps a (now correctly tight) short identity block clear of the pfp when dragged onto it", () => {
+  const input = baseInput({ boxW: 400, boxH: 300, content: shortIdentityContent });
+  const layout = computeBlockLayout(input, { identity: { x: input.pfp.anchorX, y: input.pfp.anchorY } });
+  const pfp = layout.boxes.pfp!;
+  for (const role of ["name", "handle", "bio"] as const) {
+    const b = layout.boxes[role];
+    if (b) assert.ok(!boxesOverlap(pfp, b), `${role} overlaps pfp: ${JSON.stringify(b)}`);
+  }
+});
+
+test("identity anchored at the grid's center point still resolves its (now tight) box centered on the card", () => {
+  const input = baseInput({
+    boxW: 400, boxH: 300, padding: 20,
+    pfp: { anchorX: 0.5, anchorY: 0.9, size: 60 },
+    content: shortIdentityContent,
+  });
+  const layout = computeBlockLayout(input, { identity: { x: 0.5, y: 0.1 } });
+  const rect = layout.identityRect!;
+  const rectCenterX = rect.x + rect.w / 2;
+  assert.ok(Math.abs(rectCenterX - input.boxW / 2) < 1, `expected the box centered on the card, got center=${rectCenterX}`);
+});
+
+test("location's bounding box remains driven purely by its own content length, unaffected by the bio fix", () => {
+  const shortW = computeBlockLayout(baseInput({ content: fullContent({ location: { present: true, length: 4 }, bio: { present: false, length: 0 } }) })).boxes.location!.w;
+  const longW  = computeBlockLayout(baseInput({ content: fullContent({ location: { present: true, length: 30 }, bio: { present: false, length: 0 } }) })).boxes.location!.w;
+  assert.ok(longW > shortW, `location width should scale with its own content: short=${shortW}, long=${longW}`);
+});
+
+test("views' bounding box stays a small, fixed width regardless of available card width, unaffected by the bio fix", () => {
+  const narrow = computeBlockLayout(baseInput({ boxW: 300, content: fullContent({ bio: { present: false, length: 0 } }) })).boxes.views!.w;
+  const wide   = computeBlockLayout(baseInput({ boxW: 600, content: fullContent({ bio: { present: false, length: 0 } }) })).boxes.views!.w;
+  assert.ok(narrow < 100 && wide < 100, `views should stay tight regardless of available width: narrow=${narrow}, wide=${wide}`);
+});
+
+test("PFP stays exactly as computeComposition placed it even with the corrected (tight) identity box overridden", () => {
+  const input = baseInput({ content: shortIdentityContent });
+  const base = computeComposition(input);
+  const layout = computeBlockLayout(input, { identity: { x: 0.9, y: 0.9 } });
+  assert.deepEqual(layout.boxes.pfp, base.boxes.pfp);
+});
+
+test("with no overrides, the corrected bio width still produces byte-identical output to computeComposition (automatic layout untouched)", () => {
+  const input = baseInput({ content: shortIdentityContent });
+  const base = computeComposition(input);
+  const layout = computeBlockLayout(input);
+  assert.deepEqual(layout.boxes, base.boxes);
+});

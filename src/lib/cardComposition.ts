@@ -250,7 +250,23 @@ function resolveContentBlock(
     if (active.handle) rows.push({ role: "handle", h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.handle.length ?? 0, TEXT_METRICS.monoFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.handleLetterSpacing)) });
     if (active.descriptor) rows.push({ role: "descriptor", h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.descriptor.length ?? 0, TEXT_METRICS.monoFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.descriptorLetterSpacing)) });
     if (active.location) rows.push({ role: "location", h: TEXT_METRICS.locationFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.location.length ?? 0, TEXT_METRICS.locationFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.locationLetterSpacing)) });
-    if (active.bio && bioLines > 0) rows.push({ role: "bio", h: bioLines * typography.bioFontSize * TEXT_METRICS.bioLineH, w: availWidth });
+    // Bio's width must reflect its real ink, not the whole wrap column it's
+    // allowed to use (see cardComposition.ts's header + Stage 3B.4-D fix):
+    // a bio short enough to sit on one line reports that line's own natural
+    // width — same as name/handle/descriptor — so the group's bounding box
+    // doesn't inflate to availWidth just because bio *could* use that much
+    // room. A bio that genuinely needs to wrap (bioLines > 1) keeps
+    // availWidth: a wrapped paragraph's rendered lines generically approach
+    // the width of the column they wrapped in, so that remains the right
+    // estimate for "how wide this block visually is" in that case, and it's
+    // also the width the wrap-height math (estimateBioLines) above was
+    // computed against — changing it there would desync height from width.
+    if (active.bio && bioLines > 0) {
+      const bioW = bioLines > 1
+        ? availWidth
+        : Math.min(availWidth, estimateLineWidth(content.bio.length ?? 0, typography.bioFontSize, TEXT_METRICS.bioCharW));
+      rows.push({ role: "bio", h: bioLines * typography.bioFontSize * TEXT_METRICS.bioLineH, w: bioW });
+    }
     if (active.views) rows.push({ role: "views", h: TEXT_METRICS.viewsFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, TEXT_METRICS.viewsWidthPx) });
     const height = rows.reduce((sum, r) => sum + r.h, 0) + Math.max(0, rows.length - 1) * gap;
     return { height, rows };
