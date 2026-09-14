@@ -7,6 +7,7 @@ import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGall
 import { resolveCardSize } from "@/lib/cardGeometry";
 import { resolveBulkDeleteIds, isMarqueeSelectable } from "@/lib/canvasSelectionGuards";
 import { shouldImageIgnorePointerEvents, nextIdInHitCycle, resolveImageMouseDownTarget } from "@/lib/hitStack";
+import { clampPositionToBounds, normalizeElementsToBounds } from "@/lib/viewportBounds";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
@@ -497,8 +498,19 @@ export default function CanvasBoard({
   const opsQueueRef  = useRef<QueuedOp[]>([]);
   const flushingRef  = useRef(false);
   const clientIdRef       = useRef(crypto.randomUUID());
-  const logicalW          = useRef(typeof window !== "undefined" ? window.innerWidth : 1920);
   const firstEditRef = useRef(false); // fires analytics.canvasEdit once per session
+
+  // ── Viewport size — the editor's canvas is bound to the real viewport
+  // (Stage 3B.4-C), not a fixed logical document. Reactive to resize so
+  // width/height limits stay correct without a reload. space_mobile keeps
+  // its own fixed logical size (MOBILE_CANVAS_W / CANVAS_H) untouched.
+  const [viewportW, setViewportW] = useState(typeof window !== "undefined" ? window.innerWidth  : 1920);
+  const [viewportH, setViewportH] = useState(typeof window !== "undefined" ? window.innerHeight : 1080);
+  useEffect(() => {
+    const onResize = () => { setViewportW(window.innerWidth); setViewportH(window.innerHeight); };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const isMobile     = useIsMobile();
   const isReadOnly   = !canEdit;
@@ -507,8 +519,11 @@ export default function CanvasBoard({
   const [isDragOver,  setIsDragOver]  = useState(false);
   const [linkEditId,  setLinkEditId]  = useState<string | null>(null);
 
-  // Mobile canvas uses a fixed 390px logical width; desktop uses the screen width
-  const effectiveW = canvasMode === "space_mobile" ? MOBILE_CANVAS_W : logicalW.current;
+  // Mobile canvas uses a fixed 390px logical width; desktop uses the live viewport width
+  const effectiveW = canvasMode === "space_mobile" ? MOBILE_CANVAS_W : viewportW;
+  // Mobile canvas keeps its own fixed logical height (matches MOBILE_CANVAS_H); desktop
+  // is bound to the live viewport height — no more scrolling past a fixed CANVAS_H.
+  const effectiveH = canvasMode === "space_mobile" ? CANVAS_H : viewportH;
 
   // ── Viewer scale — fits horizontally-visible content without global zoom-out ──
   const [viewerScale,    setViewerScale]    = useState(1);
@@ -562,11 +577,8 @@ export default function CanvasBoard({
     return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
   }
 
-  function clampToViewport(x: number, y: number, w: number, _h: number) {
-    return {
-      x: Math.max(0, Math.min(effectiveW - w, x)),
-      y: Math.max(44, y), // no upper clamp — canvas scrolls vertically
-    };
+  function clampToViewport(x: number, y: number, w: number, h: number) {
+    return clampPositionToBounds({ x, y, w, h }, { w: effectiveW, h: effectiveH, topOffset: 44 });
   }
 
   const router = useRouter();
@@ -579,7 +591,7 @@ export default function CanvasBoard({
   } = useDragDrop({
     elements, setElements,
     trashRef,
-    canvasBounds: { w: effectiveW, h: CANVAS_H, topOffset: 44 },
+    canvasBounds: { w: effectiveW, h: effectiveH, topOffset: 44 },
   });
 
   // ── SpaceFont injection — load custom font into document.fonts when spaceFont changes ──
@@ -1559,6 +1571,16 @@ export default function CanvasBoard({
         newElements = stateArraysToElements(merged);
       }
 
+      // Stage 3B.4-C: the desktop editor is now bound to the live viewport
+      // (no more scrolling to a fixed CANVAS_H=3000 document). Legacy content
+      // saved under the old model can sit below the current viewport — pull it
+      // back inside on load. space_mobile keeps its own fixed logical canvas
+      // untouched. Never removes elements, only repositions the ones that fall
+      // outside; x only moves if it's actually invalid.
+      if (canvasModeRef.current !== "space_mobile") {
+        newElements = normalizeElementsToBounds(newElements, { w: viewportW, h: viewportH, topOffset: 44 });
+      }
+
       setPlacementsMap(placementsMap);
 
       // Sync zCounter to the highest zIndex among loaded elements.
@@ -1883,9 +1905,10 @@ export default function CanvasBoard({
     if (profiles.length > 0) return;
     zCounter.current += 1;
     // The Presentation Card is the singleton anchor of the profile — it always
-    // spawns centered horizontally on the canvas, at a fixed vertical anchor
-    // (not view-dependent jitter like every other addX()). It can't be dragged,
-    // so this is the only place its position is ever set.
+    // spawns centered on the canvas (both axes, since 3B.4-C's viewport-bound
+    // editor has room for that), never view-dependent jitter like every other
+    // addX(). It can't be dragged, so this is the only place its position is
+    // ever set. space_mobile keeps its old fixed vertical anchor untouched.
     const format: CardFormat = "vertical";
     // 0.3 is only a starting-size helper (30% of the format's width range) —
     // w/h below is the actual, sole source of truth for size from this point
@@ -1893,7 +1916,7 @@ export default function CanvasBoard({
     // GeometryControls in ProfileConfigMenu.tsx).
     const { w, h } = resolveCardSize(format, 0.3);
     const px = effectiveW / 2 - w / 2;
-    const py = 160;
+    const py = canvasMode === "space_mobile" ? 160 : Math.max(44, effectiveH / 2 - h / 2);
     const p: ProfileCardData = {
       id: crypto.randomUUID(), x: px, y: py,
       w, h, zIndex: zCounter.current, layer: 2, depth: 0.5, rotation: 0,
@@ -2462,7 +2485,12 @@ export default function CanvasBoard({
         position: !canEdit ? "absolute" : "relative",
         top: 0, left: 0,
         width: !canEdit ? viewerW : effectiveW,
-        minHeight: CANVAS_H,
+        // Desktop editor (Stage 3B.4-C): the canvas is bound to the live viewport
+        // height, not the old fixed CANVAS_H — no vertical scroll. Public view and
+        // space_mobile editing keep the original CANVAS_H-based sizing untouched.
+        ...(canEdit && canvasMode !== "space_mobile"
+          ? { height: effectiveH, minHeight: effectiveH }
+          : { minHeight: CANVAS_H }),
         zIndex: 1,
         overflow: "hidden",
         flexShrink: 0,
