@@ -13,6 +13,7 @@ import GuestbookMenu from "./GuestbookMenu";
 import SocialCardWidget from "./SocialCardWidget";
 import MusicCardWidget from "./MusicCardWidget";
 import LinksCardWidget from "./LinksCardWidget";
+import StatsCardWidget from "./StatsCardWidget";
 import MediaCardWidget from "./MediaCardWidget";
 import ResizeHandles from "./ResizeHandles";
 import { SocialDock } from "./SocialDock";
@@ -718,6 +719,7 @@ export default function CanvasBoard({
   const visSocialCards = useMemo(() => inSpace ? socialCards.filter(c => c.isPublic)        : socialCards,  [inSpace, socialCards]);
   const visMusicCards  = useMemo(() => inSpace ? musicCards.filter(c => c.isPublic)         : musicCards,   [inSpace, musicCards]);
   const visLinksCards  = useMemo(() => inSpace ? linksCards.filter(c => c.isPublic)         : linksCards,   [inSpace, linksCards]);
+  const visStatsCards  = useMemo(() => inSpace ? statsCards.filter(c => c.isPublic)         : statsCards,   [inSpace, statsCards]);
 
   // ── Persistencia ─────────────────────────────────────────────────────────────
 
@@ -1823,6 +1825,7 @@ export default function CanvasBoard({
   function updateSocialCard(id: string, patch: Partial<SocialCardData>) { enqueueOp({ type: "update_social", id, patch }); }
   function updateMusicCard(id: string, patch: Partial<MusicCardData>) { enqueueOp({ type: "update_music", id, patch }); }
   function updateLinksCard(id: string, patch: Partial<LinksCardData>) { enqueueOp({ type: "update_links", id, patch }); }
+  function updateStatsCard(id: string, patch: Partial<StatsCardData>) { enqueueOp({ type: "update_stats", id, patch }); }
   function resolveModuleStyle<T extends { stackId?: string; bgColor?: string; bgImage?: string; bgMode?: "cover" | "repeat"; borderRadius?: number; variant?: ProfileCardVariant; opacity?: number; effects?: import("@/types").CardEffects }>(card: T): T {
     if (!card.stackId) return card;
     const anchor = profiles.find(p => p.stackId === card.stackId && p.isStackAnchor);
@@ -1868,6 +1871,49 @@ export default function CanvasBoard({
     };
     enqueueOp({ type: "add_links", links: l });
     setSelectedIds(new Set([l.id]));
+  }
+
+  function addSocialCard() {
+    if (!canInteract) return;
+    zCounter.current += 1;
+    const vc = viewCenter();
+    const { x: sx, y: sy } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 200, 100);
+    const s: SocialCardData = {
+      id: crypto.randomUUID(), x: sx, y: sy,
+      w: 200, h: 100, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
+      socialLinks: [],
+      isPublic: inSpace ? true : undefined,
+    };
+    enqueueOp({ type: "add_social", social: s });
+    setSelectedIds(new Set([s.id]));
+  }
+
+  function addMusicCard() {
+    if (!canInteract) return;
+    zCounter.current += 1;
+    const vc = viewCenter();
+    const { x: mx, y: my } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 220, 70);
+    const m: MusicCardData = {
+      id: crypto.randomUUID(), x: mx, y: my,
+      w: 220, h: 70, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
+      isPublic: inSpace ? true : undefined,
+    };
+    enqueueOp({ type: "add_music", music: m });
+    setSelectedIds(new Set([m.id]));
+  }
+
+  function addStatsCard() {
+    if (!canInteract) return;
+    zCounter.current += 1;
+    const vc = viewCenter();
+    const { x: tx, y: ty } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 180, 80);
+    const t: StatsCardData = {
+      id: crypto.randomUUID(), x: tx, y: ty,
+      w: 180, h: 80, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
+      isPublic: inSpace ? true : undefined,
+    };
+    enqueueOp({ type: "add_stats", stats: t });
+    setSelectedIds(new Set([t.id]));
   }
 
   function addMedia() {
@@ -2834,6 +2880,34 @@ export default function CanvasBoard({
         );
       })}
 
+      {/* ── STATS CARDS ── */}
+      {visStatsCards.map((tc, i) => {
+        const ps = getParallaxStyle(tc.layer, tc.depth);
+        const _entry = !canEdit ? { animation: `el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${Math.min(240+i*22,360)}ms both` } as React.CSSProperties : undefined;
+        const tcEff = resolveModuleStyle(tc);
+        return (
+          <WidgetBoundary key={tc.id} label="stats-card">
+            <StatsCardWidget
+              card={tcEff}
+              isSel={selectedIds.has(tc.id)}
+              draggingId={dragging?.id ?? null}
+              parallaxTransform={ps.transform as string}
+              entryAnimStyle={_entry}
+              locked={!!tc.locked}
+              onMouseDown={tc.locked ? e => e.stopPropagation() : e => onElementMouseDown(tc.id, "stats", tc.x, tc.y, e)}
+              onClick={e => handleElementClick(tc.id, e)}
+              onResizeMD={tc.locked ? (_h: ResizeHandle, e: React.MouseEvent) => e.stopPropagation() : (h, e) => startSingleResize(tc.id, "stats", h, e)}
+              onRotateMD={tc.locked ? e => e.stopPropagation() : e => startRotate(tc.id, "stats", e, tc.x + tc.w / 2, tc.y + tc.h / 2)}
+              updateCard={updateStatsCard}
+              onToggleLock={() => setElements(p => p.map(e => e.elementType === "stats" && e.id === tc.id ? { ...e, locked: !e.locked } : e))}
+              canInteract={canInteract}
+              ownerUserId={ownerUserId ?? currentUserId}
+              onDelete={id => enqueueOp({ type: "delete_stats", id })}
+            />
+          </WidgetBoundary>
+        );
+      })}
+
 
       {/* ── CARDS ── */}
       {visCards.map((card,i)=>{
@@ -3077,6 +3151,9 @@ export default function CanvasBoard({
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
             {label:"Links",         fn:()=>{addLinksCard();           setMenuOpen(false);}},
+            {label:"Social",        fn:()=>{addSocialCard();          setMenuOpen(false);}},
+            {label:"Music",         fn:()=>{addMusicCard();           setMenuOpen(false);}},
+            {label:"Stats",         fn:()=>{addStatsCard();           setMenuOpen(false);}},
             {label:"Media",         fn:()=>{addMedia();               setMenuOpen(false);}},
             {label:"Guestbook",     fn:()=>{addGuestbook();           setMenuOpen(false);}},
           ].map(item=>(
