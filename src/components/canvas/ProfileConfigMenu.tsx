@@ -6,6 +6,7 @@ import { T, MenuSection } from "@/ui";
 import { getCardConstraints, clampCardSize, getCardPadding } from "@/lib/cardGeometry";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
+import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
 import ProfileTypographyMenu from "./ProfileTypographyMenu";
 import PersonalizePanel from "./PersonalizePanel";
 
@@ -83,6 +84,10 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
             location={card.location}
             bio={card.bio}
             showViews={card.showViews}
+            onChange={onChange}
+          />
+          <ProfileContactLinksMenu
+            contactLinks={card.contactLinks}
             onChange={onChange}
           />
         </div>

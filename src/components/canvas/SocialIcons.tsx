@@ -4,38 +4,40 @@ import { useState } from "react";
 export type Platform =
   | "discord" | "instagram" | "spotify" | "tiktok" | "github"
   | "twitter" | "twitch" | "youtube" | "steam" | "telegram"
-  | "linkedin" | "facebook" | "link";
+  | "linkedin" | "facebook" | "soundcloud" | "link";
 
 export const PLATFORM_COLORS: Record<Platform, string> = {
-  discord:   "#5865F2",
-  instagram: "#E1306C",
-  spotify:   "#1DB954",
-  tiktok:    "#ffffff",
-  github:    "#ffffff",
-  twitter:   "#1DA1F2",
-  twitch:    "#9146FF",
-  youtube:   "#FF0000",
-  steam:     "#c7d5e0",
-  telegram:  "#2CA5E0",
-  linkedin:  "#0A66C2",
-  facebook:  "#1877F2",
-  link:      "#aaaaaa",
+  discord:    "#5865F2",
+  instagram:  "#E1306C",
+  spotify:    "#1DB954",
+  tiktok:     "#ffffff",
+  github:     "#ffffff",
+  twitter:    "#1DA1F2",
+  twitch:     "#9146FF",
+  youtube:    "#FF0000",
+  steam:      "#c7d5e0",
+  telegram:   "#2CA5E0",
+  linkedin:   "#0A66C2",
+  facebook:   "#1877F2",
+  soundcloud: "#FF5500",
+  link:       "#aaaaaa",
 };
 
 export const PLATFORM_LABELS: Record<Platform, string> = {
-  discord:   "Discord",
-  instagram: "Instagram",
-  spotify:   "Spotify",
-  tiktok:    "TikTok",
-  github:    "GitHub",
-  twitter:   "Twitter / X",
-  twitch:    "Twitch",
-  youtube:   "YouTube",
-  steam:     "Steam",
-  telegram:  "Telegram",
-  linkedin:  "LinkedIn",
-  facebook:  "Facebook",
-  link:      "Link",
+  discord:    "Discord",
+  instagram:  "Instagram",
+  spotify:    "Spotify",
+  tiktok:     "TikTok",
+  github:     "GitHub",
+  twitter:    "Twitter / X",
+  twitch:     "Twitch",
+  youtube:    "YouTube",
+  steam:      "Steam",
+  telegram:   "Telegram",
+  linkedin:   "LinkedIn",
+  facebook:   "Facebook",
+  soundcloud: "SoundCloud",
+  link:       "Link",
 };
 
 export function detectPlatform(url: string): Platform {
@@ -52,6 +54,7 @@ export function detectPlatform(url: string): Platform {
   if (u.includes("t.me/") || u.includes("telegram.me")) return "telegram";
   if (u.includes("linkedin.com")) return "linkedin";
   if (u.includes("facebook.com") || u.includes("fb.com")) return "facebook";
+  if (u.includes("soundcloud.com")) return "soundcloud";
   return "link";
 }
 
@@ -93,6 +96,12 @@ export function PlatformIcon({ platform, size, color }: { platform: Platform; si
   );
   if (platform === "facebook") return (
     <svg {...p}><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+  );
+  // Generic cloud glyph (not the trademarked SoundCloud mark) — consistent
+  // with the "link" fallback below, which is also an original shape rather
+  // than a scraped brand asset.
+  if (platform === "soundcloud") return (
+    <svg {...p}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
   );
 
   return (

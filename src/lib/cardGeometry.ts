@@ -183,6 +183,58 @@ export function resolvePfpSize(
   return Math.max(min, Math.min(max, base));
 }
 
+// ── Vertical growth (Stage 4.2-A, generalized in 4.2-C.1) ────────────────────
+// Pure, higher-layer height math for internal blocks that need more room than
+// the card currently has (e.g. Links, Music) — see CLAUDE.md's Etapa 4
+// roadmap. Deliberately NOT part of computeComposition()/computeBlockLayout()
+// (cardComposition.ts): those lay out content within a FIXED box and never
+// touch w/h (see that file's header) — this is the layer above that decides
+// the box itself, before composition runs. Wired into ProfileCard.tsx's
+// render/growth effect as of Stage 4.2-B (Links) / 4.2-C.1 (+ Music).
+
+export interface RequiredCardHeightInput {
+  format: CardFormat | undefined;
+  /** Current box height, px — the floor: this only grows the card, never
+   * shrinks it. */
+  currentH: number;
+  /** Y (px, relative to the card's own box) where the currently-composed
+   * content already ends — e.g. the lowest bottom edge among
+   * computeBlockLayout()'s boxes. */
+  contentBottom: number;
+  /** Padding reserved below the last block — same contract as every other
+   * block gap in this system (see blockConstraints.ts). */
+  padding: number;
+  /** Extra blocks stacked below the existing content, IN ORDER (e.g. Links
+   * then Music) — each contributes its own gap + natural height, summed.
+   * Stage 4.2-C.1 generalized this from a single `extraBlock` object (Links
+   * only) to this array specifically so two-or-more blocks compose
+   * correctly in ONE call: computing "room needed" for each block
+   * separately and taking the max (rather than summing) would under-report
+   * the required height whenever more than one block is actually present,
+   * since each block sits below the previous one, not in the same slot.
+   * Absent/empty = no growth: result === currentH exactly (see the
+   * "no extra blocks" regression test in cardGeometry.test.ts). */
+  extraBlocks?: { naturalHeight: number; gap: number }[];
+}
+
+/**
+ * Minimum card height needed so every entry in `extraBlocks` (if any) fits
+ * below the already-composed content, stacked in order, without invading it —
+ * clamped into the format's own [minH, maxH] (getCardConstraints) and never
+ * below `currentH` — the card only grows downward (y stays fixed; callers
+ * apply the result to h only). Pure and cheap, but deliberately NOT meant to
+ * be called every render/frame: only when content or enabled blocks
+ * structurally change.
+ */
+export function computeRequiredCardHeight(input: RequiredCardHeightInput): number {
+  const { format, currentH, contentBottom, padding, extraBlocks } = input;
+  if (!extraBlocks || extraBlocks.length === 0) return currentH;
+  const c = getCardConstraints(format);
+  const stacked = extraBlocks.reduce((sum, b) => sum + b.gap + b.naturalHeight, 0);
+  const required = contentBottom + stacked + padding;
+  return Math.max(currentH, Math.min(c.maxH, Math.max(c.minH, required)));
+}
+
 /**
  * Maps the 0-100 continuous shape slider to a CSS border-radius percentage:
  * 0 = square corners (0%), 100 = a full circle (50%, the point at which

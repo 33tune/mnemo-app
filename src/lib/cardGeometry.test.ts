@@ -10,6 +10,7 @@ import {
   getPfpSizeBounds,
   resolvePfpSize,
   pfpRadiusToPercent,
+  computeRequiredCardHeight,
   PFP_SIZE_MIN,
   PFP_SIZE_MAX,
 } from "./cardGeometry";
@@ -121,4 +122,123 @@ test("pfpRadiusToPercent: 0 is square, 100 is a full circle, undefined defaults 
 test("pfpRadiusToPercent clamps out-of-range input", () => {
   assert.equal(pfpRadiusToPercent(-20), 0);
   assert.equal(pfpRadiusToPercent(150), 50);
+});
+
+// ── Vertical growth (Stage 4.2-A, generalized to extraBlocks[] in 4.2-C.1) ────
+
+test("computeRequiredCardHeight: no extraBlocks -> currentH unchanged, for every format (regression)", () => {
+  for (const f of FORMATS) {
+    const currentH = getCardConstraints(f).minH + 10;
+    const h = computeRequiredCardHeight({ format: f, currentH, contentBottom: currentH - 5, padding: 20 });
+    assert.equal(h, currentH);
+  }
+});
+
+test("computeRequiredCardHeight: an empty extraBlocks array behaves exactly like an absent one", () => {
+  const currentH = 250;
+  const h = computeRequiredCardHeight({ format: "vertical", currentH, contentBottom: 100, padding: 20, extraBlocks: [] });
+  assert.equal(h, currentH);
+});
+
+// Single-block cases: stand-ins for "Contact Links only" and "Music only" —
+// a single-entry extraBlocks array is the exact shape contactLinksBlock.ts's
+// requiredCardHeightForContactLinks (and ProfileCard.tsx's growth effect,
+// Music-only case) build.
+
+test("computeRequiredCardHeight: grows when a single extra block (e.g. Contact Links alone) needs more room than currentH allows", () => {
+  const c = getCardConstraints("vertical");
+  const currentH = c.minH + 5;
+  const h = computeRequiredCardHeight({
+    format: "vertical", currentH, contentBottom: currentH - 20, padding: 20,
+    extraBlocks: [{ naturalHeight: 100, gap: 10 }],
+  });
+  assert.ok(h > currentH, `expected growth: ${h} should exceed currentH ${currentH}`);
+  const required = (currentH - 20) + 10 + 100 + 20;
+  assert.equal(h, Math.min(c.maxH, required));
+});
+
+test("computeRequiredCardHeight: grows when a single extra block (e.g. Music alone) needs more room than currentH allows", () => {
+  const c = getCardConstraints("vertical");
+  const currentH = c.minH + 5;
+  const h = computeRequiredCardHeight({
+    format: "vertical", currentH, contentBottom: currentH - 20, padding: 20,
+    extraBlocks: [{ naturalHeight: 56, gap: 10 }], // Music's placeholder height (musicBlockSizing.ts)
+  });
+  assert.ok(h > currentH, `expected growth: ${h} should exceed currentH ${currentH}`);
+  const required = (currentH - 20) + 10 + 56 + 20;
+  assert.equal(h, Math.min(c.maxH, required));
+});
+
+// Stacking: Contact Links + Music together must SUM (not max) — this is the
+// whole reason extraBlock became extraBlocks[]. See cardGeometry.ts's doc
+// comment for why two separate calls (one per block) would under-report.
+
+test("computeRequiredCardHeight: Contact Links + Music stack additively, not as a max", () => {
+  const c = getCardConstraints("vertical");
+  const currentH = c.minH;
+  const contentBottom = currentH - 40;
+  const linksBlock = { naturalHeight: 24, gap: 10 };
+  const musicBlock = { naturalHeight: 56, gap: 10 };
+
+  const linksOnly = computeRequiredCardHeight({ format: "vertical", currentH, contentBottom, padding: 20, extraBlocks: [linksBlock] });
+  const musicOnly = computeRequiredCardHeight({ format: "vertical", currentH, contentBottom, padding: 20, extraBlocks: [musicBlock] });
+  const both = computeRequiredCardHeight({ format: "vertical", currentH, contentBottom, padding: 20, extraBlocks: [linksBlock, musicBlock] });
+
+  assert.ok(both > linksOnly, "stacked height should exceed links-only height");
+  assert.ok(both > musicOnly, "stacked height should exceed music-only height");
+  const requiredStacked = contentBottom + linksBlock.gap + linksBlock.naturalHeight + musicBlock.gap + musicBlock.naturalHeight + 20;
+  assert.equal(both, Math.min(c.maxH, requiredStacked), "stacked result should equal the SUM of both blocks' room, clamped");
+});
+
+test("computeRequiredCardHeight: order of extraBlocks doesn't change the total (commutative sum)", () => {
+  const linksBlock = { naturalHeight: 24, gap: 10 };
+  const musicBlock = { naturalHeight: 56, gap: 10 };
+  const a = computeRequiredCardHeight({ format: "vertical", currentH: 100, contentBottom: 80, padding: 20, extraBlocks: [linksBlock, musicBlock] });
+  const b = computeRequiredCardHeight({ format: "vertical", currentH: 100, contentBottom: 80, padding: 20, extraBlocks: [musicBlock, linksBlock] });
+  assert.equal(a, b);
+});
+
+test("computeRequiredCardHeight: never shrinks below currentH even if the extra blocks need less room", () => {
+  const currentH = 400;
+  const h = computeRequiredCardHeight({
+    format: "vertical", currentH, contentBottom: 50, padding: 20,
+    extraBlocks: [{ naturalHeight: 10, gap: 4 }],
+  });
+  assert.equal(h, currentH);
+});
+
+test("computeRequiredCardHeight: never exceeds the format's maxH, even with Contact Links + Music both present", () => {
+  for (const f of FORMATS) {
+    const c = getCardConstraints(f);
+    const h = computeRequiredCardHeight({
+      format: f, currentH: c.minH, contentBottom: c.minH, padding: 20,
+      extraBlocks: [{ naturalHeight: 10_000, gap: 10 }, { naturalHeight: 10_000, gap: 10 }],
+    });
+    assert.ok(h <= c.maxH, `${f}: ${h} exceeds maxH ${c.maxH}`);
+  }
+});
+
+test("computeRequiredCardHeight: never goes below the format's minH", () => {
+  for (const f of FORMATS) {
+    const c = getCardConstraints(f);
+    const h = computeRequiredCardHeight({
+      format: f, currentH: c.minH, contentBottom: 0, padding: 0,
+      extraBlocks: [{ naturalHeight: 1, gap: 0 }],
+    });
+    assert.ok(h >= c.minH, `${f}: ${h} below minH ${c.minH}`);
+  }
+});
+
+test("computeRequiredCardHeight: growth is a pure function of its inputs (same inputs -> same output)", () => {
+  const inputA = { format: "card" as const, currentH: 200, contentBottom: 150, padding: 20, extraBlocks: [{ naturalHeight: 60, gap: 10 }] };
+  const inputB = { ...inputA };
+  assert.equal(computeRequiredCardHeight(inputA), computeRequiredCardHeight(inputB));
+});
+
+test("computeRequiredCardHeight: only ever returns a height number — the growth contract never touches x/y", () => {
+  const h = computeRequiredCardHeight({
+    format: "vertical", currentH: 200, contentBottom: 150, padding: 20,
+    extraBlocks: [{ naturalHeight: 24, gap: 10 }, { naturalHeight: 56, gap: 10 }],
+  });
+  assert.equal(typeof h, "number");
 });

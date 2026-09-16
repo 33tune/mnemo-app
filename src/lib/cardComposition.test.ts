@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeComposition, computeBlockLayout, type CompositionContentInput, type CompositionInput, type ElementBox, type BlockOverrides } from "./cardComposition";
+import { computeComposition, computeBlockLayout, type CompositionContentInput, type CompositionInput, type ElementBox, type BlockOverrides, type LinksBlockInput, type MusicBlockInput } from "./cardComposition";
 
 function content(overrides: Partial<CompositionContentInput> = {}): CompositionContentInput {
   return {
@@ -425,6 +425,215 @@ test("all four blocks (pfp, identity, location, views) coexist without drops whe
   assert.ok(layout.boxes.location);
   assert.ok(layout.boxes.views);
   assert.equal(layout.dropped.length, 0, `unexpected drops: ${layout.dropped.join(",")}`);
+});
+
+// ── Stage 4.2-A: links as an optional 5th, lowest-priority block ─────────────
+// Infrastructure only — no caller passes `links` yet outside these tests (see
+// CLAUDE.md's Etapa 4 roadmap: the actual Links UI/content is Stage 4.2-B).
+
+const LINKS_SMALL: LinksBlockInput = { size: { width: 60, height: 24 } };
+
+test("regression: computeBlockLayout without a links argument is byte-identical to its pre-4.2-A output", () => {
+  const input = baseInput();
+  const overrideCombos: (BlockOverrides | undefined)[] = [
+    undefined,
+    { identity: { x: 0.1, y: 0.9 } },
+    { identity: { x: 0.1, y: 0.9 }, location: { x: 0.9, y: 0.9 }, views: { x: 0.9, y: 0.1 } },
+    { location: { x: 0.5, y: 0.5 } },
+  ];
+  for (const overrides of overrideCombos) {
+    const withoutLinksArg = overrides ? computeBlockLayout(input, overrides) : computeBlockLayout(input);
+    const withUndefinedLinksArg = computeBlockLayout(input, overrides, undefined);
+    assert.deepEqual(withoutLinksArg, withUndefinedLinksArg);
+    assert.equal(withoutLinksArg.boxes.links, undefined, "no links box should appear when links is not requested");
+  }
+});
+
+test("links block appears as a 5th box once requested, without disturbing pfp/identity/location/views", () => {
+  const input = baseInput();
+  const without = computeBlockLayout(input);
+  const withLinks = computeBlockLayout(input, undefined, LINKS_SMALL);
+  assert.ok(withLinks.boxes.links, "links box should be present");
+  assert.equal(withLinks.boxes.links!.w, LINKS_SMALL.size.width);
+  assert.equal(withLinks.boxes.links!.h, LINKS_SMALL.size.height);
+  for (const role of ["pfp", "name", "handle", "descriptor", "location", "views"] as const) {
+    assert.deepEqual(withLinks.boxes[role], without.boxes[role], `${role} should be unaffected by links being present`);
+  }
+});
+
+test("links block never overlaps pfp, identity, location, or views", () => {
+  const input = baseInput();
+  const layout = computeBlockLayout(input, undefined, LINKS_SMALL);
+  const links = layout.boxes.links!;
+  const others = (["pfp", "name", "handle", "descriptor", "bio", "location", "views"] as const)
+    .map(r => layout.boxes[r]).filter((b): b is ElementBox => b != null);
+  for (const b of others) assert.ok(!boxesOverlap(b, links), `links overlaps: ${JSON.stringify(b)}`);
+});
+
+test("links block stays within card bounds, including at extreme override anchors", () => {
+  const input = baseInput();
+  for (const anchor of [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 0 }, { x: 0, y: 1 }]) {
+    const layout = computeBlockLayout(input, { links: anchor }, LINKS_SMALL);
+    const b = layout.boxes.links!;
+    assert.ok(b.x >= 20 - 0.5 && b.y >= 20 - 0.5, `links outside top-left at ${JSON.stringify(anchor)}: ${JSON.stringify(b)}`);
+    assert.ok(b.x + b.w <= input.boxW - 20 + 0.5 && b.y + b.h <= input.boxH - 20 + 0.5, `links outside bottom-right at ${JSON.stringify(anchor)}: ${JSON.stringify(b)}`);
+  }
+});
+
+test("priority: dragging links onto the pfp/identity/location/views displaces only links, never the others", () => {
+  const input = baseInput();
+  const target = { x: 0.5, y: 0.5 };
+  const withoutLinks = computeBlockLayout(input, { identity: target, location: target, views: target });
+  const withLinks = computeBlockLayout(input, { identity: target, location: target, views: target, links: target }, LINKS_SMALL);
+  for (const role of ["pfp", "name", "handle", "descriptor", "location", "views"] as const) {
+    assert.deepEqual(withLinks.boxes[role], withoutLinks.boxes[role], `${role} moved because links was dragged onto it`);
+  }
+  const links = withLinks.boxes.links!;
+  const others = (["pfp", "name", "handle", "descriptor", "bio", "location", "views"] as const)
+    .map(r => withLinks.boxes[r]).filter((b): b is ElementBox => b != null);
+  for (const b of others) assert.ok(!boxesOverlap(b, links), `links overlaps ${JSON.stringify(b)} despite priority resolution`);
+});
+
+test("links respects its own anchor override via the same anchorToRect/rectToAnchor contract as other blocks", () => {
+  // Small card, no other content, so links has the whole padded area to itself
+  // and the anchor maps predictably (same formula blockConstraints.test.ts verifies directly).
+  const input = baseInput({ content: { name: { present: false }, handle: { present: false }, bio: { present: false }, descriptor: { present: false }, location: { present: false }, views: { present: false } } });
+  const layout = computeBlockLayout(input, { links: { x: 0, y: 0 } }, LINKS_SMALL);
+  const b = layout.boxes.links!;
+  assert.ok(Math.abs(b.x - input.padding) < 0.5, `links.x should hug the top-left padding edge: ${b.x}`);
+  assert.ok(Math.abs(b.y - input.padding) < 0.5, `links.y should hug the top-left padding edge: ${b.y}`);
+});
+
+test("links block grows downward without overlap once the card is tall enough to fit it (vertical growth integration)", () => {
+  const input = baseInput({ boxH: 500 }); // simulates a card already grown via computeRequiredCardHeight
+  const layout = computeBlockLayout(input, undefined, LINKS_SMALL);
+  assert.ok(layout.boxes.links, "links should fit once the card has enough height");
+  const links = layout.boxes.links!;
+  assert.ok(links.y + links.h <= input.boxH - input.padding + 0.5, "links must stay within the taller box");
+});
+
+// ── Stage 4.2-C.1: music as an optional 6th, lowest-priority block ───────────
+// Infrastructure only — no caller passes `music` in production yet (the
+// player UI is Stage 4.2-C.2). Mirrors the links tests above one level down
+// the priority chain: PFP -> Identity -> Location -> Views -> Links -> Music.
+
+const MUSIC_SMALL: MusicBlockInput = { size: { width: 200, height: 56 } };
+
+test("regression: computeBlockLayout without a music argument is byte-identical to its pre-4.2-C output", () => {
+  const input = baseInput();
+  const overrideCombos: (BlockOverrides | undefined)[] = [
+    undefined,
+    { identity: { x: 0.1, y: 0.9 } },
+    { identity: { x: 0.1, y: 0.9 }, location: { x: 0.9, y: 0.9 }, views: { x: 0.9, y: 0.1 } },
+    { links: { x: 0.5, y: 0.5 } },
+  ];
+  for (const overrides of overrideCombos) {
+    for (const links of [undefined, LINKS_SMALL]) {
+      const withoutMusicArg = computeBlockLayout(input, overrides, links);
+      const withUndefinedMusicArg = computeBlockLayout(input, overrides, links, undefined);
+      assert.deepEqual(withoutMusicArg, withUndefinedMusicArg);
+      assert.equal(withoutMusicArg.boxes.music, undefined, "no music box should appear when music is not requested");
+    }
+  }
+});
+
+test("regression: computeBlockLayout with neither links nor music is byte-identical to pre-4.2-A computeBlockLayout(input, overrides)", () => {
+  const input = baseInput();
+  const overrides: BlockOverrides = { identity: { x: 0.2, y: 0.3 }, views: { x: 0.8, y: 0.8 } };
+  const twoArgCall = computeBlockLayout(input, overrides);
+  const fourArgCallAllUndefined = computeBlockLayout(input, overrides, undefined, undefined);
+  assert.deepEqual(twoArgCall, fourArgCallAllUndefined);
+});
+
+test("music block appears as a 6th box once requested, without disturbing pfp/identity/location/views/links", () => {
+  const input = baseInput();
+  const withoutMusic = computeBlockLayout(input, undefined, LINKS_SMALL);
+  const withMusic = computeBlockLayout(input, undefined, LINKS_SMALL, MUSIC_SMALL);
+  assert.ok(withMusic.boxes.music, "music box should be present");
+  assert.equal(withMusic.boxes.music!.w, MUSIC_SMALL.size.width);
+  assert.equal(withMusic.boxes.music!.h, MUSIC_SMALL.size.height);
+  for (const role of ["pfp", "name", "handle", "descriptor", "location", "views", "links"] as const) {
+    assert.deepEqual(withMusic.boxes[role], withoutMusic.boxes[role], `${role} should be unaffected by music being present`);
+  }
+});
+
+test("music block can appear even when links is absent", () => {
+  const input = baseInput();
+  const layout = computeBlockLayout(input, undefined, undefined, MUSIC_SMALL);
+  assert.ok(layout.boxes.music, "music box should be present without a links block");
+  assert.equal(layout.boxes.links, undefined, "links box should not appear when not requested");
+});
+
+test("music block never overlaps pfp, identity, location, views, or links", () => {
+  // Tall enough to give both extra blocks genuine room — like real usage,
+  // where the growth effect (ProfileCard.tsx) already grew the card before
+  // this many blocks need to coexist; the anti-overlap escape system is a
+  // last-resort safety net, not the primary way non-overlapping room is made.
+  const input = baseInput({ boxH: 500 });
+  const layout = computeBlockLayout(input, undefined, LINKS_SMALL, MUSIC_SMALL);
+  const music = layout.boxes.music!;
+  const others = (["pfp", "name", "handle", "descriptor", "bio", "location", "views", "links"] as const)
+    .map(r => layout.boxes[r]).filter((b): b is ElementBox => b != null);
+  for (const b of others) assert.ok(!boxesOverlap(b, music), `music overlaps: ${JSON.stringify(b)}`);
+});
+
+test("music block stays within card bounds, including at extreme override anchors", () => {
+  const input = baseInput();
+  for (const anchor of [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 0 }, { x: 0, y: 1 }]) {
+    const layout = computeBlockLayout(input, { music: anchor }, LINKS_SMALL, MUSIC_SMALL);
+    const b = layout.boxes.music!;
+    assert.ok(b.x >= 20 - 0.5 && b.y >= 20 - 0.5, `music outside top-left at ${JSON.stringify(anchor)}: ${JSON.stringify(b)}`);
+    assert.ok(b.x + b.w <= input.boxW - 20 + 0.5 && b.y + b.h <= input.boxH - 20 + 0.5, `music outside bottom-right at ${JSON.stringify(anchor)}: ${JSON.stringify(b)}`);
+  }
+});
+
+test("priority: dragging music onto pfp/identity/location/views/links displaces only music, never the others", () => {
+  const input = baseInput({ boxH: 500 }); // genuine room for 6 blocks at once, see the "never overlaps" test above
+  const target = { x: 0.5, y: 0.5 };
+  const withoutMusic = computeBlockLayout(input, { identity: target, location: target, views: target, links: target }, LINKS_SMALL);
+  const withMusic = computeBlockLayout(input, { identity: target, location: target, views: target, links: target, music: target }, LINKS_SMALL, MUSIC_SMALL);
+  for (const role of ["pfp", "name", "handle", "descriptor", "location", "views", "links"] as const) {
+    assert.deepEqual(withMusic.boxes[role], withoutMusic.boxes[role], `${role} moved because music was dragged onto it`);
+  }
+  const music = withMusic.boxes.music!;
+  const others = (["pfp", "name", "handle", "descriptor", "bio", "location", "views", "links"] as const)
+    .map(r => withMusic.boxes[r]).filter((b): b is ElementBox => b != null);
+  for (const b of others) assert.ok(!boxesOverlap(b, music), `music overlaps ${JSON.stringify(b)} despite priority resolution`);
+});
+
+test("priority: music is displaced by links when both land on the same spot, never the reverse", () => {
+  const input = baseInput();
+  const target = { x: 0.5, y: 0.5 };
+  // Both blocks dragged onto the exact same anchor: links (higher priority)
+  // must land exactly where it would if music didn't exist at all; music
+  // (lower priority) must yield out of the way instead.
+  const linksAlone = computeBlockLayout(input, { links: target }, LINKS_SMALL);
+  const layout = computeBlockLayout(input, { links: target, music: target }, LINKS_SMALL, MUSIC_SMALL);
+  assert.deepEqual(layout.boxes.links, linksAlone.boxes.links, "links' position must be unaffected by music being dragged onto the same spot");
+  assert.ok(!boxesOverlap(layout.boxes.links!, layout.boxes.music!), "music must yield, not overlap the higher-priority links block");
+});
+
+test("music respects its own anchor override via the same anchorToRect/rectToAnchor contract as other blocks", () => {
+  // pfp moved to the opposite corner so the {0,0} target below is genuinely
+  // free — otherwise this would just be re-testing anti-overlap escape (see
+  // the "never overlaps"/priority tests above), not the anchor contract itself.
+  const input = baseInput({
+    pfp: { anchorX: 1, anchorY: 1, size: 70 },
+    content: { name: { present: false }, handle: { present: false }, bio: { present: false }, descriptor: { present: false }, location: { present: false }, views: { present: false } },
+  });
+  const layout = computeBlockLayout(input, { music: { x: 0, y: 0 } }, undefined, MUSIC_SMALL);
+  const b = layout.boxes.music!;
+  assert.ok(Math.abs(b.x - input.padding) < 0.5, `music.x should hug the top-left padding edge: ${b.x}`);
+  assert.ok(Math.abs(b.y - input.padding) < 0.5, `music.y should hug the top-left padding edge: ${b.y}`);
+});
+
+test("music block grows downward without overlap once the card is tall enough to fit it, alongside links (vertical growth integration)", () => {
+  const input = baseInput({ boxH: 600 }); // simulates a card already grown via computeRequiredCardHeight
+  const layout = computeBlockLayout(input, undefined, LINKS_SMALL, MUSIC_SMALL);
+  assert.ok(layout.boxes.links && layout.boxes.music, "both links and music should fit once the card has enough height");
+  const music = layout.boxes.music!;
+  assert.ok(music.y + music.h <= input.boxH - input.padding + 0.5, "music must stay within the taller box");
+  assert.ok(!boxesOverlap(layout.boxes.links!, music), "links and music must not overlap even when both fit");
 });
 
 test("small card sizes degrade coherently under computeBlockLayout, never overflowing bounds", () => {

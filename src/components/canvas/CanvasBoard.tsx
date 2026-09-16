@@ -1873,49 +1873,6 @@ export default function CanvasBoard({
     setSelectedIds(new Set([l.id]));
   }
 
-  function addSocialCard() {
-    if (!canInteract) return;
-    zCounter.current += 1;
-    const vc = viewCenter();
-    const { x: sx, y: sy } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 200, 100);
-    const s: SocialCardData = {
-      id: crypto.randomUUID(), x: sx, y: sy,
-      w: 200, h: 100, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
-      socialLinks: [],
-      isPublic: inSpace ? true : undefined,
-    };
-    enqueueOp({ type: "add_social", social: s });
-    setSelectedIds(new Set([s.id]));
-  }
-
-  function addMusicCard() {
-    if (!canInteract) return;
-    zCounter.current += 1;
-    const vc = viewCenter();
-    const { x: mx, y: my } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 220, 70);
-    const m: MusicCardData = {
-      id: crypto.randomUUID(), x: mx, y: my,
-      w: 220, h: 70, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
-      isPublic: inSpace ? true : undefined,
-    };
-    enqueueOp({ type: "add_music", music: m });
-    setSelectedIds(new Set([m.id]));
-  }
-
-  function addStatsCard() {
-    if (!canInteract) return;
-    zCounter.current += 1;
-    const vc = viewCenter();
-    const { x: tx, y: ty } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 180, 80);
-    const t: StatsCardData = {
-      id: crypto.randomUUID(), x: tx, y: ty,
-      w: 180, h: 80, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
-      isPublic: inSpace ? true : undefined,
-    };
-    enqueueOp({ type: "add_stats", stats: t });
-    setSelectedIds(new Set([t.id]));
-  }
-
   function addMedia() {
     if (!canInteract) return;
     zCounter.current += 1;
@@ -3151,9 +3108,6 @@ export default function CanvasBoard({
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
             {label:"Links",         fn:()=>{addLinksCard();           setMenuOpen(false);}},
-            {label:"Social",        fn:()=>{addSocialCard();          setMenuOpen(false);}},
-            {label:"Music",         fn:()=>{addMusicCard();           setMenuOpen(false);}},
-            {label:"Stats",         fn:()=>{addStatsCard();           setMenuOpen(false);}},
             {label:"Media",         fn:()=>{addMedia();               setMenuOpen(false);}},
             {label:"Guestbook",     fn:()=>{addGuestbook();           setMenuOpen(false);}},
           ].map(item=>(

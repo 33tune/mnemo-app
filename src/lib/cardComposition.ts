@@ -47,7 +47,7 @@
  * only ever displaces a LOWER-priority one, never a higher one.
  */
 import type { CardFormat } from "@/types";
-import { resolveBlockPosition, resolveOverlap, type Rect } from "./blockConstraints";
+import { anchorToRect, resolveBlockPosition, resolveOverlap, type Rect } from "./blockConstraints";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -98,7 +98,7 @@ export interface CompositionInput {
   textAlign?: TextAlign;
 }
 
-export type ElementRole = "pfp" | "name" | "handle" | "bio" | "descriptor" | "location" | "views";
+export type ElementRole = "pfp" | "name" | "handle" | "bio" | "descriptor" | "location" | "views" | "links" | "music";
 
 export interface ElementBox {
   x: number;
@@ -615,6 +615,42 @@ export interface BlockOverrides {
   identity?: { x: number; y: number };
   location?: { x: number; y: number };
   views?: { x: number; y: number };
+  /** Stage 4.2-A: overrides the future Links block's position — same
+   * normalized-anchor contract as the three above. See LinksBlockInput. */
+  links?: { x: number; y: number };
+  /** Stage 4.2-C.1: overrides the Music block's position — same
+   * normalized-anchor contract as the others. See MusicBlockInput. */
+  music?: { x: number; y: number };
+}
+
+/**
+ * Stage 4.2-A infrastructure: natural size (px) of the future Links internal
+ * block, passed to computeBlockLayout only once a caller actually enables
+ * that block (no caller does yet — Links UI/content lands in Stage 4.2-B).
+ * Omitting this parameter entirely is the "capability not enabled" state and
+ * leaves computeBlockLayout's output completely unchanged from before Links
+ * existed (see the "no links block" regression test in cardComposition.test.ts).
+ */
+export interface LinksBlockInput {
+  size: { width: number; height: number };
+  /** Normalized anchor used only when no drag override is set — same
+   * anchorToRect contract as every other block. Defaults to bottom-center,
+   * i.e. below whatever content already occupies the card. */
+  defaultAnchor?: { x: number; y: number };
+}
+
+/**
+ * Stage 4.2-C.1 infrastructure: natural size (px) of the Music internal
+ * block — same contract as LinksBlockInput, one step further down the
+ * priority chain (see computeBlockLayout's doc comment). Omitting this
+ * parameter entirely leaves computeBlockLayout's output unchanged from
+ * before Music existed (see the "no music block" regression test).
+ */
+export interface MusicBlockInput {
+  size: { width: number; height: number };
+  /** Normalized anchor used only when no drag override is set — same
+   * anchorToRect contract as every other block. Defaults to bottom-center. */
+  defaultAnchor?: { x: number; y: number };
 }
 
 const IDENTITY_ROLES: ElementRole[] = ["name", "handle", "descriptor", "bio"];
@@ -660,6 +696,21 @@ function resolveBlock(
  * LOWER-priority block, never a higher one — moving identity can push
  * location or views out of the way, but never the pfp, and moving location
  * never pushes identity.
+ *
+ * Stage 4.2-A: an optional 5th, lowest-priority block — `links` — can be
+ * appended after the four above via the `links` parameter (see
+ * LinksBlockInput). It treats pfp/identity/location/views' FINAL resolved
+ * positions as obstacles, same priority-cascade rule as the rest. Omitting
+ * `links` entirely (every caller today) skips this step completely, so
+ * output is byte-identical to pre-4.2-A computeBlockLayout.
+ *
+ * Stage 4.2-C.1: an optional 6th block — `music` — can be appended after
+ * links via the `music` parameter (see MusicBlockInput), same
+ * priority-cascade rule: it treats pfp/identity/location/views/links' FINAL
+ * resolved positions as obstacles, so it may be displaced by any of the five
+ * but never displaces any of them. Omitting `music` skips this step
+ * completely — full priority chain is PFP -> Identity -> Location -> Views
+ * -> Links -> Music.
  */
 export interface BlockLayoutResult extends CompositionResult {
   /** Bounding box of the identity group (name+handle+descriptor+bio) in its
@@ -671,15 +722,18 @@ export interface BlockLayoutResult extends CompositionResult {
   identityRect?: ElementBox;
 }
 
-export function computeBlockLayout(input: CompositionInput, overrides?: BlockOverrides): BlockLayoutResult {
+export function computeBlockLayout(input: CompositionInput, overrides?: BlockOverrides, links?: LinksBlockInput, music?: MusicBlockInput): BlockLayoutResult {
+  const { boxW, boxH, padding } = input;
   const base = computeComposition(input);
   const identityBase = unionBox(
     IDENTITY_ROLES.map(role => base.boxes[role]).filter((b): b is ElementBox => b != null),
   );
 
-  // No overrides at all: return the base composition completely untouched.
-  // Re-running it through the anti-overlap pipeline below would NOT
-  // necessarily be a no-op — that pipeline enforces BLOCK_MIN_GAP (a
+  let result: BlockLayoutResult;
+
+  // No identity/location/views overrides: base composition completely
+  // untouched. Re-running it through the anti-overlap pipeline below would
+  // NOT necessarily be a no-op — that pipeline enforces BLOCK_MIN_GAP (a
   // deliberate breathing-room minimum for freeform dragging), while the base
   // composition itself only guarantees zero literal overlap, not any
   // particular gap. Skipping entirely here is what keeps "no overrides yet"
@@ -687,40 +741,78 @@ export function computeBlockLayout(input: CompositionInput, overrides?: BlockOve
   // regression test), which is the actual compatibility contract (existing
   // cards have none of these fields and must render unchanged).
   if (!overrides?.identity && !overrides?.location && !overrides?.views) {
-    return { ...base, identityRect: identityBase };
-  }
+    result = { ...base, identityRect: identityBase };
+  } else {
+    const boxes = { ...base.boxes };
+    const obstacles: Rect[] = boxes.pfp ? [boxes.pfp] : [];
+    let identityRect = identityBase;
 
-  const { boxW, boxH, padding } = input;
-  const boxes = { ...base.boxes };
-  const obstacles: Rect[] = boxes.pfp ? [boxes.pfp] : [];
-  let identityRect = identityBase;
-
-  // ── Identity group (name/handle/descriptor/bio) — moved as one block ──────
-  if (identityBase && identityBase.w > 0 && identityBase.h > 0) {
-    const identityEntries = IDENTITY_ROLES
-      .map(role => [role, boxes[role]] as const)
-      .filter((e): e is [ElementRole, ElementBox] => e[1] != null);
-    const resolved = resolveBlock(identityBase, overrides?.identity, obstacles, boxW, boxH, padding);
-    const dx = resolved.x - identityBase.x, dy = resolved.y - identityBase.y;
-    if (dx !== 0 || dy !== 0) {
-      for (const [role, b] of identityEntries) boxes[role] = { ...b, x: b.x + dx, y: b.y + dy };
+    // ── Identity group (name/handle/descriptor/bio) — moved as one block ──────
+    if (identityBase && identityBase.w > 0 && identityBase.h > 0) {
+      const identityEntries = IDENTITY_ROLES
+        .map(role => [role, boxes[role]] as const)
+        .filter((e): e is [ElementRole, ElementBox] => e[1] != null);
+      const resolved = resolveBlock(identityBase, overrides?.identity, obstacles, boxW, boxH, padding);
+      const dx = resolved.x - identityBase.x, dy = resolved.y - identityBase.y;
+      if (dx !== 0 || dy !== 0) {
+        for (const [role, b] of identityEntries) boxes[role] = { ...b, x: b.x + dx, y: b.y + dy };
+      }
+      identityRect = { ...identityBase, x: resolved.x, y: resolved.y };
+      obstacles.push(resolved);
     }
-    identityRect = { ...identityBase, x: resolved.x, y: resolved.y };
-    obstacles.push(resolved);
+
+    // ── Location — independent block ───────────────────────────────────────────
+    if (boxes.location) {
+      const resolved = resolveBlock(boxes.location, overrides?.location, obstacles, boxW, boxH, padding);
+      boxes.location = { ...boxes.location, x: resolved.x, y: resolved.y };
+      obstacles.push(resolved);
+    }
+
+    // ── Views — independent block ──────────────────────────────────────────────
+    if (boxes.views) {
+      const resolved = resolveBlock(boxes.views, overrides?.views, obstacles, boxW, boxH, padding);
+      boxes.views = { ...boxes.views, x: resolved.x, y: resolved.y };
+    }
+
+    result = { ...base, boxes, identityRect };
   }
 
-  // ── Location — independent block ───────────────────────────────────────────
-  if (boxes.location) {
-    const resolved = resolveBlock(boxes.location, overrides?.location, obstacles, boxW, boxH, padding);
-    boxes.location = { ...boxes.location, x: resolved.x, y: resolved.y };
-    obstacles.push(resolved);
+  // ── Links — 5th, lowest-priority block (Stage 4.2-A infrastructure) ────────
+  // No `links` param (every caller today omitting it): skip entirely — no
+  // longer an early return (Stage 4.2-C.1 needs `music` reachable even when
+  // `links` is absent), but the output for a links-less/music-less call is
+  // still exactly `result`, untouched, so this remains byte-identical to
+  // pre-4.2-A computeBlockLayout in that case.
+  if (links) {
+    const obstacles: Rect[] = [];
+    if (result.boxes.pfp) obstacles.push(result.boxes.pfp);
+    if (result.identityRect) obstacles.push(result.identityRect);
+    if (result.boxes.location) obstacles.push(result.boxes.location);
+    if (result.boxes.views) obstacles.push(result.boxes.views);
+
+    const defaultAnchor = links.defaultAnchor ?? { x: 0.5, y: 1 };
+    const baseRect = anchorToRect(defaultAnchor.x, defaultAnchor.y, links.size.width, links.size.height, boxW, boxH, padding);
+    const resolvedLinks = resolveBlock(baseRect, overrides?.links, obstacles, boxW, boxH, padding);
+    result = { ...result, boxes: { ...result.boxes, links: { x: resolvedLinks.x, y: resolvedLinks.y, w: links.size.width, h: links.size.height } } };
   }
 
-  // ── Views — independent block ──────────────────────────────────────────────
-  if (boxes.views) {
-    const resolved = resolveBlock(boxes.views, overrides?.views, obstacles, boxW, boxH, padding);
-    boxes.views = { ...boxes.views, x: resolved.x, y: resolved.y };
+  // ── Music — 6th, lowest-priority block (Stage 4.2-C.1 infrastructure) ─────
+  // Obstacles include boxes.links from the step above (its FINAL resolved
+  // rect, if it ran) — same priority-cascade rule as every other block here.
+  // No `music` param: skip entirely, `result` unchanged.
+  if (music) {
+    const obstacles: Rect[] = [];
+    if (result.boxes.pfp) obstacles.push(result.boxes.pfp);
+    if (result.identityRect) obstacles.push(result.identityRect);
+    if (result.boxes.location) obstacles.push(result.boxes.location);
+    if (result.boxes.views) obstacles.push(result.boxes.views);
+    if (result.boxes.links) obstacles.push(result.boxes.links);
+
+    const defaultAnchor = music.defaultAnchor ?? { x: 0.5, y: 1 };
+    const baseRect = anchorToRect(defaultAnchor.x, defaultAnchor.y, music.size.width, music.size.height, boxW, boxH, padding);
+    const resolvedMusic = resolveBlock(baseRect, overrides?.music, obstacles, boxW, boxH, padding);
+    result = { ...result, boxes: { ...result.boxes, music: { x: resolvedMusic.x, y: resolvedMusic.y, w: music.size.width, h: music.size.height } } };
   }
 
-  return { ...base, boxes, identityRect };
+  return result;
 }

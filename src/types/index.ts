@@ -118,6 +118,36 @@ export type ProfileLink = {
   scale?: number;
 };
 
+// Music block (Stage 4.2-C) — data model only in 4.2-C.1, player UI lands in
+// 4.2-C.2. Scoped to option (A) from the 4.2-C audit: self-hosted/uploaded
+// audio or a direct playable audio file URL — NOT Spotify/YouTube/SoundCloud
+// embeds (that's a separate, later stage if it happens at all). `volume` is
+// the owner's configured STARTING volume, never live playback state —
+// `playing`/`currentTime` are never persisted here or anywhere: they're
+// local-to-the-viewer React state in the player component, same as any
+// other browser's own <audio> element controls itself.
+export type MusicSourceType = "upload" | "url";
+
+export type MusicBlockData = {
+  sourceType: MusicSourceType;
+  audioUrl:   string;
+  title?:     string;
+  artist?:    string;
+  artwork?:   string; // storage URL, same uploadToStorage() flow as bgImage
+  volume?:    number; // 0-1, initial volume only
+};
+
+// Contact Links (Stage 4.2-B) — the first real internal ProfileCard block.
+// Deliberately leaner than ProfileLink/SocialLink above: no label, no kind,
+// no free x/y (the whole block moves together via linksAnchorX/Y, see
+// ProfileCardData below) — platform is derived from `url` via detectPlatform()
+// in SocialIcons.tsx on read, never persisted (it's fully recomputable and
+// would just drift out of sync with the url otherwise).
+export type ContactLink = {
+  id:  string;
+  url: string;
+};
+
 export type SocialLink = {
   id:       string;
   platform: string;
@@ -189,6 +219,23 @@ export type ProfileCardData = {
   locationAnchorY?: number;
   viewsAnchorX?:    number;
   viewsAnchorY?:    number;
+  // Links block anchor (Stage 4.2-A infrastructure, wired to a real block in
+  // Stage 4.2-B) — same model as the three above. See computeBlockLayout()'s
+  // LinksBlockInput in cardComposition.ts.
+  linksAnchorX?:    number;
+  linksAnchorY?:    number;
+  // Contact Links (Stage 4.2-B) — the internal block those anchors position.
+  // Absent/empty means "no Contact Links block", and every existing card
+  // renders exactly as before (see cardComposition.ts's regression test).
+  contactLinks?:    ContactLink[];
+  // Music block anchor (Stage 4.2-C.1 infrastructure) — same model as the
+  // others. See computeBlockLayout()'s MusicBlockInput in cardComposition.ts.
+  musicAnchorX?:    number;
+  musicAnchorY?:    number;
+  // Music block (Stage 4.2-C.1 data model; player UI is 4.2-C.2). Presence
+  // (not audioUrl completeness) is what "enables" the block — absent means
+  // "no Music block", and every existing card renders exactly as before.
+  music?:           MusicBlockData;
   // Identity
   photo:           string;
   name:            string;

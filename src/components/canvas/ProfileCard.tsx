@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useCallback, memo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { trackRender } from "@/lib/perfDebug";
-import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects } from "@/types";
+import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects, ContactLink } from "@/types";
 import { getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { useProfileViews } from "@/hooks/useProfileViews";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
@@ -13,27 +13,37 @@ import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
-import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides } from "@/lib/cardComposition";
+import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides, type LinksBlockInput, type MusicBlockInput } from "@/lib/cardComposition";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
   rectToAnchor, snapAxis, snappedPoint, MAGNETIC_POINTS, centerAlignAnchor,
 } from "@/lib/blockConstraints";
-import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES } from "@/lib/cardGeometry";
+import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
+import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
+import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
+import { computeMusicNaturalSize, MUSIC_BLOCK_GAP } from "@/lib/musicBlockSizing";
+import ProfileMusicPlayer from "./ProfileMusicPlayer";
 
 // ── Draggable block keys (Stage 3B.3-B) ─────────────────────────────────────
 // Identity = name+handle+descriptor+bio, moved as one block — see
 // computeBlockLayout()'s identityRect in cardComposition.ts. Location/Views
 // are single boxes already. PFP has its own separate, older anchor system
 // (pfpAnchorX/Y, startAnchorDrag) and is NOT one of these — see Stage 3B.2-B.
-type BlockKey = "identity" | "location" | "views";
+// Stage 4.2-A: "links" added as a 4th block key — infrastructure only, so a
+// future Links UI (Stage 4.2-B) can call startBlockDrag(..., "links", ...)
+// without touching this type again. Stage 4.2-C.1 adds "music" the same way,
+// now wired for real (drag works; the player UI itself is Stage 4.2-C.2).
+type BlockKey = "identity" | "location" | "views" | "links" | "music";
 const BLOCK_ANCHOR_FIELDS: Record<BlockKey, readonly [
-  "identityAnchorX" | "locationAnchorX" | "viewsAnchorX",
-  "identityAnchorY" | "locationAnchorY" | "viewsAnchorY",
+  "identityAnchorX" | "locationAnchorX" | "viewsAnchorX" | "linksAnchorX" | "musicAnchorX",
+  "identityAnchorY" | "locationAnchorY" | "viewsAnchorY" | "linksAnchorY" | "musicAnchorY",
 ]> = {
   identity: ["identityAnchorX", "identityAnchorY"],
   location: ["locationAnchorX", "locationAnchorY"],
   views:    ["viewsAnchorX", "viewsAnchorY"],
+  links:    ["linksAnchorX", "linksAnchorY"],
+  music:    ["musicAnchorX", "musicAnchorY"],
 };
 
 const SANS = "'DM Sans', sans-serif";
@@ -103,6 +113,45 @@ function withOpacity(hex: string, alpha: number): string {
   const n = parseInt(hex.slice(1), 16);
   const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Contact Link icon (Stage 4.2-B §5) — a real <a>, target="_blank" +
+// rel="noopener noreferrer" (see the LinksCardWidget/SocialIconBtn precedent
+// this mirrors). Module-level, not nested inside ProfileCard: it owns hover
+// state (useState), and a component redefined every parent render would
+// remount (and lose that state) on every ProfileCard re-render — same reason
+// SocialIconBtn in SocialIcons.tsx is module-level too. Always renders as a
+// genuine link, so it's clickable regardless of canInteract — the public
+// profile page IS a ProfileCard render with canInteract=false, and this must
+// still open the URL there (§5: Contact Links must not inherit decorative
+// pointer-events:none — it never gets that style in the first place, see
+// CardLayers.tsx's content layer). mousedown deliberately does NOT stop
+// propagation, so grabbing an icon still starts the block-level drag
+// (startLinksDrag) via the wrapper, same as identity/location/views; click,
+// mirroring LinkItemFrame in LinksCardWidget.tsx, only opens the URL when the
+// config menu isn't the thing being interacted with.
+function ContactLinkIcon({ link, color, menuOpen }: { link: ContactLink; color: string; menuOpen: boolean }) {
+  const [hov, setHov] = useState(false);
+  const platform = detectPlatform(link.url);
+  const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
+  return (
+    <a
+      href={safeUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={PLATFORM_LABELS[platform]}
+      onClick={e => { e.stopPropagation(); if (menuOpen) e.preventDefault(); }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        width: CONTACT_LINK_ICON_SIZE, height: CONTACT_LINK_ICON_SIZE, flexShrink: 0,
+        opacity: hov ? 1 : 0.75, transition: "opacity 0.15s ease", textDecoration: "none",
+      }}
+    >
+      <PlatformIcon platform={platform} size={CONTACT_LINK_ICON_SIZE} color={hov ? PLATFORM_COLORS[platform] : color} />
+    </a>
+  );
 }
 
 interface Props {
@@ -208,6 +257,8 @@ function ProfileCard({
     identity: card.identityAnchorX != null && card.identityAnchorY != null ? { x: card.identityAnchorX, y: card.identityAnchorY } : undefined,
     location: card.locationAnchorX != null && card.locationAnchorY != null ? { x: card.locationAnchorX, y: card.locationAnchorY } : undefined,
     views:    card.viewsAnchorX    != null && card.viewsAnchorY    != null ? { x: card.viewsAnchorX,    y: card.viewsAnchorY    } : undefined,
+    links:    card.linksAnchorX    != null && card.linksAnchorY    != null ? { x: card.linksAnchorX,    y: card.linksAnchorY    } : undefined,
+    music:    card.musicAnchorX    != null && card.musicAnchorY    != null ? { x: card.musicAnchorX,    y: card.musicAnchorY    } : undefined,
   }));
   // Which block (if any) is actively being dragged right now — a ref (not
   // state) because its only two jobs are (a) guarding the sync-from-props
@@ -226,8 +277,12 @@ function ProfileCard({
         : (card.locationAnchorX != null && card.locationAnchorY != null ? { x: card.locationAnchorX, y: card.locationAnchorY } : undefined),
       views: draggingBlockRef.current === "views" ? prev.views
         : (card.viewsAnchorX != null && card.viewsAnchorY != null ? { x: card.viewsAnchorX, y: card.viewsAnchorY } : undefined),
+      links: draggingBlockRef.current === "links" ? prev.links
+        : (card.linksAnchorX != null && card.linksAnchorY != null ? { x: card.linksAnchorX, y: card.linksAnchorY } : undefined),
+      music: draggingBlockRef.current === "music" ? prev.music
+        : (card.musicAnchorX != null && card.musicAnchorY != null ? { x: card.musicAnchorX, y: card.musicAnchorY } : undefined),
     }));
-  }, [card.identityAnchorX, card.identityAnchorY, card.locationAnchorX, card.locationAnchorY, card.viewsAnchorX, card.viewsAnchorY]);
+  }, [card.identityAnchorX, card.identityAnchorY, card.locationAnchorX, card.locationAnchorY, card.viewsAnchorX, card.viewsAnchorY, card.linksAnchorX, card.linksAnchorY, card.musicAnchorX, card.musicAnchorY]);
 
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
@@ -650,17 +705,45 @@ function ProfileCard({
     );
   }
 
-  // ── Composed layout (Stage 3B / 3B.3) ─────────────────────────────────────
+  // ── Contact Links (Stage 4.2-B) ───────────────────────────────────────────
+  // Data + natural size only here — rendering/drag lives in renderComposed()
+  // below, growth (§8) in the effect right after. `contactLinks` absent/empty
+  // is the pre-4.2-B state: linksBlockInput below stays undefined, and
+  // computeBlockLayout takes the exact same code path it always did (see the
+  // "no links block" regression test in cardComposition.test.ts).
+  const contactLinks = card.contactLinks ?? [];
+  const linksAvailWidth = Math.max(0, card.w - 2 * pad);
+  const linksNaturalSize = contactLinksNaturalSize(contactLinks.length, linksAvailWidth);
+
+  // ── Music (Stage 4.2-C.1) ─────────────────────────────────────────────────
+  // Data + natural size only — same shape as Contact Links above. `card.music`
+  // absent is the pre-4.2-C state: musicBlockInput below stays undefined, and
+  // computeBlockLayout takes the exact same code path it always did (see the
+  // "no music block" regression test in cardComposition.test.ts). No player
+  // UI yet (Stage 4.2-C.2) — only a structural placeholder box, see
+  // renderComposed() below.
+  const hasMusic = !!card.music;
+  const musicAvailWidth = Math.max(0, card.w - 2 * pad);
+  const musicNaturalSize = computeMusicNaturalSize({ availableWidth: musicAvailWidth });
+
+  // ── Composed layout (Stage 3B / 3B.3, extended in 4.2-B for Contact Links,
+  //    4.2-C.1 for Music) ────────────────────────────────────────────────────
   // The user moves the PFP (startAnchorDrag → anchor) and, as of Stage 3B.3,
   // may additionally override where the identity group (name+handle+
-  // descriptor+bio, moved as one block)/location/views sit — see
-  // computeBlockLayout in cardComposition.ts. No drag UI wires those
-  // overrides yet (that's 3B.3-B); with none of the three set, this produces
-  // byte-identical output to the plain computeComposition() call it replaces.
-  // renderVertical/renderHorizontal above stay defined but unused — legacy
-  // cleanup is a separate later stage.
-  function renderComposed() {
-    const incumbentBefore = incumbentRef.current;
+  // descriptor+bio, moved as one block)/location/views/(4.2-B) links/(4.2-C.1)
+  // music sit — see computeBlockLayout in cardComposition.ts. With none of
+  // the six set, this produces byte-identical output to the plain
+  // computeComposition() call it replaces. renderVertical/renderHorizontal
+  // above stay defined but unused — legacy cleanup is a separate later stage.
+  //
+  // Hoisted out of renderComposed() (rather than computed inside it) so the
+  // growth effect right below can read the SAME boxes renderComposed() draws
+  // from, without a second computeBlockLayout() call — neither the links nor
+  // the music extension ever moves an earlier, higher-priority block (see
+  // cardComposition.test.ts), so one result is valid for both "what to draw"
+  // and "how tall must the card be". Only computed for the composed layouts;
+  // "free" mode doesn't use this engine (or Contact Links/Music) at all.
+  const composedResult = layout === "free" ? undefined : (() => {
     // Local drag state (blockAnchors), not the raw card props — this is what
     // makes computeBlockLayout re-resolve live on every mousemove-driven
     // re-render during a drag (see startBlockDrag above). Falls back to the
@@ -670,8 +753,14 @@ function ProfileCard({
       identity: blockAnchors.identity,
       location: blockAnchors.location,
       views: blockAnchors.views,
+      links: blockAnchors.links,
+      music: blockAnchors.music,
     };
-    const result = computeBlockLayout({
+    const linksBlockInput: LinksBlockInput | undefined =
+      contactLinks.length > 0 ? { size: linksNaturalSize } : undefined;
+    const musicBlockInput: MusicBlockInput | undefined =
+      hasMusic ? { size: musicNaturalSize } : undefined;
+    const r = computeBlockLayout({
       format: card.format ?? "vertical",
       boxW: card.w,
       boxH: card.h,
@@ -689,11 +778,49 @@ function ProfileCard({
         views:      { present: !!card.showViews },
       },
       typography: { nameFontSize, bioFontSize: card.bioFontSize ?? 8 },
-      incumbent: incumbentBefore,
+      incumbent: incumbentRef.current,
       textAlign,
-    }, blockOverrides);
-    incumbentRef.current = result.strategy;
-    const { boxes, identityRect } = result;
+    }, blockOverrides, linksBlockInput, musicBlockInput);
+    incumbentRef.current = r.strategy;
+    return r;
+  })();
+
+  // ── Vertical growth (Stage 4.2-B §8, generalized in 4.2-C.1 for Music) ────
+  // Structural only: the effect's dependency array is what content/blocks
+  // actually change how tall the card needs to be — link count, whether
+  // Music is enabled, each block's natural height, format, padding, and
+  // where the existing content currently ends. Pure math
+  // (computeRequiredCardHeight in cardGeometry.ts) decides the number every
+  // render (cheap); this effect's only job is PERSISTING it, and only when
+  // it actually differs from card.h — never on every render/frame, and never
+  // touching card.y (the card only ever grows downward).
+  //
+  // extraBlocks is built here (Links entry, then Music entry, in that order)
+  // rather than calling a single-block helper per block: two SEPARATE calls
+  // to computeRequiredCardHeight (one per block) can't correctly stack more
+  // than one block — each would independently measure "room needed" from the
+  // same contentBottom and take a max, not a sum, under-reporting the
+  // required height whenever both are present. See computeRequiredCardHeight's
+  // doc comment in cardGeometry.ts.
+  const contentBottom = composedResult
+    ? composedContentBottom(composedResult.boxes, composedResult.identityRect)
+    : 0;
+  useEffect(() => {
+    if (layout === "free") return;
+    const extraBlocks: { naturalHeight: number; gap: number }[] = [];
+    if (contactLinks.length > 0) extraBlocks.push({ naturalHeight: linksNaturalSize.height, gap: CONTACT_LINK_GAP });
+    if (hasMusic) extraBlocks.push({ naturalHeight: musicNaturalSize.height, gap: MUSIC_BLOCK_GAP });
+    if (extraBlocks.length === 0) return;
+    const requiredH = Math.round(computeRequiredCardHeight({
+      format: card.format, currentH: card.h, contentBottom, padding: pad, extraBlocks,
+    }));
+    if (requiredH !== card.h) updateProfile(card.id, { h: requiredH });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout, contactLinks.length, linksNaturalSize.height, hasMusic, musicNaturalSize.height, card.format, card.h, contentBottom, pad, card.id]);
+
+  function renderComposed() {
+    if (!composedResult) return null; // only called when layout !== "free"
+    const { boxes, identityRect } = composedResult;
 
     // The pfp is authoritative in the engine itself now (Stage 3B.2-B) —
     // boxes.pfp IS the raw anchor-derived position for every strategy, with
@@ -732,6 +859,16 @@ function ProfileCard({
       if (!boxes.views) return;
       const start = blockAnchors.views ?? rectToAnchor(boxes.views, boxes.views.w, boxes.views.h, card.w, card.h, pad);
       startBlockDrag(e, "views", start, boxes.views.w, boxes.views.h, pfpBox);
+    };
+    const startLinksDrag = (e: React.MouseEvent) => {
+      if (!boxes.links) return;
+      const start = blockAnchors.links ?? rectToAnchor(boxes.links, boxes.links.w, boxes.links.h, card.w, card.h, pad);
+      startBlockDrag(e, "links", start, boxes.links.w, boxes.links.h, pfpBox);
+    };
+    const startMusicDrag = (e: React.MouseEvent) => {
+      if (!boxes.music) return;
+      const start = blockAnchors.music ?? rectToAnchor(boxes.music, boxes.music.w, boxes.music.h, card.w, card.h, pad);
+      startBlockDrag(e, "music", start, boxes.music.w, boxes.music.h, pfpBox);
     };
 
     return (
@@ -808,6 +945,42 @@ function ProfileCard({
             onMouseDown={isAnchorDraggable ? startViewsDrag : undefined}
           >
             <ViewsLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+          </div>
+        )}
+        {boxes.links && contactLinks.length > 0 && (
+          <div
+            data-canvas-hot=""
+            style={{
+              position: "absolute", left: boxes.links.x, top: boxes.links.y, width: boxes.links.w, height: boxes.links.h,
+              display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
+              gap: CONTACT_LINK_GAP,
+              transition: dragTransition("links"), cursor: isAnchorDraggable ? "grab" : "default",
+              borderRadius: 2, ...dragOutline("links"),
+            }}
+            onMouseDown={isAnchorDraggable ? startLinksDrag : undefined}
+          >
+            {contactLinks.filter(l => l.url).map(link => (
+              <ContactLinkIcon key={link.id} link={link} color={faintColor} menuOpen={menuOpen} />
+            ))}
+          </div>
+        )}
+        {boxes.music && card.music && (
+          // Stage 4.2-C.2: the wrapper owns position + block-level drag
+          // (same contract as every other block); ProfileMusicPlayer owns
+          // its own interactive controls, each stopping propagation so they
+          // never trigger startMusicDrag — see that file's header.
+          <div
+            data-canvas-hot=""
+            style={{
+              position: "absolute", left: boxes.music.x, top: boxes.music.y, width: boxes.music.w, height: boxes.music.h,
+              transition: dragTransition("music"), cursor: isAnchorDraggable ? "grab" : "default",
+              borderRadius: 6, overflow: "hidden",
+              background: "rgba(255,255,255,0.04)", border: `1px solid ${withOpacity(baseColor, 0.08)}`,
+              ...dragOutline("music"),
+            }}
+            onMouseDown={isAnchorDraggable ? startMusicDrag : undefined}
+          >
+            <ProfileMusicPlayer music={card.music} textColor={primaryColor} secondaryColor={secondaryColor} mutedColor={faintColor} />
           </div>
         )}
       </div>
