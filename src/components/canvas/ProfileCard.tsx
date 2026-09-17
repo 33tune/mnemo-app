@@ -24,6 +24,7 @@ import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "
 import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
 import { computeMusicNaturalSize, MUSIC_BLOCK_GAP } from "@/lib/musicBlockSizing";
 import ProfileMusicPlayer from "./ProfileMusicPlayer";
+import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
 
 // ── Draggable block keys (Stage 3B.3-B) ─────────────────────────────────────
 // Identity = name+handle+descriptor+bio, moved as one block — see
@@ -127,10 +128,22 @@ function withOpacity(hex: string, alpha: number): string {
 // pointer-events:none — it never gets that style in the first place, see
 // CardLayers.tsx's content layer). mousedown deliberately does NOT stop
 // propagation, so grabbing an icon still starts the block-level drag
-// (startLinksDrag) via the wrapper, same as identity/location/views; click,
-// mirroring LinkItemFrame in LinksCardWidget.tsx, only opens the URL when the
-// config menu isn't the thing being interacted with.
-function ContactLinkIcon({ link, color, menuOpen }: { link: ContactLink; color: string; menuOpen: boolean }) {
+// (startLinksDrag) via the wrapper, same as identity/location/views.
+//
+// `didDragRef` (Stage 4.2-C.2.1) is only ever non-null in the editor — see
+// ProfileCard's wrapper below, which only wires startLinksDrag when
+// isAnchorDraggable. It's undefined in public view, where the wrapper never
+// starts a drag at all and this <a> behaves like a normal link. When present,
+// onClick consumes it via resolveClickAfterDrag: a click that ends a real
+// drag never navigates, but a plain click (no drag) still does, mirroring
+// LinkItemFrame in LinksCardWidget.tsx and only opening the URL when neither
+// the config menu nor a just-finished drag is what's actually being clicked.
+function ContactLinkIcon({
+  link, color, size, menuOpen, didDragRef,
+}: {
+  link: ContactLink; color: string; size: number; menuOpen: boolean;
+  didDragRef?: React.RefObject<boolean>;
+}) {
   const [hov, setHov] = useState(false);
   const platform = detectPlatform(link.url);
   const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
@@ -140,16 +153,21 @@ function ContactLinkIcon({ link, color, menuOpen }: { link: ContactLink; color: 
       target="_blank"
       rel="noopener noreferrer"
       title={PLATFORM_LABELS[platform]}
-      onClick={e => { e.stopPropagation(); if (menuOpen) e.preventDefault(); }}
+      onClick={e => {
+        e.stopPropagation();
+        const { suppress, nextDidDrag } = resolveClickAfterDrag(didDragRef?.current ?? false);
+        if (didDragRef) didDragRef.current = nextDidDrag;
+        if (menuOpen || suppress) e.preventDefault();
+      }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
         display: "flex", alignItems: "center", justifyContent: "center",
-        width: CONTACT_LINK_ICON_SIZE, height: CONTACT_LINK_ICON_SIZE, flexShrink: 0,
+        width: size, height: size, flexShrink: 0,
         opacity: hov ? 1 : 0.75, transition: "opacity 0.15s ease", textDecoration: "none",
       }}
     >
-      <PlatformIcon platform={platform} size={CONTACT_LINK_ICON_SIZE} color={hov ? PLATFORM_COLORS[platform] : color} />
+      <PlatformIcon platform={platform} size={size} color={hov ? PLATFORM_COLORS[platform] : color} />
     </a>
   );
 }
@@ -268,6 +286,16 @@ function ProfileCard({
   // below already keep fresh from the very first drag tick — no separate
   // state needed just for that.
   const draggingBlockRef = useRef<BlockKey | null>(null);
+  // Whether the current/last "links" block drag actually moved (Stage
+  // 4.2-C.2.1). Separate from draggingBlockRef above, which is cleared
+  // synchronously on mouseup inside startBlockDrag's onUp — by the time the
+  // browser's trailing `click` fires on a Contact Link's <a>, that ref is
+  // already null and can't tell ContactLinkIcon a drag just happened. This
+  // ref is deliberately left set after mouseup so the click handler can
+  // consume it (see resolveClickAfterDrag) and only THEN clear it. Only
+  // "links" sets it true (in startBlockDrag's onMove) — identity/location/
+  // views/music blocks contain no real <a> that navigation could leak into.
+  const linksDidDragRef = useRef(false);
 
   useEffect(() => {
     setBlockAnchors(prev => ({
@@ -491,6 +519,7 @@ function ProfileCard({
     if (!isPfpAnchorDraggable(canInteract, layout, isSel)) return;
 
     draggingBlockRef.current = key;
+    linksDidDragRef.current = false;
     const startMX = e.clientX, startMY = e.clientY;
     const rawAvailW = card.w - 2 * pad - blockW;
     const rawAvailH = card.h - 2 * pad - blockH;
@@ -502,6 +531,7 @@ function ProfileCard({
     let snappedY = snappedPoint(startAnchor.y, pointsY);
 
     const onMove = (ev: MouseEvent) => {
+      if (key === "links") linksDidDragRef.current = true;
       const rawX = nextAnchorAxis(startAnchor.x, ev.clientX - startMX, rawAvailW);
       const rawY = nextAnchorAxis(startAnchor.y, ev.clientY - startMY, rawAvailH);
       const nextX = snapAxis(rawX, snappedX, pointsX); snappedX = snappedPoint(nextX, pointsX);
@@ -712,8 +742,13 @@ function ProfileCard({
   // computeBlockLayout takes the exact same code path it always did (see the
   // "no links block" regression test in cardComposition.test.ts).
   const contactLinks = card.contactLinks ?? [];
+  // Stage 4.2-C.2.1: user-configurable icon size (menu slider, see
+  // ProfileContactLinksMenu.tsx), clamped there to CONTACT_LINK_ICON_SIZE_MIN/MAX.
+  // Absent -> the original fixed constant, so every existing card renders
+  // byte-identical to before this stage.
+  const linksIconSize = card.linksIconSize ?? CONTACT_LINK_ICON_SIZE;
   const linksAvailWidth = Math.max(0, card.w - 2 * pad);
-  const linksNaturalSize = contactLinksNaturalSize(contactLinks.length, linksAvailWidth);
+  const linksNaturalSize = contactLinksNaturalSize(contactLinks.length, linksAvailWidth, linksIconSize);
 
   // ── Music (Stage 4.2-C.1) ─────────────────────────────────────────────────
   // Data + natural size only — same shape as Contact Links above. `card.music`
@@ -960,7 +995,10 @@ function ProfileCard({
             onMouseDown={isAnchorDraggable ? startLinksDrag : undefined}
           >
             {contactLinks.filter(l => l.url).map(link => (
-              <ContactLinkIcon key={link.id} link={link} color={faintColor} menuOpen={menuOpen} />
+              <ContactLinkIcon
+                key={link.id} link={link} color={faintColor} size={linksIconSize} menuOpen={menuOpen}
+                didDragRef={isAnchorDraggable ? linksDidDragRef : undefined}
+              />
             ))}
           </div>
         )}

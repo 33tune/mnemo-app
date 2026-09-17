@@ -88,6 +88,7 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
           />
           <ProfileContactLinksMenu
             contactLinks={card.contactLinks}
+            linksIconSize={card.linksIconSize}
             onChange={onChange}
           />
         </div>

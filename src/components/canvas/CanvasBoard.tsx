@@ -7,6 +7,7 @@ import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGall
 import { resolveCardSize } from "@/lib/cardGeometry";
 import { resolveBulkDeleteIds, isMarqueeSelectable } from "@/lib/canvasSelectionGuards";
 import { shouldImageIgnorePointerEvents, nextIdInHitCycle, resolveImageMouseDownTarget } from "@/lib/hitStack";
+import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
 import { clampPositionToBounds, normalizeElementsToBounds } from "@/lib/viewportBounds";
 import GuestbookWidget from "./GuestbookWidget";
 import GuestbookMenu from "./GuestbookMenu";
@@ -2095,7 +2096,15 @@ export default function CanvasBoard({
 
   function handleElementClick(id: string, e: React.MouseEvent, canSelect = true) {
     e.stopPropagation();
-    if (!canSelect || didDrag.current) return;
+    if (!canSelect) return;
+    // Consume-and-clear (Stage 4.2-C.2.1, see dragClickGuard.ts): reading
+    // didDrag must always reset it, or a swallowed drag-click leaks into and
+    // permanently suppresses the next unrelated click on ANY element —
+    // ProfileCard has no mousedown handler of its own to reset this flag
+    // (see its wiring below), so it was the one that got stuck forever.
+    const { suppress, nextDidDrag } = resolveClickAfterDrag(didDrag.current);
+    didDrag.current = nextDidDrag;
+    if (suppress) return;
     if (!canInteract) {
       const imgEl = elements.find(el => el.id === id && el.elementType === "image");
       if (imgEl?.elementType === "image") {
@@ -3102,14 +3111,19 @@ export default function CanvasBoard({
       {!isReadOnly && view === "canvas" && menuOpen&&(
         <div onClick={e=>e.stopPropagation()} style={{position:"fixed",bottom:66,right:20,background:"rgba(10,10,12,0.97)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:6,padding:"4px",backdropFilter:"blur(40px)",zIndex:1000,minWidth:180,boxShadow:"0 16px 48px rgba(0,0,0,0.85)",fontFamily:MONO}}>
           {[
-            {label:"New Card",      fn:()=>{setCreatingCard(true);    setMenuOpen(false);}},
+            // Stage 4.2-C.2.1: "New Card" (generic standalone CanvasCard),
+            // "Links", "Media" and "Guestbook" were removed from here —
+            // standalone functional modules contradict the current
+            // architecture (ProfileCard is the only functional canvas
+            // element; see CLAUDE.md). addLinksCard/addMedia/addGuestbook and
+            // the creatingCard flow are deliberately left intact (unreachable
+            // from the UI, still needed to render/replay any pre-existing
+            // data of these types) — this is only Phase A (cut creation),
+            // not the data/render-path purge, which is a separate decision.
             {label:"Free Text",     fn:()=>{setAddingText(true);      setMenuOpen(false);}},
             {label:"Gallery",       fn:()=>{addGallery();             setMenuOpen(false);}},
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
-            {label:"Links",         fn:()=>{addLinksCard();           setMenuOpen(false);}},
-            {label:"Media",         fn:()=>{addMedia();               setMenuOpen(false);}},
-            {label:"Guestbook",     fn:()=>{addGuestbook();           setMenuOpen(false);}},
           ].map(item=>(
             <button key={item.label} onClick={item.fn}
               style={{display:"block",width:"100%",padding:"7px 11px",borderRadius:4,border:"none",background:"transparent",color:"rgba(255,255,255,0.55)",fontSize:9,letterSpacing:1.5,cursor:"pointer",textAlign:"left",fontFamily:MONO,textTransform:"uppercase",transition:"background 0.08s ease, color 0.08s ease"}}

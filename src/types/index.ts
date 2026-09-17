@@ -228,6 +228,11 @@ export type ProfileCardData = {
   // Absent/empty means "no Contact Links block", and every existing card
   // renders exactly as before (see cardComposition.ts's regression test).
   contactLinks?:    ContactLink[];
+  // Icon diameter override for Contact Links (Stage 4.2-C.2.1, menu slider —
+  // see ProfileContactLinksMenu.tsx). Absent -> CONTACT_LINK_ICON_SIZE
+  // (contactLinksBlock.ts), same as before this field existed. Clamped to
+  // CONTACT_LINK_ICON_SIZE_MIN/MAX at the menu input boundary.
+  linksIconSize?:   number;
   // Music block anchor (Stage 4.2-C.1 infrastructure) — same model as the
   // others. See computeBlockLayout()'s MusicBlockInput in cardComposition.ts.
   musicAnchorX?:    number;

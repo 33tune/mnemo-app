@@ -10,9 +10,15 @@ import type { ElementBox, ElementRole } from "./cardComposition";
 import { computeLinksNaturalSize } from "./linksBlockSizing";
 import { computeRequiredCardHeight } from "./cardGeometry";
 
-/** Icon diameter for a Contact Link inside ProfileCard — fixed, not
- * user-configurable (see CLAUDE.md: no presets, keep this stage minimal). */
+/** Default icon diameter for a Contact Link inside ProfileCard, used when the
+ * card has no `linksIconSize` override. Stage 4.2-C.2.1 made this
+ * user-configurable (menu slider, see ProfileContactLinksMenu.tsx) — this
+ * constant is now only the fallback/default value, not a hard limit. */
 export const CONTACT_LINK_ICON_SIZE = 20;
+/** Reasonable resize bounds for `linksIconSize` — small enough to stay
+ * legible, large enough to never overwhelm the card. */
+export const CONTACT_LINK_ICON_SIZE_MIN = 14;
+export const CONTACT_LINK_ICON_SIZE_MAX = 32;
 /** Gap between Contact Link icons, and between the Contact Links block and
  * whatever content sits above it. */
 export const CONTACT_LINK_GAP = 10;
@@ -22,10 +28,11 @@ export const CONTACT_LINKS_MAX = 12;
 
 /** Natural size (px) of the Contact Links block for `count` links within
  * `availableWidth` — thin wrapper over linksBlockSizing.ts with this
- * feature's fixed icon size/gap. */
-export function contactLinksNaturalSize(count: number, availableWidth: number) {
+ * feature's gap. `iconSize` defaults to CONTACT_LINK_ICON_SIZE so existing
+ * callers (and every card without a `linksIconSize` override) are unaffected. */
+export function contactLinksNaturalSize(count: number, availableWidth: number, iconSize: number = CONTACT_LINK_ICON_SIZE) {
   return computeLinksNaturalSize({
-    count, iconSize: CONTACT_LINK_ICON_SIZE, gap: CONTACT_LINK_GAP, availableWidth,
+    count, iconSize, gap: CONTACT_LINK_GAP, availableWidth,
   });
 }
 
@@ -53,6 +60,8 @@ export interface ContactLinksGrowthInput {
   padding: number;
   count: number;
   availableWidth: number;
+  /** Defaults to CONTACT_LINK_ICON_SIZE — see contactLinksNaturalSize. */
+  iconSize?: number;
 }
 
 /**
@@ -73,9 +82,9 @@ export interface ContactLinksGrowthInput {
  * for why summing must happen in one call.
  */
 export function requiredCardHeightForContactLinks(input: ContactLinksGrowthInput): number {
-  const { format, currentH, contentBottom, padding, count, availableWidth } = input;
+  const { format, currentH, contentBottom, padding, count, availableWidth, iconSize } = input;
   if (count <= 0) return currentH;
-  const size = contactLinksNaturalSize(count, availableWidth);
+  const size = contactLinksNaturalSize(count, availableWidth, iconSize);
   const h = computeRequiredCardHeight({
     format, currentH, contentBottom, padding,
     extraBlocks: [{ naturalHeight: size.height, gap: CONTACT_LINK_GAP }],

@@ -1,20 +1,23 @@
 "use client";
 import { useState } from "react";
-import type { ContactLink } from "@/types";
-import { T, MenuSection, TextInput } from "@/ui";
+import type { ContactLink, ProfileCardData } from "@/types";
+import { T, MenuSection, SliderRow, TextInput } from "@/ui";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
-import { CONTACT_LINKS_MAX } from "@/lib/contactLinksBlock";
+import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
+
+type ContactLinksPatch = Partial<Pick<ProfileCardData, "contactLinks" | "linksIconSize">>;
 
 interface Props {
   contactLinks?: ContactLink[];
-  onChange: (patch: { contactLinks: ContactLink[] }) => void;
+  linksIconSize?: number;
+  onChange: (patch: ContactLinksPatch) => void;
 }
 
 // DATOS: agregar/editar/eliminar Contact Links. La plataforma no se elige acá
 // — se detecta de la URL (ver detectPlatform) y solo se muestra como preview,
 // consistente con "no almacenar info derivable". Sin inline editing en el
 // canvas: todo pasa por este menú, igual que el resto de ProfileConfigMenu.
-export default function ProfileContactLinksMenu({ contactLinks, onChange }: Props) {
+export default function ProfileContactLinksMenu({ contactLinks, linksIconSize, onChange }: Props) {
   const links = contactLinks ?? [];
   const [newUrl, setNewUrl] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,6 +56,11 @@ export default function ProfileContactLinksMenu({ contactLinks, onChange }: Prop
     // marginTop would stack on top of that flex gap and double the spacing
     // above this section.
     <MenuSection label="Contact Links" first>
+      <SliderRow
+        label="Tamaño" min={CONTACT_LINK_ICON_SIZE_MIN} max={CONTACT_LINK_ICON_SIZE_MAX} step={1}
+        value={linksIconSize ?? CONTACT_LINK_ICON_SIZE} unit="px"
+        onChange={v => onChange({ linksIconSize: v })}
+      />
       {links.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: T.space[2] }}>
           {links.map(link => (

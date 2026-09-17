@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   contactLinksNaturalSize, requiredCardHeightForContactLinks, composedContentBottom,
-  CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP,
+  CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX, CONTACT_LINK_GAP,
 } from "./contactLinksBlock";
 import { getCardConstraints } from "./cardGeometry";
 import type { ElementBox } from "./cardComposition";
@@ -30,6 +30,26 @@ test("contactLinksNaturalSize: removing a link (count decreasing) never grows th
   const four = contactLinksNaturalSize(4, availableWidth);
   assert.ok(four.height <= five.height);
   assert.ok(four.width <= five.width || four.height < five.height);
+});
+
+// ── Configurable icon size (Stage 4.2-C.2.1 resize) ──────────────────────────
+
+test("contactLinksNaturalSize: iconSize defaults to CONTACT_LINK_ICON_SIZE when omitted", () => {
+  assert.deepEqual(contactLinksNaturalSize(1, 300), contactLinksNaturalSize(1, 300, CONTACT_LINK_ICON_SIZE));
+});
+
+test("contactLinksNaturalSize: a larger iconSize produces a larger natural size for the same count", () => {
+  const small = contactLinksNaturalSize(3, 300, CONTACT_LINK_ICON_SIZE_MIN);
+  const large = contactLinksNaturalSize(3, 300, CONTACT_LINK_ICON_SIZE_MAX);
+  assert.ok(large.width > small.width);
+  assert.ok(large.height > small.height);
+});
+
+test("contactLinksNaturalSize: at the max icon size, fewer icons fit per row within the same availableWidth", () => {
+  const availableWidth = 100;
+  const atMin = contactLinksNaturalSize(6, availableWidth, CONTACT_LINK_ICON_SIZE_MIN);
+  const atMax = contactLinksNaturalSize(6, availableWidth, CONTACT_LINK_ICON_SIZE_MAX);
+  assert.ok(atMax.height >= atMin.height, "larger icons wrap into more rows within the same width");
 });
 
 // ── Growth (Stage 4.2-B §8 / §11 "Growth") ────────────────────────────────────
