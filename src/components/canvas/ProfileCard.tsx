@@ -153,6 +153,17 @@ function ContactLinkIcon({
       target="_blank"
       rel="noopener noreferrer"
       title={PLATFORM_LABELS[platform]}
+      // Stage 4.2-C.2.1 (round 2): links are natively draggable in every
+      // browser by default. Without this, mousedown+move on the icon starts
+      // BOTH our own JS drag (startLinksDrag, via the wrapper's onMouseDown)
+      // AND the browser's native HTML5 drag-and-drop on this <a> — the
+      // latter hijacks the gesture (native drag events replace regular
+      // mousemove/mouseup mid-gesture), which is what was bubbling up as a
+      // dragenter/dragover on CanvasBoard's canvas wrapper and popping the
+      // "DROP IMAGES" overlay, and left our own drag state never reaching a
+      // clean mouseup. Same fix already applied to canvas images — see the
+      // `draggable={false}` on the image <img> in CanvasBoard.tsx.
+      draggable={false}
       onClick={e => {
         e.stopPropagation();
         const { suppress, nextDidDrag } = resolveClickAfterDrag(didDragRef?.current ?? false);

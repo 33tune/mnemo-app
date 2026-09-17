@@ -61,6 +61,22 @@ planeado acá hasta confirmarlo.
   drag ("consumir y limpiar" — leer el flag siempre lo resetea). Reutilizar
   este patrón para cualquier bloque interno futuro que combine drag +
   elemento clickeable (ej. un link real, un botón de play).
+- **Regla: cualquier `<a>`/elemento nativamente draggable dentro de un bloque
+  con drag propio DEBE llevar `draggable={false}`** (Etapa 4.2-C.2.1 round 2).
+  Sin esto, mousedown+move sobre ese elemento dispara EN PARALELO nuestro
+  drag por JS y el drag-and-drop nativo HTML5 del navegador — el nativo
+  hijackea el gesto (deja de emitir `mousemove`/`mouseup` normales) y burbujea
+  como `dragenter`/`dragover` hasta el wrapper del canvas, disparando el
+  overlay "DROP IMAGES" de `CanvasBoard.tsx` y dejando el drag propio en un
+  estado a medio terminar (el click de cierre no ve el drag como completado y
+  termina navegando). Ya aplicado a Contact Links (`ContactLinkIcon` en
+  `ProfileCard.tsx`) y a las imágenes del canvas (`<img draggable={false}>`
+  en `CanvasBoard.tsx`, precedente ya existente). Aplicar el mismo patrón a
+  cualquier `<a>` interno futuro (ej. dentro de un bloque Music/Gallery).
+  Complementario: los handlers `onDragEnter`/`onDragOver` que muestran "DROP
+  IMAGES" ahora filtran por `e.dataTransfer.types.includes("Files")` — sin
+  ese filtro, CUALQUIER drag nativo que entre al canvas (no solo archivos)
+  disparaba el overlay.
 
 ## Decisiones de producto
 
@@ -98,7 +114,10 @@ planeado acá hasta confirmarlo.
   C.2 Player             DONE
   C.2.1 Editor Interaction + Canvas Cleanup
     P1 Selection bug post-drag        DONE (commit 23343f7)
-    P2 Contact Links drag≠navigate    DONE (commit 23343f7)
+    P2 Contact Links drag≠navigate    DONE — round 1 (23343f7) insuficiente,
+                                       causa real (native HTML5 drag en el
+                                       <a>) corregida en round 2, ver nota
+                                       abajo — PENDIENTE commit/push
     P3 Contact Links resize           DONE (commit 23343f7)
     P4A Cortar creación standalone    DONE (commit 23343f7)
     P4B Purga de datos legacy         PENDING — bloquea C.3, ver abajo
@@ -115,6 +134,18 @@ planeado acá hasta confirmarlo.
 standalone) están pendientes — recién después de decidir la purga de esos
 datos legacy se retoma C.3. **No asumir que P4B ya se resolvió sin verificar
 el estado real del repo/DB.**
+
+**Checkpoint 2026-09-17 (round 2 de P2, todavía SIN commitear al escribir
+esto):** el QA manual del usuario sobre `23343f7` encontró que el fix de P2
+(consume-and-clear de `didDrag`) era necesario pero no suficiente — la causa
+real era que el `<a>` de Contact Links es nativamente draggable, lo que
+disparaba un drag-and-drop HTML5 del navegador en paralelo al drag propio
+por JS, mostrando el overlay "DROP IMAGES" y dejando el drag propio sin un
+mouseup limpio. Fix real: `draggable={false}` en el `<a>` (mismo patrón que
+ya usaban las imágenes del canvas) + los handlers `onDragEnter`/`onDragOver`
+de `CanvasBoard.tsx` ahora filtran por `dataTransfer.types.includes("Files")`.
+Ver la regla arquitectónica nueva más arriba. Verificar en el próximo
+`git log` si esto ya tiene commit propio antes de asumir que sigue pendiente.
 
 **C.3 (Music Menu) todavía NO está implementado.** Hoy no existe ninguna UI
 para setear `card.music` (audioUrl/title/artist/artwork/volume) — el player

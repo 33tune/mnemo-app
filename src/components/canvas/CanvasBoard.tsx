@@ -2512,12 +2512,20 @@ export default function CanvasBoard({
       }}
         onDragEnter={e => {
           if (!canInteract) return;
+          // Stage 4.2-C.2.1 (round 2): only react to an actual OS file drag.
+          // Without this check, ANY native HTML5 drag entering the canvas —
+          // e.g. dragging a real <a> like a Contact Link, which is
+          // draggable by default in every browser unless explicitly opted
+          // out — showed the "DROP IMAGES" overlay even though onDrop below
+          // already only ever accepted image files anyway.
+          if (!Array.from(e.dataTransfer.types).includes("Files")) return;
           e.preventDefault();
           dragCounterRef.current += 1;
           setIsDragOver(true);
         }}
         onDragOver={e => {
           if (!canInteract) return;
+          if (!Array.from(e.dataTransfer.types).includes("Files")) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
         }}
