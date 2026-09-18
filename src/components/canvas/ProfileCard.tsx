@@ -761,16 +761,19 @@ function ProfileCard({
   const linksAvailWidth = Math.max(0, card.w - 2 * pad);
   const linksNaturalSize = contactLinksNaturalSize(contactLinks.length, linksAvailWidth, linksIconSize);
 
-  // ── Music (Stage 4.2-C.1) ─────────────────────────────────────────────────
+  // ── Music (Stage 4.2-C.1, redesigned minimalist in 4.2-C.2.2) ─────────────
   // Data + natural size only — same shape as Contact Links above. `card.music`
   // absent is the pre-4.2-C state: musicBlockInput below stays undefined, and
   // computeBlockLayout takes the exact same code path it always did (see the
-  // "no music block" regression test in cardComposition.test.ts). No player
-  // UI yet (Stage 4.2-C.2) — only a structural placeholder box, see
-  // renderComposed() below.
+  // "no music block" regression test in cardComposition.test.ts). `hasText`
+  // drives which of musicBlockSizing.ts's two width targets applies — the
+  // block is content-sized, never a fraction of the card's own width.
   const hasMusic = !!card.music;
   const musicAvailWidth = Math.max(0, card.w - 2 * pad);
-  const musicNaturalSize = computeMusicNaturalSize({ availableWidth: musicAvailWidth });
+  const musicNaturalSize = computeMusicNaturalSize({
+    availableWidth: musicAvailWidth,
+    hasText: !!(card.music?.title || card.music?.artist),
+  });
 
   // ── Composed layout (Stage 3B / 3B.3, extended in 4.2-B for Contact Links,
   //    4.2-C.1 for Music) ────────────────────────────────────────────────────
@@ -1017,14 +1020,19 @@ function ProfileCard({
           // Stage 4.2-C.2: the wrapper owns position + block-level drag
           // (same contract as every other block); ProfileMusicPlayer owns
           // its own interactive controls, each stopping propagation so they
-          // never trigger startMusicDrag — see that file's header.
+          // never trigger startMusicDrag — see that file's header. Stage
+          // 4.2-C.2.2: no background/border by default — a heavy wrapper
+          // read as "a card inside the card" (see CLAUDE.md's Music
+          // redesign notes); it now inherits the ProfileCard's own
+          // background, same treatment as Contact Links' wrapper.
+          // `overflow: visible` (not hidden) so ProfileMusicPlayer's volume
+          // popover can render outside the block's own compact box.
           <div
             data-canvas-hot=""
             style={{
               position: "absolute", left: boxes.music.x, top: boxes.music.y, width: boxes.music.w, height: boxes.music.h,
               transition: dragTransition("music"), cursor: isAnchorDraggable ? "grab" : "default",
-              borderRadius: 6, overflow: "hidden",
-              background: "rgba(255,255,255,0.04)", border: `1px solid ${withOpacity(baseColor, 0.08)}`,
+              borderRadius: 6, overflow: "visible",
               ...dragOutline("music"),
             }}
             onMouseDown={isAnchorDraggable ? startMusicDrag : undefined}
