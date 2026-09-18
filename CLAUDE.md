@@ -103,6 +103,16 @@ planeado acá hasta confirmarlo.
 - A partir de ahí, no agregar features nuevas salvo bugs reales o necesidad
   concreta — foco en polish/QA.
 
+**Reprioridad 2026-09-18 — TERMINAR PROFILECARD primero.** Antes de tocar
+Social/Browse o limpiar Analytics, ProfileCard tiene que llegar a un estado
+prácticamente terminado: funcionalmente completa, personalizable, responsive,
+estable, con arquitectura preparada para construir el resto del producto
+alrededor suyo sin rehacerla. Orden vigente (ver roadmap abajo):
+**Music → Gallery → Effects/Personalization → Responsive → ProfileCard
+QA/freeze → recién ahí Social/Browse → eliminar Analytics → Global Design
+System → QA final.** No agregar nada fuera de este alcance mientras
+ProfileCard siga incompleta.
+
 ## Estado del roadmap
 
 ```text
@@ -114,56 +124,58 @@ planeado acá hasta confirmarlo.
   C.2 Player             DONE
   C.2.1 Editor Interaction + Canvas Cleanup
     P1 Selection bug post-drag        DONE (commit 23343f7)
-    P2 Contact Links drag≠navigate    DONE — round 1 (23343f7) insuficiente,
-                                       causa real (native HTML5 drag en el
-                                       <a>) corregida en round 2, ver nota
-                                       abajo — PENDIENTE commit/push
+    P2 Contact Links drag≠navigate    DONE (23343f7 + fix real en d06f241 —
+                                       ver "Bugs resueltos" abajo)
     P3 Contact Links resize           DONE (commit 23343f7)
     P4A Cortar creación standalone    DONE (commit 23343f7)
-    P4B Purga de datos legacy         PENDING — bloquea C.3, ver abajo
-  C.3 Music Menu         BLOCKED hasta cerrar P4B (QA manual + decisión)
-4.2-D Gallery            NEXT AFTER MUSIC
-5. Effects + Personalization
-6. Global Design System
-7. Polish / QA
+    P4B Purga de datos legacy         PENDING — YA NO bloquea el roadmap de
+                                       ProfileCard (deprioritizado 2026-09-18,
+                                       ver nota abajo). Retomar cuando el
+                                       usuario decida, no antes de Social/Browse.
+  C.3 Music Menu         DONE (commit PENDIENTE — ver checkpoint 2026-09-18)
+4.2-D Gallery            NEXT — la etapa más grande de las 4 que quedan
+                          (sin reorder/sortable infra reusable en todo el
+                          repo, hay que construirla; ver audit 2026-09-18)
+5. Effects + Personalization   gaps puntuales, no una reconstrucción — ver
+                                 audit 2026-09-18
+6. Responsive ProfileCard      depende de que Gallery + Effects estén
+                                 cerrados; ver decisión pendiente abajo
+7. ProfileCard QA / freeze
+8. Social → Browse
+9. Eliminar Analytics
+10. Global Design System
+11. QA final / polish
 ```
 
-**Checkpoint 2026-09-16 (commit `23343f7`, pusheado a `origin/main`):** cerró
-4.2-C.2.1 P1–P4A. QA manual de ese commit + las queries de Supabase de P4B
-(ver conteo real de perfiles con Social/Music/Stats/Links/Guestbook/Card
-standalone) están pendientes — recién después de decidir la purga de esos
-datos legacy se retoma C.3. **No asumir que P4B ya se resolvió sin verificar
-el estado real del repo/DB.**
+**Reprioridad 2026-09-18:** el roadmap de arriba reemplaza cualquier mención
+anterior de retomar Social/Browse o Analytics antes de cerrar ProfileCard —
+ver la nota de "Reprioridad 2026-09-18" en Decisiones de producto. P4B
+(purga de datos legacy) sigue documentado como pendiente pero explícitamente
+**ya no bloquea** avanzar con Music/Gallery/Effects/Responsive — el usuario
+decidió priorizar terminar ProfileCard por sobre cerrar esa purga.
 
-**Checkpoint 2026-09-17 (round 2 de P2, todavía SIN commitear al escribir
-esto):** el QA manual del usuario sobre `23343f7` encontró que el fix de P2
-(consume-and-clear de `didDrag`) era necesario pero no suficiente — la causa
-real era que el `<a>` de Contact Links es nativamente draggable, lo que
-disparaba un drag-and-drop HTML5 del navegador en paralelo al drag propio
-por JS, mostrando el overlay "DROP IMAGES" y dejando el drag propio sin un
-mouseup limpio. Fix real: `draggable={false}` en el `<a>` (mismo patrón que
-ya usaban las imágenes del canvas) + los handlers `onDragEnter`/`onDragOver`
-de `CanvasBoard.tsx` ahora filtran por `dataTransfer.types.includes("Files")`.
-Ver la regla arquitectónica nueva más arriba. Verificar en el próximo
-`git log` si esto ya tiene commit propio antes de asumir que sigue pendiente.
+**Checkpoint 2026-09-16 (commit `23343f7`) y 2026-09-17 (commit `d06f241`),
+pusheados a `origin/main`:** cerraron 4.2-C.2.1 completo. `d06f241` fue la
+corrección real de P2 — el fix de `23343f7` (consume-and-clear de `didDrag`)
+era necesario pero no suficiente; la causa real era que el `<a>` de Contact
+Links es nativamente draggable, lo que disparaba un drag-and-drop HTML5 del
+navegador en paralelo al drag propio por JS y mostraba el overlay "DROP
+IMAGES". Ver la regla arquitectónica de `draggable={false}` más arriba.
 
-**C.3 (Music Menu) todavía NO está implementado.** Hoy no existe ninguna UI
-para setear `card.music` (audioUrl/title/artist/artwork/volume) — el player
-(`ProfileMusicPlayer.tsx`) está completo y funcional, pero solo es alcanzable
-sembrando datos manualmente hasta que exista el menú. C.3 debe agregar:
-
-- enable/disable del bloque Music,
-- URL directa o upload de audio,
-- title, artist,
-- upload de artwork,
-- initial volume,
-- persistencia (mismo mecanismo genérico `updateProfile`, sin infraestructura
-  nueva),
-- preview,
-- delete/disable.
-
-Seguir el patrón de `ProfileContactLinksMenu.tsx` (4.2-B) — mismo lugar
-(`ProfileConfigMenu.tsx` → vista "datos"), mismos componentes de `@/ui`.
+**Checkpoint 2026-09-18 — Music Menu (4.2-C.3) implementado.** `card.music`
+ahora es configurable desde `ProfileConfigMenu.tsx` → "datos" vía el nuevo
+`src/components/canvas/ProfileMusicMenu.tsx`: activar/desactivar (presencia
+de `card.music`, mismo criterio que Contact Links con `contactLinks`), URL
+directa o upload de audio (`accept="audio/*"`, mismo `uploadToStorage()` que
+PFP/artwork), title, artist, artwork (upload/reemplazar/quitar), volumen
+inicial. Artist/Artwork/Volumen quedan detrás de un `Collapsible` ("Más") —
+progressive disclosure, no presets. Cero cambios en `cardComposition.ts`,
+`blockConstraints.ts`, `cardGeometry.ts` ni en `ProfileMusicPlayer.tsx` — el
+menú solo escribe a `card.music`, el bloque existente (`extraBlocks`,
+`computeBlockLayout`, drag) se encarga solo del resto, exactamente como
+estaba cerrado. Sin tests unitarios nuevos — no hay lógica pura nueva que
+valga la pena testear (el componente es UI pura sobre infraestructura ya
+testeada). **Siguiente etapa: 4.2-D Gallery.**
 
 ## Modelo de datos — bloques internos ya implementados
 
@@ -180,23 +192,62 @@ Seguir el patrón de `ProfileContactLinksMenu.tsx` (4.2-B) — mismo lugar
   `currentTime`, `duration`, volumen en vivo y `muted` son estado LOCAL del
   visitante (`useState` dentro de `ProfileMusicPlayer.tsx`), nunca se
   persisten ni se agregan a `ProfileCardData`. Posición vía
-  `musicAnchorX/Y`.
+  `musicAnchorX/Y`. Configurable desde `ProfileMusicMenu.tsx` (Etapa
+  4.2-C.3, DONE) — activar/desactivar es la presencia/ausencia de
+  `card.music` (`onChange({ music: undefined })` para apagar), sin boolean
+  separado.
 
 ## La próxima sesión
 
 Debe empezar revisando este archivo y el estado real del repo (`git log`,
 código) antes de escribir código.
 
-**Orden exacto de lo que sigue, en este orden y no salteado:**
+**Prioridad vigente: terminar ProfileCard antes que cualquier otra parte del
+producto** (ver "Reprioridad 2026-09-18"). Orden exacto:
 
-1. QA manual del commit `23343f7` (4.2-C.2.1 P1–P4A) — todavía no confirmado
-   por el usuario al cerrar este checkpoint.
-2. Ejecutar las queries de Supabase de P4B (conteo real de perfiles con
-   Social/Music/Stats/Links/Guestbook/Card standalone — ver el audit de
-   8 puntos hecho en la sesión de 2026-09-16, memoria de proyecto
-   `project_mnemo_cleanup_2609` si está disponible, o repetir el audit si no).
-2b. Con esos números, decidir alcance real de la purga de datos legacy.
-3. Recién después de cerrar P4B: retomar **4.2-C.3 — Music Menu** (no
-   implementado todavía en este checkpoint).
+1. **4.2-D Gallery** (siguiente etapa) — bloque interno nuevo, NO una
+   `GalleryCard` standalone. El audit de 2026-09-18 encontró:
+   - `GalleryWidget.tsx` (standalone legacy, todavía creable vía el `+` menu
+     — `addGallery()`, no tocado por P4A) sirve solo como referencia de
+     patrones (lightbox, upload, grid), no es reutilizable como contenedor
+     ni como data shape.
+   - No existe infraestructura de reorder/sortable-list en todo el repo —
+     hay que construirla desde cero (lo más barato: botones subir/bajar en
+     el menú, mismo nivel de esfuerzo que el resto del menú).
+   - Extensión limpia y ya confirmada: `computeBlockLayout()` acepta un 7mo
+     parámetro opcional `gallery?: GalleryBlockInput` (mismo shape que
+     `LinksBlockInput`/`MusicBlockInput`), un `galleryBlockSizing.ts` nuevo
+     (mismo patrón que `musicBlockSizing.ts`), y una 3ra entrada en el
+     array `extraBlocks` que `ProfileCard.tsx` ya arma — sin tocar la firma
+     de `computeRequiredCardHeight()`.
+   - Decisiones de producto todavía sin tomar: layout del bloque (¿grid o
+     strip horizontal?), filas fijas vs scroll, tamaño de thumbnail — no
+     hay precedente que copiar como sí lo había para Music.
+2. **Effects/Personalization** — mayormente ya implementado y wireado a
+   ProfileCard vía `PersonalizePanel.tsx`/`ProfileTypographyMenu.tsx`. Gaps
+   puntuales encontrados en el audit: shadow blur no es independiente de
+   shadow intensity (`sBlur = intensity * 40` en `CardLayers.tsx`); no hay
+   control de font weight ni letter-spacing; **riesgo real a verificar**:
+   tilt y floating animan la misma propiedad `transform` del mismo elemento
+   — podrían pisarse entre sí si ambos están activos, confirmar en browser
+   antes de dar Motion por cerrado. El invariante "opacity nunca toca
+   content" está confirmado sólido en `CardLayers.tsx` (capas separadas).
+3. **Responsive** — el motor de composición ya es size-aware; el gap real es
+   que `card.w`/`card.h` son valores fijos sin binding al viewport en vista
+   pública (hoy se re-escala con `scale()` uniforme, no reflow real).
+   **Decisión pendiente del usuario, todavía sin resolver:** hoy un
+   User-Agent de celular real nunca llega a ProfileCard/CanvasBoard — se
+   enruta 100% a `MobilePublicCanvas`/`space_mobile` desde `[handle]/page.tsx`.
+   Si "responsive" tiene que cubrir celulares reales, en algún momento hay
+   que dejar de enviarlos a esa ruta (sin editar `MobilePublicCanvas.tsx`,
+   pero sí dejar de usarlo para ese tráfico) — confirmar con el usuario si
+   eso cuenta como excepción válida a "no tocar mobile legacy" antes de
+   planificar esta etapa en detalle.
+4. **ProfileCard QA/freeze** — las combinaciones de bloques/tamaños/efectos
+   ya especificadas por el usuario.
+5. Recién después: Social/Browse, eliminar Analytics, Global Design System,
+   QA final. P4B (purga de datos legacy) se retoma cuando el usuario lo pida
+   — ya no bloquea nada de lo anterior.
 
-No adelantar C.3 ni ninguna feature nueva mientras 1–2b sigan abiertos.
+No adelantar Gallery/Effects/Responsive fuera de este orden, y no tocar
+Social/Browse/Analytics/Global Design System hasta cerrar ProfileCard QA.

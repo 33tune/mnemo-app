@@ -7,6 +7,7 @@ import { getCardConstraints, clampCardSize, getCardPadding } from "@/lib/cardGeo
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
+import ProfileMusicMenu from "./ProfileMusicMenu";
 import ProfileTypographyMenu from "./ProfileTypographyMenu";
 import PersonalizePanel from "./PersonalizePanel";
 
@@ -89,6 +90,10 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
           <ProfileContactLinksMenu
             contactLinks={card.contactLinks}
             linksIconSize={card.linksIconSize}
+            onChange={onChange}
+          />
+          <ProfileMusicMenu
+            music={card.music}
             onChange={onChange}
           />
         </div>
