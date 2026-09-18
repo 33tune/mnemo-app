@@ -22,7 +22,7 @@ import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, co
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
 import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
-import { computeMusicNaturalSize, MUSIC_BLOCK_GAP } from "@/lib/musicBlockSizing";
+import { computeMusicNaturalSize } from "@/lib/musicBlockSizing";
 import ProfileMusicPlayer from "./ProfileMusicPlayer";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
 
@@ -902,9 +902,22 @@ function ProfileCard({
     // own `resizing` state, already the single source of truth for "is a
     // resize gesture active" — no second resize-state system here.
     if (!shouldApplyGrowth(isResizing)) return;
+    // Stage 4.2-C.2.6: Contact Links/Music no longer contribute to
+    // extraBlocks — they're optional blocks, not structural content (see
+    // computeBlockLayout()'s priority chain: pfp/identity/location/views
+    // are the base composition, links/music are appended after and can be
+    // displaced/hidden without the card ever needing to grow for them).
+    // Forcing the card taller to fit them was the actual cause of the
+    // "resize vertical snaps back up on release" bug — growth firing right
+    // after isResizing flips false, computing a requiredH the live drag's
+    // own floor (MIN_PROFILE_CARD_HEIGHT) never knew about. extraBlocks
+    // stays empty here (no structural block currently needs it either —
+    // computeComposition()'s own dropped-content handling, untouched,
+    // covers pfp/identity/location/views not fitting), so this call is
+    // effectively a no-op today; kept as-is (not deleted) so a genuinely
+    // structural future block has the exact same extension point Links/
+    // Music used to.
     const extraBlocks: { naturalHeight: number; gap: number }[] = [];
-    if (contactLinks.length > 0) extraBlocks.push({ naturalHeight: linksNaturalSize.height, gap: CONTACT_LINK_GAP });
-    if (hasMusic) extraBlocks.push({ naturalHeight: musicNaturalSize.height, gap: MUSIC_BLOCK_GAP });
     const requiredH = extraBlocks.length > 0
       ? Math.round(computeRequiredCardHeight({ format: card.format, currentH: card.h, contentBottom, padding: pad, extraBlocks }))
       : card.h;
@@ -920,7 +933,7 @@ function ProfileCard({
 
     if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, isResizing, contactLinks.length, linksNaturalSize.height, hasMusic, musicNaturalSize.height, card.format, card.h, card.w, card.x, card.y, contentBottom, pad, card.id, viewportW, viewportH]);
+  }, [layout, isResizing, card.format, card.h, card.w, card.x, card.y, contentBottom, pad, card.id, viewportW, viewportH]);
 
   function renderComposed() {
     if (!composedResult) return null; // only called when layout !== "free"
@@ -948,6 +961,21 @@ function ProfileCard({
     // Applying it to the block under the mouse itself would reintroduce
     // exactly the lag §1 rules out.
     const dragTransition = (key: BlockKey): string => draggingBlockRef.current === key ? "none" : REFLOW_TRANSITION;
+
+    // Stage 4.2-C.2.6: Links/Music are optional blocks, not structural
+    // content — the card no longer grows to fit them (see the growth
+    // effect above). Since neither one shrinks vertically to match
+    // whatever room is left, and the content layer clips with
+    // `overflow:hidden`, a block that doesn't fully fit would render
+    // silently cut off instead of just not showing at all. This is the
+    // guard that prevents that: don't render the block if its own already-
+    // resolved box (computeBlockLayout's output, untouched) would extend
+    // past the card's padded content area. No new bounds/positioning
+    // system — purely a visibility check on a box already computed.
+    // Reappears on its own, no new state, the next time renderComposed()
+    // runs with a tall-enough card.h (e.g. after growing back).
+    const blockFits = (box: ElementBox | undefined): boolean =>
+      !!box && box.y + box.h <= card.h - pad;
 
     const startIdentityDrag = (e: React.MouseEvent) => {
       if (!identityRect) return;
@@ -1051,7 +1079,7 @@ function ProfileCard({
             <ViewsLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
           </div>
         )}
-        {boxes.links && contactLinks.length > 0 && (
+        {boxes.links && contactLinks.length > 0 && blockFits(boxes.links) && (
           <div
             data-canvas-hot=""
             style={{
@@ -1071,7 +1099,7 @@ function ProfileCard({
             ))}
           </div>
         )}
-        {boxes.music && card.music && (
+        {boxes.music && card.music && blockFits(boxes.music) && (
           // Stage 4.2-C.2: the wrapper owns position + block-level drag
           // (same contract as every other block); ProfileMusicPlayer owns
           // its own interactive controls, each stopping propagation so they
