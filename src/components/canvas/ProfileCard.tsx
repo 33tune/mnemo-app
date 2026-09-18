@@ -58,6 +58,10 @@ const REFLOW_TRANSITION = `left 0.2s ${EASE}, top 0.2s ${EASE}, width 0.2s ${EAS
 // not the {0,0.5,1} grid the composition blocks use (see startBlockDrag) —
 // pulling toward dead-center on both axes, continuous everywhere else.
 const PFP_CENTER_POINT = [0.5] as const;
+// Minimum distance from the top of the canvas — same floor addProfile()
+// already uses in CanvasBoard.tsx (kept as a separate local constant there
+// rather than shared, see the vertical-recentering effect below for why).
+const CANVAS_TOP_OFFSET = 44;
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -196,6 +200,12 @@ interface Props {
   currentUserId?:    string;
   ownerUserId?:      string;
   entryAnimStyle?:   CSSProperties;
+  /** Live viewport height (Stage 4.2-C.2.2 Part 3), used only to keep the
+   * card vertically centered as it grows — see the recentering effect
+   * below. Optional so any other caller that doesn't care about centering
+   * (e.g. a future isolated render/test) can omit it; centering simply
+   * doesn't run without it. */
+  viewportH?:        number;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -220,7 +230,7 @@ function initFreePos(card: ProfileCardData): FreePos {
 function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
-  currentUserId, ownerUserId, entryAnimStyle = {},
+  currentUserId, ownerUserId, entryAnimStyle = {}, viewportH,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
@@ -866,6 +876,28 @@ function ProfileCard({
     if (requiredH !== card.h) updateProfile(card.id, { h: requiredH });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, contactLinks.length, linksNaturalSize.height, hasMusic, musicNaturalSize.height, card.format, card.h, contentBottom, pad, card.id]);
+
+  // ── Vertical recentering (Stage 4.2-C.2.2 Part 3) ─────────────────────────
+  // ProfileCard is a fixed, non-draggable singleton (3B.4-A) — card.y was
+  // only ever set once, at creation (addProfile() in CanvasBoard.tsx), and
+  // nothing revisited it afterward: as the card grew taller (Links/Music
+  // blocks, or now a user-set height via the freeform Height slider) its
+  // TOP stayed fixed while it extended downward, drifting below its
+  // original center instead of staying centered. Same mechanism as the
+  // height-growth effect right above: pure math every render, persisted
+  // only when the result actually differs from what's stored — card.y
+  // stays the single source of truth for position (no separate render-time
+  // override), so every other consumer of card.y (marquee-select hit-test,
+  // follower bookkeeping in CanvasBoard.tsx) stays consistent with what's
+  // actually on screen. Requires `viewportH` from CanvasBoard.tsx — without
+  // it (undefined), this simply doesn't run, so card.y is untouched for any
+  // caller that doesn't pass it.
+  useEffect(() => {
+    if (viewportH == null) return;
+    const desiredY = Math.max(CANVAS_TOP_OFFSET, Math.round(viewportH / 2 - card.h / 2));
+    if (desiredY !== card.y) updateProfile(card.id, { y: desiredY });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewportH, card.h, card.y, card.id]);
 
   function renderComposed() {
     if (!composedResult) return null; // only called when layout !== "free"

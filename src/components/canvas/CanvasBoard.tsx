@@ -2736,7 +2736,13 @@ export default function CanvasBoard({
           updateProfile={updateProfile}
           canInteract={canInteract}
           currentUserId={currentUserId}
-          ownerUserId={ownerUserId} />);
+          ownerUserId={ownerUserId}
+          // Stage 4.2-C.2.2 Part 3: structural vertical recentering — see
+          // ProfileCard.tsx's recentering effect. Explicitly withheld for
+          // space_mobile (undefined -> that effect no-ops), which keeps its
+          // own fixed py=160 from addProfile() untouched — legacy mobile
+          // architecture stays out of scope here.
+          viewportH={canvasMode==="space_mobile"?undefined:viewportH} />);
       })}
 
 
