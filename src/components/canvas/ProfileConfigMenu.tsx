@@ -1,25 +1,15 @@
 "use client";
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import type { ProfileCardData, CardEffects, CardFormat } from "@/types";
-import { T, MenuSection } from "@/ui";
-import { getCardConstraints, clampCardSize, getCardPadding } from "@/lib/cardGeometry";
+import type { ProfileCardData, CardEffects } from "@/types";
+import { T, MenuSection, SliderRow } from "@/ui";
+import { getFreeformCardBounds, getCardPadding } from "@/lib/cardGeometry";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
 import ProfileMusicMenu from "./ProfileMusicMenu";
 import ProfileTypographyMenu from "./ProfileTypographyMenu";
 import PersonalizePanel from "./PersonalizePanel";
-
-// Internal ids only — never shown as UI copy (see FormatTile). The label here
-// is just the hover tooltip; the tile itself communicates the geometry visually.
-const FORMATS: { key: CardFormat; label: string }[] = [
-  { key: "vertical",   label: "Vertical" },
-  { key: "horizontal", label: "Horizontal" },
-  { key: "square",     label: "Cuadrado" },
-  { key: "phone",      label: "Teléfono" },
-  { key: "card",       label: "Tarjeta" },
-];
 
 type View = "root" | "datos" | "estilo" | "estilo/fondo" | "estilo/tipografia" | "estilo/forma" | "estilo/efectos";
 
@@ -201,70 +191,32 @@ function Door({ label, desc, onClick }: { label: string; desc: string; onClick: 
 }
 
 // ── Geometry ───────────────────────────────────────────────────────────────
-// Format = geometry/ratio family only. Size lives exclusively in w/h, set by
-// dragging the canvas resize handles — there is deliberately no size control
-// here, so w/h never has two competing sources of truth (see Stage 3B-fix).
-
-function formatPreviewRatio(key: CardFormat): number {
-  const c = getCardConstraints(key);
-  return c.ratioKind === "fixed" ? c.ratio! : (c.ratioRange![0] + c.ratioRange![1]) / 2;
-}
+// Stage 4.2-C.2.2: no more format picker — CardFormat stays an internal
+// concept (cardComposition.ts's FORMAT_BIAS topology tiebreaker, and the
+// fallback for any card whose `format` was set before this stage), but the
+// user never chooses one directly anymore. Width and height are the only
+// user-facing size controls, independently adjustable within the unified
+// envelope every format's own bounds already implied (see
+// getFreeformCardBounds in cardGeometry.ts) — no ratio lock.
 
 function GeometryControls({ card, onChange }: { card: ProfileCardData; onChange: (patch: Partial<ProfileCardData>) => void }) {
-  const format = card.format ?? "vertical";
+  const bounds = getFreeformCardBounds();
 
-  function setFormat(next: CardFormat) {
-    if (next === format) return;
-    // Re-project the card's CURRENT actual size into the new format's
-    // constraints (ratio + min/max) — w/h is the only source of truth for
-    // size, format never drives it. Center-x is preserved the same way
-    // useDragDrop's handle-resize does it (fixed center, x re-derived from
-    // the new width) so a format switch never displaces the card sideways.
-    const { w: nw, h: nh } = clampCardSize(next, card.w, card.h);
+  function setWidth(nw: number) {
+    // Center-x preserved the same way useDragDrop's handle-resize and the
+    // old format switch both already did it — fixed center, x re-derived
+    // from the new width, so changing width never displaces the card
+    // sideways. Height needs no equivalent here: vertical centering is the
+    // vertical-recentering effect's job (Stage 4.2-C.2.2 Part 3), not this
+    // menu's — it reacts to card.h on its own.
     const nx = Math.round(card.x + card.w / 2 - nw / 2);
-    onChange({ format: next, w: nw, h: nh, x: nx });
+    onChange({ w: nw, x: nx });
   }
 
   return (
-    <MenuSection label="Formato" first>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {FORMATS.map(f => (
-          <FormatTile key={f.key} label={f.label} selected={format === f.key}
-            ratio={formatPreviewRatio(f.key)} onClick={() => setFormat(f.key)} />
-        ))}
-      </div>
+    <MenuSection label="Tamaño" first>
+      <SliderRow label="Ancho" min={bounds.minW} max={bounds.maxW} step={1} value={card.w} unit="px" onChange={setWidth} />
+      <SliderRow label="Alto" min={bounds.minH} max={bounds.maxH} step={1} value={card.h} unit="px" onChange={h => onChange({ h })} />
     </MenuSection>
-  );
-}
-
-// Visual-only picker: each tile draws a small rectangle in the format's own
-// proportion instead of a technical name — the shape communicates the
-// geometry directly. Labels exist only as hover tooltips (see FORMATS above);
-// no format name is rendered as visible copy.
-const TILE = 44;
-const SHAPE_MAX = 28;
-
-function FormatTile({ label, ratio, selected, onClick }: { label: string; ratio: number; selected: boolean; onClick: () => void }) {
-  const w = ratio >= 1 ? SHAPE_MAX : SHAPE_MAX * ratio;
-  const h = ratio >= 1 ? SHAPE_MAX / ratio : SHAPE_MAX;
-  return (
-    <button
-      title={label}
-      onMouseDown={e => e.stopPropagation()}
-      onClick={e => { e.stopPropagation(); onClick(); }}
-      style={{
-        width: TILE, height: TILE, display: "flex", alignItems: "center", justifyContent: "center",
-        borderRadius: T.radius.sm, cursor: "pointer", flexShrink: 0,
-        border: selected ? `1px solid ${T.border.strong}` : `1px solid ${T.border.default}`,
-        background: selected ? T.surface.overlay : "transparent",
-        transition: "background 0.12s, border-color 0.12s",
-      }}
-    >
-      <div style={{
-        width: w, height: h, borderRadius: 3,
-        border: `1.5px solid ${selected ? T.text.primary : T.text.secondary}`,
-        background: selected ? "rgba(255,255,255,0.10)" : "transparent",
-      }} />
-    </button>
   );
 }

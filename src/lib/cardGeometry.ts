@@ -70,6 +70,47 @@ export function getCardConstraints(format: CardFormat | undefined): CardFormatCo
   return CARD_FORMATS[format ?? "vertical"];
 }
 
+// ── Freeform width/height (Stage 4.2-C.2.2) ──────────────────────────────────
+// CardFormat stays an internal concept (still feeds cardComposition.ts's
+// FORMAT_BIAS topology tiebreaker, still the fallback for any card whose
+// `format` was set before this stage) — it just stops being a user-facing
+// picker or a hard ratio lock. Width and height become independently
+// adjustable within a single unified envelope instead of a per-format box.
+
+export interface FreeformCardBounds {
+  minW: number;
+  maxW: number;
+  minH: number;
+  maxH: number;
+}
+
+/** Unified min/max envelope for freeform ProfileCard sizing — the union of
+ * every format's own bounds in CARD_FORMATS, so the user can freely resize
+ * into any shape any existing format already allowed, without picking one.
+ * CARD_FORMATS stays the single source of truth; nothing is hardcoded a
+ * second time here. */
+export function getFreeformCardBounds(): FreeformCardBounds {
+  const all = Object.values(CARD_FORMATS);
+  return {
+    minW: Math.min(...all.map(c => c.minW)),
+    maxW: Math.max(...all.map(c => c.maxW)),
+    minH: Math.min(...all.map(c => c.minH)),
+    maxH: Math.max(...all.map(c => c.maxH)),
+  };
+}
+
+/** Clamps w/h independently into the freeform envelope — no ratio lock,
+ * unlike clampCardSize (kept below, still used by anything that still
+ * reasons in terms of a specific format). This is what the freeform
+ * resize-drag and the Width/Height menu sliders both clamp against. */
+export function clampFreeformCardSize(w: number, h: number): { w: number; h: number } {
+  const b = getFreeformCardBounds();
+  return {
+    w: Math.max(b.minW, Math.min(b.maxW, Math.round(w))),
+    h: Math.max(b.minH, Math.min(b.maxH, Math.round(h))),
+  };
+}
+
 /** Resolves the ratio (w/h) that should apply for a given format + current size. */
 export function getCardAspectRatio(format: CardFormat | undefined, w: number, h: number): number {
   const c = getCardConstraints(format);

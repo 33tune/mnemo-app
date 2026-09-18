@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import type { CanvasElement, CardFormat } from "@/types";
-import { getCardConstraints, clampCardSize } from "@/lib/cardGeometry";
+import { getFreeformCardBounds, clampFreeformCardSize } from "@/lib/cardGeometry";
 import { applyGroupDragDelta, filterTrashDeletion } from "@/lib/canvasSelectionGuards";
 
 export type ResizeHandle = "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w";
@@ -147,14 +147,14 @@ export function useDragDrop({
       const w = isFinite(el.w) && el.w > 0 ? el.w : 80;
       const h = isFinite(el.h) && el.h > 0 ? el.h : 60;
       const format: CardFormat | undefined = type === "profile" ? (el.format ?? "vertical") : undefined;
-      let ratio = type === "image"
+      const ratio = type === "image"
         ? (el.naturalW > 0 && el.naturalH > 0 ? el.naturalH / el.naturalW : h / w)
         : 0;
-      if (type === "profile") {
-        const fc = getCardConstraints(format);
-        // Reuse the same corner-anchored ratio-lock math as images (h/w form).
-        ratio = fc.ratioKind === "fixed" ? 1 / fc.ratio! : 0;
-      }
+      // Stage 4.2-C.2.2: profile resize is always freeform (ratio 0, each
+      // axis independent) — no format-driven ratio lock anymore, even for
+      // a card whose stored `format` used to mean a fixed ratio (square/
+      // phone). See clampFreeformCardSize below for the bounds this clamps
+      // into instead of a per-format box.
       resizeStart.current = { x: e.clientX, y: e.clientY, w, h, ex: el.x ?? 0, ey: el.y ?? 0, handle, ratio, items: [], format };
     }
     setResizing({ type, id, handle });
@@ -244,14 +244,14 @@ export function useDragDrop({
 
       if (resizing.type === "profile") {
         // The Presentation Card is the singleton, centered anchor of the profile —
-        // resize must never move it. Every handle resolves to a new w/h (min/max +
-        // aspect ratio come from its format, not a generic floor), then x/y are
-        // always re-derived from the fixed drag-start center/top, overriding
-        // whatever computeResize's per-handle anchor math produced for them.
-        const { format } = resizeStart.current;
-        const fc = getCardConstraints(format);
-        const raw = computeResize(handle, dx, dy, w, h, ex, ey, ratio, ratio > 0, fc.minW, fc.minH);
-        const { w: nw, h: nh } = clampCardSize(format, raw.nw, raw.nh);
+        // resize must never move it. Stage 4.2-C.2.2: every handle resolves to a
+        // new w/h independently (freeform, no format-driven ratio lock — see
+        // getFreeformCardBounds/clampFreeformCardSize in cardGeometry.ts), then
+        // x/y are always re-derived from the fixed drag-start center/top,
+        // overriding whatever computeResize's per-handle anchor math produced.
+        const freeform = getFreeformCardBounds();
+        const raw = computeResize(handle, dx, dy, w, h, ex, ey, ratio, ratio > 0, freeform.minW, freeform.minH);
+        const { w: nw, h: nh } = clampFreeformCardSize(raw.nw, raw.nh);
         const centerX = ex + w / 2;
         const nx = Math.round(centerX - nw / 2);
         const ny = ey;

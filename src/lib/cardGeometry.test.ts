@@ -7,6 +7,8 @@ import {
   clampCardSize,
   resolveCardSize,
   sizeScaleFromDimensions,
+  getFreeformCardBounds,
+  clampFreeformCardSize,
   getPfpSizeBounds,
   resolvePfpSize,
   pfpRadiusToPercent,
@@ -73,6 +75,39 @@ test("resolveCardSize: sizeScale 0 and 1 hit the format's width bounds", () => {
     assert.equal(resolveCardSize(f, 0).w, c.minW);
     assert.equal(resolveCardSize(f, 1).w, c.maxW);
   }
+});
+
+// ── Freeform width/height (Stage 4.2-C.2.2) ──────────────────────────────────
+
+test("getFreeformCardBounds: the union covers every format's own min/max", () => {
+  const b = getFreeformCardBounds();
+  for (const f of FORMATS) {
+    const c = getCardConstraints(f);
+    assert.ok(b.minW <= c.minW, `${f}: freeform minW ${b.minW} should be <= its own minW ${c.minW}`);
+    assert.ok(b.maxW >= c.maxW, `${f}: freeform maxW ${b.maxW} should be >= its own maxW ${c.maxW}`);
+    assert.ok(b.minH <= c.minH, `${f}: freeform minH ${b.minH} should be <= its own minH ${c.minH}`);
+    assert.ok(b.maxH >= c.maxH, `${f}: freeform maxH ${b.maxH} should be >= its own maxH ${c.maxH}`);
+  }
+});
+
+test("clampFreeformCardSize: clamps into the unified envelope, independently per axis (no ratio lock)", () => {
+  const b = getFreeformCardBounds();
+  const tiny = clampFreeformCardSize(1, 1);
+  assert.equal(tiny.w, b.minW);
+  assert.equal(tiny.h, b.minH);
+  const huge = clampFreeformCardSize(100_000, 100_000);
+  assert.equal(huge.w, b.maxW);
+  assert.equal(huge.h, b.maxH);
+});
+
+test("clampFreeformCardSize: a value already inside bounds passes through unchanged (each axis independent)", () => {
+  const b = getFreeformCardBounds();
+  // Deliberately off-ratio for every existing format — must NOT be reprojected
+  // into any ratio, unlike clampCardSize.
+  const w = b.minW + 5, h = b.maxH - 5;
+  const { w: nw, h: nh } = clampFreeformCardSize(w, h);
+  assert.equal(nw, w);
+  assert.equal(nh, h);
 });
 
 test("sizeScaleFromDimensions is the approximate inverse of resolveCardSize's width mapping", () => {
