@@ -77,27 +77,70 @@ planeado acá hasta confirmarlo.
   IMAGES" ahora filtran por `e.dataTransfer.types.includes("Files")` — sin
   ese filtro, CUALQUIER drag nativo que entre al canvas (no solo archivos)
   disparaba el overlay.
+- **Music Block simplificado a MP3-only, sin artwork** (Etapa 4.2-C.2.3,
+  filosofía "guns.lol mejorado" — building blocks simples, no un
+  reproductor configurable). `ProfileMusicMenu.tsx` ya NO tiene tab
+  URL/selector de source type (solo "subir MP3") ni ninguna UI de artwork
+  (upload/reemplazar/quitar). `ProfileMusicPlayer.tsx` ya no renderiza
+  artwork en absoluto. `sourceType`/`artwork` **siguen existiendo** en
+  `MusicBlockData` por compatibilidad con datos ya persistidos (el player
+  nunca leyó `artwork` para renderizar tras este cambio, y nunca leyó
+  `sourceType` para nada) — no reintroducir esa UI sin pedido explícito.
+  Ancho del bloque = `card.musicWidth` (slider en el menú, **único eje
+  resizeable** — la altura es siempre `MUSIC_BLOCK_HEIGHT` fijo, nunca
+  depende del ancho), clampeado entre `MUSIC_BLOCK_WIDTH_MIN=120` y el
+  ancho disponible de la card. Music chico puede convivir horizontalmente
+  al lado de otro bloque (Links) si hay espacio — eso ya lo resuelve
+  `resolveOverlap()`/`escapeRect()` (`blockConstraints.ts`, sin tocar)
+  eligiendo la dirección de escape más barata entre 4 candidatos, no hace
+  falta lógica nueva de composición.
 - **`CardFormat` ya no gatea el tamaño de ProfileCard** (Etapa 4.2-C.2.2,
-  2026-09-19). Sigue existiendo en el modelo de datos y sigue alimentando
-  `FORMAT_BIAS` en `cardComposition.ts` (desempate suave de topología, nunca
-  un gate estructural — `computeComposition()` nunca tocó w/h, confirmado en
-  su propio file header). El tamaño real es libre: `getFreeformCardBounds()`
-  (`cardGeometry.ts`) deriva un único envelope min/max de la unión de los 5
-  `CARD_FORMATS`, y `clampFreeformCardSize()` clampea ancho/alto de forma
-  independiente, sin ratio lock. Si se necesita un bounds nuevo para algo,
-  reusar/extender esta función — no reintroducir un segundo set de límites
-  hardcodeados ni un picker de formato en la UI.
-- **ProfileCard se recentra verticalmente solo** (Etapa 4.2-C.2.2,
-  2026-09-19) — `card.y` ya no es un valor fijo seteado una única vez en
-  `addProfile()`. Un efecto en `ProfileCard.tsx` (mismo patrón que el efecto
-  de growth de `card.h`) recalcula `Math.max(44, viewportH/2 - card.h/2)`
-  cada vez que cambia `card.h` o el viewport, y persiste solo si difiere.
-  `viewportH` viaja como prop desde `CanvasBoard.tsx`, explícitamente
-  `undefined` para `canvasMode==="space_mobile"` (el efecto no corre ahí).
-  `card.y` sigue siendo la única fuente de verdad — no hay un `top` de
-  render calculado aparte. Cualquier campo nuevo que cambie el alto/ancho
-  efectivo de la card debe seguir pasando por este mismo mecanismo, no por
-  un cálculo de posición paralelo.
+  actualizado en 4.2-C.2.4). Sigue existiendo en el modelo de datos y sigue
+  alimentando `FORMAT_BIAS` en `cardComposition.ts` (desempate suave de
+  topología, nunca un gate estructural — `computeComposition()` nunca tocó
+  w/h). El tamaño real es libre: `getFreeformCardBounds()` (`cardGeometry.ts`)
+  usa `MIN_PROFILE_CARD_WIDTH=240` / `MIN_PROFILE_CARD_HEIGHT=220` — **constantes
+  de producto explícitas, deliberadamente NO derivadas de `CARD_FORMATS`**
+  (dos intentos previos de derivarlas — `Math.min` sobre los 5 formatos,
+  después `Math.max` sobre los `ratioKind:"range"` — resultaron ser números
+  indirectos con forma de formato, no una decisión real de producto; ver el
+  doc comment de la función). `maxW`/`maxH` sí siguen derivándose de
+  `CARD_FORMATS` (sin problema reportado ahí). `clampFreeformCardSize()`
+  clampea ancho/alto de forma independiente, sin ratio lock. **No hay
+  sliders de Width/Height en el menú** — `GeometryControls` se eliminó por
+  completo de `ProfileConfigMenu.tsx`; el tamaño se cambia únicamente
+  arrastrando los resize handles del canvas.
+- **Una sola fuente de verdad para la posición de ProfileCard: `centerCardPosition(canvasW, canvasH, w, h, topOffset)`**
+  (`cardGeometry.ts`, Etapa 4.2-C.2.4) — centra la card en ambos ejes,
+  usado de forma idéntica por el resize-drag (`useDragDrop.ts`, síncrono, en
+  el mismo `setElements` que escribe w/h), por el efecto de growth
+  (`ProfileCard.tsx`, persiste `x`/`y` en el mismo `updateProfile` que `h`),
+  y por `addProfile()` (`CanvasBoard.tsx`) al crear la card. Antes de esto
+  existían DOS escritores de posición compitiendo (un efecto de recentrado
+  vertical separado + el resize preservando "el centro que ya tenía") — eso
+  causaba el salto/drift real. `card.x`/`card.y` siguen siendo la única
+  fuente de verdad persistida — nunca un `top`/`left` de render calculado
+  aparte. `viewportW`/`viewportH` viajan como props desde `CanvasBoard.tsx`,
+  explícitamente `undefined` para `canvasMode==="space_mobile"`.
+- **El growth automático de ProfileCard se pausa mientras hay un resize
+  manual activo** (`shouldApplyGrowth(isResizing)` en `cardGeometry.ts`,
+  Etapa 4.2-C.2.5) — `computeRequiredCardHeight()` solo puede crecer
+  (`Math.max(currentH, ...)`); si el efecto de growth corre en paralelo a
+  un resize-drag que está achicando la card, cada tick el growth
+  "re-agranda" por encima de lo que el usuario acaba de arrastrar,
+  produciendo oscilación/salto — root cause real de un bug de resize
+  vertical que **dos intentos previos (minH derivado, luego
+  `centerCardPosition`) no habían resuelto porque el problema nunca fue el
+  cálculo de tamaño/posición en sí, sino que dos escritores competían por
+  `card.h` durante el mismo gesto.** `isResizing` se deriva en
+  `CanvasBoard.tsx` de `resizing?.type==="profile" && resizing.id===prof.id`
+  (el mismo `resizing` state que ya expone `useDragDrop` — no es un segundo
+  sistema de resize-state). Mientras `isResizing`, el efecto de growth sale
+  temprano sin tocar `h`/`x`/`y`; al soltar, corre de nuevo normalmente y
+  corrige la altura si el contenido lo requiere. **Cualquier problema nuevo
+  de resize/growth debe revisarse primero por acá antes de tocar
+  `computeRequiredCardHeight()`/`centerCardPosition()`/`clampFreeformCardSize()`,
+  que ya están confirmados correctos en aislamiento.**
 
 ## Decisiones de producto
 
@@ -113,9 +156,12 @@ planeado acá hasta confirmarlo.
   queda **diferido indefinidamente**, no es parte del roadmap actual.
   `musicEmbed.ts` sigue siendo código muerto (no usado) — no limpiar/tocar
   salvo que se retome esa decisión explícitamente.
-- Music implementado = solamente audio propio (upload) o URL directa a un
-  archivo reproducible por `<audio>` nativo (`MusicBlockData.sourceType:
-  "upload" | "url"`).
+- Music implementado = **solamente subir un MP3** (Etapa 4.2-C.2.3 — ya no
+  se expone la opción de URL directa en la UI, aunque `MusicSourceType`
+  sigue existiendo en el tipo por compat con datos viejos). Sin artwork
+  configurable por el usuario. Filosofía: "guns.lol pero mejorado" — simple
+  building blocks + libertad de personalización de tamaño/posición, no un
+  reproductor con muchas opciones.
 - Gallery será la **última feature grande** que se agrega dentro de
   ProfileCard.
 - Después de Gallery: Effects + Personalization (sistema compartido de
@@ -157,6 +203,13 @@ ProfileCard siga incompleta.
   C.2.2 Music redesign minimalista + ProfileCard freeform
         width/height + vertical centering estructural
                           DONE (commits 81b43a9, 0a13bb4, 0863b52 — 2026-09-19)
+  C.2.3 Music simplificado (MP3-only, sin artwork, musicWidth)
+                          DONE (commit d526770 — 2026-09-18)
+  C.2.4 Fix resize/centering — minH explícito (240×220) +
+        centerCardPosition() single source of truth
+                          DONE (commit f41a88f — 2026-09-18)
+  C.2.5 Fix growth-vs-resize race (shouldApplyGrowth/isResizing)
+                          DONE (commit 9304607 — 2026-09-18)
 GALLERY                  ELIMINADA DEL ROADMAP (2026-09-19) — no implementar,
                           no reintroducir sin pedido explícito del usuario.
                           Todo lo documentado en checkpoints previos sobre un
@@ -239,6 +292,64 @@ detallado que existía en un checkpoint anterior (data model, sizing,
 reorder, menu) **ya no es vigente**. No implementar, no retomar salvo
 pedido explícito y nuevo del usuario.
 
+**Checkpoint 2026-09-18 — Music simplificado + 2 rondas de fix de resize/centering
+vertical, pusheados a `origin/main`:**
+- **Music simplificado** (`d526770`) — se sacó el tab URL/source-type y toda
+  la UI de artwork de `ProfileMusicMenu.tsx`; `ProfileMusicPlayer.tsx` ya no
+  renderiza artwork. Nuevo `card.musicWidth` (slider en el menú, único eje
+  resizeable — altura siempre fija). Ver la regla de Arquitectura
+  correspondiente más arriba. `sourceType`/`artwork` quedan en el tipo por
+  compat, sin UI.
+- **Fix resize/centering, ronda 1** (`f41a88f`) — QA manual detectó que el
+  resize vertical podía saltar a ~120px y que la card se desplazaba al
+  resizear. Causa real: dos escritores de posición compitiendo (efecto de
+  recentrado vertical separado + el resize preservando "el centro que ya
+  tenía", nunca el centro real del canvas) — no el `minH` derivado de
+  `CARD_FORMATS` de la etapa anterior. Fix: `centerCardPosition()` como
+  única fuente de verdad (ver Arquitectura), `MIN_PROFILE_CARD_WIDTH=240`/
+  `MIN_PROFILE_CARD_HEIGHT=220` como constantes explícitas (ya no derivadas
+  de `CARD_FORMATS`), sliders de Width/Height eliminados del menú.
+- **Fix resize/centering, ronda 2** (`9304607`) — el fix anterior no
+  alcanzó: QA siguió viendo saltos/oscilación específicamente en resize
+  **vertical** (horizontal funcionaba bien). Causa real, esta vez
+  confirmada con una traza completa del gesto: el efecto de growth
+  (`computeRequiredCardHeight()`, que solo puede crecer) corría en paralelo
+  a un resize-drag activo que achicaba la card — cuando había Contact
+  Links/Music configurados y el usuario arrastraba por debajo de lo que
+  esos bloques necesitaban, growth re-agrandaba la card por encima de lo
+  que el drag acababa de setear, tick a tick, generando la oscilación.
+  Fix: `shouldApplyGrowth(isResizing)` — el growth se pausa mientras hay un
+  resize manual activo sobre esa card. Ver la regla de Arquitectura
+  correspondiente — **es la explicación definitiva de por qué las dos
+  rondas anteriores de fix de resize no alcanzaban solas.**
+- 234/234 tests, `tsc`/`build` limpios en las 3 rondas. Ningún cambio en
+  `computeComposition()`, `cardComposition.ts`, `blockConstraints.ts`,
+  `ResizeHandles.tsx`.
+
+**Incidente de deployment 2026-09-18 (Vercel, no relacionado al código):**
+después de pushear `9304607`, Vercel dejó de generar deployments para
+`origin/main` — investigado a fondo (GitHub API: push/branch/commit
+confirmados correctos, webhook "Git Integrations: Operational"). Causa
+real: incidente de plataforma en Vercel ("Elevated Errors Triggering
+Deployments", Build & Deploy en Partial Outage) confirmado en
+vercel-status.com, iniciado ~20:32 UTC — nada de nuestro lado estaba roto.
+Se pushearon dos commits vacíos para reintentar una vez Vercel empezó a
+recuperarse (`61f6aa1` a las 20:40 UTC, todavía dentro del incidente;
+`f543d02` a las 21:16 UTC, ya con el incidente en "Monitoring") — **ninguno
+de los dos cambia código**, son únicamente triggers. Al momento de este
+checkpoint, Vercel ya volvió a aceptar builds (generó y el usuario canceló
+manualmente un deployment de `9304607` desde el dashboard) pero **todavía
+no se confirmó que `f543d02` (el HEAD actual) haya deployado
+exitosamente.**
+
+**MUY IMPORTANTE para la próxima sesión: lo primero que hay que hacer es
+confirmar en el dashboard de Vercel (o reconsultando la Deployments API de
+GitHub) que `f543d02` — o el commit que sea HEAD de `origin/main` en ese
+momento — deployó bien, y recién ahí hacer QA manual real de los fixes de
+resize vertical de `f41a88f`/`9304607`, que nunca se pudieron verificar en
+producción por el incidente.** No asumir que el fix funciona en producción
+solo porque los tests pasan — esta etapa específica quedó sin QA en vivo.
+
 **Siguiente etapa: Effects/Personalization** (gaps puntuales — shadow blur
 independiente de intensity, font weight/letter-spacing, y verificar en
 browser si tilt+floating se pisan al estar ambos activos, ver detalle en
@@ -254,16 +365,23 @@ browser si tilt+floating se pisan al estar ambos activos, ver detalle en
   ausente = `CONTACT_LINK_ICON_SIZE` (`contactLinksBlock.ts`), igual que
   antes de esta etapa.
 - **Music** (`MusicBlockData` en `card.music`): `{sourceType, audioUrl,
-  title?, artist?, artwork?, volume?}`. `volume` es el volumen inicial
-  configurado por el owner — **nunca** el volumen en vivo. `playing`,
-  `currentTime`, `duration`, volumen en vivo y `muted` son estado LOCAL del
-  visitante (`useState` dentro de `ProfileMusicPlayer.tsx`), nunca se
-  persisten ni se agregan a `ProfileCardData`. Posición vía
-  `musicAnchorX/Y`. Configurable desde `ProfileMusicMenu.tsx` (Etapa
-  4.2-C.3, DONE) — activar/desactivar es la presencia/ausencia de
-  `card.music` (`onChange({ music: undefined })` para apagar), sin boolean
-  separado. Tamaño del bloque content-sized, no una fracción del ancho de
-  la card — ver `musicBlockSizing.ts` (Etapa 4.2-C.2.2).
+  title?, artist?, artwork?, volume?}`. `sourceType`/`artwork` existen en el
+  tipo por compat pero **la UI ya no los expone** desde la simplificación
+  de la Etapa 4.2-C.2.3 (solo upload de MP3, sin artwork) — no confundir el
+  tipo completo con lo que el menú realmente permite hoy. `volume` es el
+  volumen inicial configurado por el owner — **nunca** el volumen en vivo.
+  `playing`, `currentTime`, `duration`, volumen en vivo y `muted` son
+  estado LOCAL del visitante (`useState` dentro de `ProfileMusicPlayer.tsx`),
+  nunca se persisten ni se agregan a `ProfileCardData`. Posición vía
+  `musicAnchorX/Y`. Configurable desde `ProfileMusicMenu.tsx` — activar/
+  desactivar es la presencia/ausencia de `card.music`
+  (`onChange({ music: undefined })` para apagar), sin boolean separado.
+  **Ancho vía `card.musicWidth`** (slider en el menú, `MUSIC_BLOCK_WIDTH_MIN=120`
+  hasta el ancho disponible de la card, default `MUSIC_BLOCK_WIDTH_DEFAULT=180`
+  cuando está ausente) — es el único eje resizeable, ya NO content-driven
+  por `hasText` como en la Etapa 4.2-C.2.2. Altura siempre
+  `MUSIC_BLOCK_HEIGHT` fijo, nunca depende del ancho. Ver `musicBlockSizing.ts`
+  (Etapa 4.2-C.2.3).
 
 ## La próxima sesión
 
@@ -273,7 +391,19 @@ código) antes de escribir código.
 **Prioridad vigente: terminar ProfileCard antes que cualquier otra parte del
 producto** (ver "Reprioridad 2026-09-18"). **Gallery está eliminada del
 roadmap (2026-09-19) — no implementar, no retomar sin pedido explícito.**
-Orden exacto de lo que queda:
+
+**PASO 0, antes de cualquier otra cosa:** confirmar que el deployment de
+Vercel para el HEAD actual de `origin/main` salió bien (ver "Checkpoint
+2026-09-18 — Incidente de deployment" más arriba — al cerrar esta sesión
+todavía no estaba confirmado), y recién ahí hacer QA manual real en
+producción del resize vertical de ProfileCard (`f41a88f`/`9304607`) — nunca
+se pudo verificar en vivo por el incidente de Vercel. Si el QA encuentra
+que el bug sigue apareciendo, **releer las dos rondas de fix documentadas
+arriba antes de proponer una tercera** — ya se descartaron `minH`
+derivado de formatos y luego un problema de centrado; la causa confirmada
+fue growth compitiendo con resize.
+
+Orden exacto de lo que queda después del Paso 0:
 
 1. **Effects/Personalization** — mayormente ya implementado y wireado a
    ProfileCard vía `PersonalizePanel.tsx`/`ProfileTypographyMenu.tsx`. Gaps
