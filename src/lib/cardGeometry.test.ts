@@ -9,6 +9,9 @@ import {
   sizeScaleFromDimensions,
   getFreeformCardBounds,
   clampFreeformCardSize,
+  centerCardPosition,
+  MIN_PROFILE_CARD_WIDTH,
+  MIN_PROFILE_CARD_HEIGHT,
   getPfpSizeBounds,
   resolvePfpSize,
   pfpRadiusToPercent,
@@ -77,55 +80,74 @@ test("resolveCardSize: sizeScale 0 and 1 hit the format's width bounds", () => {
   }
 });
 
-// ── Freeform width/height (Stage 4.2-C.2.2, minH fix in 4.2-C.2.3) ───────────
+// ── Freeform width/height (Stage 4.2-C.2.4 — explicit product minimums) ──────
+// MIN_PROFILE_CARD_WIDTH/HEIGHT replaced two prior attempts at deriving the
+// floor from CARD_FORMATS (first Math.min across all 5, landing on
+// horizontal's 120 and breaking composition; then Math.max across
+// ratioKind:"range" formats, landing on vertical's 190) — both were still
+// an indirect, format-shaped number, not a real product decision. These
+// tests assert the explicit constants directly, not a derivation.
 
-test("getFreeformCardBounds: minW/maxW/maxH still cover every format's own bounds", () => {
+test("MIN_PROFILE_CARD_WIDTH is exactly 240, MIN_PROFILE_CARD_HEIGHT is exactly 220", () => {
+  assert.equal(MIN_PROFILE_CARD_WIDTH, 240);
+  assert.equal(MIN_PROFILE_CARD_HEIGHT, 220);
+});
+
+test("getFreeformCardBounds: minW/minH are the explicit constants, never derived from CARD_FORMATS", () => {
   const b = getFreeformCardBounds();
-  for (const f of FORMATS) {
-    const c = getCardConstraints(f);
-    assert.ok(b.minW <= c.minW, `${f}: freeform minW ${b.minW} should be <= its own minW ${c.minW}`);
-    assert.ok(b.maxW >= c.maxW, `${f}: freeform maxW ${b.maxW} should be >= its own maxW ${c.maxW}`);
-    assert.ok(b.maxH >= c.maxH, `${f}: freeform maxH ${b.maxH} should be >= its own maxH ${c.maxH}`);
+  assert.equal(b.minW, MIN_PROFILE_CARD_WIDTH);
+  assert.equal(b.minH, MIN_PROFILE_CARD_HEIGHT);
+});
+
+test("getFreeformCardBounds: maxW/maxH still derive from CARD_FORMATS (unchanged — only the floor became explicit)", () => {
+  const b = getFreeformCardBounds();
+  const all = FORMATS.map(f => getCardConstraints(f));
+  assert.equal(b.maxW, Math.max(...all.map(c => c.maxW)));
+  assert.equal(b.maxH, Math.max(...all.map(c => c.maxH)));
+});
+
+test("regression: a 140x120 card (the historical unsafe minimum) is never a valid clamped state", () => {
+  const r = clampFreeformCardSize(140, 120);
+  assert.notEqual(r.w, 140);
+  assert.notEqual(r.h, 120);
+  assert.equal(r.w, MIN_PROFILE_CARD_WIDTH);
+  assert.equal(r.h, MIN_PROFILE_CARD_HEIGHT);
+});
+
+test("regression: clamped width/height can never land on any historical format-derived floor (120 or 140)", () => {
+  for (const w of [1, 50, 100, 139, 140, 141]) {
+    assert.notEqual(clampFreeformCardSize(w, 300).w, 120);
+    assert.notEqual(clampFreeformCardSize(w, 300).w, 140);
+  }
+  for (const h of [1, 50, 100, 119, 120, 121]) {
+    assert.notEqual(clampFreeformCardSize(600, h).h, 120);
   }
 });
 
-test("getFreeformCardBounds: minH is the tallest minH among ratioKind:\"range\" formats (vertical/horizontal/card), derived from CARD_FORMATS — not hardcoded", () => {
-  const b = getFreeformCardBounds();
-  const rangeMinHs = FORMATS
-    .map(f => getCardConstraints(f))
-    .filter(c => c.ratioKind === "range")
-    .map(c => c.minH);
-  assert.equal(b.minH, Math.max(...rangeMinHs));
-  // Sanity: this excludes the two ratioKind:"fixed" formats (square, phone)
-  // entirely — their minH is a byproduct of a locked ratio, not a content
-  // floor (see getFreeformCardBounds' doc comment).
-  assert.notEqual(b.minH, getCardConstraints("square").minH);
-  assert.notEqual(b.minH, getCardConstraints("phone").minH);
+test("continuous resize: shrinking height from 360 toward the floor passes through every intermediate value with no jump, landing exactly on 220", () => {
+  const heights = [360, 350, 340, 330, 320, 310, 300, 290, 280, 270, 260, 250, 240, 230, 220, 210, 200];
+  const results = heights.map(h => clampFreeformCardSize(600, h).h);
+  for (let i = 0; i < heights.length; i++) {
+    assert.equal(results[i], Math.max(MIN_PROFILE_CARD_HEIGHT, heights[i]), `at input height ${heights[i]}`);
+  }
+  assert.equal(results[results.length - 1], MIN_PROFILE_CARD_HEIGHT, "the lowest input (200, below the floor) must clamp exactly to 220, not below");
 });
 
-test("regression: minH is no longer horizontal's unsafe 120px floor (the reported resize-jump bug)", () => {
-  const b = getFreeformCardBounds();
-  assert.ok(b.minH > 120, `minH ${b.minH} must be safely above the old unsafe floor of 120`);
+test("continuous resize: shrinking width toward the floor passes through every intermediate value with no jump, landing exactly on 240", () => {
+  const widths = [600, 500, 400, 300, 260, 250, 240, 230, 200];
+  for (const w of widths) {
+    assert.equal(clampFreeformCardSize(w, 300).w, Math.max(MIN_PROFILE_CARD_WIDTH, w), `at input width ${w}`);
+  }
 });
 
-test("regression: shrinking a ~600x380 card's height toward its extreme never collapses near 600x120", () => {
-  // Simulates dragging the height-only ("s") handle all the way down —
-  // width must stay completely untouched (independent axes), and the
-  // clamped height must land on the new safe floor, not the old one.
-  const { w, h } = clampFreeformCardSize(600, 50);
-  assert.equal(w, 600, "width must be untouched by a height-only resize");
-  assert.equal(h, getFreeformCardBounds().minH);
-  assert.ok(h > 120, `clamped height ${h} must not collapse to the old unsafe 120px floor`);
-});
-
-test("clampFreeformCardSize: clamps into the unified envelope, independently per axis (no ratio lock)", () => {
-  const b = getFreeformCardBounds();
-  const tiny = clampFreeformCardSize(1, 1);
-  assert.equal(tiny.w, b.minW);
-  assert.equal(tiny.h, b.minH);
-  const huge = clampFreeformCardSize(100_000, 100_000);
-  assert.equal(huge.w, b.maxW);
-  assert.equal(huge.h, b.maxH);
+test("no ratio lock: width and height clamp fully independently of each other", () => {
+  // A height-only shrink never touches width, and vice versa — even at the
+  // extreme where both land exactly on their own floor simultaneously.
+  assert.equal(clampFreeformCardSize(600, 50).w, 600);
+  assert.equal(clampFreeformCardSize(50, 600).h, 600);
+  const both = clampFreeformCardSize(1, 1);
+  assert.equal(both.w, MIN_PROFILE_CARD_WIDTH);
+  assert.equal(both.h, MIN_PROFILE_CARD_HEIGHT);
 });
 
 test("clampFreeformCardSize: a value already inside bounds passes through unchanged (each axis independent)", () => {
@@ -141,6 +163,53 @@ test("clampFreeformCardSize: a value already inside bounds passes through unchan
 test("getFreeformCardBounds/clampFreeformCardSize: deterministic — same input always yields the same output", () => {
   assert.deepEqual(getFreeformCardBounds(), getFreeformCardBounds());
   assert.deepEqual(clampFreeformCardSize(600, 320), clampFreeformCardSize(600, 320));
+});
+
+// ── Centering (Stage 4.2-C.2.4) ───────────────────────────────────────────────
+// centerCardPosition is the ONE formula both the resize-drag (useDragDrop.ts)
+// and content-driven growth (ProfileCard.tsx's growth effect) use — these
+// tests are what guarantee "single source of truth" actually holds.
+
+test("centerCardPosition: centers a box within the canvas on both axes", () => {
+  const { x, y } = centerCardPosition(1200, 800, 600, 360, 44);
+  assert.equal(x, (1200 - 600) / 2);
+  assert.equal(y, (800 - 360) / 2);
+});
+
+test("centerCardPosition: horizontal-only resize keeps the same vertical center", () => {
+  const before = centerCardPosition(1200, 800, 600, 320, 44);
+  const after  = centerCardPosition(1200, 800, 500, 320, 44);
+  assert.equal(after.y, before.y);
+  assert.notEqual(after.x, before.x);
+});
+
+test("centerCardPosition: vertical-only resize keeps the same horizontal center", () => {
+  const before = centerCardPosition(1200, 800, 600, 360, 44);
+  const after  = centerCardPosition(1200, 800, 600, 320, 44);
+  assert.equal(after.x, before.x);
+  assert.notEqual(after.y, before.y);
+});
+
+test("centerCardPosition: diagonal resize recenters both axes to the true canvas center", () => {
+  const { x, y } = centerCardPosition(1200, 800, 400, 260, 44);
+  assert.equal(x, (1200 - 400) / 2);
+  assert.equal(y, Math.max(44, (800 - 260) / 2));
+});
+
+test("centerCardPosition: never renders above topOffset even if the arithmetic center would be higher", () => {
+  const { y } = centerCardPosition(800, 200, 400, 220, 44);
+  // (200-220)/2 is negative — must clamp to topOffset instead.
+  assert.equal(y, 44);
+});
+
+test("centerCardPosition: content-driven growth (width unchanged, height increases) keeps the same horizontal center", () => {
+  const before = centerCardPosition(1200, 800, 600, 300, 44);
+  const afterGrowth = centerCardPosition(1200, 800, 600, 420, 44);
+  assert.equal(afterGrowth.x, before.x, "growth never changes width, so x must stay identical");
+});
+
+test("centerCardPosition: deterministic", () => {
+  assert.deepEqual(centerCardPosition(1200, 800, 600, 360, 44), centerCardPosition(1200, 800, 600, 360, 44));
 });
 
 test("sizeScaleFromDimensions is the approximate inverse of resolveCardSize's width mapping", () => {

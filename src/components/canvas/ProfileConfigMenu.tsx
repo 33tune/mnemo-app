@@ -2,8 +2,8 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { ProfileCardData, CardEffects } from "@/types";
-import { T, MenuSection, SliderRow } from "@/ui";
-import { getFreeformCardBounds, getCardPadding } from "@/lib/cardGeometry";
+import { T } from "@/ui";
+import { getCardPadding } from "@/lib/cardGeometry";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
@@ -116,10 +116,7 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
       )}
 
       {view === "estilo/forma" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
-          <GeometryControls card={card} onChange={onChange} />
-          <PersonalizePanel tabs={["forma"]} effects={card.effects} onChange={patchEffects} isProfileCard />
-        </div>
+        <PersonalizePanel tabs={["forma"]} effects={card.effects} onChange={patchEffects} isProfileCard />
       )}
 
       {view === "estilo/efectos" && (
@@ -192,33 +189,10 @@ function Door({ label, desc, onClick }: { label: string; desc: string; onClick: 
   );
 }
 
-// ── Geometry ───────────────────────────────────────────────────────────────
-// Stage 4.2-C.2.2: no more format picker — CardFormat stays an internal
-// concept (cardComposition.ts's FORMAT_BIAS topology tiebreaker, and the
-// fallback for any card whose `format` was set before this stage), but the
-// user never chooses one directly anymore. Width and height are the only
-// user-facing size controls, independently adjustable within the unified
-// envelope every format's own bounds already implied (see
-// getFreeformCardBounds in cardGeometry.ts) — no ratio lock.
-
-function GeometryControls({ card, onChange }: { card: ProfileCardData; onChange: (patch: Partial<ProfileCardData>) => void }) {
-  const bounds = getFreeformCardBounds();
-
-  function setWidth(nw: number) {
-    // Center-x preserved the same way useDragDrop's handle-resize and the
-    // old format switch both already did it — fixed center, x re-derived
-    // from the new width, so changing width never displaces the card
-    // sideways. Height needs no equivalent here: vertical centering is the
-    // vertical-recentering effect's job (Stage 4.2-C.2.2 Part 3), not this
-    // menu's — it reacts to card.h on its own.
-    const nx = Math.round(card.x + card.w / 2 - nw / 2);
-    onChange({ w: nw, x: nx });
-  }
-
-  return (
-    <MenuSection label="Tamaño" first>
-      <SliderRow label="Ancho" min={bounds.minW} max={bounds.maxW} step={1} value={card.w} unit="px" onChange={setWidth} />
-      <SliderRow label="Alto" min={bounds.minH} max={bounds.maxH} step={1} value={card.h} unit="px" onChange={h => onChange({ h })} />
-    </MenuSection>
-  );
-}
+// Stage 4.2-C.2.4: no size controls in this menu at all anymore — width and
+// height are set exclusively by dragging ProfileCard's own resize handles
+// on the canvas (useDragDrop.ts), which already keep the card centered as
+// it resizes (centerCardPosition in cardGeometry.ts). CardFormat stays an
+// internal concept (cardComposition.ts's FORMAT_BIAS topology tiebreaker,
+// and the fallback for any card whose `format` was set before freeform
+// sizing existed) — the user never chooses or sizes via it here.

@@ -84,38 +84,30 @@ export interface FreeformCardBounds {
   maxH: number;
 }
 
-/** Unified min/max envelope for freeform ProfileCard sizing — the union of
- * every format's own bounds in CARD_FORMATS, so the user can freely resize
- * into any shape any existing format already allowed, without picking one.
- * CARD_FORMATS stays the single source of truth; nothing is hardcoded a
- * second time here.
- *
- * `minH` is deliberately NOT `Math.min(...)` the way `minW`/`maxW`/`maxH`
- * are (Stage 4.2-C.2.3 fix). ProfileCard's content — pfp + identity group +
- * location + bio + views — is a vertically STACKED column regardless of
- * which format a card happens to have, so its height floor needs to be
- * "how short can this stack get before it breaks", not "the shortest any
- * one format's box was ever allowed to be". `ratioKind:"fixed"` formats'
- * minH is a byproduct of their locked aspect ratio, not a content-safety
- * measurement — square's 180 falls out of a 1:1 ratio at its minW, and
- * phone's 249 is only taller because its ratio is narrow, neither one
- * means anything about how much vertical room content needs. The three
- * `ratioKind:"range"` formats (vertical/horizontal/card) don't have that
- * problem — their minH was set as a real per-format floor independent of
- * a locked ratio — and the tallest of those three (in practice vertical's
- * 190, whose own comment above already derives it from "smallest avatar +
- * padding + one line of text") is a floor safe for any shape. Taking the
- * smallest of all five (previously landing on horizontal's 120) let a
- * pure height-only resize collapse the stack well past where it can still
- * render — that was the exact cause of the freeform-resize bug where
- * shrinking only height could jump to roughly 120px and break composition. */
+/** Explicit product minimums for freeform ProfileCard sizing (Stage
+ * 4.2-C.2.4) — deliberately NOT derived from CARD_FORMATS. An earlier
+ * version of this bound computed minH from the format table (first
+ * Math.min across all 5 formats, landing on horizontal's 120 and breaking
+ * composition; then Math.max across the ratioKind:"range" formats, landing
+ * on vertical's 190) — both were still an indirect, format-shaped number
+ * standing in for "how small can this card actually get," not a real
+ * product decision. These two constants ARE that decision. CARD_FORMATS
+ * keeps existing for internal use (cardComposition.ts's FORMAT_BIAS
+ * tiebreaker) and still supplies maxW/maxH below — only the floor changed. */
+export const MIN_PROFILE_CARD_WIDTH = 240;
+export const MIN_PROFILE_CARD_HEIGHT = 220;
+
+/** Unified min/max envelope for freeform ProfileCard sizing. minW/minH are
+ * the explicit product constants above; maxW/maxH stay the union of every
+ * format's own max in CARD_FORMATS (unchanged — no reported issue with the
+ * ceiling, only the floor), so the user can still resize up to whatever
+ * any existing format allowed. */
 export function getFreeformCardBounds(): FreeformCardBounds {
   const all = Object.values(CARD_FORMATS);
-  const rangeFormats = all.filter(c => c.ratioKind === "range");
   return {
-    minW: Math.min(...all.map(c => c.minW)),
+    minW: MIN_PROFILE_CARD_WIDTH,
     maxW: Math.max(...all.map(c => c.maxW)),
-    minH: Math.max(...rangeFormats.map(c => c.minH)),
+    minH: MIN_PROFILE_CARD_HEIGHT,
     maxH: Math.max(...all.map(c => c.maxH)),
   };
 }
@@ -123,12 +115,38 @@ export function getFreeformCardBounds(): FreeformCardBounds {
 /** Clamps w/h independently into the freeform envelope — no ratio lock,
  * unlike clampCardSize (kept below, still used by anything that still
  * reasons in terms of a specific format). This is what the freeform
- * resize-drag and the Width/Height menu sliders both clamp against. */
+ * resize-drag clamps against. */
 export function clampFreeformCardSize(w: number, h: number): { w: number; h: number } {
   const b = getFreeformCardBounds();
   return {
     w: Math.max(b.minW, Math.min(b.maxW, Math.round(w))),
     h: Math.max(b.minH, Math.min(b.maxH, Math.round(h))),
+  };
+}
+
+/**
+ * The ONE formula ProfileCard's position is ever derived from (Stage
+ * 4.2-C.2.4) — a box of size w×h, centered within a canvas of size
+ * canvasW×canvasH, never rendering above `topOffset`. Used identically by
+ * the freeform resize-drag (useDragDrop.ts, computed synchronously in the
+ * same state update as the new w/h — never a separate effect chasing a
+ * moving target), content-driven growth (ProfileCard.tsx's growth effect,
+ * which persists the recentered y in the SAME updateProfile call as the
+ * new h), and initial placement (addProfile in CanvasBoard.tsx). Having a
+ * single shared, pure function — rather than two independent
+ * recentering calculations that can disagree mid-gesture — is what the
+ * fix actually is: previously, a standalone recentering effect (reacting
+ * to card.h a render cycle after the drag's own direct state update) and
+ * the resize-drag's own "preserve whatever center the card already had"
+ * logic could both write position for the same element during the same
+ * gesture, which is what produced the reported jump/drift.
+ */
+export function centerCardPosition(
+  canvasW: number, canvasH: number, w: number, h: number, topOffset: number,
+): { x: number; y: number } {
+  return {
+    x: Math.round((canvasW - w) / 2),
+    y: Math.max(topOffset, Math.round((canvasH - h) / 2)),
   };
 }
 

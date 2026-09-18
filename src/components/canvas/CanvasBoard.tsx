@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor, SharedWidgetKind, Placement, HiddenMap, PlacementMap, CardFormat } from "@/types";
-import { resolveCardSize } from "@/lib/cardGeometry";
+import { resolveCardSize, centerCardPosition } from "@/lib/cardGeometry";
 import { resolveBulkDeleteIds, isMarqueeSelectable } from "@/lib/canvasSelectionGuards";
 import { shouldImageIgnorePointerEvents, nextIdInHitCycle, resolveImageMouseDownTarget } from "@/lib/hitStack";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
@@ -1919,8 +1919,13 @@ export default function CanvasBoard({
     // on; sizeScale is intentionally never stored (see Stage 3B-fix notes on
     // GeometryControls in ProfileConfigMenu.tsx).
     const { w, h } = resolveCardSize(format, 0.3);
-    const px = effectiveW / 2 - w / 2;
-    const py = canvasMode === "space_mobile" ? 160 : Math.max(44, effectiveH / 2 - h / 2);
+    // Stage 4.2-C.2.4: same centerCardPosition() formula the resize-drag
+    // (useDragDrop.ts) and content-driven growth (ProfileCard.tsx) use —
+    // one shared source of truth for "where is the card", from creation
+    // onward. space_mobile keeps its own fixed py=160, untouched.
+    const { x: px, y: py } = canvasMode === "space_mobile"
+      ? { x: effectiveW / 2 - w / 2, y: 160 }
+      : centerCardPosition(effectiveW, effectiveH, w, h, 44);
     const p: ProfileCardData = {
       id: crypto.randomUUID(), x: px, y: py,
       w, h, zIndex: zCounter.current, layer: 2, depth: 0.5, rotation: 0,
@@ -2737,11 +2742,13 @@ export default function CanvasBoard({
           canInteract={canInteract}
           currentUserId={currentUserId}
           ownerUserId={ownerUserId}
-          // Stage 4.2-C.2.2 Part 3: structural vertical recentering — see
-          // ProfileCard.tsx's recentering effect. Explicitly withheld for
-          // space_mobile (undefined -> that effect no-ops), which keeps its
-          // own fixed py=160 from addProfile() untouched — legacy mobile
-          // architecture stays out of scope here.
+          // Stage 4.2-C.2.2 Part 3 (extended to width in 4.2-C.2.4):
+          // structural centering — see ProfileCard.tsx's growth/recentering
+          // effect. Explicitly withheld for space_mobile (undefined -> that
+          // effect no-ops), which keeps its own fixed py=160 from
+          // addProfile() untouched — legacy mobile architecture stays out
+          // of scope here.
+          viewportW={canvasMode==="space_mobile"?undefined:viewportW}
           viewportH={canvasMode==="space_mobile"?undefined:viewportH} />);
       })}
 

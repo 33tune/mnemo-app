@@ -18,7 +18,7 @@ import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
   rectToAnchor, snapAxis, snappedPoint, MAGNETIC_POINTS, centerAlignAnchor,
 } from "@/lib/blockConstraints";
-import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight } from "@/lib/cardGeometry";
+import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight, centerCardPosition } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
 import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
@@ -200,11 +200,12 @@ interface Props {
   currentUserId?:    string;
   ownerUserId?:      string;
   entryAnimStyle?:   CSSProperties;
-  /** Live viewport height (Stage 4.2-C.2.2 Part 3), used only to keep the
-   * card vertically centered as it grows — see the recentering effect
-   * below. Optional so any other caller that doesn't care about centering
-   * (e.g. a future isolated render/test) can omit it; centering simply
-   * doesn't run without it. */
+  /** Live viewport width/height (Stage 4.2-C.2.2 Part 3, extended to width
+   * in 4.2-C.2.4), used only to keep the card centered — see the growth/
+   * recentering effect below. Optional so any other caller that doesn't
+   * care about centering (e.g. a future isolated render/test) can omit
+   * them; recentering simply doesn't run without both. */
+  viewportW?:        number;
   viewportH?:        number;
 }
 
@@ -230,7 +231,7 @@ function initFreePos(card: ProfileCardData): FreePos {
 function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
-  currentUserId, ownerUserId, entryAnimStyle = {}, viewportH,
+  currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
@@ -855,8 +856,7 @@ function ProfileCard({
   // where the existing content currently ends. Pure math
   // (computeRequiredCardHeight in cardGeometry.ts) decides the number every
   // render (cheap); this effect's only job is PERSISTING it, and only when
-  // it actually differs from card.h — never on every render/frame, and never
-  // touching card.y (the card only ever grows downward).
+  // it actually differs from stored state.
   //
   // extraBlocks is built here (Links entry, then Music entry, in that order)
   // rather than calling a single-block helper per block: two SEPARATE calls
@@ -865,6 +865,22 @@ function ProfileCard({
   // same contentBottom and take a max, not a sum, under-reporting the
   // required height whenever both are present. See computeRequiredCardHeight's
   // doc comment in cardGeometry.ts.
+  //
+  // Stage 4.2-C.2.4: this effect also owns recentering (folded in from a
+  // previously separate "vertical recentering" effect) — x/y are recomputed
+  // via centerCardPosition() (cardGeometry.ts, the SAME formula
+  // useDragDrop.ts's resize-drag uses) whenever card.w/h or the viewport
+  // change. Keeping this as one effect, not two independent ones each
+  // writing part of the position, is the actual fix for the reported
+  // resize jump/drift: a separate y-only effect reacting to card.h a render
+  // cycle AFTER the resize-drag's own direct state update was a second,
+  // competing writer of position during the same gesture. During an active
+  // drag this effect is a pure no-op — the drag already set x/y/w/h
+  // synchronously to exactly what this same formula would compute, so the
+  // patch below ends up empty and no updateProfile call happens at all.
+  // Requires viewportW/viewportH from CanvasBoard.tsx — without them
+  // (undefined, e.g. space_mobile), recentering simply doesn't run; only
+  // the height-growth part still does.
   const contentBottom = composedResult
     ? composedContentBottom(composedResult.boxes, composedResult.identityRect)
     : 0;
@@ -873,35 +889,22 @@ function ProfileCard({
     const extraBlocks: { naturalHeight: number; gap: number }[] = [];
     if (contactLinks.length > 0) extraBlocks.push({ naturalHeight: linksNaturalSize.height, gap: CONTACT_LINK_GAP });
     if (hasMusic) extraBlocks.push({ naturalHeight: musicNaturalSize.height, gap: MUSIC_BLOCK_GAP });
-    if (extraBlocks.length === 0) return;
-    const requiredH = Math.round(computeRequiredCardHeight({
-      format: card.format, currentH: card.h, contentBottom, padding: pad, extraBlocks,
-    }));
-    if (requiredH !== card.h) updateProfile(card.id, { h: requiredH });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, contactLinks.length, linksNaturalSize.height, hasMusic, musicNaturalSize.height, card.format, card.h, contentBottom, pad, card.id]);
+    const requiredH = extraBlocks.length > 0
+      ? Math.round(computeRequiredCardHeight({ format: card.format, currentH: card.h, contentBottom, padding: pad, extraBlocks }))
+      : card.h;
 
-  // ── Vertical recentering (Stage 4.2-C.2.2 Part 3) ─────────────────────────
-  // ProfileCard is a fixed, non-draggable singleton (3B.4-A) — card.y was
-  // only ever set once, at creation (addProfile() in CanvasBoard.tsx), and
-  // nothing revisited it afterward: as the card grew taller (Links/Music
-  // blocks, or now a user-set height via the freeform Height slider) its
-  // TOP stayed fixed while it extended downward, drifting below its
-  // original center instead of staying centered. Same mechanism as the
-  // height-growth effect right above: pure math every render, persisted
-  // only when the result actually differs from what's stored — card.y
-  // stays the single source of truth for position (no separate render-time
-  // override), so every other consumer of card.y (marquee-select hit-test,
-  // follower bookkeeping in CanvasBoard.tsx) stays consistent with what's
-  // actually on screen. Requires `viewportH` from CanvasBoard.tsx — without
-  // it (undefined), this simply doesn't run, so card.y is untouched for any
-  // caller that doesn't pass it.
-  useEffect(() => {
-    if (viewportH == null) return;
-    const desiredY = Math.max(CANVAS_TOP_OFFSET, Math.round(viewportH / 2 - card.h / 2));
-    if (desiredY !== card.y) updateProfile(card.id, { y: desiredY });
+    const patch: Partial<ProfileCardData> = {};
+    if (requiredH !== card.h) patch.h = requiredH;
+
+    if (viewportW != null && viewportH != null) {
+      const { x: cx, y: cy } = centerCardPosition(viewportW, viewportH, card.w, requiredH, CANVAS_TOP_OFFSET);
+      if (cx !== card.x) patch.x = cx;
+      if (cy !== card.y) patch.y = cy;
+    }
+
+    if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewportH, card.h, card.y, card.id]);
+  }, [layout, contactLinks.length, linksNaturalSize.height, hasMusic, musicNaturalSize.height, card.format, card.h, card.w, card.x, card.y, contentBottom, pad, card.id, viewportW, viewportH]);
 
   function renderComposed() {
     if (!composedResult) return null; // only called when layout !== "free"

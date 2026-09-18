@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import type { CanvasElement, CardFormat } from "@/types";
-import { getFreeformCardBounds, clampFreeformCardSize } from "@/lib/cardGeometry";
+import { getFreeformCardBounds, clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
 import { applyGroupDragDelta, filterTrashDeletion } from "@/lib/canvasSelectionGuards";
 
 export type ResizeHandle = "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w";
@@ -244,17 +244,24 @@ export function useDragDrop({
 
       if (resizing.type === "profile") {
         // The Presentation Card is the singleton, centered anchor of the profile —
-        // resize must never move it. Stage 4.2-C.2.2: every handle resolves to a
-        // new w/h independently (freeform, no format-driven ratio lock — see
-        // getFreeformCardBounds/clampFreeformCardSize in cardGeometry.ts), then
-        // x/y are always re-derived from the fixed drag-start center/top,
-        // overriding whatever computeResize's per-handle anchor math produced.
+        // resize must never move it off-center. Stage 4.2-C.2.2: every handle
+        // resolves to a new w/h independently (freeform, no format-driven ratio
+        // lock — see getFreeformCardBounds/clampFreeformCardSize in
+        // cardGeometry.ts). Stage 4.2-C.2.4: x/y are no longer "preserve
+        // whatever center the card already had at drag-start" (computeResize's
+        // own per-handle x/y math is discarded here too, same as before) — they're
+        // always the TRUE canvas center for the new w/h, via centerCardPosition()
+        // (cardGeometry.ts), computed synchronously in this same state update.
+        // This is the same formula content-driven growth uses in
+        // ProfileCard.tsx's growth effect — one shared source of truth for
+        // position, not two systems that can disagree mid-gesture (see that
+        // function's doc comment for what the previous, two-system version
+        // actually broke).
         const freeform = getFreeformCardBounds();
         const raw = computeResize(handle, dx, dy, w, h, ex, ey, ratio, ratio > 0, freeform.minW, freeform.minH);
         const { w: nw, h: nh } = clampFreeformCardSize(raw.nw, raw.nh);
-        const centerX = ex + w / 2;
-        const nx = Math.round(centerX - nw / 2);
-        const ny = ey;
+        const bounds = canvasBounds ?? { w: nw, h: nh, topOffset: 0 };
+        const { x: nx, y: ny } = centerCardPosition(bounds.w, bounds.h, nw, nh, bounds.topOffset);
         lastResize.current = { w: nw, h: nh, x: nx, y: ny };
         setElements(p => p.map(el =>
           el.id === resizing.id && el.elementType === "profile" ? { ...el, x: nx, y: ny, w: nw, h: nh } : el
