@@ -20,6 +20,11 @@ interface Props {
 // reserved height (musicBlockSizing.ts's MUSIC_BLOCK_HEIGHT). No wrapper
 // chrome here — background/border are ProfileCard.tsx's call (the wrapper
 // deliberately has none by default, same treatment as Contact Links).
+// Stage 4.2-C.2.3: artwork removed entirely (no per-track image, no
+// generated substitute — see CLAUDE.md's Music simplification notes);
+// `hasText` now only decides internal render layout (show/hide the
+// title/artist column), never how much width the block reserves — that's
+// `card.musicWidth`'s job (musicBlockSizing.ts), set by the user directly.
 //
 // Module-level component (not nested inside ProfileCard), same reason as
 // ContactLinkIcon: it owns non-trivial local state (playing, currentTime,
@@ -135,10 +140,8 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
         />
       )}
 
-      {/* Row 1: artwork (only if set) + play/pause + title/artist (only if set) + volume toggle */}
+      {/* Row 1: play/pause + title/artist (only if set) + volume toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-        {music.artwork && <Artwork src={music.artwork} />}
-
         <button
           onMouseDown={stop}
           onClick={togglePlay}
@@ -237,21 +240,6 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
           couldn't load audio
         </span>
       )}
-    </div>
-  );
-}
-
-// ── Artwork — only rendered when set (Stage 4.2-C.2.2: no placeholder box
-// when absent, keeps the compact layout as small as possible). No emoji. ──
-
-function Artwork({ src }: { src: string }) {
-  const size = 22;
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: 4, overflow: "hidden", flexShrink: 0,
-      background: "rgba(255,255,255,0.06)",
-    }}>
-      <img src={src} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
     </div>
   );
 }

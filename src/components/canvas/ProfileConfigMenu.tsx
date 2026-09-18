@@ -84,6 +84,8 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
           />
           <ProfileMusicMenu
             music={card.music}
+            musicWidth={card.musicWidth}
+            availableWidth={Math.max(0, card.w - 2 * getCardPadding(card.variant))}
             onChange={onChange}
           />
         </div>

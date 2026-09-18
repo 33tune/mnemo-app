@@ -241,6 +241,11 @@ export type ProfileCardData = {
   // (not audioUrl completeness) is what "enables" the block — absent means
   // "no Music block", and every existing card renders exactly as before.
   music?:           MusicBlockData;
+  // User-chosen width override for the Music block (Stage 4.2-C.2.3, menu
+  // slider — see ProfileMusicMenu.tsx). Absent -> MUSIC_BLOCK_WIDTH_DEFAULT
+  // (musicBlockSizing.ts). The ONLY dimension Music can resize — height is
+  // always the fixed MUSIC_BLOCK_HEIGHT, never derived from this field.
+  musicWidth?:      number;
   // Identity
   photo:           string;
   name:            string;

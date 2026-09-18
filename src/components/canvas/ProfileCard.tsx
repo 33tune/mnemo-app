@@ -771,18 +771,22 @@ function ProfileCard({
   const linksAvailWidth = Math.max(0, card.w - 2 * pad);
   const linksNaturalSize = contactLinksNaturalSize(contactLinks.length, linksAvailWidth, linksIconSize);
 
-  // ── Music (Stage 4.2-C.1, redesigned minimalist in 4.2-C.2.2) ─────────────
+  // ── Music (Stage 4.2-C.1, redesigned minimalist in 4.2-C.2.2, width made
+  //    user-controlled in 4.2-C.2.3) ─────────────────────────────────────────
   // Data + natural size only — same shape as Contact Links above. `card.music`
   // absent is the pre-4.2-C state: musicBlockInput below stays undefined, and
   // computeBlockLayout takes the exact same code path it always did (see the
-  // "no music block" regression test in cardComposition.test.ts). `hasText`
-  // drives which of musicBlockSizing.ts's two width targets applies — the
-  // block is content-sized, never a fraction of the card's own width.
+  // "no music block" regression test in cardComposition.test.ts). Width is
+  // `card.musicWidth` (set via the slider in ProfileMusicMenu.tsx), never
+  // content-driven — this is the ONLY dimension Music can resize; height
+  // stays MUSIC_BLOCK_HEIGHT regardless. This exact `musicNaturalSize` is
+  // what feeds MusicBlockInput below, so render/drag/growth all agree on
+  // the same box — no parallel sizing path.
   const hasMusic = !!card.music;
   const musicAvailWidth = Math.max(0, card.w - 2 * pad);
   const musicNaturalSize = computeMusicNaturalSize({
     availableWidth: musicAvailWidth,
-    hasText: !!(card.music?.title || card.music?.artist),
+    width: card.musicWidth,
   });
 
   // ── Composed layout (Stage 3B / 3B.3, extended in 4.2-B for Contact Links,
