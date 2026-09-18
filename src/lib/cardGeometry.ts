@@ -88,13 +88,34 @@ export interface FreeformCardBounds {
  * every format's own bounds in CARD_FORMATS, so the user can freely resize
  * into any shape any existing format already allowed, without picking one.
  * CARD_FORMATS stays the single source of truth; nothing is hardcoded a
- * second time here. */
+ * second time here.
+ *
+ * `minH` is deliberately NOT `Math.min(...)` the way `minW`/`maxW`/`maxH`
+ * are (Stage 4.2-C.2.3 fix). ProfileCard's content — pfp + identity group +
+ * location + bio + views — is a vertically STACKED column regardless of
+ * which format a card happens to have, so its height floor needs to be
+ * "how short can this stack get before it breaks", not "the shortest any
+ * one format's box was ever allowed to be". `ratioKind:"fixed"` formats'
+ * minH is a byproduct of their locked aspect ratio, not a content-safety
+ * measurement — square's 180 falls out of a 1:1 ratio at its minW, and
+ * phone's 249 is only taller because its ratio is narrow, neither one
+ * means anything about how much vertical room content needs. The three
+ * `ratioKind:"range"` formats (vertical/horizontal/card) don't have that
+ * problem — their minH was set as a real per-format floor independent of
+ * a locked ratio — and the tallest of those three (in practice vertical's
+ * 190, whose own comment above already derives it from "smallest avatar +
+ * padding + one line of text") is a floor safe for any shape. Taking the
+ * smallest of all five (previously landing on horizontal's 120) let a
+ * pure height-only resize collapse the stack well past where it can still
+ * render — that was the exact cause of the freeform-resize bug where
+ * shrinking only height could jump to roughly 120px and break composition. */
 export function getFreeformCardBounds(): FreeformCardBounds {
   const all = Object.values(CARD_FORMATS);
+  const rangeFormats = all.filter(c => c.ratioKind === "range");
   return {
     minW: Math.min(...all.map(c => c.minW)),
     maxW: Math.max(...all.map(c => c.maxW)),
-    minH: Math.min(...all.map(c => c.minH)),
+    minH: Math.max(...rangeFormats.map(c => c.minH)),
     maxH: Math.max(...all.map(c => c.maxH)),
   };
 }

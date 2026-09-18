@@ -77,17 +77,45 @@ test("resolveCardSize: sizeScale 0 and 1 hit the format's width bounds", () => {
   }
 });
 
-// ── Freeform width/height (Stage 4.2-C.2.2) ──────────────────────────────────
+// ── Freeform width/height (Stage 4.2-C.2.2, minH fix in 4.2-C.2.3) ───────────
 
-test("getFreeformCardBounds: the union covers every format's own min/max", () => {
+test("getFreeformCardBounds: minW/maxW/maxH still cover every format's own bounds", () => {
   const b = getFreeformCardBounds();
   for (const f of FORMATS) {
     const c = getCardConstraints(f);
     assert.ok(b.minW <= c.minW, `${f}: freeform minW ${b.minW} should be <= its own minW ${c.minW}`);
     assert.ok(b.maxW >= c.maxW, `${f}: freeform maxW ${b.maxW} should be >= its own maxW ${c.maxW}`);
-    assert.ok(b.minH <= c.minH, `${f}: freeform minH ${b.minH} should be <= its own minH ${c.minH}`);
     assert.ok(b.maxH >= c.maxH, `${f}: freeform maxH ${b.maxH} should be >= its own maxH ${c.maxH}`);
   }
+});
+
+test("getFreeformCardBounds: minH is the tallest minH among ratioKind:\"range\" formats (vertical/horizontal/card), derived from CARD_FORMATS — not hardcoded", () => {
+  const b = getFreeformCardBounds();
+  const rangeMinHs = FORMATS
+    .map(f => getCardConstraints(f))
+    .filter(c => c.ratioKind === "range")
+    .map(c => c.minH);
+  assert.equal(b.minH, Math.max(...rangeMinHs));
+  // Sanity: this excludes the two ratioKind:"fixed" formats (square, phone)
+  // entirely — their minH is a byproduct of a locked ratio, not a content
+  // floor (see getFreeformCardBounds' doc comment).
+  assert.notEqual(b.minH, getCardConstraints("square").minH);
+  assert.notEqual(b.minH, getCardConstraints("phone").minH);
+});
+
+test("regression: minH is no longer horizontal's unsafe 120px floor (the reported resize-jump bug)", () => {
+  const b = getFreeformCardBounds();
+  assert.ok(b.minH > 120, `minH ${b.minH} must be safely above the old unsafe floor of 120`);
+});
+
+test("regression: shrinking a ~600x380 card's height toward its extreme never collapses near 600x120", () => {
+  // Simulates dragging the height-only ("s") handle all the way down —
+  // width must stay completely untouched (independent axes), and the
+  // clamped height must land on the new safe floor, not the old one.
+  const { w, h } = clampFreeformCardSize(600, 50);
+  assert.equal(w, 600, "width must be untouched by a height-only resize");
+  assert.equal(h, getFreeformCardBounds().minH);
+  assert.ok(h > 120, `clamped height ${h} must not collapse to the old unsafe 120px floor`);
 });
 
 test("clampFreeformCardSize: clamps into the unified envelope, independently per axis (no ratio lock)", () => {
@@ -108,6 +136,11 @@ test("clampFreeformCardSize: a value already inside bounds passes through unchan
   const { w: nw, h: nh } = clampFreeformCardSize(w, h);
   assert.equal(nw, w);
   assert.equal(nh, h);
+});
+
+test("getFreeformCardBounds/clampFreeformCardSize: deterministic — same input always yields the same output", () => {
+  assert.deepEqual(getFreeformCardBounds(), getFreeformCardBounds());
+  assert.deepEqual(clampFreeformCardSize(600, 320), clampFreeformCardSize(600, 320));
 });
 
 test("sizeScaleFromDimensions is the approximate inverse of resolveCardSize's width mapping", () => {
