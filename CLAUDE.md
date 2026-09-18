@@ -72,11 +72,32 @@ planeado acá hasta confirmarlo.
   termina navegando). Ya aplicado a Contact Links (`ContactLinkIcon` en
   `ProfileCard.tsx`) y a las imágenes del canvas (`<img draggable={false}>`
   en `CanvasBoard.tsx`, precedente ya existente). Aplicar el mismo patrón a
-  cualquier `<a>` interno futuro (ej. dentro de un bloque Music/Gallery).
+  cualquier `<a>`/`<img>` interno futuro dentro de un bloque con drag propio.
   Complementario: los handlers `onDragEnter`/`onDragOver` que muestran "DROP
   IMAGES" ahora filtran por `e.dataTransfer.types.includes("Files")` — sin
   ese filtro, CUALQUIER drag nativo que entre al canvas (no solo archivos)
   disparaba el overlay.
+- **`CardFormat` ya no gatea el tamaño de ProfileCard** (Etapa 4.2-C.2.2,
+  2026-09-19). Sigue existiendo en el modelo de datos y sigue alimentando
+  `FORMAT_BIAS` en `cardComposition.ts` (desempate suave de topología, nunca
+  un gate estructural — `computeComposition()` nunca tocó w/h, confirmado en
+  su propio file header). El tamaño real es libre: `getFreeformCardBounds()`
+  (`cardGeometry.ts`) deriva un único envelope min/max de la unión de los 5
+  `CARD_FORMATS`, y `clampFreeformCardSize()` clampea ancho/alto de forma
+  independiente, sin ratio lock. Si se necesita un bounds nuevo para algo,
+  reusar/extender esta función — no reintroducir un segundo set de límites
+  hardcodeados ni un picker de formato en la UI.
+- **ProfileCard se recentra verticalmente solo** (Etapa 4.2-C.2.2,
+  2026-09-19) — `card.y` ya no es un valor fijo seteado una única vez en
+  `addProfile()`. Un efecto en `ProfileCard.tsx` (mismo patrón que el efecto
+  de growth de `card.h`) recalcula `Math.max(44, viewportH/2 - card.h/2)`
+  cada vez que cambia `card.h` o el viewport, y persiste solo si difiere.
+  `viewportH` viaja como prop desde `CanvasBoard.tsx`, explícitamente
+  `undefined` para `canvasMode==="space_mobile"` (el efecto no corre ahí).
+  `card.y` sigue siendo la única fuente de verdad — no hay un `top` de
+  render calculado aparte. Cualquier campo nuevo que cambie el alto/ancho
+  efectivo de la card debe seguir pasando por este mismo mecanismo, no por
+  un cálculo de posición paralelo.
 
 ## Decisiones de producto
 
@@ -132,14 +153,18 @@ ProfileCard siga incompleta.
                                        ProfileCard (deprioritizado 2026-09-18,
                                        ver nota abajo). Retomar cuando el
                                        usuario decida, no antes de Social/Browse.
-  C.3 Music Menu         DONE (commit PENDIENTE — ver checkpoint 2026-09-18)
-4.2-D Gallery            NEXT — la etapa más grande de las 4 que quedan
-                          (sin reorder/sortable infra reusable en todo el
-                          repo, hay que construirla; ver audit 2026-09-18)
+  C.3 Music Menu         DONE (commit 8e698a0)
+  C.2.2 Music redesign minimalista + ProfileCard freeform
+        width/height + vertical centering estructural
+                          DONE (commits 81b43a9, 0a13bb4, 0863b52 — 2026-09-19)
+GALLERY                  ELIMINADA DEL ROADMAP (2026-09-19) — no implementar,
+                          no reintroducir sin pedido explícito del usuario.
+                          Todo lo documentado en checkpoints previos sobre un
+                          plan de Gallery queda obsoleto/no vigente.
 5. Effects + Personalization   gaps puntuales, no una reconstrucción — ver
                                  audit 2026-09-18
-6. Responsive ProfileCard      depende de que Gallery + Effects estén
-                                 cerrados; ver decisión pendiente abajo
+6. Responsive ProfileCard      decisión pendiente (celulares reales sí/no,
+                                 ver abajo) — ya no depende de Gallery
 7. ProfileCard QA / freeze
 8. Social → Browse
 9. Eliminar Analytics
@@ -175,7 +200,49 @@ menú solo escribe a `card.music`, el bloque existente (`extraBlocks`,
 `computeBlockLayout`, drag) se encarga solo del resto, exactamente como
 estaba cerrado. Sin tests unitarios nuevos — no hay lógica pura nueva que
 valga la pena testear (el componente es UI pura sobre infraestructura ya
-testeada). **Siguiente etapa: 4.2-D Gallery.**
+testeada).
+
+**Checkpoint 2026-09-19 — Music redesign + freeform sizing + vertical
+centering (C.2.2), pusheados a `origin/main`:**
+- **Music redesign** (`81b43a9`) — Music dejó de reclamar todo el ancho
+  disponible (`computeMusicNaturalSize()` ahora acotado: 130px sin
+  title/artist, 220px con — nunca más `availableWidth`) y perdió su
+  background/border por defecto (hereda del ProfileCard, igual que Contact
+  Links). `ProfileMusicPlayer.tsx` pasó de 3 filas fijas (100px) a 2 filas
+  compactas (56px), con el volumen detrás de un popover en vez de una fila
+  siempre visible. `MusicBlockData`/`ProfileMusicMenu.tsx`/persistencia sin
+  cambios — cambio 100% de presentación/sizing.
+- **Freeform width/height** (`0a13bb4`) — `GeometryControls`
+  (`ProfileConfigMenu.tsx`) ya no tiene selector de formato: dos sliders
+  Ancho/Alto, bounds vía `getFreeformCardBounds()` (`cardGeometry.ts`, unión
+  de los min/max de los 5 `CARD_FORMATS` existentes, sin hardcodear un
+  segundo set de números). El resize-drag de ProfileCard
+  (`useDragDrop.ts`) ya no bloquea proporción para ningún formato,
+  incluidos los que antes eran `ratioKind:"fixed"` (square/phone). `card.format`
+  **sigue existiendo** en el modelo de datos y sigue alimentando
+  `FORMAT_BIAS` en `cardComposition.ts` como desempate suave de topología —
+  simplemente ya nadie lo vuelve a elegir desde el menú.
+- **Vertical centering** (`0863b52`) — nuevo efecto en `ProfileCard.tsx`,
+  mismo patrón que el efecto de growth existente: recalcula
+  `Math.max(44, viewportH/2 - card.h/2)` cada vez que cambia `card.h` o el
+  viewport, persiste solo si difiere. `viewportH` viaja desde
+  `CanvasBoard.tsx` como prop nueva, **explícitamente `undefined` para
+  `canvasMode==="space_mobile"`** (el efecto no corre ahí — cero cambios en
+  la arquitectura mobile legacy). `card.y` sigue siendo la única fuente de
+  verdad de posición (no hay override de render separado).
+- Ningún cambio en `computeComposition()`, `blockConstraints.ts`, ni en la
+  arquitectura de hit-testing/selección. 213/213 tests, `tsc`/`build`
+  limpios en los 3 commits.
+
+**Gallery fue eliminada del roadmap el 2026-09-19** — el plan técnico
+detallado que existía en un checkpoint anterior (data model, sizing,
+reorder, menu) **ya no es vigente**. No implementar, no retomar salvo
+pedido explícito y nuevo del usuario.
+
+**Siguiente etapa: Effects/Personalization** (gaps puntuales — shadow blur
+independiente de intensity, font weight/letter-spacing, y verificar en
+browser si tilt+floating se pisan al estar ambos activos, ver detalle en
+"La próxima sesión" abajo) — ya no bloqueada por Gallery.
 
 ## Modelo de datos — bloques internos ya implementados
 
@@ -195,7 +262,8 @@ testeada). **Siguiente etapa: 4.2-D Gallery.**
   `musicAnchorX/Y`. Configurable desde `ProfileMusicMenu.tsx` (Etapa
   4.2-C.3, DONE) — activar/desactivar es la presencia/ausencia de
   `card.music` (`onChange({ music: undefined })` para apagar), sin boolean
-  separado.
+  separado. Tamaño del bloque content-sized, no una fracción del ancho de
+  la card — ver `musicBlockSizing.ts` (Etapa 4.2-C.2.2).
 
 ## La próxima sesión
 
@@ -203,27 +271,11 @@ Debe empezar revisando este archivo y el estado real del repo (`git log`,
 código) antes de escribir código.
 
 **Prioridad vigente: terminar ProfileCard antes que cualquier otra parte del
-producto** (ver "Reprioridad 2026-09-18"). Orden exacto:
+producto** (ver "Reprioridad 2026-09-18"). **Gallery está eliminada del
+roadmap (2026-09-19) — no implementar, no retomar sin pedido explícito.**
+Orden exacto de lo que queda:
 
-1. **4.2-D Gallery** (siguiente etapa) — bloque interno nuevo, NO una
-   `GalleryCard` standalone. El audit de 2026-09-18 encontró:
-   - `GalleryWidget.tsx` (standalone legacy, todavía creable vía el `+` menu
-     — `addGallery()`, no tocado por P4A) sirve solo como referencia de
-     patrones (lightbox, upload, grid), no es reutilizable como contenedor
-     ni como data shape.
-   - No existe infraestructura de reorder/sortable-list en todo el repo —
-     hay que construirla desde cero (lo más barato: botones subir/bajar en
-     el menú, mismo nivel de esfuerzo que el resto del menú).
-   - Extensión limpia y ya confirmada: `computeBlockLayout()` acepta un 7mo
-     parámetro opcional `gallery?: GalleryBlockInput` (mismo shape que
-     `LinksBlockInput`/`MusicBlockInput`), un `galleryBlockSizing.ts` nuevo
-     (mismo patrón que `musicBlockSizing.ts`), y una 3ra entrada en el
-     array `extraBlocks` que `ProfileCard.tsx` ya arma — sin tocar la firma
-     de `computeRequiredCardHeight()`.
-   - Decisiones de producto todavía sin tomar: layout del bloque (¿grid o
-     strip horizontal?), filas fijas vs scroll, tamaño de thumbnail — no
-     hay precedente que copiar como sí lo había para Music.
-2. **Effects/Personalization** — mayormente ya implementado y wireado a
+1. **Effects/Personalization** — mayormente ya implementado y wireado a
    ProfileCard vía `PersonalizePanel.tsx`/`ProfileTypographyMenu.tsx`. Gaps
    puntuales encontrados en el audit: shadow blur no es independiente de
    shadow intensity (`sBlur = intensity * 40` en `CardLayers.tsx`); no hay
@@ -232,7 +284,7 @@ producto** (ver "Reprioridad 2026-09-18"). Orden exacto:
    — podrían pisarse entre sí si ambos están activos, confirmar en browser
    antes de dar Motion por cerrado. El invariante "opacity nunca toca
    content" está confirmado sólido en `CardLayers.tsx` (capas separadas).
-3. **Responsive** — el motor de composición ya es size-aware; el gap real es
+2. **Responsive** — el motor de composición ya es size-aware; el gap real es
    que `card.w`/`card.h` son valores fijos sin binding al viewport en vista
    pública (hoy se re-escala con `scale()` uniforme, no reflow real).
    **Decisión pendiente del usuario, todavía sin resolver:** hoy un
@@ -243,11 +295,12 @@ producto** (ver "Reprioridad 2026-09-18"). Orden exacto:
    pero sí dejar de usarlo para ese tráfico) — confirmar con el usuario si
    eso cuenta como excepción válida a "no tocar mobile legacy" antes de
    planificar esta etapa en detalle.
-4. **ProfileCard QA/freeze** — las combinaciones de bloques/tamaños/efectos
+3. **ProfileCard QA/freeze** — las combinaciones de bloques/tamaños/efectos
    ya especificadas por el usuario.
-5. Recién después: Social/Browse, eliminar Analytics, Global Design System,
+4. Recién después: Social/Browse, eliminar Analytics, Global Design System,
    QA final. P4B (purga de datos legacy) se retoma cuando el usuario lo pida
    — ya no bloquea nada de lo anterior.
 
-No adelantar Gallery/Effects/Responsive fuera de este orden, y no tocar
-Social/Browse/Analytics/Global Design System hasta cerrar ProfileCard QA.
+No adelantar Effects/Responsive fuera de este orden, no reintroducir Gallery
+sin pedido explícito, y no tocar Social/Browse/Analytics/Global Design
+System hasta cerrar ProfileCard QA.
