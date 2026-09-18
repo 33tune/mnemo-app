@@ -2749,7 +2749,13 @@ export default function CanvasBoard({
           // addProfile() untouched — legacy mobile architecture stays out
           // of scope here.
           viewportW={canvasMode==="space_mobile"?undefined:viewportW}
-          viewportH={canvasMode==="space_mobile"?undefined:viewportH} />);
+          viewportH={canvasMode==="space_mobile"?undefined:viewportH}
+          // Stage 4.2-C.2.5: derived from useDragDrop's own `resizing` state
+          // (already destructured above, no second resize-state system) —
+          // true exactly while THIS profile is being manually resized, so
+          // ProfileCard.tsx's growth effect can stay out of the way for the
+          // whole gesture instead of fighting the drag tick by tick.
+          isResizing={resizing?.type==="profile" && resizing.id===prof.id} />);
       })}
 
 

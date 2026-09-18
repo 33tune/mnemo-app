@@ -150,6 +150,21 @@ export function centerCardPosition(
   };
 }
 
+/**
+ * Whether ProfileCard's content-driven growth effect should run right now
+ * (Stage 4.2-C.2.5). `computeRequiredCardHeight()` can only ever grow —
+ * `Math.max(currentH, ...)` — which is correct when nothing else is
+ * changing `h`, but during an active manual resize the drag IS also
+ * writing `h` every tick; letting growth run at the same time makes it
+ * fight the drag (growth re-grows past whatever the user just shrank to,
+ * the next drag tick shrinks it again, repeat) — that fight, not any of
+ * the pure size/position math, was the cause of the reported vertical
+ * resize jump/oscillation. Manual resize gets exclusive control of size
+ * while it's in progress; growth only re-evaluates once the gesture ends. */
+export function shouldApplyGrowth(isResizing: boolean): boolean {
+  return !isResizing;
+}
+
 /** Resolves the ratio (w/h) that should apply for a given format + current size. */
 export function getCardAspectRatio(format: CardFormat | undefined, w: number, h: number): number {
   const c = getCardConstraints(format);

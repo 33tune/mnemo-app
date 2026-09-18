@@ -18,7 +18,7 @@ import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
   rectToAnchor, snapAxis, snappedPoint, MAGNETIC_POINTS, centerAlignAnchor,
 } from "@/lib/blockConstraints";
-import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight, centerCardPosition } from "@/lib/cardGeometry";
+import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight, centerCardPosition, shouldApplyGrowth } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
 import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
@@ -207,6 +207,14 @@ interface Props {
    * them; recentering simply doesn't run without both. */
   viewportW?:        number;
   viewportH?:        number;
+  /** Stage 4.2-C.2.5: true while a manual resize gesture is active on THIS
+   * card (derived in CanvasBoard.tsx from useDragDrop's own `resizing`
+   * state — not a second resize-state system). Growth stays fully
+   * paused while this is true, so the drag has exclusive control of
+   * size; the effect re-evaluates once the gesture ends. Defaults to
+   * false so any caller that doesn't pass it keeps growth active, same
+   * as before this prop existed. */
+  isResizing?:       boolean;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -231,7 +239,7 @@ function initFreePos(card: ProfileCardData): FreePos {
 function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
-  currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH,
+  currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
@@ -886,6 +894,14 @@ function ProfileCard({
     : 0;
   useEffect(() => {
     if (layout === "free") return;
+    // Stage 4.2-C.2.5: manual resize gets exclusive control of size while
+    // it's in progress — growth must not fight the drag (see
+    // shouldApplyGrowth's doc comment in cardGeometry.ts for what
+    // running both at once actually caused: the reported vertical
+    // resize jump/oscillation). isResizing comes from CanvasBoard.tsx's
+    // own `resizing` state, already the single source of truth for "is a
+    // resize gesture active" — no second resize-state system here.
+    if (!shouldApplyGrowth(isResizing)) return;
     const extraBlocks: { naturalHeight: number; gap: number }[] = [];
     if (contactLinks.length > 0) extraBlocks.push({ naturalHeight: linksNaturalSize.height, gap: CONTACT_LINK_GAP });
     if (hasMusic) extraBlocks.push({ naturalHeight: musicNaturalSize.height, gap: MUSIC_BLOCK_GAP });
@@ -904,7 +920,7 @@ function ProfileCard({
 
     if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, contactLinks.length, linksNaturalSize.height, hasMusic, musicNaturalSize.height, card.format, card.h, card.w, card.x, card.y, contentBottom, pad, card.id, viewportW, viewportH]);
+  }, [layout, isResizing, contactLinks.length, linksNaturalSize.height, hasMusic, musicNaturalSize.height, card.format, card.h, card.w, card.x, card.y, contentBottom, pad, card.id, viewportW, viewportH]);
 
   function renderComposed() {
     if (!composedResult) return null; // only called when layout !== "free"

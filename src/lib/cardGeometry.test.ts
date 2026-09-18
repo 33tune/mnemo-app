@@ -10,6 +10,7 @@ import {
   getFreeformCardBounds,
   clampFreeformCardSize,
   centerCardPosition,
+  shouldApplyGrowth,
   MIN_PROFILE_CARD_WIDTH,
   MIN_PROFILE_CARD_HEIGHT,
   getPfpSizeBounds,
@@ -210,6 +211,59 @@ test("centerCardPosition: content-driven growth (width unchanged, height increas
 
 test("centerCardPosition: deterministic", () => {
   assert.deepEqual(centerCardPosition(1200, 800, 600, 360, 44), centerCardPosition(1200, 800, 600, 360, 44));
+});
+
+// ── Growth-vs-resize guard (Stage 4.2-C.2.5) ──────────────────────────────────
+// shouldApplyGrowth is what stops ProfileCard.tsx's growth effect from
+// fighting an active manual resize — see its doc comment for the mechanism
+// this closes off (growth re-growing past whatever height the drag just
+// set, tick by tick, producing the reported vertical jump/oscillation).
+
+test("shouldApplyGrowth: false while a manual resize is in progress — growth must not run", () => {
+  assert.equal(shouldApplyGrowth(true), false);
+});
+
+test("shouldApplyGrowth: true once no resize is in progress — growth may run", () => {
+  assert.equal(shouldApplyGrowth(false), true);
+});
+
+test("post-resize growth: if the height the user released at already satisfies content, computeRequiredCardHeight is a no-op", () => {
+  // Simulates: isResizing just flipped back to false, growth re-evaluates.
+  // contentBottom(150) + block(20+gap10) + padding(20) = 200, comfortably
+  // under currentH(250) — nothing to correct.
+  const c = getCardConstraints("vertical");
+  const currentH = c.minH + 60;
+  const h = computeRequiredCardHeight({
+    format: "vertical", currentH, contentBottom: 150, padding: 20,
+    extraBlocks: [{ naturalHeight: 20, gap: 10 }],
+  });
+  assert.equal(h, currentH, "already-sufficient height must not be changed");
+});
+
+test("post-resize growth: if the height the user released at is below what Links/Music need, growth corrects it upward exactly once resizing has stopped", () => {
+  const c = getCardConstraints("vertical");
+  const currentH = c.minH; // released right at the freeform floor, too short for content
+  const h = computeRequiredCardHeight({
+    format: "vertical", currentH, contentBottom: currentH - 10, padding: 20,
+    extraBlocks: [{ naturalHeight: 200, gap: 10 }], // Links + Music sized block
+  });
+  assert.ok(h > currentH, "growth must still be able to correct height after the gesture ends");
+});
+
+test("post-resize growth + centering: correcting height after a resize keeps the card centered via centerCardPosition (same formula, no drift)", () => {
+  const c = getCardConstraints("vertical");
+  const releasedH = c.minH;
+  const requiredH = computeRequiredCardHeight({
+    format: "vertical", currentH: releasedH, contentBottom: releasedH - 10, padding: 20,
+    extraBlocks: [{ naturalHeight: 200, gap: 10 }],
+  });
+  assert.ok(requiredH > releasedH, "sanity: this scenario must actually trigger a correction");
+  const canvasW = 1200, canvasH = 800, cardW = 600;
+  const beforeCorrection = centerCardPosition(canvasW, canvasH, cardW, releasedH, 44);
+  const afterCorrection  = centerCardPosition(canvasW, canvasH, cardW, requiredH, 44);
+  assert.equal(afterCorrection.x, beforeCorrection.x, "width didn't change, so x must stay identical");
+  assert.notEqual(afterCorrection.y, beforeCorrection.y, "a taller card must re-center y for its new height");
+  assert.equal(afterCorrection.y, Math.max(44, Math.round((canvasH - requiredH) / 2)), "y must match the true canvas center for the corrected height");
 });
 
 test("sizeScaleFromDimensions is the approximate inverse of resolveCardSize's width mapping", () => {
