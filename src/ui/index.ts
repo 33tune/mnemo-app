@@ -10,3 +10,4 @@ export { TextInput }      from "./TextInput";
 export { ActionButton }   from "./ActionButton";
 export { Divider }        from "./Divider";
 export { Collapsible }    from "./Collapsible";
+export { MenuNote }       from "./MenuNote";

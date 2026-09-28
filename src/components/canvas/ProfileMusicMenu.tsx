@@ -2,7 +2,7 @@
 import { useRef } from "react";
 import type { MusicBlockData, ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { MenuSection, MenuRow, SliderRow, TextInput, ActionButton, Toggle, Collapsible } from "@/ui";
+import { MenuSection, MenuNote, MenuRow, SliderRow, TextInput, ActionButton, Toggle, Collapsible } from "@/ui";
 import { MUSIC_BLOCK_WIDTH_MIN, MUSIC_BLOCK_WIDTH_DEFAULT } from "@/lib/musicBlockSizing";
 
 type MusicPatch = Partial<Pick<ProfileCardData, "music" | "musicWidth">>;
@@ -14,6 +14,10 @@ interface Props {
    * ceiling, same "never exceed what the card can offer" contract every
    * other size control in this menu already follows. */
   availableWidth:  number;
+  /** Stage 4.2-C.2.7: whether the block's resolved box still fits in the
+   * card's padded content area (ProfileCard.tsx's blockFits). `undefined` =
+   * not applicable; only an explicit `false` shows the note below. */
+  fitsInCard?:     boolean;
   onChange:        (patch: MusicPatch) => void;
 }
 
@@ -31,7 +35,7 @@ const DEFAULT_MUSIC: MusicBlockData = { sourceType: "upload", audioUrl: "" };
 // computeRequiredCardHeight() liberan el espacio solos — nunca se tocan
 // posiciones de otros bloques a mano acá. Solo MP3 subido — sin URL,
 // Spotify/YouTube/SoundCloud, ver CLAUDE.md.
-export default function ProfileMusicMenu({ music, musicWidth, availableWidth, onChange }: Props) {
+export default function ProfileMusicMenu({ music, musicWidth, availableWidth, fitsInCard, onChange }: Props) {
   const audioRef = useRef<HTMLInputElement>(null);
 
   function patchMusic(p: Partial<MusicBlockData>) {
@@ -68,6 +72,11 @@ export default function ProfileMusicMenu({ music, musicWidth, availableWidth, on
 
       {music && (
         <>
+          {fitsInCard === false && (
+            <MenuNote>
+              No entra en la altura actual de la card — no se muestra hasta que la agrandes.
+            </MenuNote>
+          )}
           <div style={{ display: "flex", gap: 6 }}>
             <ActionButton onClick={() => audioRef.current?.click()}>
               {music.audioUrl ? "reemplazar MP3" : "subir MP3"}

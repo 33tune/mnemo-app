@@ -935,6 +935,34 @@ function ProfileCard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, isResizing, card.format, card.h, card.w, card.x, card.y, contentBottom, pad, card.id, viewportW, viewportH]);
 
+  // Stage 4.2-C.2.6: Links/Music are optional blocks, not structural
+  // content — the card no longer grows to fit them (see the growth
+  // effect above). Since neither one shrinks vertically to match
+  // whatever room is left, and the content layer clips with
+  // `overflow:hidden`, a block that doesn't fully fit would render
+  // silently cut off instead of just not showing at all. This is the
+  // guard that prevents that: don't render the block if its own already-
+  // resolved box (computeBlockLayout's output, untouched) would extend
+  // past the card's padded content area. No new bounds/positioning
+  // system — purely a visibility check on a box already computed.
+  // Reappears on its own, no new state, the next time renderComposed()
+  // runs with a tall-enough card.h (e.g. after growing back).
+  // Stage 4.2-C.2.7: lives in the component body (not inside
+  // renderComposed) only so the SAME verdict can also reach
+  // ProfileConfigMenu below — the predicate itself is unchanged.
+  const blockFits = (box: ElementBox | undefined): boolean =>
+    !!box && box.y + box.h <= card.h - pad;
+
+  // Stage 4.2-C.2.7: a block that stops rendering because it no longer
+  // fits is otherwise invisible to the user — nothing in the menu where
+  // they configured it says why it vanished. These flags carry exactly
+  // the render-time verdict to the menu. `undefined` means "not
+  // applicable" (layout "free" doesn't use this engine, or Contact
+  // Links/Music at all), which the menus treat as "say nothing" — never
+  // as "doesn't fit".
+  const linksFits = composedResult ? blockFits(composedResult.boxes.links) : undefined;
+  const musicFits = composedResult ? blockFits(composedResult.boxes.music) : undefined;
+
   function renderComposed() {
     if (!composedResult) return null; // only called when layout !== "free"
     const { boxes, identityRect } = composedResult;
@@ -961,21 +989,6 @@ function ProfileCard({
     // Applying it to the block under the mouse itself would reintroduce
     // exactly the lag §1 rules out.
     const dragTransition = (key: BlockKey): string => draggingBlockRef.current === key ? "none" : REFLOW_TRANSITION;
-
-    // Stage 4.2-C.2.6: Links/Music are optional blocks, not structural
-    // content — the card no longer grows to fit them (see the growth
-    // effect above). Since neither one shrinks vertically to match
-    // whatever room is left, and the content layer clips with
-    // `overflow:hidden`, a block that doesn't fully fit would render
-    // silently cut off instead of just not showing at all. This is the
-    // guard that prevents that: don't render the block if its own already-
-    // resolved box (computeBlockLayout's output, untouched) would extend
-    // past the card's padded content area. No new bounds/positioning
-    // system — purely a visibility check on a box already computed.
-    // Reappears on its own, no new state, the next time renderComposed()
-    // runs with a tall-enough card.h (e.g. after growing back).
-    const blockFits = (box: ElementBox | undefined): boolean =>
-      !!box && box.y + box.h <= card.h - pad;
 
     const startIdentityDrag = (e: React.MouseEvent) => {
       if (!identityRect) return;
@@ -1215,7 +1228,7 @@ function ProfileCard({
         {/* ── Config menu ── */}
         {menuOpen && canInteract && portalPos && createPortal(
           <MenuPanel pos={portalPos} width={288} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
-            <ProfileConfigMenu card={card} onChange={patch => updateProfile(card.id, patch)} />
+            <ProfileConfigMenu card={card} linksFits={linksFits} musicFits={musicFits} onChange={patch => updateProfile(card.id, patch)} />
           </MenuPanel>
         , document.body)}
       </div>

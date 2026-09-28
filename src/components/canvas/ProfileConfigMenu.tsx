@@ -34,10 +34,16 @@ const TITLES: Record<View, string> = {
 
 interface ProfileConfigMenuProps {
   card:     ProfileCardData;
+  /** Stage 4.2-C.2.7: render-time verdict from ProfileCard's blockFits() —
+   * whether each optional block's resolved box still fits inside the card's
+   * padded content area. `undefined` = not applicable (layout "free", which
+   * doesn't use these blocks); only an explicit `false` warns. */
+  linksFits?: boolean;
+  musicFits?: boolean;
   onChange: (patch: Partial<ProfileCardData>) => void;
 }
 
-export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuProps) {
+export default function ProfileConfigMenu({ card, linksFits, musicFits, onChange }: ProfileConfigMenuProps) {
   const [view, setView] = useState<View>("root");
   const parent = PARENT_VIEW[view];
 
@@ -80,12 +86,14 @@ export default function ProfileConfigMenu({ card, onChange }: ProfileConfigMenuP
           <ProfileContactLinksMenu
             contactLinks={card.contactLinks}
             linksIconSize={card.linksIconSize}
+            fitsInCard={linksFits}
             onChange={onChange}
           />
           <ProfileMusicMenu
             music={card.music}
             musicWidth={card.musicWidth}
             availableWidth={Math.max(0, card.w - 2 * getCardPadding(card.variant))}
+            fitsInCard={musicFits}
             onChange={onChange}
           />
         </div>

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { ContactLink, ProfileCardData } from "@/types";
-import { T, MenuSection, SliderRow, TextInput } from "@/ui";
+import { T, MenuSection, MenuNote, SliderRow, TextInput } from "@/ui";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
 import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
 
@@ -10,6 +10,10 @@ type ContactLinksPatch = Partial<Pick<ProfileCardData, "contactLinks" | "linksIc
 interface Props {
   contactLinks?: ContactLink[];
   linksIconSize?: number;
+  /** Stage 4.2-C.2.7: whether the block's resolved box still fits in the
+   * card's padded content area (ProfileCard.tsx's blockFits). `undefined` =
+   * not applicable; only an explicit `false` shows the note below. */
+  fitsInCard?: boolean;
   onChange: (patch: ContactLinksPatch) => void;
 }
 
@@ -17,7 +21,7 @@ interface Props {
 // — se detecta de la URL (ver detectPlatform) y solo se muestra como preview,
 // consistente con "no almacenar info derivable". Sin inline editing en el
 // canvas: todo pasa por este menú, igual que el resto de ProfileConfigMenu.
-export default function ProfileContactLinksMenu({ contactLinks, linksIconSize, onChange }: Props) {
+export default function ProfileContactLinksMenu({ contactLinks, linksIconSize, fitsInCard, onChange }: Props) {
   const links = contactLinks ?? [];
   const [newUrl, setNewUrl] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -56,6 +60,11 @@ export default function ProfileContactLinksMenu({ contactLinks, linksIconSize, o
     // marginTop would stack on top of that flex gap and double the spacing
     // above this section.
     <MenuSection label="Contact Links" first>
+      {links.length > 0 && fitsInCard === false && (
+        <MenuNote>
+          No entra en la altura actual de la card — no se muestra hasta que la agrandes.
+        </MenuNote>
+      )}
       <SliderRow
         label="Tamaño" min={CONTACT_LINK_ICON_SIZE_MIN} max={CONTACT_LINK_ICON_SIZE_MAX} step={1}
         value={linksIconSize ?? CONTACT_LINK_ICON_SIZE} unit="px"
