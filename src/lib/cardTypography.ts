@@ -134,15 +134,26 @@ export interface RoleTypographyCardFields {
   bioLineHeight?: number;
   viewsFontSize?: number;
   monoLineHeight?: number;       // shared by handle/descriptor/location/views
+  // Stage FASE 2: per-role weight — same "absent = no explicit CSS property"
+  // contract as monoLineHeight (handle/descriptor/location/bio/views never
+  // had an explicit font-weight before this stage, browser default applied).
+  handleFontWeight?: number;
+  descriptorFontWeight?: number;
+  locationFontWeight?: number;
+  bioFontWeight?: number;
+  viewsFontWeight?: number;
+  /** Stage FASE 2: the one mono role FASE 1 left non-overridable — render
+   * only, views' width was never letter-spacing-derived. */
+  viewsLetterSpacing?: number;
 }
 
 export interface ResolvedCardTypography {
   name: { fontSize: number; letterSpacing: number; lineHeight: number; fontWeight: number };
-  handle: { fontSize: number; letterSpacing: number; lineHeight?: number };
-  descriptor: { fontSize: number; letterSpacing: number; lineHeight?: number };
-  location: { fontSize: number; letterSpacing: number; lineHeight?: number };
-  bio: { fontSize: number; lineHeight: number };
-  views: { fontSize: number; letterSpacing: number; lineHeight?: number };
+  handle: { fontSize: number; letterSpacing: number; lineHeight?: number; fontWeight?: number };
+  descriptor: { fontSize: number; letterSpacing: number; lineHeight?: number; fontWeight?: number };
+  location: { fontSize: number; letterSpacing: number; lineHeight?: number; fontWeight?: number };
+  bio: { fontSize: number; lineHeight: number; fontWeight?: number };
+  views: { fontSize: number; letterSpacing: number; lineHeight?: number; fontWeight?: number };
 }
 
 /**
@@ -170,25 +181,30 @@ export function resolveCardTypography(card: RoleTypographyCardFields, nameFontSi
       fontSize: card.handleFontSize ?? TYPOGRAPHY_METRICS.monoFontSize,
       letterSpacing: card.handleLetterSpacing ?? TYPOGRAPHY_METRICS.handleLetterSpacing,
       lineHeight: card.monoLineHeight,
+      fontWeight: card.handleFontWeight,
     },
     descriptor: {
       fontSize: card.statusFontSize ?? TYPOGRAPHY_METRICS.monoFontSize,
       letterSpacing: card.descriptorLetterSpacing ?? TYPOGRAPHY_METRICS.descriptorLetterSpacing,
       lineHeight: card.monoLineHeight,
+      fontWeight: card.descriptorFontWeight,
     },
     location: {
       fontSize: card.locationFontSize ?? TYPOGRAPHY_METRICS.locationFontSize,
       letterSpacing: card.locationLetterSpacing ?? TYPOGRAPHY_METRICS.locationLetterSpacing,
       lineHeight: card.monoLineHeight,
+      fontWeight: card.locationFontWeight,
     },
     bio: {
       fontSize: card.bioFontSize ?? 8,
       lineHeight: card.bioLineHeight ?? RENDER_DEFAULTS.bioLineHeight,
+      fontWeight: card.bioFontWeight,
     },
     views: {
       fontSize: card.viewsFontSize ?? TYPOGRAPHY_METRICS.viewsFontSize,
-      letterSpacing: RENDER_DEFAULTS.viewsLetterSpacing,
+      letterSpacing: card.viewsLetterSpacing ?? RENDER_DEFAULTS.viewsLetterSpacing,
       lineHeight: card.monoLineHeight,
+      fontWeight: card.viewsFontWeight,
     },
   };
 }

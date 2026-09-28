@@ -1,36 +1,34 @@
 "use client";
 import { useState } from "react";
-import type { CSSProperties } from "react";
 import type { ProfileCardData, CardEffects } from "@/types";
-import { T } from "@/ui";
+import { T, Tabs } from "@/ui";
 import { getCardPadding } from "@/lib/cardGeometry";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
 import ProfileMusicMenu from "./ProfileMusicMenu";
 import ProfileTypographyMenu from "./ProfileTypographyMenu";
-import PersonalizePanel from "./PersonalizePanel";
+import ProfileBackgroundMenu from "./ProfileBackgroundMenu";
+import ProfileEffectsMenu from "./ProfileEffectsMenu";
 
-type View = "root" | "datos" | "estilo" | "estilo/fondo" | "estilo/tipografia" | "estilo/forma" | "estilo/efectos";
+// Stage FASE 2 (Personalization UI/UX): one flat Tabs bar, no nested "doors".
+// Before this stage: root -> Datos/Estilo doors -> (inside Estilo) 4 more
+// doors (Fondo/Tipografía/Forma/Efectos) -> controls — 2 clicks of pure
+// navigation before reaching anything. The audit's own UX finding (see
+// CLAUDE.md) was that this asymmetry wasn't justified by content volume.
+// Now: open the menu, the 4 tabs are all visible immediately, one click
+// reaches any category. "Datos" -> CONTENT, "Fondo" -> BACKGROUND,
+// "Tipografía" -> TEXT (now much deeper — every role, not just one global
+// size), "Forma"+"Efectos" merged into EFFECTS (Border renamed from "Forma"
+// per the audit's naming-collision finding — see ProfileEffectsMenu.tsx).
+type View = "content" | "background" | "text" | "effects";
 
-const PARENT_VIEW: Partial<Record<View, View>> = {
-  datos: "root",
-  estilo: "root",
-  "estilo/fondo": "estilo",
-  "estilo/tipografia": "estilo",
-  "estilo/forma": "estilo",
-  "estilo/efectos": "estilo",
-};
-
-const TITLES: Record<View, string> = {
-  root: "presentation card",
-  datos: "datos",
-  estilo: "estilo",
-  "estilo/fondo": "fondo",
-  "estilo/tipografia": "tipografía",
-  "estilo/forma": "forma",
-  "estilo/efectos": "efectos",
-};
+const TAB_ITEMS: { id: View; label: string }[] = [
+  { id: "content",    label: "Content" },
+  { id: "background", label: "Background" },
+  { id: "text",       label: "Text" },
+  { id: "effects",    label: "Effects" },
+];
 
 interface ProfileConfigMenuProps {
   card:     ProfileCardData;
@@ -40,12 +38,15 @@ interface ProfileConfigMenuProps {
    * doesn't use these blocks); only an explicit `false` warns. */
   linksFits?: boolean;
   musicFits?: boolean;
+  /** The already-resolved base text color (isLight-derived fallback
+   * applied) — ProfileCard.tsx computes this once for render; threaded down
+   * to TEXT so every role's ColorRow shows the REAL current color. */
+  baseColor: string;
   onChange: (patch: Partial<ProfileCardData>) => void;
 }
 
-export default function ProfileConfigMenu({ card, linksFits, musicFits, onChange }: ProfileConfigMenuProps) {
-  const [view, setView] = useState<View>("root");
-  const parent = PARENT_VIEW[view];
+export default function ProfileConfigMenu({ card, linksFits, musicFits, baseColor, onChange }: ProfileConfigMenuProps) {
+  const [view, setView] = useState<View>("content");
 
   function patchEffects(effects: CardEffects) {
     onChange({ effects });
@@ -53,45 +54,24 @@ export default function ProfileConfigMenu({ card, linksFits, musicFits, onChange
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <Header title={TITLES[view]} onBack={parent ? () => setView(parent) : undefined} />
+      <Header />
+      <div style={{ marginBottom: T.space[4] }}>
+        <Tabs tabs={TAB_ITEMS} active={view} onChange={id => setView(id as View)} variant="underline" />
+      </div>
 
-      {view === "root" && (
-        <Doors>
-          <Door label="Datos" desc="quién sos" onClick={() => setView("datos")} />
-          <Door label="Estilo" desc="cómo se ve" onClick={() => setView("estilo")} />
-        </Doors>
-      )}
-
-      {view === "datos" && (
+      {view === "content" && (
         <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
           <ProfileIdentityMenu
-            photo={card.photo}
-            name={card.name}
-            handle={card.handle}
-            photoSize={card.photoSize}
-            pfpSizePx={card.pfpSizePx}
-            pfpRadius={card.pfpRadius}
+            card={card}
             cardW={card.w}
             cardH={card.h}
             pad={getCardPadding(card.variant)}
             onChange={onChange}
           />
-          <ProfileMetadataMenu
-            status={card.status}
-            location={card.location}
-            bio={card.bio}
-            showViews={card.showViews}
-            onChange={onChange}
-          />
-          <ProfileContactLinksMenu
-            contactLinks={card.contactLinks}
-            linksIconSize={card.linksIconSize}
-            fitsInCard={linksFits}
-            onChange={onChange}
-          />
+          <ProfileMetadataMenu card={card} onChange={onChange} />
+          <ProfileContactLinksMenu card={card} fitsInCard={linksFits} onChange={onChange} />
           <ProfileMusicMenu
-            music={card.music}
-            musicWidth={card.musicWidth}
+            card={card}
             availableWidth={Math.max(0, card.w - 2 * getCardPadding(card.variant))}
             fitsInCard={musicFits}
             onChange={onChange}
@@ -99,36 +79,16 @@ export default function ProfileConfigMenu({ card, linksFits, musicFits, onChange
         </div>
       )}
 
-      {view === "estilo" && (
-        <Doors>
-          <Door label="Fondo"      desc="color, imagen, blur"       onClick={() => setView("estilo/fondo")} />
-          <Door label="Tipografía" desc="fuente, tamaños, color"    onClick={() => setView("estilo/tipografia")} />
-          <Door label="Forma"      desc="geometría, borde"          onClick={() => setView("estilo/forma")} />
-          <Door label="Efectos"    desc="glow, sombra, más"         onClick={() => setView("estilo/efectos")} />
-        </Doors>
+      {view === "background" && (
+        <ProfileBackgroundMenu effects={card.effects} onChange={patchEffects} />
       )}
 
-      {view === "estilo/fondo" && (
-        <PersonalizePanel tabs={["fondo"]} effects={card.effects} onChange={patchEffects} isProfileCard />
+      {view === "text" && (
+        <ProfileTypographyMenu card={card} baseColor={baseColor} onChange={onChange} />
       )}
 
-      {view === "estilo/tipografia" && (
-        <ProfileTypographyMenu
-          font={card.font ?? "DM Sans"}
-          nameFontSize={card.nameFontSize}
-          bioFontSize={card.bioFontSize}
-          textColor={card.textColor}
-          textAlign={card.textAlign}
-          onChange={onChange}
-        />
-      )}
-
-      {view === "estilo/forma" && (
-        <PersonalizePanel tabs={["forma"]} effects={card.effects} onChange={patchEffects} isProfileCard />
-      )}
-
-      {view === "estilo/efectos" && (
-        <PersonalizePanel tabs={["efectos"]} effects={card.effects} onChange={patchEffects} isProfileCard />
+      {view === "effects" && (
+        <ProfileEffectsMenu effects={card.effects} onChange={patchEffects} />
       )}
     </div>
   );
@@ -136,71 +96,19 @@ export default function ProfileConfigMenu({ card, linksFits, musicFits, onChange
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
-function Header({ title, onBack }: { title: string; onBack?: () => void }) {
+function Header() {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8,
       paddingBottom: T.space[3], marginBottom: T.space[4],
       borderBottom: `1px solid ${T.border.subtle}`,
     }}>
-      {onBack && (
-        <button
-          onMouseDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); onBack(); }}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            width: 22, height: 22, borderRadius: T.radius.sm, flexShrink: 0,
-            background: "transparent", border: `1px solid ${T.border.default}`, cursor: "pointer",
-          }}
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={T.text.secondary} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-      )}
       <span style={{
         fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.1em",
         textTransform: "uppercase", color: T.text.primary,
       }}>
-        {title}
+        presentation card
       </span>
     </div>
   );
 }
-
-// ── Doors (nivel de navegación visual, no un formulario) ─────────────────────
-
-function Doors({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: "flex", flexDirection: "column", gap: T.space[2] }}>{children}</div>;
-}
-
-function Door({ label, desc, onClick }: { label: string; desc: string; onClick: () => void }) {
-  const [hov, setHov] = useState(false);
-  const style: CSSProperties = {
-    display: "flex", flexDirection: "column", gap: 2, textAlign: "left",
-    padding: "14px 16px", borderRadius: T.radius.md, cursor: "pointer",
-    background: hov ? T.surface.overlay : T.surface.raised,
-    border: `1px solid ${hov ? T.border.strong : T.border.default}`,
-    transition: "background 0.12s, border-color 0.12s",
-  };
-  return (
-    <button
-      onMouseDown={e => e.stopPropagation()}
-      onClick={e => { e.stopPropagation(); onClick(); }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={style}
-    >
-      <span style={{ fontFamily: T.font.sans, fontSize: 15, fontWeight: 600, color: T.text.primary }}>{label}</span>
-      <span style={{ fontFamily: T.font.mono, fontSize: T.size.xs, color: T.text.muted }}>{desc}</span>
-    </button>
-  );
-}
-
-// Stage 4.2-C.2.4: no size controls in this menu at all anymore — width and
-// height are set exclusively by dragging ProfileCard's own resize handles
-// on the canvas (useDragDrop.ts), which already keep the card centered as
-// it resizes (centerCardPosition in cardGeometry.ts). CardFormat stays an
-// internal concept (cardComposition.ts's FORMAT_BIAS topology tiebreaker,
-// and the fallback for any card whose `format` was set before freeform
-// sizing existed) — the user never chooses or sizes via it here.

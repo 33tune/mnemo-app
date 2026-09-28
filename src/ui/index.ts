@@ -11,3 +11,6 @@ export { ActionButton }   from "./ActionButton";
 export { Divider }        from "./Divider";
 export { Collapsible }    from "./Collapsible";
 export { MenuNote }       from "./MenuNote";
+export { ColorRow }       from "./ColorRow";
+export { FontSelect }     from "./FontSelect";
+export { OffsetRow }      from "./OffsetRow";

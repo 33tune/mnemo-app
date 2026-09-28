@@ -1,6 +1,7 @@
 "use client";
 import type { ProfileCardData } from "@/types";
 import { T, MenuSection, MenuRow, Toggle } from "@/ui";
+import BlockStyleFields from "./BlockStyleFields";
 
 const fieldInputStyle: React.CSSProperties = {
   display: "block", width: "100%",
@@ -10,19 +11,19 @@ const fieldInputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-type MetadataPatch = Partial<Pick<ProfileCardData, "status" | "location" | "bio" | "showViews">>;
+type MetadataPatch = Partial<ProfileCardData>;
 
 interface ProfileMetadataMenuProps {
-  status?:    string; // descriptor / profesión — reuses the existing `status` field
-  location?:  string;
-  bio?:       string;
-  showViews?: boolean;
-  onChange:   (patch: MetadataPatch) => void;
+  card:     ProfileCardData;
+  onChange: (patch: MetadataPatch) => void;
 }
 
-// DATOS: qué querés mostrar. Tamaño/fuente/color de estos campos viven en
-// ESTILO → Tipografía, no acá — ver [[ProfileTypographyMenu]].
-export default function ProfileMetadataMenu({ status, location, bio, showViews, onChange }: ProfileMetadataMenuProps) {
+// CONTENT: qué querés mostrar. Tamaño/fuente/color de estos campos viven en
+// TEXT, no acá — ver [[ProfileTypographyMenu]]. El estilo (background/color/
+// radio) de los bloques Location y Views vive acá, junto a su contenido —
+// mismo principio que Contact Links/Music (Stage FASE 2).
+export default function ProfileMetadataMenu({ card, onChange }: ProfileMetadataMenuProps) {
+  const { status, location, bio, showViews } = card;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
       <MenuSection label="Descriptor" first>
@@ -35,6 +36,7 @@ export default function ProfileMetadataMenu({ status, location, bio, showViews, 
         <input value={location ?? ""} onChange={e => onChange({ location: e.target.value })}
           onMouseDown={e => e.stopPropagation()} placeholder="la plata, buenos aires" maxLength={60}
           style={fieldInputStyle} />
+        <BlockStyleFields card={card} blockKey="location" showTextColor onChange={onChange} />
       </MenuSection>
 
       <MenuSection label="Bio">
@@ -47,6 +49,7 @@ export default function ProfileMetadataMenu({ status, location, bio, showViews, 
         <MenuRow label="Mostrar cantidad">
           <Toggle value={!!showViews} onChange={v => onChange({ showViews: v })} />
         </MenuRow>
+        {showViews && <BlockStyleFields card={card} blockKey="views" showTextColor onChange={onChange} />}
       </MenuSection>
     </div>
   );

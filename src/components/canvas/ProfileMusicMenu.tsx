@@ -4,12 +4,12 @@ import type { MusicBlockData, ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { MenuSection, MenuNote, MenuRow, SliderRow, TextInput, ActionButton, Toggle, Collapsible } from "@/ui";
 import { MUSIC_BLOCK_WIDTH_MIN, MUSIC_BLOCK_WIDTH_DEFAULT } from "@/lib/musicBlockSizing";
+import BlockStyleFields from "./BlockStyleFields";
 
-type MusicPatch = Partial<Pick<ProfileCardData, "music" | "musicWidth">>;
+type MusicPatch = Partial<ProfileCardData>;
 
 interface Props {
-  music?:          MusicBlockData;
-  musicWidth?:     number;
+  card:            Pick<ProfileCardData, "music" | "musicWidth" | "blockStyle">;
   /** Width actually available to the block (card.w - 2*pad) — the slider's
    * ceiling, same "never exceed what the card can offer" contract every
    * other size control in this menu already follows. */
@@ -35,7 +35,8 @@ const DEFAULT_MUSIC: MusicBlockData = { sourceType: "upload", audioUrl: "" };
 // computeRequiredCardHeight() liberan el espacio solos — nunca se tocan
 // posiciones de otros bloques a mano acá. Solo MP3 subido — sin URL,
 // Spotify/YouTube/SoundCloud, ver CLAUDE.md.
-export default function ProfileMusicMenu({ music, musicWidth, availableWidth, fitsInCard, onChange }: Props) {
+export default function ProfileMusicMenu({ card, availableWidth, fitsInCard, onChange }: Props) {
+  const { music, musicWidth } = card;
   const audioRef = useRef<HTMLInputElement>(null);
 
   function patchMusic(p: Partial<MusicBlockData>) {
@@ -103,6 +104,8 @@ export default function ProfileMusicMenu({ music, musicWidth, availableWidth, fi
               onChange={v => patchMusic({ volume: v })}
             />
           </Collapsible>
+
+          <BlockStyleFields card={card} blockKey="music" showTextColor onChange={onChange} />
         </>
       )}
     </MenuSection>

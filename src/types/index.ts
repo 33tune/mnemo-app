@@ -348,11 +348,36 @@ export type ProfileCardData = {
   locationLetterSpacing?:   number;
   bioLineHeight?:     number;
   viewsFontSize?:     number;
+  /** Stage FASE 2: views is otherwise a normal mono role (fontSize/
+   * lineHeight/weight all already overridable) — this fills the one gap
+   * FASE 1 left (its letter-spacing was hardcoded, no other mono role was).
+   * Render-only: views' width was never letter-spacing-derived (fixed
+   * viewsWidthPx, see cardComposition.ts), so no engine change needed. */
+  viewsLetterSpacing?: number;
   /** Shared line-height for handle/descriptor/location/views — these never
    * had an explicit CSS line-height before this stage (browser default), so
    * absent means "don't set the property at all", not "use some default
    * number" — see cardTypography.ts's resolveCardTypography. */
   monoLineHeight?:    number;
+  // Stage FASE 2 (Personalization UI/UX): per-role font family + weight —
+  // extends the same resolver (cardTypography.ts's resolveCardTypography),
+  // not a parallel mechanism. Font family never fed measurement even for
+  // `nameFont` in FASE 1 (charW estimates are fixed regardless of typeface),
+  // so this stays purely a render concern, same as before. Absent = the
+  // exact fontFamily/fontWeight each role already rendered with (MONO for
+  // handle/descriptor/location/bio/views, no explicit weight — browser
+  // default — for anything but name, which already defaulted to 700).
+  // `nameFont`/`statusFont` above are reused for name/descriptor; the other
+  // 4 roles get their own field, same pattern.
+  handleFont?:      TextFont;
+  locationFont?:    TextFont;
+  bioFont?:         TextFont;
+  viewsFont?:       TextFont;
+  handleFontWeight?:     number;
+  descriptorFontWeight?: number;
+  locationFontWeight?:   number;
+  bioFontWeight?:        number;
+  viewsFontWeight?:      number;
   // Stage FASE 1: per-role text color, resolved via resolveCardColors
   // (cardColors.ts). Absent = the exact opacity-derived color each role
   // already rendered with before this stage. `textColor` above stays the
@@ -612,6 +637,17 @@ export type CardEffects = {
   // TEXT itself, distinct from the card-level shadow/glow above). No UI
   // exposes this yet — see textEffects.ts.
   text?: TextEffects;
+  // Stage FASE 2: PFP-specific border/shadow/glow — same shape as the
+  // card-level fields above, deliberately separate (the avatar is a single
+  // div, not the multi-layer CardLayers.tsx stack, so it resolves these
+  // directly in ProfileCard.tsx rather than through CardLayers). Absent =
+  // the exact variant-derived border/shadow ProfileCard.tsx already
+  // hardcoded before this stage (see its avatarBorder/avatarShadow).
+  pfp?: {
+    border?: { color?: string; width?: number; opacity?: number };
+    shadow?: { color?: string; intensity?: number };
+    glow?:   { color?: string; intensity?: number; radius?: number };
+  };
   gradient?: {
     from: string;
     to: string;

@@ -4,12 +4,12 @@ import type { ContactLink, ProfileCardData } from "@/types";
 import { T, MenuSection, MenuNote, SliderRow, TextInput } from "@/ui";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
 import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
+import BlockStyleFields from "./BlockStyleFields";
 
-type ContactLinksPatch = Partial<Pick<ProfileCardData, "contactLinks" | "linksIconSize">>;
+type ContactLinksPatch = Partial<ProfileCardData>;
 
 interface Props {
-  contactLinks?: ContactLink[];
-  linksIconSize?: number;
+  card: Pick<ProfileCardData, "contactLinks" | "linksIconSize" | "blockStyle">;
   /** Stage 4.2-C.2.7: whether the block's resolved box still fits in the
    * card's padded content area (ProfileCard.tsx's blockFits). `undefined` =
    * not applicable; only an explicit `false` shows the note below. */
@@ -17,11 +17,14 @@ interface Props {
   onChange: (patch: ContactLinksPatch) => void;
 }
 
-// DATOS: agregar/editar/eliminar Contact Links. La plataforma no se elige acá
-// — se detecta de la URL (ver detectPlatform) y solo se muestra como preview,
-// consistente con "no almacenar info derivable". Sin inline editing en el
-// canvas: todo pasa por este menú, igual que el resto de ProfileConfigMenu.
-export default function ProfileContactLinksMenu({ contactLinks, linksIconSize, fitsInCard, onChange }: Props) {
+// CONTENT: agregar/editar/eliminar Contact Links. La plataforma no se elige
+// acá — se detecta de la URL (ver detectPlatform) y solo se muestra como
+// preview, consistente con "no almacenar info derivable". Sin inline editing
+// en el canvas: todo pasa por este menú. Tamaño de ícono y el override de
+// estilo del bloque (background/color de ícono/radio) viven acá, junto al
+// contenido (Stage FASE 2) — no en una pestaña de estilo aparte.
+export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: Props) {
+  const { contactLinks, linksIconSize } = card;
   const links = contactLinks ?? [];
   const [newUrl, setNewUrl] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -149,6 +152,8 @@ export default function ProfileContactLinksMenu({ contactLinks, linksIconSize, f
           >+</button>
         </div>
       )}
+
+      <BlockStyleFields card={card} blockKey="links" showIconColor onChange={onChange} />
     </MenuSection>
   );
 }

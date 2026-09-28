@@ -34,11 +34,14 @@ test("resolveCardTypography: no card overrides matches ProfileCard.tsx's pre-exi
   assert.equal(t.handle.fontSize, 9);
   assert.equal(t.handle.letterSpacing, 0.4);
   assert.equal(t.handle.lineHeight, undefined); // pre-existing render never set an explicit line-height for this role
+  assert.equal(t.handle.fontWeight, undefined); // pre-existing render never set an explicit weight for this role either
+  assert.equal(t.bio.fontWeight, undefined);
+  assert.equal(t.views.fontWeight, undefined);
   assert.equal(t.descriptor.fontSize, 9);
   assert.equal(t.descriptor.letterSpacing, 0.5);
   assert.equal(t.location.fontSize, 8);
   assert.equal(t.location.letterSpacing, 0.3);
-  assert.deepEqual(t.bio, { fontSize: 8, lineHeight: 1.6 });
+  assert.deepEqual(t.bio, { fontSize: 8, lineHeight: 1.6, fontWeight: undefined });
   assert.equal(t.views.fontSize, 9);
   assert.equal(t.views.letterSpacing, 1.5);
 });
@@ -54,6 +57,21 @@ test("resolveCardTypography: overriding monoLineHeight applies it to all 4 mono 
 test("resolveCardTypography: descriptor size reuses the existing statusFontSize field", () => {
   const t = resolveCardTypography({ statusFontSize: 11 }, 15);
   assert.equal(t.descriptor.fontSize, 11);
+});
+
+test("resolveCardTypography (FASE 2): viewsLetterSpacing overrides the previously-fixed default", () => {
+  const t = resolveCardTypography({}, 15);
+  assert.equal(t.views.letterSpacing, 1.5);
+  const overridden = resolveCardTypography({ viewsLetterSpacing: 3 }, 15);
+  assert.equal(overridden.views.letterSpacing, 3);
+});
+
+test("resolveCardTypography (FASE 2): per-role fontWeight overrides only the given role", () => {
+  const t = resolveCardTypography({ handleFontWeight: 600, bioFontWeight: 300 }, 15);
+  assert.equal(t.handle.fontWeight, 600);
+  assert.equal(t.bio.fontWeight, 300);
+  assert.equal(t.descriptor.fontWeight, undefined);
+  assert.equal(t.name.fontWeight, 700); // name's own default, untouched
 });
 
 test("resolveCardTypography and resolveTypographyMetrics land on the same number once overridden (render/engine sync)", () => {

@@ -428,13 +428,32 @@ function ProfileCard({
   const linksBlockStyle    = resolveBlockStyle(card, "links");
   const musicBlockStyle    = resolveBlockStyle(card, "music");
 
-  const avatarBorder =
-    variant === "minimal" ? "none" :
-    variant === "guns" || variant === "poster"
-      ? `2px solid ${withOpacity(baseColor, 0.22)}`
-      : `2px solid ${withOpacity(baseColor, 0.14)}`;
-  const avatarShadow = variant === "guns" || variant === "poster"
-    ? `0 6px 28px ${withOpacity(baseColor, 0.14)}` : "none";
+  // Stage FASE 2: PFP border/shadow/glow, resolved from effectiveEffects.pfp
+  // (card.effects.pfp — flows through getProfileCardEffects()'s `...card.effects`
+  // spread untouched, zero changes needed there, same as text effects in FASE 1).
+  // Each sub-object absent falls back to the exact variant-derived formula
+  // this file always used — see ProfileIdentityMenu.tsx for the controls.
+  const pfpFx = effectiveEffects.pfp;
+  const pfpBorderWidth = pfpFx?.border ? (pfpFx.border.width ?? 2) : (variant === "minimal" ? 0 : 2);
+  const pfpBorderColorBase = pfpFx?.border?.color
+    ?? (variant === "guns" || variant === "poster" ? withOpacity(baseColor, 0.22) : withOpacity(baseColor, 0.14));
+  const pfpBorderColor = pfpFx?.border?.opacity != null && pfpBorderColorBase.startsWith("#")
+    ? withOpacity(pfpBorderColorBase, pfpFx.border.opacity)
+    : pfpBorderColorBase;
+  const avatarBorder = pfpBorderWidth > 0 ? `${pfpBorderWidth}px solid ${pfpBorderColor}` : "none";
+
+  const pfpShadowIntensity = pfpFx?.shadow?.intensity ?? 0;
+  const pfpGlowIntensity   = pfpFx?.glow?.intensity ?? 0;
+  const pfpShadowLayers: string[] = [];
+  if (pfpFx?.shadow ? pfpShadowIntensity > 0 : (variant === "guns" || variant === "poster")) {
+    pfpShadowLayers.push(pfpFx?.shadow
+      ? `0 ${Math.round(pfpShadowIntensity * 12)}px ${Math.round(pfpShadowIntensity * 28)}px ${pfpFx.shadow.color ?? withOpacity(baseColor, 0.14)}`
+      : `0 6px 28px ${withOpacity(baseColor, 0.14)}`);
+  }
+  if (pfpGlowIntensity > 0) {
+    pfpShadowLayers.push(`0 0 ${pfpFx?.glow?.radius ?? Math.round(pfpGlowIntensity * 24)}px ${pfpFx?.glow?.color ?? "#ffffff"}`);
+  }
+  const avatarShadow = pfpShadowLayers.length > 0 ? pfpShadowLayers.join(", ") : "none";
 
   // ── Free-mode drag ────────────────────────────────────────────────────────
 
@@ -656,9 +675,10 @@ function ProfileCard({
   function HandleLine({ style }: { style?: CSSProperties }) {
     return (
       <div style={{
-        fontFamily: MONO, fontSize: typography.handle.fontSize, color: resolvedColors.handle,
+        fontFamily: fontStyle(card.handleFont, MONO), fontSize: typography.handle.fontSize, color: resolvedColors.handle,
         letterSpacing: typography.handle.letterSpacing, textAlign,
         ...(typography.handle.lineHeight != null ? { lineHeight: typography.handle.lineHeight } : {}),
+        ...(typography.handle.fontWeight != null ? { fontWeight: typography.handle.fontWeight } : {}),
         ...textEffectStyle, ...style,
       }}>
         @{card.handle}
@@ -669,9 +689,10 @@ function ProfileCard({
   function DescriptorLine({ style }: { style?: CSSProperties }) {
     return (
       <div style={{
-        fontFamily: MONO, fontSize: typography.descriptor.fontSize, color: resolvedColors.descriptor,
+        fontFamily: fontStyle(card.statusFont, MONO), fontSize: typography.descriptor.fontSize, color: resolvedColors.descriptor,
         letterSpacing: typography.descriptor.letterSpacing, textAlign,
         ...(typography.descriptor.lineHeight != null ? { lineHeight: typography.descriptor.lineHeight } : {}),
+        ...(typography.descriptor.fontWeight != null ? { fontWeight: typography.descriptor.fontWeight } : {}),
         ...textEffectStyle, ...style,
       }}>
         {card.status}
@@ -683,9 +704,10 @@ function ProfileCard({
     const color = locationBlockStyle.textColor ?? resolvedColors.location;
     return (
       <div style={{
-        fontFamily: MONO, fontSize: typography.location.fontSize, color,
+        fontFamily: fontStyle(card.locationFont, MONO), fontSize: typography.location.fontSize, color,
         letterSpacing: typography.location.letterSpacing, textAlign,
         ...(typography.location.lineHeight != null ? { lineHeight: typography.location.lineHeight } : {}),
+        ...(typography.location.fontWeight != null ? { fontWeight: typography.location.fontWeight } : {}),
         ...textEffectStyle, ...style,
       }}>
         ● {card.location}
@@ -696,8 +718,9 @@ function ProfileCard({
   function BioText({ style }: { style?: CSSProperties }) {
     return (
       <div style={{
-        fontFamily: MONO, fontSize: typography.bio.fontSize, color: resolvedColors.bio,
+        fontFamily: fontStyle(card.bioFont, MONO), fontSize: typography.bio.fontSize, color: resolvedColors.bio,
         lineHeight: typography.bio.lineHeight, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"], textAlign,
+        ...(typography.bio.fontWeight != null ? { fontWeight: typography.bio.fontWeight } : {}),
         ...textEffectStyle, ...style,
       } as CSSProperties}>{card.bio}</div>
     );
@@ -707,10 +730,11 @@ function ProfileCard({
     const color = viewsBlockStyle.textColor ?? resolvedColors.views;
     return (
       <div style={{
-        fontFamily: MONO, fontSize: typography.views.fontSize, color,
+        fontFamily: fontStyle(card.viewsFont, MONO), fontSize: typography.views.fontSize, color,
         letterSpacing: typography.views.letterSpacing, textTransform: "uppercase" as CSSProperties["textTransform"],
         textAlign,
         ...(typography.views.lineHeight != null ? { lineHeight: typography.views.lineHeight } : {}),
+        ...(typography.views.fontWeight != null ? { fontWeight: typography.views.fontWeight } : {}),
         ...textEffectStyle, ...style,
       }}>
         {fmtNum(viewCount)} views
@@ -1300,7 +1324,7 @@ function ProfileCard({
         {/* ── Config menu ── */}
         {menuOpen && canInteract && portalPos && createPortal(
           <MenuPanel pos={portalPos} width={288} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
-            <ProfileConfigMenu card={card} linksFits={linksFits} musicFits={musicFits} onChange={patch => updateProfile(card.id, patch)} />
+            <ProfileConfigMenu card={card} linksFits={linksFits} musicFits={musicFits} baseColor={baseColor} onChange={patch => updateProfile(card.id, patch)} />
           </MenuPanel>
         , document.body)}
       </div>
