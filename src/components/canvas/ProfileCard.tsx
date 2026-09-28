@@ -25,6 +25,10 @@ import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE,
 import { computeMusicNaturalSize } from "@/lib/musicBlockSizing";
 import ProfileMusicPlayer from "./ProfileMusicPlayer";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
+import { withOpacity, luminance, resolveCardColors } from "@/lib/cardColors";
+import { resolveCardTypography } from "@/lib/cardTypography";
+import { resolveTextEffectStyle } from "@/lib/textEffects";
+import { resolveBlockStyle } from "@/lib/blockStyle";
 
 // ── Draggable block keys (Stage 3B.3-B) ─────────────────────────────────────
 // Identity = name+handle+descriptor+bio, moved as one block — see
@@ -107,18 +111,9 @@ const POSITIONABLE_FIELDS: PositionableField[] = [
 function fontStyle(font: TextFont | undefined, fallback = SANS): string {
   return getCanvasFontStyle(font, fallback);
 }
-function luminance(hex: string): number {
-  if (!hex?.startsWith("#") || hex.length < 7) return 0;
-  const n = parseInt(hex.slice(1, 7), 16);
-  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
-  return 0.299 * r + 0.587 * g + 0.114 * b;
-}
-function withOpacity(hex: string, alpha: number): string {
-  if (!hex?.startsWith("#")) return hex;
-  const n = parseInt(hex.slice(1), 16);
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
-}
+// luminance/withOpacity moved to @/lib/cardColors (Stage FASE 1) — same
+// implementation, now shared with CardLayers.tsx/textEffects.ts instead of
+// each keeping its own copy.
 
 // Contact Link icon (Stage 4.2-B §5) — a real <a>, target="_blank" +
 // rel="noopener noreferrer" (see the LinksCardWidget/SocialIconBtn precedent
@@ -391,7 +386,12 @@ function ProfileCard({
   const avatarRadiusPct = pfpRadiusToPercent(card.pfpRadius);
   const textAlign      = card.textAlign ?? "left";
   const nameFontSize   = card.nameFontSize ?? (variant === "guns" || variant === "poster" ? 17 : 15);
-  const font           = card.font ?? "DM Sans";
+  // Stage FASE 1: name may override the shared card font via the existing
+  // (previously dead) `nameFont` field — absent falls back to `card.font`
+  // exactly as before this field was wired up. Every other role still uses
+  // MONO regardless of `card.font`, unchanged (see cardTypography.ts's file
+  // header — font family per mono role was never part of this stage's ask).
+  const font           = card.nameFont ?? card.font ?? "DM Sans";
   const isLight        = luminance(effectiveEffects.bg?.color ?? card.bgColor) > 0.5;
   const baseColor      = card.textColor ?? (isLight ? "#0f0f0f" : "#ffffff");
   const primaryColor   = withOpacity(baseColor, 0.95);
@@ -399,6 +399,34 @@ function ProfileCard({
   const faintColor     = withOpacity(baseColor, 0.45);
   const globalFont     = fontStyle(font);
   const rad            = effectiveEffects.border?.radius ?? card.borderRadius;
+  // Stage FASE 1 (Personalization Core): per-role text color/typography,
+  // resolved once and consumed by the 6 Line renderers below. Absent
+  // overrides reproduce primaryColor/secondaryColor/faintColor's existing
+  // formulas exactly — see cardColors.ts/cardTypography.ts's own
+  // byte-identical-by-default tests. `primaryColor`/`secondaryColor`/
+  // `faintColor` above are UNCHANGED and keep governing everything that
+  // isn't a per-role text color (avatar border/shadow, drag outlines,
+  // ProfileMusicPlayer's default colors) — `resolvedColors` below is
+  // strictly additive, only consumed by the Line renderers and
+  // ContactLinkIcon's icon color.
+  const resolvedColors = resolveCardColors(baseColor, {
+    name: card.nameColor, handle: card.handleColor, descriptor: card.descriptorColor,
+    location: card.locationColor, bio: card.bioColor, views: card.viewsColor,
+    linksIcon: card.linksIconColor,
+  });
+  const typography = resolveCardTypography(card, nameFontSize);
+  // Stage FASE 1: infrastructure only — no menu writes card.effects.text yet
+  // (see CLAUDE.md checkpoint). Absent -> {} -> spread is a pure no-op.
+  const textEffectStyle = resolveTextEffectStyle(effectiveEffects.text);
+  // Stage FASE 1: per-block visual overrides (background/radius always;
+  // textColor/iconColor only for the 3 blocks without their own finer-grained
+  // color system — see blockStyle.ts's header for why Identity/Links don't
+  // get textColor/iconColor wired here). Cheap pure reads, computed once.
+  const identityBlockStyle = resolveBlockStyle(card, "identity");
+  const locationBlockStyle = resolveBlockStyle(card, "location");
+  const viewsBlockStyle    = resolveBlockStyle(card, "views");
+  const linksBlockStyle    = resolveBlockStyle(card, "links");
+  const musicBlockStyle    = resolveBlockStyle(card, "music");
 
   const avatarBorder =
     variant === "minimal" ? "none" :
@@ -615,7 +643,11 @@ function ProfileCard({
 
   function NameLine({ style }: { style?: CSSProperties }) {
     return (
-      <div style={{ fontFamily: globalFont, fontSize: nameFontSize, fontWeight: 700, color: primaryColor, lineHeight: 1.2, textAlign, ...style }}>
+      <div style={{
+        fontFamily: globalFont, fontSize: typography.name.fontSize, fontWeight: typography.name.fontWeight,
+        color: resolvedColors.name, lineHeight: typography.name.lineHeight, letterSpacing: typography.name.letterSpacing,
+        textAlign, ...textEffectStyle, ...style,
+      }}>
         {card.name}
       </div>
     );
@@ -623,7 +655,12 @@ function ProfileCard({
 
   function HandleLine({ style }: { style?: CSSProperties }) {
     return (
-      <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 0.4, textAlign, ...style }}>
+      <div style={{
+        fontFamily: MONO, fontSize: typography.handle.fontSize, color: resolvedColors.handle,
+        letterSpacing: typography.handle.letterSpacing, textAlign,
+        ...(typography.handle.lineHeight != null ? { lineHeight: typography.handle.lineHeight } : {}),
+        ...textEffectStyle, ...style,
+      }}>
         @{card.handle}
       </div>
     );
@@ -631,15 +668,26 @@ function ProfileCard({
 
   function DescriptorLine({ style }: { style?: CSSProperties }) {
     return (
-      <div style={{ fontFamily: MONO, fontSize: 9, color: secondaryColor, letterSpacing: 0.5, textAlign, ...style }}>
+      <div style={{
+        fontFamily: MONO, fontSize: typography.descriptor.fontSize, color: resolvedColors.descriptor,
+        letterSpacing: typography.descriptor.letterSpacing, textAlign,
+        ...(typography.descriptor.lineHeight != null ? { lineHeight: typography.descriptor.lineHeight } : {}),
+        ...textEffectStyle, ...style,
+      }}>
         {card.status}
       </div>
     );
   }
 
   function LocationLine({ style }: { style?: CSSProperties }) {
+    const color = locationBlockStyle.textColor ?? resolvedColors.location;
     return (
-      <div style={{ fontFamily: MONO, fontSize: 8, color: faintColor, letterSpacing: 0.3, textAlign, ...style }}>
+      <div style={{
+        fontFamily: MONO, fontSize: typography.location.fontSize, color,
+        letterSpacing: typography.location.letterSpacing, textAlign,
+        ...(typography.location.lineHeight != null ? { lineHeight: typography.location.lineHeight } : {}),
+        ...textEffectStyle, ...style,
+      }}>
         ● {card.location}
       </div>
     );
@@ -648,15 +696,23 @@ function ProfileCard({
   function BioText({ style }: { style?: CSSProperties }) {
     return (
       <div style={{
-        fontFamily: MONO, fontSize: card.bioFontSize ?? 8, color: withOpacity(baseColor, 0.42),
-        lineHeight: 1.6, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"], textAlign, ...style,
+        fontFamily: MONO, fontSize: typography.bio.fontSize, color: resolvedColors.bio,
+        lineHeight: typography.bio.lineHeight, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"], textAlign,
+        ...textEffectStyle, ...style,
       } as CSSProperties}>{card.bio}</div>
     );
   }
 
   function ViewsLine({ style }: { style?: CSSProperties }) {
+    const color = viewsBlockStyle.textColor ?? resolvedColors.views;
     return (
-      <div style={{ fontFamily: MONO, fontSize: 9, color: faintColor, letterSpacing: 1.5, textTransform: "uppercase" as CSSProperties["textTransform"], textAlign, ...style }}>
+      <div style={{
+        fontFamily: MONO, fontSize: typography.views.fontSize, color,
+        letterSpacing: typography.views.letterSpacing, textTransform: "uppercase" as CSSProperties["textTransform"],
+        textAlign,
+        ...(typography.views.lineHeight != null ? { lineHeight: typography.views.lineHeight } : {}),
+        ...textEffectStyle, ...style,
+      }}>
         {fmtNum(viewCount)} views
       </div>
     );
@@ -849,7 +905,19 @@ function ProfileCard({
         location:   { present: !!card.location, length: (card.location?.length ?? 0) + 2 },
         views:      { present: !!card.showViews },
       },
-      typography: { nameFontSize, bioFontSize: card.bioFontSize ?? 8 },
+      // Stage FASE 1: same override fields resolveCardTypography (render)
+      // reads — passed through raw (not the already-resolved `typography`
+      // object) so resolveTypographyMetrics applies the SAME defaults the
+      // engine always used when a field is absent. See cardTypography.ts.
+      typography: {
+        nameFontSize, bioFontSize: card.bioFontSize ?? 8,
+        nameLetterSpacing: card.nameLetterSpacing, nameLineHeight: card.nameLineHeight,
+        handleFontSize: card.handleFontSize, handleLetterSpacing: card.handleLetterSpacing,
+        descriptorFontSize: card.statusFontSize, descriptorLetterSpacing: card.descriptorLetterSpacing,
+        locationFontSize: card.locationFontSize, locationLetterSpacing: card.locationLetterSpacing,
+        bioLineHeight: card.bioLineHeight, viewsFontSize: card.viewsFontSize,
+        monoLineHeight: card.monoLineHeight,
+      },
       incumbent: incumbentRef.current,
       textAlign,
     }, blockOverrides, linksBlockInput, musicBlockInput);
@@ -1037,7 +1105,8 @@ function ProfileCard({
               width: identityRect.w, height: identityRect.h,
               transition: dragTransition("identity"),
               cursor: isAnchorDraggable ? "grab" : "default",
-              borderRadius: 2, ...dragOutline("identity"),
+              borderRadius: identityBlockStyle.radius, background: identityBlockStyle.bg,
+              ...dragOutline("identity"),
             }}
             onMouseDown={isAnchorDraggable ? startIdentityDrag : undefined}
           >
@@ -1073,7 +1142,8 @@ function ProfileCard({
             style={{
               position: "absolute", left: boxes.location.x, top: boxes.location.y, width: boxes.location.w, height: boxes.location.h,
               overflow: "hidden", transition: dragTransition("location"), cursor: isAnchorDraggable ? "grab" : "default",
-              borderRadius: 2, ...dragOutline("location"),
+              borderRadius: locationBlockStyle.radius, background: locationBlockStyle.bg,
+              ...dragOutline("location"),
             }}
             onMouseDown={isAnchorDraggable ? startLocationDrag : undefined}
           >
@@ -1085,7 +1155,8 @@ function ProfileCard({
             style={{
               position: "absolute", left: boxes.views.x, top: boxes.views.y, width: boxes.views.w, height: boxes.views.h,
               overflow: "hidden", transition: dragTransition("views"), cursor: isAnchorDraggable ? "grab" : "default",
-              borderRadius: 2, ...dragOutline("views"),
+              borderRadius: viewsBlockStyle.radius, background: viewsBlockStyle.bg,
+              ...dragOutline("views"),
             }}
             onMouseDown={isAnchorDraggable ? startViewsDrag : undefined}
           >
@@ -1100,13 +1171,14 @@ function ProfileCard({
               display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
               gap: CONTACT_LINK_GAP,
               transition: dragTransition("links"), cursor: isAnchorDraggable ? "grab" : "default",
-              borderRadius: 2, ...dragOutline("links"),
+              borderRadius: linksBlockStyle.radius, background: linksBlockStyle.bg,
+              ...dragOutline("links"),
             }}
             onMouseDown={isAnchorDraggable ? startLinksDrag : undefined}
           >
             {contactLinks.filter(l => l.url).map(link => (
               <ContactLinkIcon
-                key={link.id} link={link} color={faintColor} size={linksIconSize} menuOpen={menuOpen}
+                key={link.id} link={link} color={linksBlockStyle.iconColor ?? resolvedColors.linksIcon} size={linksIconSize} menuOpen={menuOpen}
                 didDragRef={isAnchorDraggable ? linksDidDragRef : undefined}
               />
             ))}
@@ -1128,12 +1200,12 @@ function ProfileCard({
             style={{
               position: "absolute", left: boxes.music.x, top: boxes.music.y, width: boxes.music.w, height: boxes.music.h,
               transition: dragTransition("music"), cursor: isAnchorDraggable ? "grab" : "default",
-              borderRadius: 6, overflow: "visible",
+              borderRadius: musicBlockStyle.radius, background: musicBlockStyle.bg, overflow: "visible",
               ...dragOutline("music"),
             }}
             onMouseDown={isAnchorDraggable ? startMusicDrag : undefined}
           >
-            <ProfileMusicPlayer music={card.music} textColor={primaryColor} secondaryColor={secondaryColor} mutedColor={faintColor} />
+            <ProfileMusicPlayer music={card.music} textColor={musicBlockStyle.textColor ?? primaryColor} secondaryColor={secondaryColor} mutedColor={faintColor} />
           </div>
         )}
       </div>

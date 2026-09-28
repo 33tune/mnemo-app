@@ -48,6 +48,7 @@
  */
 import type { CardFormat } from "@/types";
 import { anchorToRect, resolveBlockPosition, resolveOverlap, type Rect } from "./blockConstraints";
+import { TYPOGRAPHY_METRICS as TEXT_METRICS, resolveTypographyMetrics } from "./cardTypography";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -80,6 +81,24 @@ export interface CompositionContentInput {
 export interface CompositionTypographyInput {
   nameFontSize: number;
   bioFontSize: number;
+  // Stage FASE 1 (Personalization Core): optional per-role measurement
+  // overrides, each defaulting to the exact constant this file already
+  // hardcoded before this stage (see cardTypography.ts's TYPOGRAPHY_METRICS/
+  // resolveTypographyMetrics — the single source both this engine and
+  // ProfileCard.tsx's render read). Omitting all of them (every caller
+  // before this stage) makes measurement byte-identical to before —
+  // required so an existing card's layout never shifts.
+  nameLetterSpacing?: number;
+  nameLineHeight?: number;
+  handleFontSize?: number;
+  handleLetterSpacing?: number;
+  descriptorFontSize?: number;
+  descriptorLetterSpacing?: number;
+  locationFontSize?: number;
+  locationLetterSpacing?: number;
+  bioLineHeight?: number;
+  viewsFontSize?: number;
+  monoLineHeight?: number;
 }
 
 export interface CompositionInput {
@@ -146,16 +165,14 @@ const FORMAT_BIAS: Record<CardFormat, Partial<Record<CompositionStrategy, number
 // wastes a few px of card whitespace (invisible); a slightly-too-narrow one
 // truncates a word (very visible) — so estimates are biased to over- rather
 // than under-shoot.
-const TEXT_METRICS = {
-  nameCharW: 0.58, nameLineH: 1.3, nameLetterSpacing: 0,
-  monoCharW: 0.6,  monoLineH: 1.4,   // handle/descriptor/location/views (Space Mono is fixed-width-ish)
-  handleLetterSpacing: 0.4, descriptorLetterSpacing: 0.5, locationLetterSpacing: 0.3,
-  bioCharW: 0.55,  bioLineH: 1.5,
-  monoFontSize: 9,                   // handle/descriptor size is fixed today, not user-configurable
-  locationFontSize: 8,
-  viewsFontSize: 9,
-  viewsWidthPx: 84,                  // "12.3K views" @ letterSpacing 1.5 + uppercase — not length-dependent
-};
+//
+// TEXT_METRICS itself (the defaults) now lives in cardTypography.ts as
+// TYPOGRAPHY_METRICS, imported above under this same local name — see that
+// file's header for why (Stage FASE 1: render and this engine must share one
+// source of truth for typography). Per-call overrides (when a card sets one)
+// are resolved via resolveTypographyMetrics(typography) below, not read from
+// this constant directly, wherever a role's size/letter-spacing/line-height
+// needs to be overridable — see resolveContentBlock/resolveCentered.
 const SAFETY_MARGIN_PX = 3;
 
 const GAP_MIN = 8, GAP_MAX = 32;
@@ -240,16 +257,20 @@ function resolveContentBlock(
     location: content.location.present,
     views: content.views.present,
   };
+  // Stage FASE 1: resolved once per call — every field a card doesn't
+  // explicitly set falls back to TEXT_METRICS' constant, so this is a no-op
+  // read for any card with no typography overrides (see cardTypography.ts).
+  const metrics = resolveTypographyMetrics(typography);
   let bioLines = content.bio.present
     ? estimateBioLines(content.bio.length ?? 0, typography.bioFontSize, Math.max(1, availWidth))
     : 0;
 
   function measure(): { height: number; rows: { role: ElementRole; h: number; w: number }[] } {
     const rows: { role: ElementRole; h: number; w: number }[] = [];
-    if (active.name) rows.push({ role: "name", h: typography.nameFontSize * TEXT_METRICS.nameLineH, w: Math.min(availWidth, estimateLineWidth(content.name.length ?? 0, typography.nameFontSize, TEXT_METRICS.nameCharW, TEXT_METRICS.nameLetterSpacing)) });
-    if (active.handle) rows.push({ role: "handle", h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.handle.length ?? 0, TEXT_METRICS.monoFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.handleLetterSpacing)) });
-    if (active.descriptor) rows.push({ role: "descriptor", h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.descriptor.length ?? 0, TEXT_METRICS.monoFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.descriptorLetterSpacing)) });
-    if (active.location) rows.push({ role: "location", h: TEXT_METRICS.locationFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.location.length ?? 0, TEXT_METRICS.locationFontSize, TEXT_METRICS.monoCharW, TEXT_METRICS.locationLetterSpacing)) });
+    if (active.name) rows.push({ role: "name", h: typography.nameFontSize * metrics.nameLineH, w: Math.min(availWidth, estimateLineWidth(content.name.length ?? 0, typography.nameFontSize, metrics.nameCharW, metrics.nameLetterSpacing)) });
+    if (active.handle) rows.push({ role: "handle", h: metrics.handleFontSize * metrics.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.handle.length ?? 0, metrics.handleFontSize, metrics.monoCharW, metrics.handleLetterSpacing)) });
+    if (active.descriptor) rows.push({ role: "descriptor", h: metrics.descriptorFontSize * metrics.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.descriptor.length ?? 0, metrics.descriptorFontSize, metrics.monoCharW, metrics.descriptorLetterSpacing)) });
+    if (active.location) rows.push({ role: "location", h: metrics.locationFontSize * metrics.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.location.length ?? 0, metrics.locationFontSize, metrics.monoCharW, metrics.locationLetterSpacing)) });
     // Bio's width must reflect its real ink, not the whole wrap column it's
     // allowed to use (see cardComposition.ts's header + Stage 3B.4-D fix):
     // a bio short enough to sit on one line reports that line's own natural
@@ -264,10 +285,10 @@ function resolveContentBlock(
     if (active.bio && bioLines > 0) {
       const bioW = bioLines > 1
         ? availWidth
-        : Math.min(availWidth, estimateLineWidth(content.bio.length ?? 0, typography.bioFontSize, TEXT_METRICS.bioCharW));
-      rows.push({ role: "bio", h: bioLines * typography.bioFontSize * TEXT_METRICS.bioLineH, w: bioW });
+        : Math.min(availWidth, estimateLineWidth(content.bio.length ?? 0, typography.bioFontSize, metrics.bioCharW));
+      rows.push({ role: "bio", h: bioLines * typography.bioFontSize * metrics.bioLineH, w: bioW });
     }
-    if (active.views) rows.push({ role: "views", h: TEXT_METRICS.viewsFontSize * TEXT_METRICS.monoLineH, w: Math.min(availWidth, TEXT_METRICS.viewsWidthPx) });
+    if (active.views) rows.push({ role: "views", h: metrics.viewsFontSize * metrics.monoLineH, w: Math.min(availWidth, metrics.viewsWidthPx) });
     const height = rows.reduce((sum, r) => sum + r.h, 0) + Math.max(0, rows.length - 1) * gap;
     return { height, rows };
   }
@@ -405,6 +426,11 @@ function resolveCentered(input: CompositionInput): AxisResolution {
   const { boxW, boxH, padding, pfp, content, typography, textAlign } = input;
   const availW = Math.max(0, boxW - 2 * padding);
   const availH = Math.max(0, boxH - 2 * padding);
+  // Stage FASE 1: same resolved metrics resolveContentBlock uses below — the
+  // two flanking boxes (descriptor/location) are the only place in this
+  // strategy that measures text directly rather than delegating to
+  // resolveContentBlock, so they need their own copy of this call.
+  const metrics = resolveTypographyMetrics(typography);
 
   // Authoritative pfp position — always in-bounds by construction (anchor∈[0,1]),
   // same as resolveAxis. This was already effectively true before Stage 3B.2-B
@@ -437,7 +463,7 @@ function resolveCentered(input: CompositionInput): AxisResolution {
     const w = Math.min(side === "right" ? rightMargin - 8 : leftMargin - 8, 120);
     if (w > 20) {
       const x = side === "right" ? actualX + pfp.size + 8 : actualX - 8 - w;
-      boxes.descriptor = { x, y: actualY, w, h: TEXT_METRICS.monoFontSize * TEXT_METRICS.monoLineH };
+      boxes.descriptor = { x, y: actualY, w, h: metrics.descriptorFontSize * metrics.monoLineH };
     } else dropped.push("descriptor");
   } else if (content.descriptor.present) dropped.push("descriptor");
 
@@ -446,7 +472,7 @@ function resolveCentered(input: CompositionInput): AxisResolution {
     const w = Math.min(side === "right" ? rightMargin - 8 : leftMargin - 8, 120);
     if (w > 20) {
       const x = side === "right" ? actualX + pfp.size + 8 : actualX - 8 - w;
-      boxes.location = { x, y: actualY + pfp.size - TEXT_METRICS.locationFontSize * TEXT_METRICS.monoLineH, w, h: TEXT_METRICS.locationFontSize * TEXT_METRICS.monoLineH };
+      boxes.location = { x, y: actualY + pfp.size - metrics.locationFontSize * metrics.monoLineH, w, h: metrics.locationFontSize * metrics.monoLineH };
     } else dropped.push("location");
   } else if (content.location.present) dropped.push("location");
 

@@ -2,6 +2,7 @@
 import React, { useEffect, type CSSProperties } from "react";
 import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
+import { withOpacity } from "@/lib/cardColors";
 
 // Shared epoch so all floating cards stay in phase with each other.
 const FLOAT_EPOCH = typeof window !== "undefined" ? Date.now() : 0;
@@ -47,24 +48,46 @@ export default function CardLayers({
 
   const rad = bord?.radius ?? borderRadius;
 
-  // Box shadow
+  // Box shadow — Stage FASE 1: blur/offsetX/offsetY/opacity now independent
+  // of `intensity`. Absent fields fall back to the exact formula this file
+  // always used (blur = intensity*40, offsetY = intensity*8, offsetX = 0),
+  // so a shadow with none of the new fields set looks byte-identical to
+  // before this stage. `sColor` defaults to "#000000" (not the old literal
+  // "rgba(0,0,0,0.5)" string) so it can be combined with an independent
+  // opacity via withOpacity — when neither color nor opacity is set, the
+  // math below reproduces that exact same rgba(0,0,0,0.5) look.
   const glowColor = glow?.color ?? "#a855f7";
   const glowInt   = glow?.intensity ?? 0;
+  // Stage FASE 1: independent radius — absent falls back to intensity*30,
+  // same base unit the old *60 (secondary falloff) and *20 (inner) layers
+  // were already derived from (2x and 2/3x respectively) — preserved as
+  // ratios off whichever base (default or overridden) applies. Left
+  // unrounded here and rounded only at each usage site below — rounding
+  // this shared base early and then multiplying would double-round and
+  // drift by up to 1px from the original single-formula output at some
+  // intensities (e.g. intensity 0.15 -> round(round(4.5)*2)=10 vs the
+  // original round(9)=9); every derived layer below must independently
+  // reproduce the pre-existing exact formula when glow.radius is absent.
+  const glowBaseRadius = glow?.radius ?? glowInt * 30;
   const shadows: string[] = [];
   if (sh?.intensity && sh.intensity > 0) {
-    const sColor = sh.color ?? "rgba(0,0,0,0.5)";
-    const sBlur  = Math.round(sh.intensity * 40);
-    shadows.push(`0 ${Math.round(sh.intensity * 8)}px ${sBlur}px ${sColor}`);
+    const sColorBase = sh.color ?? "#000000";
+    const sOpacity   = sh.opacity ?? (sh.color ? 1 : 0.5);
+    const sColor     = sColorBase.startsWith("#") ? withOpacity(sColorBase, sOpacity) : sColorBase;
+    const sBlur      = sh.blur    ?? Math.round(sh.intensity * 40);
+    const sOffsetX   = sh.offsetX ?? 0;
+    const sOffsetY   = sh.offsetY ?? Math.round(sh.intensity * 8);
+    shadows.push(`${sOffsetX}px ${sOffsetY}px ${sBlur}px ${sColor}`);
   } else {
     shadows.push("0 4px 20px rgba(0,0,0,0.2)");
   }
   if (glow?.outer && glowInt > 0) {
-    shadows.push(`0 0 ${Math.round(glowInt * 30)}px ${glowColor}`);
-    shadows.push(`0 0 ${Math.round(glowInt * 60)}px ${glowColor}40`);
+    shadows.push(`0 0 ${Math.round(glowBaseRadius)}px ${glowColor}`);
+    shadows.push(`0 0 ${Math.round(glowBaseRadius * 2)}px ${glowColor}40`);
   }
   if (isSel) shadows.push("0 0 0 1.5px rgba(255,255,255,0.35)");
   if (glow?.inner && glowInt > 0) {
-    shadows.push(`inset 0 0 ${Math.round(glowInt * 20)}px ${glowColor}60`);
+    shadows.push(`inset 0 0 ${Math.round(glowBaseRadius * (2 / 3))}px ${glowColor}60`);
   }
   const boxShadow = shadows.join(", ");
 
@@ -94,54 +117,78 @@ export default function CardLayers({
   }
 
   return (
-    <div style={{
-      ...style,
-      ...wrapperAnimStyle,
-      position: "absolute",
-      inset: 0,
-      borderRadius: rad,
-      transform: "perspective(1000px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg))",
-      willChange: "transform",
-    }}>
-
-      {/* ── Layer 0a: Background fill (opacity-affected) ── */}
+    // Stage FASE 1: floating (outer, owns `animation`) and tilt (inner, owns
+    // the static `transform`) are now two nested elements instead of one
+    // sharing both — a CSS animation and an inline `transform` on the SAME
+    // element compete for that property, and the animation always wins while
+    // running, which is why tilt went dead whenever floating was also on
+    // (confirmed bug, not just "to verify" — see CLAUDE.md). Nesting lets
+    // each own a DIFFERENT element's `transform`/`animation`, so both
+    // genuinely compose (floating's translateY, tilt's rotateX/rotateY) —
+    // still one animation system, just no longer forced onto one element.
+    <div style={{ ...wrapperAnimStyle, position: "absolute", inset: 0 }}>
       <div style={{
-        position: "absolute", inset: 0, borderRadius: rad,
-        ...(bg?.image ? bgImageStyle(bg.image, bg.imageMode) : { background: bgColor }),
-        opacity:              bgOpacity,
-        filter:               bgBlur > 0 ? `blur(${bgBlur}px)` : undefined,
-        backdropFilter:       isGlass ? "blur(20px)" : undefined,
-        WebkitBackdropFilter: isGlass ? "blur(20px)" : undefined,
-      }} />
-      {/* ── Layer 0b: Border + shadow ── */}
-      <div style={{
-        position: "absolute", inset: 0, borderRadius: rad,
-        border,
-        boxShadow,
-        opacity: bord?.opacity ?? 1,
-        pointerEvents: "none",
-      }} />
+        ...style,
+        position: "absolute",
+        inset: 0,
+        borderRadius: rad,
+        transform: "perspective(1000px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg))",
+        willChange: "transform",
+      }}>
 
-      {/* ── Layer 1: Gradient Overlay ── */}
-      {grad && (
+        {/* ── Layer 0a: Background fill (opacity-affected) ── */}
         <div style={{
-          position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
-          background: `linear-gradient(${grad.angle}deg,${grad.from},${grad.to})`,
-          opacity: grad.opacity,
+          position: "absolute", inset: 0, borderRadius: rad,
+          // Stage FASE 1: backgroundColor always applied (not an either/or
+          // with the image) — bgImageStyle only ever sets backgroundImage/
+          // -size/-position/-repeat (longhand, never the `background`
+          // shorthand that used to wipe this out), so color shows through
+          // wherever the image doesn't fully cover (repeat-mode gaps,
+          // transparent regions) instead of being silently discarded.
+          backgroundColor: bgColor,
+          ...(bg?.image ? bgImageStyle(bg.image, bg.imageMode) : {}),
+          opacity:              bgOpacity,
+          filter:               bgBlur > 0 ? `blur(${bgBlur}px)` : undefined,
+          backdropFilter:       isGlass ? "blur(20px)" : undefined,
+          WebkitBackdropFilter: isGlass ? "blur(20px)" : undefined,
         }} />
-      )}
-
-      {/* ── Layer 2: Spotlight (follows cursor via CSS vars on parent) ── */}
-      {spotOn && (
+        {/* ── Layer 0b: Shadow + glow (never affected by border opacity) ── */}
         <div style={{
-          position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
-          background: `radial-gradient(circle at var(--spot-x,50%) var(--spot-y,30%),${spotlightColor} 0%,transparent ${spotlightSize}%)`,
+          position: "absolute", inset: 0, borderRadius: rad,
+          boxShadow,
+          pointerEvents: "none",
         }} />
-      )}
+        {/* ── Layer 0c: Border (own independent opacity — Stage FASE 1: split
+             out of 0b so lowering border opacity no longer also fades the
+             shadow/glow/selection ring it used to share a layer with) ── */}
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: rad,
+          border,
+          opacity: bord?.opacity ?? 1,
+          pointerEvents: "none",
+        }} />
 
-      {/* ── Content Layer ── */}
-      <div style={{ position: "absolute", inset: 0, borderRadius: rad }}>
-        {children}
+        {/* ── Layer 1: Gradient Overlay ── */}
+        {grad && (
+          <div style={{
+            position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
+            background: `linear-gradient(${grad.angle}deg,${grad.from},${grad.to})`,
+            opacity: grad.opacity,
+          }} />
+        )}
+
+        {/* ── Layer 2: Spotlight (follows cursor via CSS vars on parent) ── */}
+        {spotOn && (
+          <div style={{
+            position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
+            background: `radial-gradient(circle at var(--spot-x,50%) var(--spot-y,30%),${spotlightColor} 0%,transparent ${spotlightSize}%)`,
+          }} />
+        )}
+
+        {/* ── Content Layer ── */}
+        <div style={{ position: "absolute", inset: 0, borderRadius: rad }}>
+          {children}
+        </div>
       </div>
     </div>
   );

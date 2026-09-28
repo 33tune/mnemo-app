@@ -2,6 +2,14 @@ import type { CSSProperties } from "react";
 
 export type BgMode = "cover" | "repeat";
 
+// Stage FASE 1 (Personalization Core): both branches use longhand
+// background-image/-size/-position/-repeat, never the `background` shorthand
+// — the shorthand resets background-color to its initial value on the same
+// element, which is what silently discarded a configured bg color whenever
+// an image was also set (see CardLayers.tsx, which now applies backgroundColor
+// on the same layer as this). Purely a property-shape change — same visual
+// result as before for any card with no color set (background-color
+// defaults to transparent either way).
 export function bgImageStyle(url: string, mode?: BgMode): CSSProperties {
   if (mode === "repeat") {
     return {
@@ -10,7 +18,12 @@ export function bgImageStyle(url: string, mode?: BgMode): CSSProperties {
       backgroundSize: "auto",
     };
   }
-  return { background: `url(${url}) center/cover no-repeat` };
+  return {
+    backgroundImage: `url(${url})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+  };
 }
 
 // Legacy: loads the image from its (remote) URL to read natural dimensions.

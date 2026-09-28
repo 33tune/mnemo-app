@@ -61,7 +61,9 @@ export default function PersonalizePanel({ effects, onChange, isProfileCard, tab
     const f = e.target.files?.[0];
     if (!f) return;
     const [{ publicUrl: src }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
-    patchBg({ image: src, color: undefined, imageMode: bgMode });
+    // Stage FASE 1: color and image now coexist (see bgStyle.ts/CardLayers.tsx)
+    // — uploading an image must not silently discard whatever color was set.
+    patchBg({ image: src, imageMode: bgMode });
     if (bgImgRef.current) bgImgRef.current.value = "";
   }
 

@@ -1,5 +1,44 @@
 export type CanvasMode = 'home' | 'space' | 'space_mobile';
 
+// ── ProfileCard block style overrides (Stage FASE 1 — Personalization Core) ──
+// Same 5 block keys ProfileCard.tsx's own BlockKey already uses for drag
+// (identity/location/views/links/music) — see blockStyle.ts. First version:
+// background/textColor/iconColor/radius only, deliberately excludes anything
+// that would change the box computeBlockLayout() measures (padding, border
+// width, size) — see that file's header for why.
+export type BlockStyleKey = "identity" | "location" | "views" | "links" | "music";
+export interface BlockStyleOverride {
+  bg?:        string;
+  textColor?: string;
+  iconColor?: string;
+  radius?:    number;
+}
+
+// ── ProfileCard text effects (Stage FASE 1 — Personalization Core) ─────────
+// Infrastructure only — no UI writes these yet (see CLAUDE.md checkpoint).
+// Lives at CardEffects.text; see textEffects.ts's resolveTextEffectStyle.
+export interface TextShadowEffect {
+  color?:   string;
+  opacity?: number;  // 0-1
+  blur?:    number;  // px
+  offsetX?: number;  // px
+  offsetY?: number;  // px
+}
+export interface TextGlowEffect {
+  color?:     string;
+  intensity?: number; // 0-1
+  radius?:    number; // px
+}
+export interface TextStrokeEffect {
+  color?: string;
+  width?: number; // px
+}
+export interface TextEffects {
+  shadow?: TextShadowEffect;
+  glow?:   TextGlowEffect;
+  stroke?: TextStrokeEffect;
+}
+
 export type CanvasImage = {
   id: string;
   src: string;
@@ -292,6 +331,46 @@ export type ProfileCardData = {
   statusFontSize?: number;
   locationFontSize?: number;
   textColor?:      string;
+  // Stage FASE 1 (Personalization Core): per-role typography, feeding BOTH
+  // ProfileCard.tsx's render (resolveCardTypography) and cardComposition.ts's
+  // measurement (resolveTypographyMetrics) from the same source — see
+  // cardTypography.ts. Absent = the exact numbers each side already
+  // hardcoded before this stage (see that file's header for the deliberate
+  // render/engine default asymmetry). descriptor's size/letter-spacing reuse
+  // `statusFontSize` above (status IS the descriptor field) plus the new
+  // `descriptorLetterSpacing`; location's size reuses `locationFontSize`.
+  nameLetterSpacing?: number;
+  nameLineHeight?:    number;
+  nameFontWeight?:    number;
+  handleFontSize?:    number;
+  handleLetterSpacing?: number;
+  descriptorLetterSpacing?: number;
+  locationLetterSpacing?:   number;
+  bioLineHeight?:     number;
+  viewsFontSize?:     number;
+  /** Shared line-height for handle/descriptor/location/views — these never
+   * had an explicit CSS line-height before this stage (browser default), so
+   * absent means "don't set the property at all", not "use some default
+   * number" — see cardTypography.ts's resolveCardTypography. */
+  monoLineHeight?:    number;
+  // Stage FASE 1: per-role text color, resolved via resolveCardColors
+  // (cardColors.ts). Absent = the exact opacity-derived color each role
+  // already rendered with before this stage. `textColor` above stays the
+  // BASE color every role derives its default from — these are additional,
+  // independent overrides layered on top of that base, one per role.
+  nameColor?:       string;
+  handleColor?:     string;
+  descriptorColor?: string;
+  locationColor?:   string;
+  bioColor?:        string;
+  viewsColor?:      string;
+  linksIconColor?:  string;
+  // Stage FASE 1: first version of per-block visual overrides — background/
+  // textColor/iconColor/radius ONLY (deliberately no padding/border/size —
+  // those change the box computeBlockLayout() measures, see blockStyle.ts's
+  // header). Absent per-block or per-field = inherits ProfileCard's own
+  // look exactly as before this stage.
+  blockStyle?:      Partial<Record<BlockStyleKey, BlockStyleOverride>>;
   // Style
   bgColor:         string;
   bgImage:         string;
@@ -511,11 +590,28 @@ export type CardEffects = {
     intensity?: number; // 0–1
     inner?: boolean;
     outer?: boolean;
+    // Stage FASE 1: independent radius — absent falls back to the original
+    // intensity*30 formula (CardLayers.tsx), same visual result as before
+    // this field existed. See CardLayers.tsx's glow layer for the exact math.
+    radius?: number; // px
   };
   shadow?: {
     color?: string;
     intensity?: number; // 0–1
+    // Stage FASE 1: independent from `intensity` — each absent field falls
+    // back to the original intensity-derived formula (blur = intensity*40,
+    // offsetY = intensity*8, offsetX = 0, opacity = 1 if color is explicit
+    // else the 0.5 baked into the old "rgba(0,0,0,0.5)" default). See
+    // CardLayers.tsx's shadow layer.
+    blur?:    number; // px
+    offsetX?: number; // px
+    offsetY?: number; // px
+    opacity?: number; // 0–1
   };
+  // Stage FASE 1: per-text-effect infrastructure (shadow/glow/stroke on the
+  // TEXT itself, distinct from the card-level shadow/glow above). No UI
+  // exposes this yet — see textEffects.ts.
+  text?: TextEffects;
   gradient?: {
     from: string;
     to: string;
