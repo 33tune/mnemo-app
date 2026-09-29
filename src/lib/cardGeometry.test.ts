@@ -353,7 +353,7 @@ test("computeRequiredCardHeight: grows when a single extra block (e.g. Music alo
   const currentH = c.minH + 5;
   const h = computeRequiredCardHeight({
     format: "vertical", currentH, contentBottom: currentH - 20, padding: 20,
-    extraBlocks: [{ naturalHeight: 56, gap: 10 }], // Music's placeholder height (musicBlockSizing.ts)
+    extraBlocks: [{ naturalHeight: 56, gap: 10 }], // an arbitrary extra block's natural height
   });
   assert.ok(h > currentH, `expected growth: ${h} should exceed currentH ${currentH}`);
   const required = (currentH - 20) + 10 + 56 + 20;

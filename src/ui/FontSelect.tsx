@@ -3,8 +3,13 @@ import React from "react";
 import { T } from "./tokens";
 
 interface FontOption {
-  key:   string;
-  label: string;
+  key:    string;
+  label:  string;
+  /** CSS font-family value, used to preview the typeface in its own
+   * <option> (UX audit finding: options always rendered in the browser's
+   * default UI font, no way to preview before picking) — falls back to
+   * the default select font when omitted. */
+  style?: string;
 }
 
 interface FontSelectProps {
@@ -31,7 +36,7 @@ export function FontSelect({ value, onChange, fonts }: FontSelectProps) {
       }}
     >
       {fonts.map(f => (
-        <option key={f.key} value={f.key} style={{ background: T.surface.base }}>{f.label}</option>
+        <option key={f.key} value={f.key} style={{ background: T.surface.base, fontFamily: f.style ?? T.font.sans }}>{f.label}</option>
       ))}
     </select>
   );

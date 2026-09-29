@@ -44,7 +44,6 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
-import AnalyticsCanvas from "@/components/analytics/AnalyticsCanvas";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
 
@@ -420,7 +419,7 @@ export default function CanvasBoard({
   const [hiddenMap,        setHiddenMap]        = useState<HiddenMap>({});
   const [placementsMap,    setPlacementsMap]    = useState<PlacementMap>({});
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
-  const [view,             setView]             = useState<"canvas" | "browse" | "chats" | "analytics">(canEdit ? "analytics" : "canvas");
+  const [view,             setView]             = useState<"canvas" | "browse" | "chats">("canvas");
   const [totalUnread,      setTotalUnread]      = useState(0);
   const [homeBg,           setHomeBg]           = useState<{ color: string; wallpaper: string; wallpaperLoaded: boolean }>({ color: "#0a0a0c", wallpaper: "", wallpaperLoaded: false });
   const [currentUserId,    setCurrentUserId]    = useState<string | undefined>(undefined);
@@ -690,7 +689,6 @@ export default function CanvasBoard({
     if (v === "space") { setView("canvas"); handleModeChange("space"); }
     else if (v === "space_mobile") { setView("canvas"); handleModeChange("space_mobile"); }
     else if (v === "chats") setView("chats");
-    else if (v === "analytics") setView("analytics");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authResolved]);
 
@@ -1892,6 +1890,28 @@ export default function CanvasBoard({
     setMenuOpen(false);
   }
 
+  // Product closeout (Parte 3): Music is now creatable again as its own
+  // independent canvas element — reuses the exact generic top-level element
+  // engine addLinksCard/addMedia already use (add_music op, zCounter,
+  // viewCenter/clampToViewport), not a new system. Content is the real
+  // self-hosted MP3 player (MusicCardWidget.tsx/ProfileMusicPlayer.tsx), no
+  // longer participating in ProfileCard's composition/growth.
+  function addMusicCard() {
+    if (!canInteract) return;
+    zCounter.current += 1;
+    const vc = viewCenter();
+    const { x: mx, y: my } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 220, 64);
+    const m: MusicCardData = {
+      id: crypto.randomUUID(), x: mx, y: my,
+      w: 220, h: 64, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
+      audioUrl: "",
+      isPublic: inSpace ? true : undefined,
+    };
+    enqueueOp({ type: "add_music", music: m });
+    setSelectedIds(new Set([m.id]));
+    setMenuOpen(false);
+  }
+
   function addGalleryImageToCanvas(src: string, x: number, y: number) {
     const el=new Image();
     el.onload=()=>{
@@ -2455,8 +2475,6 @@ export default function CanvasBoard({
         unreadChats={totalUnread}
         unreadSignals={canEdit ? unreadCount : undefined}
         onSignals={canEdit ? () => { if (!showSignals) markAllRead(); setShowSignals(s => !s); } : undefined}
-        isAnalytics={view === "analytics"}
-        onAnalytics={canEdit ? () => setView("analytics") : undefined}
       />
 
       {view==="canvas"&&(creatingCard||rotating||addingText)&&(
@@ -3150,6 +3168,7 @@ export default function CanvasBoard({
             {label:"Free Text",     fn:()=>{setAddingText(true);      setMenuOpen(false);}},
             {label:"Gallery",       fn:()=>{addGallery();             setMenuOpen(false);}},
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
+            {label:"Music",         fn:()=>{addMusicCard();           setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
           ].map(item=>(
             <button key={item.label} onClick={item.fn}
@@ -3289,17 +3308,6 @@ export default function CanvasBoard({
       {/* ── First-visit onboarding ── */}
       {showOnboarding && (
         <OnboardingOverlay onDone={dismissOnboarding} />
-      )}
-
-      {/* Analytics view */}
-      {view === "analytics" && canEdit && (
-        <WidgetBoundary label="analytics-view">
-          <AnalyticsCanvas
-            userId={currentUserId}
-            bgColor={homeBg.color || "#0a0a0c"}
-            wallpaper={homeBg.wallpaper && homeBg.wallpaperLoaded ? homeBg.wallpaper : undefined}
-          />
-        </WidgetBoundary>
       )}
 
       {/* ── SpaceMusic global player ── */}

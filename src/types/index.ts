@@ -6,7 +6,7 @@ export type CanvasMode = 'home' | 'space' | 'space_mobile';
 // background/textColor/iconColor/radius only, deliberately excludes anything
 // that would change the box computeBlockLayout() measures (padding, border
 // width, size) — see that file's header for why.
-export type BlockStyleKey = "identity" | "location" | "views" | "links" | "music";
+export type BlockStyleKey = "identity" | "location" | "views" | "links";
 export interface BlockStyleOverride {
   bg?:        string;
   textColor?: string;
@@ -44,15 +44,24 @@ export interface TextEffects {
   blur?: number;
 }
 
-// Stage FASE 3 (Text & Motion Effects): gradient text (background-clip:text)
+// Stage "Product closeout": multicolor gradient text (background-clip:text)
 // — mutually exclusive with a role's solid color, gradient always wins when
 // present (see textEffects.ts's resolveTextEffectStyle and
-// ProfileTypographyMenu.tsx, where the solid ColorRow disables itself when
-// this is set). angle in degrees, same convention as CardEffects.gradient.
+// RoleTypographyFields.tsx, where the solid ColorRow disables itself when
+// this is set). `colors` is 2+ stops, evenly distributed across `angle`
+// degrees (same angle convention as CardEffects.gradient) — was a fixed
+// {from,to} pair in FASE 3; upgraded here to N colors since that's a strict
+// superset (2 colors = byte-identical gradient to before). Old persisted
+// {from,to} data (no `colors` array) is read via a defensive fallback in
+// the resolver — see textEffects.ts.
 export interface TextGradientEffect {
-  from:  string;
-  to:    string;
-  angle: number;
+  colors: string[];
+  angle:  number;
+  /** @deprecated pre-multicolor shape — only ever read as a fallback when
+   * `colors` is absent, never written by current UI. */
+  from?:  string;
+  /** @deprecated see `from`. */
+  to?:    string;
 }
 // A highlight band sweeping across gradient text — requires `gradient` to
 // also be set on the SAME role (see resolveTextEffectStyle's header for
@@ -63,17 +72,33 @@ export interface TextShimmerEffect {
   intensity?: number; // 0-1, opacity of the sweeping band
   speed?:     number; // unitless multiplier, 1 = default pace
 }
+// Stage "Product closeout": per-character bounce animation — Name only (see
+// RoleTypographyFields.tsx, rendered conditionally per role label). When
+// combined with gradient/multicolor, each letter gets a SOLID color
+// interpolated from the gradient stops by character index rather than a
+// sliced background-clip — a position-fixed gradient would visibly "shear"
+// once letters independently translate, so per-letter solid interpolation
+// is the correct choice here, not a shortcut (see cardColors.ts's
+// interpolateMulticolor). When combined with shimmer, the sweep becomes a
+// per-letter staggered opacity pulse instead of a position-swept band, for
+// the same reason. Presence = enabled.
+export interface TextLetterAnimationEffect {
+  amplitude?: number; // px, default 4
+  speed?:     number;  // unitless multiplier, 1 = default pace
+  stagger?:   number;  // seconds between each letter's start, default 0.05
+}
 // Deliberately separate from TextEffects (above): shadow/glow/stroke/blur
 // are card-wide (one setting affects every text role uniformly, unchanged
-// since FASE 1/2) — gradient/shimmer are the one thing this stage's product
+// since FASE 1/2) — gradient/shimmer/letter-animation are what the product
 // spec explicitly requires per-role (username-style accent effects belong
 // to individual roles, not the whole card at once; see CLAUDE.md's FASE 3
-// checkpoint). Two separate fields on CardEffects rather than folding these
+// checkpoint). Separate fields on CardEffects rather than folding these
 // into TextEffects keeps existing FASE 1/2 data (already shipped) untouched
 // — no shape change to `card.effects.text`, no migration needed.
 export interface RoleTextEffect {
-  gradient?: TextGradientEffect;
-  shimmer?:  TextShimmerEffect;
+  gradient?:        TextGradientEffect;
+  shimmer?:         TextShimmerEffect;
+  letterAnimation?: TextLetterAnimationEffect;
 }
 export type TextRole = "name" | "handle" | "descriptor" | "location" | "bio" | "views";
 
@@ -319,19 +344,40 @@ export type ProfileCardData = {
   // (contactLinksBlock.ts), same as before this field existed. Clamped to
   // CONTACT_LINK_ICON_SIZE_MIN/MAX at the menu input boundary.
   linksIconSize?:   number;
-  // Music block anchor (Stage 4.2-C.1 infrastructure) — same model as the
-  // others. See computeBlockLayout()'s MusicBlockInput in cardComposition.ts.
+  // DEPRECATED — Music left ProfileCard's internal composition (it's now an
+  // independent canvas element, MusicCardData/MusicCardWidget.tsx, with its
+  // own audioUrl/title/artist/volume). These 4 fields are kept ONLY for
+  // backward compat with any pre-existing card that had them set — nothing
+  // reads or writes them anymore (no menu, no render, no computeBlockLayout
+  // call ever passes `music` again). Safe to ignore going forward.
   musicAnchorX?:    number;
   musicAnchorY?:    number;
-  // Music block (Stage 4.2-C.1 data model; player UI is 4.2-C.2). Presence
-  // (not audioUrl completeness) is what "enables" the block — absent means
-  // "no Music block", and every existing card renders exactly as before.
   music?:           MusicBlockData;
-  // User-chosen width override for the Music block (Stage 4.2-C.2.3, menu
-  // slider — see ProfileMusicMenu.tsx). Absent -> MUSIC_BLOCK_WIDTH_DEFAULT
-  // (musicBlockSizing.ts). The ONLY dimension Music can resize — height is
-  // always the fixed MUSIC_BLOCK_HEIGHT, never derived from this field.
   musicWidth?:      number;
+  // Logo — a free visual element living inside ProfileCard's own bounds
+  // (NOT a structural block: no computeBlockLayout participation, no growth
+  // impact, never measured — see ProfileCard.tsx's renderComposed()).
+  // Position is a normalized anchor within the card's padded content area,
+  // same anchorToRect/snapAxis contract blockConstraints.ts already
+  // provides for every other draggable block, resolved WITHOUT the
+  // anti-overlap pass (Logo never pushes or gets pushed by other blocks —
+  // it can sit behind, in front of, or between them, purely via zIndex).
+  // Size is menu-slider-driven (same "position via drag, size via menu"
+  // pattern already established by PFP/the old Music block), not
+  // drag-resize — there is no existing drag-resize infrastructure for
+  // blocks internal to ProfileCard, and building one is out of scope here.
+  logo?: {
+    url:       string;
+    anchorX:   number; // 0-1, normalized within the padded content area
+    anchorY:   number;
+    w:         number; // px
+    h:         number; // px
+    opacity?:  number; // 0-1, default 1
+    rotation?: number; // degrees, default 0
+    zIndex?:   number; // stacking relative to other blocks (which are
+                        // implicitly z-index 0, DOM-order-stacked) —
+                        // negative = behind, positive = in front
+  };
   // Identity
   photo:           string;
   name:            string;
@@ -512,8 +558,20 @@ export type MusicCardData = {
   locked?:       boolean;
   isPublic?:     boolean;
   stackId?:      string;
+  // Legacy link-preview fields (Spotify/YouTube/SoundCloud URL + a "mood"
+  // caption, never a real player) — kept for backward compat with any
+  // pre-existing data, no longer written by MusicCardWidget.tsx.
   musicUrl?:     string;
   mood?:         string;
+  // Stage "Product closeout" — Music as an independent canvas element
+  // (moved out of ProfileCard's internal composition; see ProfileCard.tsx's
+  // FASE history). Same shape as MusicBlockData's own fields, self-hosted
+  // audio only — MusicCardWidget.tsx renders these via the exact same
+  // ProfileMusicPlayer.tsx component ProfileCard used to.
+  audioUrl?:     string;
+  title?:        string;
+  artist?:       string;
+  volume?:       number;
   bgColor?:      string;
   bgImage?:      string;
   bgMode?:       "cover" | "repeat";
@@ -736,6 +794,18 @@ export type CardEffects = {
     floating?: boolean;
     floatHeight?: number;
     floatSpeed?: number;
+  };
+  // Stage "Product closeout": analog/retro screen effects, each fully
+  // independent (own toggle, own layer in CardLayers.tsx, own opacity/
+  // intensity) — CSS/SVG-data-URI only, no canvas, no heavy libraries. The
+  // noise texture reuses the exact SVG feTurbulence technique already used
+  // elsewhere in this codebase (GuestbookWidget.tsx/MobilePublicCanvas.tsx's
+  // static grain overlay) — same approach, now parametrized and toggleable.
+  retro?: {
+    scanlines?: { enabled: boolean; intensity?: number };        // 0-1
+    noise?:     { enabled: boolean; intensity?: number };        // 0-1 (VHS/analog grain)
+    flicker?:   { enabled: boolean; intensity?: number; speed?: number };
+    chromaticAberration?: { enabled: boolean; intensity?: number }; // 0-1, subtle RGB offset
   };
   opacity?: number;
   padding?: number;

@@ -1,28 +1,20 @@
 "use client";
 import { useState, useRef, useEffect, memo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import type { MusicCardData, TextFont, CardEffects } from "@/types";
+import type { MusicCardData, CardEffects } from "@/types";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
+import ProfileMusicPlayer from "./ProfileMusicPlayer";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
-import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
+import { withOpacity } from "@/lib/cardColors";
 import { CANVAS_FONTS } from "@/lib/fontList";
+import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
 const FONTS = CANVAS_FONTS;
-
-export function musicLabel(url: string): string {
-  try {
-    const full = url.startsWith("http") ? url : `https://${url}`;
-    const { hostname, pathname } = new URL(full);
-    const service = hostname.replace(/^(www|open)\./i, "").split(".")[0].toUpperCase();
-    const slug    = pathname.split("/").filter(Boolean).pop() ?? "";
-    return slug ? `${service} · ${slug.slice(0, 20)}` : service;
-  } catch { return url.slice(0, 24); }
-}
 
 interface Props {
   card:              MusicCardData;
@@ -48,10 +40,10 @@ function MusicCardWidget({
   entryAnimStyle = {},
 }: Props) {
   const [menuOpen,  setMenuOpen]  = useState(false);
-  const [hov,       setHov]       = useState(false);
   const [portalPos, setPortalPos] = useState<{ left: number; top: number } | null>(null);
   const cardRef  = useRef<HTMLDivElement>(null);
   const bgImgRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLInputElement>(null);
 
   const effectiveEffects: CardEffects = {
     ...card.effects,
@@ -62,11 +54,13 @@ function MusicCardWidget({
   };
 
   const borderRadius = effectiveEffects.border?.radius ?? 10;
-  const textColor    = card.textColor || "rgba(255,255,255,0.62)";
-  const textSize     = card.textSize ?? 8;
-  const fontStyle    = FONTS.find(f => f.key === card.font)?.style ?? T.font.mono;
-  const hasUrl       = !!(card.musicUrl?.trim());
-  const href         = hasUrl ? (card.musicUrl!.startsWith("http") ? card.musicUrl! : `https://${card.musicUrl}`) : "";
+  // "Product closeout": card.textColor used to color the old link-preview
+  // label directly — now the base ProfileMusicPlayer derives its 3 role
+  // colors from, same withOpacity derivation ProfileCard.tsx already uses.
+  const musicBaseColor  = card.textColor?.startsWith("#") ? card.textColor : "#ffffff";
+  const textColor       = withOpacity(musicBaseColor, 0.95);
+  const secondaryColor  = withOpacity(musicBaseColor, 0.65);
+  const mutedColor      = withOpacity(musicBaseColor, 0.45);
 
   const { onMouseMove: onInteractMove, onMouseLeave: onInteractLeave } =
     useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>);
@@ -115,10 +109,15 @@ function MusicCardWidget({
     updateCard(card.id, { bgImage: publicUrl, bgMode, effects: { ...card.effects, bg: { ...card.effects?.bg, image: publicUrl, imageMode: bgMode } } });
     if (bgImgRef.current) bgImgRef.current.value = "";
   }
+  async function handleAudioUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    const { publicUrl } = await uploadToStorage(f);
+    updateCard(card.id, { audioUrl: publicUrl });
+    if (audioRef.current) audioRef.current.value = "";
+  }
 
   return (
     <>
-      <style>{`@keyframes mwDot{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:1;transform:scale(1.25)}}`}</style>
       <div
         ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
@@ -134,20 +133,18 @@ function MusicCardWidget({
         }}
       >
         <CardLayers cardId={card.id} effects={effectiveEffects} isSel={isSel} borderRadius={borderRadius}>
-          <a href={hasUrl ? href : undefined} target="_blank" rel="noopener noreferrer"
-            data-canvas-hot={hasUrl ? "" : undefined}
-            onClick={e => { if (menuOpen || !hasUrl) e.preventDefault(); e.stopPropagation(); }}
-            onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-            style={{ position: "absolute", inset: 0, borderRadius, display: "flex", alignItems: "center", gap: 10, padding: "0 14px", textDecoration: "none", cursor: hasUrl ? "pointer" : "default", opacity: hov && hasUrl ? 1 : 0.85, transition: "opacity 0.12s ease" }}>
-            <div style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,0.55)", animation: hasUrl ? "mwDot 1.8s ease-in-out infinite" : "none", flexShrink: 0 }} />
-            <div style={{ overflow: "hidden", minWidth: 0 }}>
-              <div style={{ fontFamily: fontStyle, fontSize: 6, letterSpacing: 2, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" as const, lineHeight: 1, marginBottom: 3 }}>NOW PLAYING</div>
-              <div style={{ fontFamily: fontStyle, fontSize: textSize, letterSpacing: 0.5, color: textColor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {hasUrl ? musicLabel(card.musicUrl!) : "paste a url →"}
-              </div>
-              {card.mood && <div style={{ fontFamily: fontStyle, fontSize: Math.max(6, textSize - 2), color: "rgba(255,255,255,0.28)", marginTop: 2 }}>{card.mood}</div>}
-            </div>
-          </a>
+          {/* "Product closeout": Music is now an independent canvas element —
+              same real player ProfileCard used internally (ProfileMusicPlayer.tsx,
+              self-hosted MP3 only), not the old Spotify/YouTube link-preview.
+              Position/drag/resize/z-index/persistence are entirely the
+              generic top-level element engine (useDragDrop.ts) already gives
+              every canvas element — nothing new here. */}
+          <div data-canvas-hot="" style={{ position: "absolute", inset: 0, borderRadius, overflow: "hidden" }}>
+            <ProfileMusicPlayer
+              music={{ sourceType: "upload", audioUrl: card.audioUrl ?? "", title: card.title, artist: card.artist, volume: card.volume }}
+              textColor={textColor} secondaryColor={secondaryColor} mutedColor={mutedColor}
+            />
+          </div>
         </CardLayers>
 
         {/* Gear */}
@@ -191,12 +188,23 @@ function MusicCardWidget({
             Music Card
           </div>
 
-          {/* CONTENIDO */}
+          {/* CONTENIDO — same self-hosted-MP3-only contract ProfileCard's own
+              Music block used (see CLAUDE.md's Music simplification notes) —
+              no URL field, no Spotify/YouTube/SoundCloud. */}
           <MenuSection label="Contenido" first>
-            <TextInput value={card.musicUrl ?? ""} onChange={v => updateCard(card.id, { musicUrl: v })}
-              mono type="url" placeholder="spotify / youtube / soundcloud…" />
-            <TextInput value={card.mood ?? ""} onChange={v => updateCard(card.id, { mood: v })}
-              placeholder="mood (calm, dark, hype…)" maxLength={32} />
+            <div style={{ display: "flex", gap: 6 }}>
+              <ActionButton onClick={() => audioRef.current?.click()}>
+                {card.audioUrl ? "reemplazar MP3" : "subir MP3"}
+              </ActionButton>
+              {card.audioUrl && (
+                <ActionButton variant="danger" onClick={() => updateCard(card.id, { audioUrl: "" })}>quitar</ActionButton>
+              )}
+            </div>
+            <input ref={audioRef} type="file" accept="audio/mpeg,audio/mp3,.mp3" style={{ display: "none" }} onChange={handleAudioUpload} />
+            <TextInput value={card.title ?? ""} onChange={v => updateCard(card.id, { title: v })} placeholder="Título" />
+            <TextInput value={card.artist ?? ""} onChange={v => updateCard(card.id, { artist: v })} placeholder="Artista" />
+            <SliderRow label="Volumen inicial" min={0} max={1} step={0.01} value={card.volume ?? 1}
+              fmt={v => `${Math.round(v * 100)}%`} onChange={v => updateCard(card.id, { volume: v })} />
           </MenuSection>
 
           <Divider />

@@ -76,3 +76,43 @@ export function resolveCardColors(baseColor: string, overrides?: CardColorOverri
     linksIcon:  overrides?.linksIcon  ?? withOpacity(baseColor, DEFAULT_ROLE_OPACITY.linksIcon),
   };
 }
+
+// ── Multicolor gradient interpolation (per-letter animation) ───────────────
+// Stage "Product closeout": when Name's gradient/multicolor is combined with
+// per-letter animation, each letter gets a SOLID color sampled from these
+// stops by its character index — not a sliced background-clip — because a
+// position-fixed gradient visually shears once letters independently
+// translate. See RoleTextEffect's header in types/index.ts.
+
+function hexToRgbTuple(hex: string): [number, number, number] {
+  if (!hex?.startsWith("#") || hex.length < 7) return [255, 255, 255];
+  const n = parseInt(hex.slice(1, 7), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function mixHexColors(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = hexToRgbTuple(a);
+  const [br, bg, bb] = hexToRgbTuple(b);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+/** `t` is 0-1 across the WHOLE stop list (0 = first color, 1 = last). */
+export function interpolateMulticolor(colors: string[], t: number): string {
+  if (colors.length === 0) return "#ffffff";
+  if (colors.length === 1) return colors[0];
+  const clamped = Math.max(0, Math.min(1, t));
+  const segment = clamped * (colors.length - 1);
+  const i = Math.min(colors.length - 2, Math.floor(segment));
+  return mixHexColors(colors[i], colors[i + 1], segment - i);
+}
+
+/** Convenience wrapper: the color for character `index` out of `total`
+ * characters, evenly distributed across `colors`. */
+export function colorForLetterIndex(colors: string[], index: number, total: number): string {
+  if (colors.length === 0) return "#ffffff";
+  if (total <= 1) return colors[0];
+  return interpolateMulticolor(colors, index / (total - 1));
+}

@@ -79,6 +79,9 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
       onShimmerChange: (v: RoleTextEffect["shimmer"]) => patchRoleTextEffect(role, { shimmer: v }),
     };
   }
+  // Product closeout: letter-by-letter bounce — Name only (see
+  // RoleTypographyFields.tsx, rendered only when these handlers are passed).
+  const nameRole = textRoles?.name;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
@@ -90,6 +93,80 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         <Tabs tabs={ALIGN_TABS} active={card.textAlign ?? "left"} onChange={v => onChange({ textAlign: v as TextAlign })} />
       </MenuSection>
 
+      {/* UX audit finding: this Collapsible operates on ALL text roles at
+          once (card.effects.text — shadow/glow/stroke/blur), unlike every
+          "Gradiente"/"Animación" section below it, which are per-role. It's
+          moved here (next to the other two card-wide controls) and renamed
+          to make that scope explicit, instead of sitting last after 6
+          same-looking per-role Collapsibles where nothing signals the
+          difference. */}
+      <Collapsible label="Efectos globales de texto">
+        <MenuSection label="Sombra" first>
+          <MenuRow label="Activar">
+            <Toggle value={!!textFx?.shadow} onChange={v => patchTextFx({ shadow: v ? {} : undefined })} />
+          </MenuRow>
+          {textFx?.shadow && (
+            <>
+              <MenuRow label="Color">
+                <ColorSwatch value={textFx.shadow.color ?? "#000000"} onChange={v => patchShadow({ color: v })} />
+              </MenuRow>
+              <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={textFx.shadow.opacity ?? 0.5}
+                fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchShadow({ opacity: v })} />
+              <SliderRow label="Blur" min={0} max={20} step={1} value={textFx.shadow.blur ?? 4} unit="px"
+                onChange={v => patchShadow({ blur: v })} />
+              <OffsetRow x={textFx.shadow.offsetX ?? 0} y={textFx.shadow.offsetY ?? 2} min={-20} max={20}
+                onChange={(x, y) => patchShadow({ offsetX: x, offsetY: y })} />
+            </>
+          )}
+        </MenuSection>
+
+        <Divider />
+
+        <MenuSection label="Glow">
+          <MenuRow label="Activar">
+            <Toggle value={!!textFx?.glow} onChange={v => patchTextFx({ glow: v ? { intensity: 0.5 } : undefined })} />
+          </MenuRow>
+          {textFx?.glow && (
+            <>
+              <MenuRow label="Color">
+                <ColorSwatch value={textFx.glow.color ?? "#ffffff"} onChange={v => patchGlow({ color: v })} />
+              </MenuRow>
+              <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={textFx.glow.intensity ?? 0.5}
+                fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchGlow({ intensity: v })} />
+              <SliderRow label="Radio" min={0} max={40} step={1} value={textFx.glow.radius ?? 16} unit="px"
+                onChange={v => patchGlow({ radius: v })} />
+            </>
+          )}
+        </MenuSection>
+
+        <Divider />
+
+        <MenuSection label="Stroke / contorno">
+          <MenuRow label="Activar">
+            <Toggle value={!!textFx?.stroke} onChange={v => patchTextFx({ stroke: v ? { width: 1 } : undefined })} />
+          </MenuRow>
+          {textFx?.stroke && (
+            <>
+              <MenuRow label="Color">
+                <ColorSwatch value={textFx.stroke.color ?? "#000000"} onChange={v => patchStroke({ color: v })} />
+              </MenuRow>
+              <SliderRow label="Grosor" min={0.5} max={4} step={0.5} value={textFx.stroke.width ?? 1} unit="px"
+                onChange={v => patchStroke({ width: v })} />
+            </>
+          )}
+        </MenuSection>
+
+        <Divider />
+
+        {/* filter: blur() on the glyphs themselves — distinct from Sombra's
+            own blur above (that only blurs the shadow layer). Card-wide
+            like Sombra/Glow/Stroke above, not per-role. */}
+        <MenuSection label="Blur">
+          <SliderRow label="Intensidad" min={0} max={8} step={0.5} value={textFx?.blur ?? 0} unit="px"
+            onChange={v => patchTextFx({ blur: v || undefined })} />
+        </MenuSection>
+      </Collapsible>
+
       <RoleTypographyFields
         label="Nombre"
         color={colors.name} hasColorOverride={!!card.nameColor}
@@ -100,6 +177,8 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         letterSpacing={typography.name.letterSpacing} onLetterSpacingChange={v => onChange({ nameLetterSpacing: v })}
         lineHeight={typography.name.lineHeight} lineHeightMin={0.9} lineHeightMax={2} onLineHeightChange={v => onChange({ nameLineHeight: v })}
         {...makeGradientHandlers("name")}
+        letterAnimation={nameRole?.letterAnimation}
+        onLetterAnimationChange={v => patchRoleTextEffect("name", { letterAnimation: v })}
       />
 
       <RoleTypographyFields
@@ -166,74 +245,6 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
       {/* Contact Links' icon color lives in ProfileContactLinksMenu (next to
           its own content, via BlockStyleFields) — not duplicated here, see
           CLAUDE.md's FASE 2 checkpoint for the reasoning. */}
-
-      <Collapsible label="Efectos de texto">
-        <MenuSection label="Sombra" first>
-          <MenuRow label="Activar">
-            <Toggle value={!!textFx?.shadow} onChange={v => patchTextFx({ shadow: v ? {} : undefined })} />
-          </MenuRow>
-          {textFx?.shadow && (
-            <>
-              <MenuRow label="Color">
-                <ColorSwatch value={textFx.shadow.color ?? "#000000"} onChange={v => patchShadow({ color: v })} />
-              </MenuRow>
-              <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={textFx.shadow.opacity ?? 0.5}
-                fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchShadow({ opacity: v })} />
-              <SliderRow label="Blur" min={0} max={20} step={1} value={textFx.shadow.blur ?? 4} unit="px"
-                onChange={v => patchShadow({ blur: v })} />
-              <OffsetRow x={textFx.shadow.offsetX ?? 0} y={textFx.shadow.offsetY ?? 2} min={-20} max={20}
-                onChange={(x, y) => patchShadow({ offsetX: x, offsetY: y })} />
-            </>
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        <MenuSection label="Glow">
-          <MenuRow label="Activar">
-            <Toggle value={!!textFx?.glow} onChange={v => patchTextFx({ glow: v ? { intensity: 0.5 } : undefined })} />
-          </MenuRow>
-          {textFx?.glow && (
-            <>
-              <MenuRow label="Color">
-                <ColorSwatch value={textFx.glow.color ?? "#ffffff"} onChange={v => patchGlow({ color: v })} />
-              </MenuRow>
-              <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={textFx.glow.intensity ?? 0.5}
-                fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchGlow({ intensity: v })} />
-              <SliderRow label="Radio" min={0} max={40} step={1} value={textFx.glow.radius ?? 16} unit="px"
-                onChange={v => patchGlow({ radius: v })} />
-            </>
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        <MenuSection label="Stroke / contorno">
-          <MenuRow label="Activar">
-            <Toggle value={!!textFx?.stroke} onChange={v => patchTextFx({ stroke: v ? { width: 1 } : undefined })} />
-          </MenuRow>
-          {textFx?.stroke && (
-            <>
-              <MenuRow label="Color">
-                <ColorSwatch value={textFx.stroke.color ?? "#000000"} onChange={v => patchStroke({ color: v })} />
-              </MenuRow>
-              <SliderRow label="Grosor" min={0.5} max={4} step={0.5} value={textFx.stroke.width ?? 1} unit="px"
-                onChange={v => patchStroke({ width: v })} />
-            </>
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        {/* Stage FASE 3: filter: blur() on the glyphs themselves — distinct
-            from Sombra's own blur above (that only blurs the shadow layer).
-            Card-wide like Sombra/Glow/Stroke above, not per-role (see
-            types/index.ts's TextEffects/RoleTextEffect split). */}
-        <MenuSection label="Blur">
-          <SliderRow label="Intensidad" min={0} max={8} step={0.5} value={textFx?.blur ?? 0} unit="px"
-            onChange={v => patchTextFx({ blur: v || undefined })} />
-        </MenuSection>
-      </Collapsible>
     </div>
   );
 }

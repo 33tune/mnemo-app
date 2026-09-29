@@ -13,22 +13,20 @@ import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
-import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides, type LinksBlockInput, type MusicBlockInput } from "@/lib/cardComposition";
+import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides, type LinksBlockInput } from "@/lib/cardComposition";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
-  rectToAnchor, snapAxis, snappedPoint, MAGNETIC_POINTS, centerAlignAnchor,
+  rectToAnchor, anchorToRect, snapAxis, snappedPoint, MAGNETIC_POINTS, centerAlignAnchor,
 } from "@/lib/blockConstraints";
 import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight, centerCardPosition, shouldApplyGrowth } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
 import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
-import { computeMusicNaturalSize } from "@/lib/musicBlockSizing";
-import ProfileMusicPlayer from "./ProfileMusicPlayer";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
-import { withOpacity, luminance, resolveCardColors } from "@/lib/cardColors";
+import { withOpacity, luminance, resolveCardColors, colorForLetterIndex } from "@/lib/cardColors";
 import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveTextEffectStyle } from "@/lib/textEffects";
-import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
+import { useMotionKeyframes, resolveGlowPulseAnimation, resolveLetterBounceAnimation, resolveLetterShimmerPulseAnimation } from "@/lib/cardMotion";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 
 // ── Draggable block keys (Stage 3B.3-B) ─────────────────────────────────────
@@ -38,18 +36,21 @@ import { resolveBlockStyle } from "@/lib/blockStyle";
 // (pfpAnchorX/Y, startAnchorDrag) and is NOT one of these — see Stage 3B.2-B.
 // Stage 4.2-A: "links" added as a 4th block key — infrastructure only, so a
 // future Links UI (Stage 4.2-B) can call startBlockDrag(..., "links", ...)
-// without touching this type again. Stage 4.2-C.1 adds "music" the same way,
-// now wired for real (drag works; the player UI itself is Stage 4.2-C.2).
-type BlockKey = "identity" | "location" | "views" | "links" | "music";
+// without touching this type again. "music" was added here in Stage
+// 4.2-C.1 and removed in "Product closeout" — Music is now an independent
+// canvas element (MusicCardWidget.tsx), no longer part of ProfileCard's
+// internal block-drag system. musicAnchorX/Y stay in ProfileCardData for
+// backward compat (see that field's own deprecation comment) but nothing
+// here references them anymore.
+type BlockKey = "identity" | "location" | "views" | "links";
 const BLOCK_ANCHOR_FIELDS: Record<BlockKey, readonly [
-  "identityAnchorX" | "locationAnchorX" | "viewsAnchorX" | "linksAnchorX" | "musicAnchorX",
-  "identityAnchorY" | "locationAnchorY" | "viewsAnchorY" | "linksAnchorY" | "musicAnchorY",
+  "identityAnchorX" | "locationAnchorX" | "viewsAnchorX" | "linksAnchorX",
+  "identityAnchorY" | "locationAnchorY" | "viewsAnchorY" | "linksAnchorY",
 ]> = {
   identity: ["identityAnchorX", "identityAnchorY"],
   location: ["locationAnchorX", "locationAnchorY"],
   views:    ["viewsAnchorX", "viewsAnchorY"],
   links:    ["linksAnchorX", "linksAnchorY"],
-  music:    ["musicAnchorX", "musicAnchorY"],
 };
 
 const SANS = "'DM Sans', sans-serif";
@@ -302,7 +303,6 @@ function ProfileCard({
     location: card.locationAnchorX != null && card.locationAnchorY != null ? { x: card.locationAnchorX, y: card.locationAnchorY } : undefined,
     views:    card.viewsAnchorX    != null && card.viewsAnchorY    != null ? { x: card.viewsAnchorX,    y: card.viewsAnchorY    } : undefined,
     links:    card.linksAnchorX    != null && card.linksAnchorY    != null ? { x: card.linksAnchorX,    y: card.linksAnchorY    } : undefined,
-    music:    card.musicAnchorX    != null && card.musicAnchorY    != null ? { x: card.musicAnchorX,    y: card.musicAnchorY    } : undefined,
   }));
   // Which block (if any) is actively being dragged right now — a ref (not
   // state) because its only two jobs are (a) guarding the sync-from-props
@@ -320,7 +320,7 @@ function ProfileCard({
   // ref is deliberately left set after mouseup so the click handler can
   // consume it (see resolveClickAfterDrag) and only THEN clear it. Only
   // "links" sets it true (in startBlockDrag's onMove) — identity/location/
-  // views/music blocks contain no real <a> that navigation could leak into.
+  // views blocks contain no real <a> that navigation could leak into.
   const linksDidDragRef = useRef(false);
 
   useEffect(() => {
@@ -333,10 +333,8 @@ function ProfileCard({
         : (card.viewsAnchorX != null && card.viewsAnchorY != null ? { x: card.viewsAnchorX, y: card.viewsAnchorY } : undefined),
       links: draggingBlockRef.current === "links" ? prev.links
         : (card.linksAnchorX != null && card.linksAnchorY != null ? { x: card.linksAnchorX, y: card.linksAnchorY } : undefined),
-      music: draggingBlockRef.current === "music" ? prev.music
-        : (card.musicAnchorX != null && card.musicAnchorY != null ? { x: card.musicAnchorX, y: card.musicAnchorY } : undefined),
     }));
-  }, [card.identityAnchorX, card.identityAnchorY, card.locationAnchorX, card.locationAnchorY, card.viewsAnchorX, card.viewsAnchorY, card.linksAnchorX, card.linksAnchorY, card.musicAnchorX, card.musicAnchorY]);
+  }, [card.identityAnchorX, card.identityAnchorY, card.locationAnchorX, card.locationAnchorY, card.viewsAnchorX, card.viewsAnchorY, card.linksAnchorX, card.linksAnchorY]);
 
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
@@ -372,6 +370,57 @@ function ProfileCard({
   // ── Visual values ──
   const gap = variant === "minimal" ? 5 : 7;
   const pad = getCardPadding(variant);
+
+  // ── Logo (Product closeout) ───────────────────────────────────────────────
+  // A free visual element inside ProfileCard's own bounds — NOT a
+  // computeBlockLayout participant (no anti-overlap, no growth impact, never
+  // measured). Position is a normalized anchor, same drag mechanics as the
+  // PFP anchor above (nextAnchorAxis/snapAxis/snappedPoint, MAGNETIC_POINTS)
+  // — deliberately the PFP's simpler pattern, not startBlockDrag's, since
+  // Logo never needs to resolve against other blocks' obstacles the way
+  // Identity/Location/Views/Links do. Size/opacity/rotation/zIndex are
+  // menu-slider-driven (see ProfileLogoMenu.tsx), not drag-resize — same
+  // "position via drag, size via menu" contract already established by PFP.
+  const [logoAnchor, setLogoAnchor] = useState(() => ({ x: card.logo?.anchorX ?? 0.5, y: card.logo?.anchorY ?? 0.5 }));
+  const isDraggingLogo = useRef(false);
+
+  useEffect(() => {
+    if (isDraggingLogo.current) return;
+    setLogoAnchor({ x: card.logo?.anchorX ?? 0.5, y: card.logo?.anchorY ?? 0.5 });
+  }, [card.logo?.anchorX, card.logo?.anchorY]);
+
+  const startLogoDrag = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isPfpAnchorDraggable(canInteract, layout, isSel) || !card.logo) return;
+
+    isDraggingLogo.current = true;
+    const startMX = e.clientX, startMY = e.clientY;
+    const startAnchor = { ...logoAnchor };
+    const logoW = card.logo.w, logoH = card.logo.h;
+    const rawAvailW = card.w - 2 * pad - logoW;
+    const rawAvailH = card.h - 2 * pad - logoH;
+    let snappedX = snappedPoint(startAnchor.x, MAGNETIC_POINTS);
+    let snappedY = snappedPoint(startAnchor.y, MAGNETIC_POINTS);
+
+    const onMove = (ev: MouseEvent) => {
+      const rawX = nextAnchorAxis(startAnchor.x, ev.clientX - startMX, rawAvailW);
+      const rawY = nextAnchorAxis(startAnchor.y, ev.clientY - startMY, rawAvailH);
+      const nextX = snapAxis(rawX, snappedX, MAGNETIC_POINTS); snappedX = snappedPoint(nextX, MAGNETIC_POINTS);
+      const nextY = snapAxis(rawY, snappedY, MAGNETIC_POINTS); snappedY = snappedPoint(nextY, MAGNETIC_POINTS);
+      setLogoAnchor({ x: nextX, y: nextY });
+    };
+    const onUp = () => {
+      isDraggingLogo.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      setLogoAnchor(latest => {
+        updateProfile(card.id, { logo: { ...card.logo!, anchorX: latest.x, anchorY: latest.y } });
+        return latest;
+      });
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [canInteract, layout, isSel, logoAnchor, card.id, card.w, card.h, pad, card.logo, updateProfile]);
 
   const photoSizeKey   = card.photoSize ?? "md";
   // Variant nudge applies to the BASE (pre-clamp) diameter — whether that
@@ -422,20 +471,25 @@ function ProfileCard({
   // split. One resolveTextEffectStyle call per role, not one shared style
   // object, since each role's gradient/shimmer is independent.
   const textRoles = card.effects?.textRoles;
-  const nameEffectStyle       = resolveTextEffectStyle(effectiveEffects.text, textRoles?.name);
-  const handleEffectStyle     = resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle);
-  const descriptorEffectStyle = resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor);
-  const locationEffectStyle   = resolveTextEffectStyle(effectiveEffects.text, textRoles?.location);
-  const bioEffectStyle        = resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio);
-  const viewsEffectStyle      = resolveTextEffectStyle(effectiveEffects.text, textRoles?.views);
+  const nameEffectStyle       = resolveTextEffectStyle(effectiveEffects.text, textRoles?.name, resolvedColors.name);
+  const handleEffectStyle     = resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle, resolvedColors.handle);
+  const descriptorEffectStyle = resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor, resolvedColors.descriptor);
+  const locationEffectStyle   = resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolvedColors.location);
+  const bioEffectStyle        = resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio);
+  const viewsEffectStyle      = resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolvedColors.views);
+  // Product closeout — shimmer fix: shimmer no longer requires gradient to
+  // be set (see textEffects.ts's header), so "is shimmer active anywhere"
+  // is now just "is `shimmer` present", not "gradient AND shimmer".
   const anyShimmerActive = !!(
-    (textRoles?.name?.gradient && textRoles?.name?.shimmer) ||
-    (textRoles?.handle?.gradient && textRoles?.handle?.shimmer) ||
-    (textRoles?.descriptor?.gradient && textRoles?.descriptor?.shimmer) ||
-    (textRoles?.location?.gradient && textRoles?.location?.shimmer) ||
-    (textRoles?.bio?.gradient && textRoles?.bio?.shimmer) ||
-    (textRoles?.views?.gradient && textRoles?.views?.shimmer)
+    textRoles?.name?.shimmer || textRoles?.handle?.shimmer || textRoles?.descriptor?.shimmer ||
+    textRoles?.location?.shimmer || textRoles?.bio?.shimmer || textRoles?.views?.shimmer
   );
+  // Product closeout: Name's per-letter bounce animation. Uses shadow/glow/
+  // stroke/blur only (no gradient/shimmer background-clip — see NameLine's
+  // per-letter branch below for why that's a solid-color-per-letter
+  // situation instead).
+  const nameLetterAnim = textRoles?.name?.letterAnimation;
+  const nameShadowStyle = resolveTextEffectStyle(effectiveEffects.text);
   // Stage FASE 1: per-block visual overrides (background/radius always;
   // textColor/iconColor only for the 3 blocks without their own finer-grained
   // color system — see blockStyle.ts's header for why Identity/Links don't
@@ -444,7 +498,6 @@ function ProfileCard({
   const locationBlockStyle = resolveBlockStyle(card, "location");
   const viewsBlockStyle    = resolveBlockStyle(card, "views");
   const linksBlockStyle    = resolveBlockStyle(card, "links");
-  const musicBlockStyle    = resolveBlockStyle(card, "music");
 
   // Stage FASE 2: PFP border/shadow/glow, resolved from effectiveEffects.pfp
   // (card.effects.pfp — flows through getProfileCardEffects()'s `...card.effects`
@@ -481,11 +534,12 @@ function ProfileCard({
   }
   const avatarGlowShadow = avatarGlowLayers.length > 0 ? avatarGlowLayers.join(", ") : undefined;
   const pfpGlowPulseOn = pfpFx?.glow?.animation?.enabled ?? false;
-  // Stage FASE 3: ensures the shared shimmer/glow-pulse @keyframes exist
+  // Stage FASE 3 (extended in "Product closeout" with letter-bounce):
+  // ensures the shared shimmer/glow-pulse/letter-bounce @keyframes exist
   // before anything on this card tries to use them — safe to call
   // alongside CardLayers.tsx's own useMotionKeyframes call for the card's
   // border animation (idempotent injection, see cardMotion.ts).
-  useMotionKeyframes(anyShimmerActive || pfpGlowPulseOn);
+  useMotionKeyframes(anyShimmerActive || pfpGlowPulseOn || !!nameLetterAnim);
 
   // ── Free-mode drag ────────────────────────────────────────────────────────
 
@@ -708,13 +762,60 @@ function ProfileCard({
   // unchanged — only descriptor/location are genuinely new content.
 
   function NameLine({ style }: { style?: CSSProperties }) {
+    const baseStyle: CSSProperties = {
+      fontFamily: globalFont, fontSize: typography.name.fontSize, fontWeight: typography.name.fontWeight,
+      lineHeight: typography.name.lineHeight, letterSpacing: typography.name.letterSpacing, textAlign,
+    };
+
+    if (!nameLetterAnim) {
+      return (
+        <div style={{ ...baseStyle, color: resolvedColors.name, ...nameEffectStyle, ...style }}>
+          {card.name}
+        </div>
+      );
+    }
+
+    // Product closeout: per-letter bounce. Gradient/multicolor becomes a
+    // SOLID color interpolated per character index instead of a sliced
+    // background-clip — a position-fixed gradient would visibly "shear"
+    // once letters independently translate via their own bounce transform,
+    // so per-letter solid interpolation is the correct choice here, not a
+    // shortcut (see cardColors.ts's colorForLetterIndex). Shadow/glow/
+    // stroke are CSS-inherited properties (cascade from the parent to each
+    // span automatically) and `filter` composites the whole subtree as one
+    // unit — nameShadowStyle on the parent is enough, no per-span
+    // duplication needed. Shimmer becomes a per-letter staggered opacity
+    // pulse instead of its usual position-swept band, for the same
+    // shearing reason as gradient.
+    const gradient = textRoles?.name?.gradient;
+    const gradientColors = gradient
+      ? (gradient.colors?.length ? gradient.colors : [gradient.from, gradient.to].filter((c): c is string => !!c))
+      : null;
+    const hasShimmer = !!textRoles?.name?.shimmer;
+    const chars = card.name.split("");
+    const amplitude = nameLetterAnim.amplitude ?? 4;
+    const speed = nameLetterAnim.speed ?? 1;
+    const stagger = nameLetterAnim.stagger ?? 0.05;
+
     return (
-      <div style={{
-        fontFamily: globalFont, fontSize: typography.name.fontSize, fontWeight: typography.name.fontWeight,
-        color: resolvedColors.name, lineHeight: typography.name.lineHeight, letterSpacing: typography.name.letterSpacing,
-        textAlign, ...nameEffectStyle, ...style,
-      }}>
-        {card.name}
+      <div style={{ ...baseStyle, color: resolvedColors.name, ...nameShadowStyle, ...style }}>
+        {chars.map((ch, i) => {
+          const animations = [resolveLetterBounceAnimation(speed, i * stagger)];
+          if (hasShimmer) animations.push(resolveLetterShimmerPulseAnimation(speed, i * stagger));
+          return (
+            <span
+              key={i}
+              style={{
+                display: "inline-block",
+                animation: animations.join(", "),
+                ...(gradientColors ? { color: colorForLetterIndex(gradientColors, i, chars.length) } : {}),
+                ["--letter-amp" as string]: `${amplitude}px`,
+              } as CSSProperties}
+            >
+              {ch === " " ? " " : ch}
+            </span>
+          );
+        })}
       </div>
     );
   }
@@ -907,41 +1008,27 @@ function ProfileCard({
   const linksAvailWidth = Math.max(0, card.w - 2 * pad);
   const linksNaturalSize = contactLinksNaturalSize(contactLinks.length, linksAvailWidth, linksIconSize);
 
-  // ── Music (Stage 4.2-C.1, redesigned minimalist in 4.2-C.2.2, width made
-  //    user-controlled in 4.2-C.2.3) ─────────────────────────────────────────
-  // Data + natural size only — same shape as Contact Links above. `card.music`
-  // absent is the pre-4.2-C state: musicBlockInput below stays undefined, and
-  // computeBlockLayout takes the exact same code path it always did (see the
-  // "no music block" regression test in cardComposition.test.ts). Width is
-  // `card.musicWidth` (set via the slider in ProfileMusicMenu.tsx), never
-  // content-driven — this is the ONLY dimension Music can resize; height
-  // stays MUSIC_BLOCK_HEIGHT regardless. This exact `musicNaturalSize` is
-  // what feeds MusicBlockInput below, so render/drag/growth all agree on
-  // the same box — no parallel sizing path.
-  const hasMusic = !!card.music;
-  const musicAvailWidth = Math.max(0, card.w - 2 * pad);
-  const musicNaturalSize = computeMusicNaturalSize({
-    availableWidth: musicAvailWidth,
-    width: card.musicWidth,
-  });
-
-  // ── Composed layout (Stage 3B / 3B.3, extended in 4.2-B for Contact Links,
-  //    4.2-C.1 for Music) ────────────────────────────────────────────────────
+  // ── Composed layout (Stage 3B / 3B.3, extended in 4.2-B for Contact Links)
+  // ──────────────────────────────────────────────────────────────────────
   // The user moves the PFP (startAnchorDrag → anchor) and, as of Stage 3B.3,
   // may additionally override where the identity group (name+handle+
-  // descriptor+bio, moved as one block)/location/views/(4.2-B) links/(4.2-C.1)
-  // music sit — see computeBlockLayout in cardComposition.ts. With none of
-  // the six set, this produces byte-identical output to the plain
+  // descriptor+bio, moved as one block)/location/views/(4.2-B) links sit —
+  // see computeBlockLayout in cardComposition.ts. With none of the five
+  // set, this produces byte-identical output to the plain
   // computeComposition() call it replaces. renderVertical/renderHorizontal
   // above stay defined but unused — legacy cleanup is a separate later stage.
+  // Music left ProfileCard's composition entirely ("Product closeout" —
+  // it's now an independent canvas element, MusicCardWidget.tsx) — this
+  // never calls computeBlockLayout with a `music` argument anymore, which
+  // is exactly the "omit it" no-op path the engine already supported.
   //
   // Hoisted out of renderComposed() (rather than computed inside it) so the
   // growth effect right below can read the SAME boxes renderComposed() draws
-  // from, without a second computeBlockLayout() call — neither the links nor
-  // the music extension ever moves an earlier, higher-priority block (see
+  // from, without a second computeBlockLayout() call — the links extension
+  // never moves an earlier, higher-priority block (see
   // cardComposition.test.ts), so one result is valid for both "what to draw"
   // and "how tall must the card be". Only computed for the composed layouts;
-  // "free" mode doesn't use this engine (or Contact Links/Music) at all.
+  // "free" mode doesn't use this engine (or Contact Links) at all.
   const composedResult = layout === "free" ? undefined : (() => {
     // Local drag state (blockAnchors), not the raw card props — this is what
     // makes computeBlockLayout re-resolve live on every mousemove-driven
@@ -953,12 +1040,9 @@ function ProfileCard({
       location: blockAnchors.location,
       views: blockAnchors.views,
       links: blockAnchors.links,
-      music: blockAnchors.music,
     };
     const linksBlockInput: LinksBlockInput | undefined =
       contactLinks.length > 0 ? { size: linksNaturalSize } : undefined;
-    const musicBlockInput: MusicBlockInput | undefined =
-      hasMusic ? { size: musicNaturalSize } : undefined;
     const r = computeBlockLayout({
       format: card.format ?? "vertical",
       boxW: card.w,
@@ -991,16 +1075,16 @@ function ProfileCard({
       },
       incumbent: incumbentRef.current,
       textAlign,
-    }, blockOverrides, linksBlockInput, musicBlockInput);
+    }, blockOverrides, linksBlockInput);
     incumbentRef.current = r.strategy;
     return r;
   })();
 
-  // ── Vertical growth (Stage 4.2-B §8, generalized in 4.2-C.1 for Music) ────
+  // ── Vertical growth (Stage 4.2-B §8) ──────────────────────────────────────
   // Structural only: the effect's dependency array is what content/blocks
-  // actually change how tall the card needs to be — link count, whether
-  // Music is enabled, each block's natural height, format, padding, and
-  // where the existing content currently ends. Pure math
+  // actually change how tall the card needs to be — link count, each
+  // block's natural height, format, padding, and where the existing
+  // content currently ends. Pure math
   // (computeRequiredCardHeight in cardGeometry.ts) decides the number every
   // render (cheap); this effect's only job is PERSISTING it, and only when
   // it actually differs from stored state.
@@ -1041,12 +1125,12 @@ function ProfileCard({
     // own `resizing` state, already the single source of truth for "is a
     // resize gesture active" — no second resize-state system here.
     if (!shouldApplyGrowth(isResizing)) return;
-    // Stage 4.2-C.2.6: Contact Links/Music no longer contribute to
-    // extraBlocks — they're optional blocks, not structural content (see
+    // Stage 4.2-C.2.6: Contact Links no longer contributes to extraBlocks —
+    // it's an optional block, not structural content (see
     // computeBlockLayout()'s priority chain: pfp/identity/location/views
-    // are the base composition, links/music are appended after and can be
-    // displaced/hidden without the card ever needing to grow for them).
-    // Forcing the card taller to fit them was the actual cause of the
+    // are the base composition, links is appended after and can be
+    // displaced/hidden without the card ever needing to grow for it).
+    // Forcing the card taller to fit it was the actual cause of the
     // "resize vertical snaps back up on release" bug — growth firing right
     // after isResizing flips false, computing a requiredH the live drag's
     // own floor (MIN_PROFILE_CARD_HEIGHT) never knew about. extraBlocks
@@ -1054,8 +1138,8 @@ function ProfileCard({
     // computeComposition()'s own dropped-content handling, untouched,
     // covers pfp/identity/location/views not fitting), so this call is
     // effectively a no-op today; kept as-is (not deleted) so a genuinely
-    // structural future block has the exact same extension point Links/
-    // Music used to.
+    // structural future block has the exact same extension point Links
+    // used to.
     const extraBlocks: { naturalHeight: number; gap: number }[] = [];
     const requiredH = extraBlocks.length > 0
       ? Math.round(computeRequiredCardHeight({ format: card.format, currentH: card.h, contentBottom, padding: pad, extraBlocks }))
@@ -1074,9 +1158,9 @@ function ProfileCard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, isResizing, card.format, card.h, card.w, card.x, card.y, contentBottom, pad, card.id, viewportW, viewportH]);
 
-  // Stage 4.2-C.2.6: Links/Music are optional blocks, not structural
-  // content — the card no longer grows to fit them (see the growth
-  // effect above). Since neither one shrinks vertically to match
+  // Stage 4.2-C.2.6: Links is an optional block, not structural
+  // content — the card no longer grows to fit it (see the growth
+  // effect above). Since it doesn't shrink vertically to match
   // whatever room is left, and the content layer clips with
   // `overflow:hidden`, a block that doesn't fully fit would render
   // silently cut off instead of just not showing at all. This is the
@@ -1094,13 +1178,39 @@ function ProfileCard({
 
   // Stage 4.2-C.2.7: a block that stops rendering because it no longer
   // fits is otherwise invisible to the user — nothing in the menu where
-  // they configured it says why it vanished. These flags carry exactly
+  // they configured it says why it vanished. This flag carries exactly
   // the render-time verdict to the menu. `undefined` means "not
-  // applicable" (layout "free" doesn't use this engine, or Contact
-  // Links/Music at all), which the menus treat as "say nothing" — never
-  // as "doesn't fit".
+  // applicable" (layout "free" doesn't use this engine, or Contact Links
+  // at all), which the menu treats as "say nothing" — never as "doesn't fit".
   const linksFits = composedResult ? blockFits(composedResult.boxes.links) : undefined;
-  const musicFits = composedResult ? blockFits(composedResult.boxes.music) : undefined;
+
+  // Logo (Product closeout) — layout-independent (renders the same whether
+  // the card is composed or "free"), so it's a standalone function called
+  // once from the main return below, not inside renderComposed()/renderFree().
+  function renderLogo() {
+    if (!card.logo) return null;
+    const rect = anchorToRect(logoAnchor.x, logoAnchor.y, card.logo.w, card.logo.h, card.w, card.h, pad);
+    return (
+      <div
+        data-canvas-hot=""
+        style={{
+          position: "absolute", left: rect.x, top: rect.y, width: rect.w, height: rect.h,
+          transition: REFLOW_TRANSITION,
+          cursor: isAnchorDraggable ? "grab" : "default",
+          opacity: card.logo.opacity ?? 1,
+          transform: card.logo.rotation ? `rotate(${card.logo.rotation}deg)` : undefined,
+          // Other blocks stack by plain DOM order (implicitly z-index 0 in
+          // this shared stacking context) — Logo is the only one with an
+          // explicit z-index, so it alone can sit behind/in front of them.
+          zIndex: card.logo.zIndex ?? 0,
+          ...(isDraggingLogo.current ? { outline: `1px dashed ${withOpacity(baseColor, 0.35)}`, outlineOffset: 2 } : {}),
+        }}
+        onMouseDown={isAnchorDraggable ? startLogoDrag : undefined}
+      >
+        <img src={card.logo.url} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} draggable={false} />
+      </div>
+    );
+  }
 
   function renderComposed() {
     if (!composedResult) return null; // only called when layout !== "free"
@@ -1149,12 +1259,6 @@ function ProfileCard({
       const start = blockAnchors.links ?? rectToAnchor(boxes.links, boxes.links.w, boxes.links.h, card.w, card.h, pad);
       startBlockDrag(e, "links", start, boxes.links.w, boxes.links.h, pfpBox);
     };
-    const startMusicDrag = (e: React.MouseEvent) => {
-      if (!boxes.music) return;
-      const start = blockAnchors.music ?? rectToAnchor(boxes.music, boxes.music.w, boxes.music.h, card.w, card.h, pad);
-      startBlockDrag(e, "music", start, boxes.music.w, boxes.music.h, pfpBox);
-    };
-
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "hidden" }}>
         {pfpBox && (
@@ -1255,30 +1359,6 @@ function ProfileCard({
             ))}
           </div>
         )}
-        {boxes.music && card.music && blockFits(boxes.music) && (
-          // Stage 4.2-C.2: the wrapper owns position + block-level drag
-          // (same contract as every other block); ProfileMusicPlayer owns
-          // its own interactive controls, each stopping propagation so they
-          // never trigger startMusicDrag — see that file's header. Stage
-          // 4.2-C.2.2: no background/border by default — a heavy wrapper
-          // read as "a card inside the card" (see CLAUDE.md's Music
-          // redesign notes); it now inherits the ProfileCard's own
-          // background, same treatment as Contact Links' wrapper.
-          // `overflow: visible` (not hidden) so ProfileMusicPlayer's volume
-          // popover can render outside the block's own compact box.
-          <div
-            data-canvas-hot=""
-            style={{
-              position: "absolute", left: boxes.music.x, top: boxes.music.y, width: boxes.music.w, height: boxes.music.h,
-              transition: dragTransition("music"), cursor: isAnchorDraggable ? "grab" : "default",
-              borderRadius: musicBlockStyle.radius, background: musicBlockStyle.bg, overflow: "visible",
-              ...dragOutline("music"),
-            }}
-            onMouseDown={isAnchorDraggable ? startMusicDrag : undefined}
-          >
-            <ProfileMusicPlayer music={card.music} textColor={musicBlockStyle.textColor ?? primaryColor} secondaryColor={secondaryColor} mutedColor={faintColor} />
-          </div>
-        )}
       </div>
     );
   }
@@ -1326,6 +1406,7 @@ function ProfileCard({
                 cleanup stage — see Stage 3B plan. */}
             {layout === "free" && renderFree()}
             {layout !== "free" && renderComposed()}
+            {renderLogo()}
           </div>
         </CardLayers>
 
@@ -1372,7 +1453,7 @@ function ProfileCard({
         {/* ── Config menu ── */}
         {menuOpen && canInteract && portalPos && createPortal(
           <MenuPanel pos={portalPos} width={288} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
-            <ProfileConfigMenu card={card} linksFits={linksFits} musicFits={musicFits} baseColor={baseColor} onChange={patch => updateProfile(card.id, patch)} />
+            <ProfileConfigMenu card={card} linksFits={linksFits} baseColor={baseColor} onChange={patch => updateProfile(card.id, patch)} />
           </MenuPanel>
         , document.body)}
       </div>

@@ -20,8 +20,6 @@ export default function Topbar({
   unreadChats,
   unreadSignals,
   onSignals,
-  isAnalytics,
-  onAnalytics,
 }: {
   wallpaper: string;
   handle?: string;
@@ -38,8 +36,6 @@ export default function Topbar({
   unreadChats?:   number;
   unreadSignals?: number;
   onSignals?:     () => void;
-  isAnalytics?:   boolean;
-  onAnalytics?:   () => void;
 }) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
@@ -75,19 +71,16 @@ export default function Topbar({
   }, []);
 
   const tabs: { key: string; label: string; active: boolean; onClick: () => void }[] = [];
-  if (onAnalytics) {
-    tabs.push({ key: "analytics", label: "ANALYTICS", active: !!isAnalytics && !isBrowse && !isChats, onClick: onAnalytics });
-  }
   if (onModeChange && canvasMode) {
     const inSpace = canvasMode === "space" || canvasMode === "space_mobile";
     tabs.push({
       key:    "space",
       label:  "MY LAND",
-      active: inSpace && !isBrowse && !isChats && !isAnalytics,
+      active: inSpace && !isBrowse && !isChats,
       onClick: () => { if (!inSpace) onModeChange("space"); },
     });
   }
-  if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats && !isAnalytics, onClick: onChats });
+  if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats, onClick: onChats });
 
   return (
     <>

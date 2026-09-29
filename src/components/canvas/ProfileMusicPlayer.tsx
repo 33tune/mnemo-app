@@ -14,17 +14,19 @@ interface Props {
 }
 
 // Stage 4.2-C.2.2: minimalist redesign — content + controls, not a card
-// inside the card (see CLAUDE.md's Music redesign notes). Two compact rows
-// (controls+text, seek) instead of the original three; volume lives behind
-// a toggle (progressive disclosure) so it never adds to the block's
-// reserved height (musicBlockSizing.ts's MUSIC_BLOCK_HEIGHT). No wrapper
-// chrome here — background/border are ProfileCard.tsx's call (the wrapper
-// deliberately has none by default, same treatment as Contact Links).
+// inside the card. Two compact rows (controls+text, seek) instead of the
+// original three; volume lives behind a toggle (progressive disclosure) so
+// it never adds height. No wrapper chrome here — background/border are the
+// caller's call (deliberately none by default).
 // Stage 4.2-C.2.3: artwork removed entirely (no per-track image, no
-// generated substitute — see CLAUDE.md's Music simplification notes);
-// `hasText` now only decides internal render layout (show/hide the
-// title/artist column), never how much width the block reserves — that's
-// `card.musicWidth`'s job (musicBlockSizing.ts), set by the user directly.
+// generated substitute); `hasText` only decides internal render layout
+// (show/hide the title/artist column).
+// "Product closeout" (Parte 3): Music left ProfileCard's internal
+// composition entirely — this component is now reused verbatim as the
+// content of MusicCardWidget.tsx, an independent top-level canvas element
+// with its own free w/h (no more musicBlockSizing.ts/card.musicWidth
+// reserved-width contract — that file was deleted, sizing is now the
+// generic element engine's drag-resize, same as any other canvas card).
 //
 // Module-level component (not nested inside ProfileCard), same reason as
 // ContactLinkIcon: it owns non-trivial local state (playing, currentTime,

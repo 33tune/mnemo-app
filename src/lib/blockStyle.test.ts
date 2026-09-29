@@ -7,12 +7,11 @@ test("resolveBlockStyle: absent blockStyle inherits — bg/textColor/iconColor u
   assert.deepEqual(resolveBlockStyle({}, "location"), { bg: undefined, textColor: undefined, iconColor: undefined, radius: 2 });
   assert.deepEqual(resolveBlockStyle({}, "views"), { bg: undefined, textColor: undefined, iconColor: undefined, radius: 2 });
   assert.deepEqual(resolveBlockStyle({}, "links"), { bg: undefined, textColor: undefined, iconColor: undefined, radius: 2 });
-  assert.deepEqual(resolveBlockStyle({}, "music"), { bg: undefined, textColor: undefined, iconColor: undefined, radius: 6 });
 });
 
 test("resolveBlockStyle: override for one block never affects another", () => {
-  const card = { blockStyle: { music: { bg: "#111111" } } };
-  assert.equal(resolveBlockStyle(card, "music").bg, "#111111");
+  const card = { blockStyle: { links: { bg: "#111111" } } };
+  assert.equal(resolveBlockStyle(card, "links").bg, "#111111");
   assert.equal(resolveBlockStyle(card, "location").bg, undefined);
 });
 
@@ -25,6 +24,6 @@ test("resolveBlockStyle: partial override only replaces the given fields, radius
 });
 
 test("resolveBlockStyle: explicit radius override wins over the block default", () => {
-  const card = { blockStyle: { music: { radius: 12 } } };
-  assert.equal(resolveBlockStyle(card, "music").radius, 12);
+  const card = { blockStyle: { links: { radius: 12 } } };
+  assert.equal(resolveBlockStyle(card, "links").radius, 12);
 });

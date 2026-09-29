@@ -11,13 +11,27 @@ import { getProfileCardEffects, getModuleCardEffects } from "@/lib/profileCardEf
 import CardLayers from "./CardLayers";
 import { SocialIconBtn, PlatformIcon, detectPlatform } from "./SocialIcons";
 import { withAlpha } from "./LinksCardWidget";
-import { musicLabel } from "./MusicCardWidget";
 import { fmtNum, StatItem } from "./StatsCardWidget";
 import { trackLinkClick } from "@/lib/trackLinkClick";
 import { useProfileViews } from "@/hooks/useProfileViews";
 import { getFontStyle } from "@/lib/fontList";
 
 const MONO = "'Space Mono', monospace";
+
+// Inlined from MusicCardWidget.tsx (now deleted from there — Music moved to
+// an independent canvas element with a real player, no more link-preview
+// label). Mobile legacy (space_mobile) still renders the old legacy
+// card.musicUrl link-preview verbatim — untouched behavior, just no longer
+// importing a helper that stopped existing on the desktop side.
+function musicLabel(url: string): string {
+  try {
+    const full = url.startsWith("http") ? url : `https://${url}`;
+    const { hostname, pathname } = new URL(full);
+    const service = hostname.replace(/^(www|open)\./i, "").split(".")[0].toUpperCase();
+    const slug    = pathname.split("/").filter(Boolean).pop() ?? "";
+    return slug ? `${service} · ${slug.slice(0, 20)}` : service;
+  } catch { return url.slice(0, 24); }
+}
 const SANS = "'DM Sans', sans-serif";
 
 const FONT_MAP: Record<TextFont, string> = {

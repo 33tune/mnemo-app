@@ -14,3 +14,4 @@ export { MenuNote }       from "./MenuNote";
 export { ColorRow }       from "./ColorRow";
 export { FontSelect }     from "./FontSelect";
 export { OffsetRow }      from "./OffsetRow";
+export { GradientStops }  from "./GradientStops";

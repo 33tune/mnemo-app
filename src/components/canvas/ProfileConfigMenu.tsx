@@ -6,38 +6,38 @@ import { getCardPadding } from "@/lib/cardGeometry";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
-import ProfileMusicMenu from "./ProfileMusicMenu";
+import ProfileLogoMenu from "./ProfileLogoMenu";
 import ProfileTypographyMenu from "./ProfileTypographyMenu";
 import ProfileBackgroundMenu from "./ProfileBackgroundMenu";
 import ProfileEffectsMenu from "./ProfileEffectsMenu";
 
 // Stage FASE 2 (Personalization UI/UX): one flat Tabs bar, no nested "doors".
-// Before this stage: root -> Datos/Estilo doors -> (inside Estilo) 4 more
+// Before that stage: root -> Datos/Estilo doors -> (inside Estilo) 4 more
 // doors (Fondo/Tipografía/Forma/Efectos) -> controls — 2 clicks of pure
-// navigation before reaching anything. The audit's own UX finding (see
-// CLAUDE.md) was that this asymmetry wasn't justified by content volume.
-// Now: open the menu, the 4 tabs are all visible immediately, one click
-// reaches any category. "Datos" -> CONTENT, "Fondo" -> BACKGROUND,
-// "Tipografía" -> TEXT (now much deeper — every role, not just one global
-// size), "Forma"+"Efectos" merged into EFFECTS (Border renamed from "Forma"
-// per the audit's naming-collision finding — see ProfileEffectsMenu.tsx).
+// navigation before reaching anything. Now: open the menu, the 4 tabs are
+// all visible immediately, one click reaches any category.
+// "Product closeout" UX audit: tab labels moved to Spanish (matching every
+// label underneath them, which was already Spanish — English tab labels
+// over a Spanish body was its own small inconsistency). Music removed
+// entirely from this tab (it's now an independent canvas element — see
+// MusicCardWidget.tsx); Logo added in its place (a free visual element
+// living inside ProfileCard, not a structural block).
 type View = "content" | "background" | "text" | "effects";
 
 const TAB_ITEMS: { id: View; label: string }[] = [
-  { id: "content",    label: "Content" },
-  { id: "background", label: "Background" },
-  { id: "text",       label: "Text" },
-  { id: "effects",    label: "Effects" },
+  { id: "content",    label: "Contenido" },
+  { id: "background", label: "Fondo" },
+  { id: "text",       label: "Texto" },
+  { id: "effects",    label: "Efectos" },
 ];
 
 interface ProfileConfigMenuProps {
   card:     ProfileCardData;
   /** Stage 4.2-C.2.7: render-time verdict from ProfileCard's blockFits() —
-   * whether each optional block's resolved box still fits inside the card's
+   * whether the Links block's resolved box still fits inside the card's
    * padded content area. `undefined` = not applicable (layout "free", which
-   * doesn't use these blocks); only an explicit `false` warns. */
+   * doesn't use this engine); only an explicit `false` warns. */
   linksFits?: boolean;
-  musicFits?: boolean;
   /** The already-resolved base text color (isLight-derived fallback
    * applied) — ProfileCard.tsx computes this once for render; threaded down
    * to TEXT so every role's ColorRow shows the REAL current color. */
@@ -45,7 +45,7 @@ interface ProfileConfigMenuProps {
   onChange: (patch: Partial<ProfileCardData>) => void;
 }
 
-export default function ProfileConfigMenu({ card, linksFits, musicFits, baseColor, onChange }: ProfileConfigMenuProps) {
+export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange }: ProfileConfigMenuProps) {
   const [view, setView] = useState<View>("content");
 
   function patchEffects(effects: CardEffects) {
@@ -70,12 +70,7 @@ export default function ProfileConfigMenu({ card, linksFits, musicFits, baseColo
           />
           <ProfileMetadataMenu card={card} onChange={onChange} />
           <ProfileContactLinksMenu card={card} fitsInCard={linksFits} onChange={onChange} />
-          <ProfileMusicMenu
-            card={card}
-            availableWidth={Math.max(0, card.w - 2 * getCardPadding(card.variant))}
-            fitsInCard={musicFits}
-            onChange={onChange}
-          />
+          <ProfileLogoMenu logo={card.logo} onChange={onChange} />
         </div>
       )}
 

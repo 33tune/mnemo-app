@@ -40,7 +40,6 @@ const DEFAULT_BLOCK_RADIUS: Record<BlockStyleKey, number> = {
   location: 2,
   views:    2,
   links:    2,
-  music:    6,
 };
 
 /**

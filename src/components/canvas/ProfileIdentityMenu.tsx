@@ -86,7 +86,11 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, onChange 
           fmt={v => pfpRadiusToPercent(v) === 50 ? "○" : pfpRadiusToPercent(v) === 0 ? "□" : `${Math.round(v)}%`}
           onChange={v => onChange({ pfpRadius: v })} />
 
-        <Collapsible label="Avanzado">
+        {/* UX audit finding: this used to be called "Avanzado", same label
+            BlockStyleFields' own Identity collapsible below uses for a
+            completely different thing (the identity TEXT block's style,
+            not the photo's) — renamed to make the scope explicit. */}
+        <Collapsible label="Estilo de foto">
           <MenuSection label="Borde" first>
             <ColorRow
               label="Color" value={pfpFx?.border?.color} onChange={v => patchPfpBorder({ color: v })}

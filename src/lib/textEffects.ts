@@ -1,11 +1,14 @@
 /**
  * Pure text-effect infrastructure (Stage FASE 1 — Personalization Core;
- * extended in Stage FASE 3 — Text & Motion Effects with blur, gradient and
+ * extended in Stage FASE 3 with blur/gradient/shimmer; extended again in
+ * "Product closeout" with multicolor gradient and a real standalone
  * shimmer). Resolved into a plain CSSProperties fragment, meant to be
- * spread onto any text role's style object. Takes two independent inputs —
- * `effect` (card-wide shadow/glow/stroke/blur) and `roleEffect` (that one
- * role's gradient/shimmer) — see RoleTextEffect's header in types/index.ts
- * for why gradient/shimmer are the only per-role pieces.
+ * spread onto any text role's style object. Takes three independent
+ * inputs — `effect` (card-wide shadow/glow/stroke/blur), `roleEffect`
+ * (that one role's gradient/shimmer/letterAnimation), and `resolvedColor`
+ * (that role's already-resolved solid color, from cardColors.ts) — see
+ * RoleTextEffect's header in types/index.ts for why gradient/shimmer are
+ * the only per-role pieces.
  *
  * `card.effects.text` flows to ProfileCard.tsx's `effectiveEffects.text`
  * automatically — getProfileCardEffects()'s `...card.effects` spread already
@@ -13,16 +16,25 @@
  * interactions are the only ones it rewrites), so this needed zero changes
  * there. See profileCardEffects.ts.
  *
- * FASE 3 note on composability: shadow/glow/stroke all operate on the
- * glyph's rendered shape regardless of fill — they compose cleanly with
- * gradient text (`color: transparent` + `background-clip: text`) with no
- * CSS-level conflict. The ONLY real exclusion is gradient vs. a role's own
- * solid color, because gradient requires `color: transparent` to work at
- * all — see the `gradient` branch below, and ProfileTypographyMenu.tsx
- * where the solid ColorRow disables itself accordingly.
+ * Composability: shadow/glow/stroke all operate on the glyph's rendered
+ * shape regardless of fill — they compose cleanly with gradient text
+ * (`color: transparent` + `background-clip: text`) with no CSS-level
+ * conflict. The ONLY real exclusion is gradient vs. a role's own solid
+ * color, because gradient requires `color: transparent` to work at all —
+ * see the `gradient` branch below, and RoleTypographyFields.tsx where the
+ * solid ColorRow disables itself accordingly.
+ *
+ * Shimmer fix ("Product closeout"): FASE 3 required an explicit `gradient`
+ * for shimmer to do anything — inert on solid color, which is what made it
+ * feel broken/invisible for anyone who hadn't first set up a gradient.
+ * Shimmer now ALWAYS has something to sweep across: when no gradient is
+ * set, it synthesizes a flat two-stop "gradient" from the role's own
+ * resolved solid color (`resolvedColor`), so background-clip:text has a
+ * valid surface regardless. This is why `resolveTextEffectStyle` now takes
+ * a third parameter it didn't have in FASE 3.
  */
 import type { CSSProperties } from "react";
-import type { TextEffects, RoleTextEffect } from "@/types";
+import type { TextEffects, RoleTextEffect, TextGradientEffect } from "@/types";
 import { withOpacity } from "./cardColors";
 import { resolveShimmerAnimation } from "./cardMotion";
 
@@ -30,7 +42,8 @@ const DEFAULT_SHADOW_COLOR = "#000000";
 const DEFAULT_SHADOW_OPACITY_NO_COLOR = 0.5; // reproduces the pre-existing "rgba(0,0,0,0.5)" look when nothing is set
 const DEFAULT_GLOW_COLOR = "#ffffff";
 const DEFAULT_STROKE_COLOR = "#000000";
-const DEFAULT_SHIMMER_INTENSITY = 0.6;
+// Tuned down from FASE 3's 0.6 — "premium subtle", not a bright flash.
+const DEFAULT_SHIMMER_INTENSITY = 0.45;
 
 function resolveShadowColor(color: string | undefined, opacity: number | undefined): string {
   const base = color ?? DEFAULT_SHADOW_COLOR;
@@ -43,16 +56,29 @@ function resolveGlowColor(color: string | undefined, intensity: number): string 
   return base.startsWith("#") ? withOpacity(base, Math.min(1, intensity)) : base;
 }
 
+/** Builds the `linear-gradient(...)` CSS string for a role's gradient,
+ * multicolor-first with a defensive fallback to the pre-multicolor
+ * {from,to} shape for any data saved before this stage — see
+ * TextGradientEffect's header in types/index.ts. */
+export function resolveGradientCss(gradient: TextGradientEffect): string {
+  const stops = gradient.colors?.length ? gradient.colors
+    : [gradient.from, gradient.to].filter((c): c is string => !!c);
+  const safeStops = stops.length >= 2 ? stops : [...stops, ...stops]; // degenerate 1-color input still paints something
+  const angle = gradient.angle ?? 90;
+  return `linear-gradient(${angle}deg, ${safeStops.join(", ")})`;
+}
+
 /**
- * Resolves a text role's effects into a CSSProperties fragment, meant to be
- * spread onto that role's style object. `effect` is `card.effects.text`
- * (card-wide shadow/glow/stroke/blur — same object for every role).
- * `roleEffect` is that ONE role's entry from `card.effects.textRoles`
- * (gradient/shimmer — see RoleTextEffect's header for why these are
- * per-role while the rest are card-wide). Both absent returns `{}` — zero
- * visual change for every existing card, the entire compatibility contract.
+ * Resolves a text role's effects into a CSSProperties fragment. `effect` is
+ * `card.effects.text` (card-wide shadow/glow/stroke/blur — same object for
+ * every role). `roleEffect` is that ONE role's entry from
+ * `card.effects.textRoles` (gradient/shimmer). `resolvedColor` is that
+ * role's already-resolved solid color (cardColors.ts's resolveCardColors
+ * output for this role) — used only to synthesize a shimmer surface when no
+ * gradient is set. All absent returns `{}` — zero visual change for every
+ * existing card, the entire compatibility contract.
  */
-export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTextEffect): CSSProperties {
+export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTextEffect, resolvedColor?: string): CSSProperties {
   const style: CSSProperties = {};
 
   if (effect) {
@@ -79,24 +105,27 @@ export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTe
     }
   }
 
-  // Gradient text — the one real exclusion (see file header). Shimmer
-  // requires `gradient` to also be set on the SAME role: it has nothing to
-  // sweep across otherwise, and there's deliberately no synthesized
-  // fallback gradient from the role's solid color (would need this
-  // function to also receive that color, widening its signature for a
-  // case the UI already prevents by disabling the Shimmer toggle until
-  // Gradient is on for that role).
-  if (roleEffect?.gradient) {
-    const { from, to, angle } = roleEffect.gradient;
-    const baseGradient = `linear-gradient(${angle}deg, ${from}, ${to})`;
-    if (roleEffect.shimmer) {
-      const intensity = roleEffect.shimmer.intensity ?? DEFAULT_SHIMMER_INTENSITY;
-      const shimmerBand = `linear-gradient(100deg, transparent 35%, rgba(255,255,255,${intensity}) 50%, transparent 65%)`;
+  const hasGradient = !!roleEffect?.gradient;
+  const hasShimmer  = !!roleEffect?.shimmer;
+
+  // Gradient text — the one real exclusion (see file header). Shimmer no
+  // longer requires an explicit gradient: absent one, it synthesizes a
+  // flat two-stop "gradient" from the role's own resolved color so
+  // background-clip:text still has a valid surface to sweep a highlight
+  // across — same visible role color, just now animatable.
+  if (hasGradient || hasShimmer) {
+    const baseGradient = roleEffect!.gradient
+      ? resolveGradientCss(roleEffect!.gradient!)
+      : `linear-gradient(90deg, ${resolvedColor ?? "#ffffff"}, ${resolvedColor ?? "#ffffff"})`;
+
+    if (hasShimmer) {
+      const intensity = roleEffect!.shimmer!.intensity ?? DEFAULT_SHIMMER_INTENSITY;
+      const shimmerBand = `linear-gradient(100deg, transparent 38%, rgba(255,255,255,${intensity}) 50%, transparent 62%)`;
       style.backgroundImage = `${shimmerBand}, ${baseGradient}`;
       style.backgroundSize = "250% 100%, 100% 100%";
-      style.backgroundPosition = "-100% 0, 0 0";
+      style.backgroundPosition = "-120% 0, 0 0";
       style.backgroundRepeat = "no-repeat, no-repeat";
-      style.animation = resolveShimmerAnimation(roleEffect.shimmer.speed ?? 1);
+      style.animation = resolveShimmerAnimation(roleEffect!.shimmer!.speed ?? 1);
     } else {
       style.backgroundImage = baseGradient;
     }

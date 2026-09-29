@@ -45,6 +45,9 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
   function patchAnimations(patch: Partial<NonNullable<CardEffects["animations"]>>) {
     onChange({ ...effects, animations: { ...effects?.animations, ...patch } });
   }
+  function patchRetro(patch: Partial<NonNullable<CardEffects["retro"]>>) {
+    onChange({ ...effects, retro: { ...effects?.retro, ...patch } });
+  }
 
   const anyGlow    = !!(glow?.outer || glow?.inner);
   const shadowOn   = !!sh?.intensity && sh.intensity > 0;
@@ -52,6 +55,7 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
   const glowInt    = glow?.intensity ?? 0;
   // Same "presence = on, 1 = no-op too" contract as useCardInteractions.ts.
   const hoverScaleOn = inter?.hoverScale != null && inter.hoverScale !== 1;
+  const retro = effects?.retro;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
@@ -206,6 +210,65 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
                 (solo UI sobre resolvers ya existentes). */}
           </>
         )}
+      </Collapsible>
+
+      {/* "Product closeout" (Parte 8): composable analog/retro screen
+          effects — each independent, own toggle/intensity, grouped under
+          one Collapsible (same pattern "Movimiento" already uses for
+          Flotación/Inclinación/Hover) instead of 4 separate top-level
+          sections. CSS/SVG-data-URI only, see CardLayers.tsx's rendering. */}
+      <Collapsible label="Retro">
+        <MenuSection label="Scanlines" first>
+          <MenuRow label="Activar">
+            <Toggle value={!!retro?.scanlines?.enabled} onChange={v => patchRetro({ scanlines: { enabled: v, intensity: retro?.scanlines?.intensity } })} />
+          </MenuRow>
+          {retro?.scanlines?.enabled && (
+            <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={retro.scanlines.intensity ?? 0.5}
+              onChange={v => patchRetro({ scanlines: { enabled: true, intensity: v } })} fmt={v => `${Math.round(v * 100)}%`} />
+          )}
+        </MenuSection>
+
+        <Divider />
+
+        <MenuSection label="Ruido VHS">
+          <MenuRow label="Activar">
+            <Toggle value={!!retro?.noise?.enabled} onChange={v => patchRetro({ noise: { enabled: v, intensity: retro?.noise?.intensity } })} />
+          </MenuRow>
+          {retro?.noise?.enabled && (
+            <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={retro.noise.intensity ?? 0.5}
+              onChange={v => patchRetro({ noise: { enabled: true, intensity: v } })} fmt={v => `${Math.round(v * 100)}%`} />
+          )}
+        </MenuSection>
+
+        <Divider />
+
+        <MenuSection label="Flicker">
+          <MenuRow label="Activar">
+            <Toggle value={!!retro?.flicker?.enabled} onChange={v => patchRetro({ flicker: { enabled: v, intensity: retro?.flicker?.intensity, speed: retro?.flicker?.speed } })} />
+          </MenuRow>
+          {retro?.flicker?.enabled && (
+            <>
+              <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={retro.flicker.intensity ?? 0.5}
+                onChange={v => patchRetro({ flicker: { ...retro.flicker!, enabled: true, intensity: v } })} fmt={v => `${Math.round(v * 100)}%`} />
+              <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={retro.flicker.speed ?? 1}
+                onChange={v => patchRetro({ flicker: { ...retro.flicker!, enabled: true, speed: v } })} fmt={v => `${v.toFixed(1)}x`} />
+            </>
+          )}
+        </MenuSection>
+
+        <Divider />
+
+        <MenuSection label="Aberración cromática">
+          <MenuRow label="Activar">
+            <Toggle value={!!retro?.chromaticAberration?.enabled} onChange={v => patchRetro({ chromaticAberration: { enabled: v, intensity: retro?.chromaticAberration?.intensity } })} />
+          </MenuRow>
+          {retro?.chromaticAberration?.enabled && (
+            <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={retro.chromaticAberration.intensity ?? 0.4}
+              onChange={v => patchRetro({ chromaticAberration: { enabled: true, intensity: v } })} fmt={v => `${Math.round(v * 100)}%`} />
+          )}
+        </MenuSection>
+
+        <MenuNote>Efectos analógicos sutiles — pensados para combinarse entre sí sin afectar la legibilidad.</MenuNote>
       </Collapsible>
     </div>
   );

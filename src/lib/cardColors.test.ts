@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { luminance, withOpacity, resolveCardColors } from "./cardColors";
+import { luminance, withOpacity, resolveCardColors, interpolateMulticolor, colorForLetterIndex } from "./cardColors";
 
 test("withOpacity: converts hex to rgba with given alpha", () => {
   assert.equal(withOpacity("#ffffff", 0.5), "rgba(255,255,255,0.5)");
@@ -45,4 +45,32 @@ test("resolveCardColors: full override matches every given hex exactly", () => {
   };
   const c = resolveCardColors("#ffffff", overrides);
   assert.deepEqual(c, overrides);
+});
+
+test("interpolateMulticolor: t=0 returns the first color, t=1 returns the last", () => {
+  assert.equal(interpolateMulticolor(["#ff0000", "#00ff00", "#0000ff"], 0), "rgb(255,0,0)");
+  assert.equal(interpolateMulticolor(["#ff0000", "#00ff00", "#0000ff"], 1), "rgb(0,0,255)");
+});
+
+test("interpolateMulticolor: t=0.5 across 3 colors lands exactly on the middle stop", () => {
+  assert.equal(interpolateMulticolor(["#ff0000", "#00ff00", "#0000ff"], 0.5), "rgb(0,255,0)");
+});
+
+test("interpolateMulticolor: single color returns that color regardless of t", () => {
+  assert.equal(interpolateMulticolor(["#123456"], 0.7), "#123456");
+});
+
+test("interpolateMulticolor: out-of-range t is clamped", () => {
+  assert.equal(interpolateMulticolor(["#ff0000", "#0000ff"], -1), interpolateMulticolor(["#ff0000", "#0000ff"], 0));
+  assert.equal(interpolateMulticolor(["#ff0000", "#0000ff"], 2), interpolateMulticolor(["#ff0000", "#0000ff"], 1));
+});
+
+test("colorForLetterIndex: first and last character map to the first and last stop", () => {
+  const colors = ["#ff0000", "#00ff00", "#0000ff"];
+  assert.equal(colorForLetterIndex(colors, 0, 5), interpolateMulticolor(colors, 0));
+  assert.equal(colorForLetterIndex(colors, 4, 5), interpolateMulticolor(colors, 1));
+});
+
+test("colorForLetterIndex: a single-character string returns the first stop", () => {
+  assert.equal(colorForLetterIndex(["#ff0000", "#0000ff"], 0, 1), "#ff0000");
 });

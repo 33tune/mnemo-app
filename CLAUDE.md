@@ -156,12 +156,14 @@ planeado acá hasta confirmarlo.
   queda **diferido indefinidamente**, no es parte del roadmap actual.
   `musicEmbed.ts` sigue siendo código muerto (no usado) — no limpiar/tocar
   salvo que se retome esa decisión explícitamente.
-- Music implementado = **solamente subir un MP3** (Etapa 4.2-C.2.3 — ya no
-  se expone la opción de URL directa en la UI, aunque `MusicSourceType`
-  sigue existiendo en el tipo por compat con datos viejos). Sin artwork
-  configurable por el usuario. Filosofía: "guns.lol pero mejorado" — simple
-  building blocks + libertad de personalización de tamaño/posición, no un
-  reproductor con muchas opciones.
+- Music implementado = **solamente subir un MP3**, sin artwork configurable.
+  Filosofía: "guns.lol pero mejorado" — simple building blocks + libertad de
+  personalización de tamaño/posición, no un reproductor con muchas opciones.
+  **Desde "Product closeout" (2026-09-29, ver checkpoint) Music ya NO vive
+  dentro de ProfileCard** — es un elemento de canvas independiente
+  (`MusicCardData`/`MusicCardWidget.tsx`), misma filosofía MP3-only.
+  `MusicSourceType`/`sourceType` siguen en el tipo por compat con datos
+  viejos, sin UI.
 - Gallery será la **última feature grande** que se agrega dentro de
   ProfileCard.
 - Después de Gallery: Effects + Personalization (sistema compartido de
@@ -465,24 +467,121 @@ pusheado a `origin/main`.** La UI completa sobre la infraestructura de FASE 1:
   (14–32px, slider en `ProfileContactLinksMenu.tsx`, Etapa 4.2-C.2.1-P3) —
   ausente = `CONTACT_LINK_ICON_SIZE` (`contactLinksBlock.ts`), igual que
   antes de esta etapa.
-- **Music** (`MusicBlockData` en `card.music`): `{sourceType, audioUrl,
-  title?, artist?, artwork?, volume?}`. `sourceType`/`artwork` existen en el
-  tipo por compat pero **la UI ya no los expone** desde la simplificación
-  de la Etapa 4.2-C.2.3 (solo upload de MP3, sin artwork) — no confundir el
-  tipo completo con lo que el menú realmente permite hoy. `volume` es el
-  volumen inicial configurado por el owner — **nunca** el volumen en vivo.
-  `playing`, `currentTime`, `duration`, volumen en vivo y `muted` son
-  estado LOCAL del visitante (`useState` dentro de `ProfileMusicPlayer.tsx`),
-  nunca se persisten ni se agregan a `ProfileCardData`. Posición vía
-  `musicAnchorX/Y`. Configurable desde `ProfileMusicMenu.tsx` — activar/
-  desactivar es la presencia/ausencia de `card.music`
-  (`onChange({ music: undefined })` para apagar), sin boolean separado.
-  **Ancho vía `card.musicWidth`** (slider en el menú, `MUSIC_BLOCK_WIDTH_MIN=120`
-  hasta el ancho disponible de la card, default `MUSIC_BLOCK_WIDTH_DEFAULT=180`
-  cuando está ausente) — es el único eje resizeable, ya NO content-driven
-  por `hasText` como en la Etapa 4.2-C.2.2. Altura siempre
-  `MUSIC_BLOCK_HEIGHT` fijo, nunca depende del ancho. Ver `musicBlockSizing.ts`
-  (Etapa 4.2-C.2.3).
+- **Music dejó de ser un bloque interno de ProfileCard** ("Product
+  closeout", ver checkpoint 2026-09-29 más abajo) — ahora es
+  `MusicCardData`, un elemento de canvas top-level independiente
+  (`MusicCardWidget.tsx`), igual que Links/Gallery/Image. `card.music`
+  (`MusicBlockData`), `musicAnchorX/Y` y `musicWidth` **siguen existiendo**
+  en `ProfileCardData` solo por compat con datos ya persistidos — nada los
+  lee ni los escribe más. `ProfileMusicMenu.tsx`/`musicBlockSizing.ts`
+  fueron eliminados.
+- **Logo** (`ProfileCardData.logo`): `{url, anchorX, anchorY, w, h,
+  opacity?, rotation?, zIndex?}` — el nuevo bloque interno que reemplazó a
+  Music en el menú CONTENIDO (`ProfileLogoMenu.tsx`). Free visual element
+  dentro de los bounds de ProfileCard, NO estructural: no participa de
+  `computeBlockLayout`, nunca afecta el growth vertical. Posición vía
+  drag directo sobre la card (mismo patrón anchor-drag que PFP —
+  `startLogoDrag`/`nextAnchorAxis`+`snapAxis`, sin anti-overlap); tamaño
+  vía sliders en el menú (no hay drag-resize interno, mismo criterio que
+  el Music block viejo). `zIndex` (default 0) es el único bloque interno
+  con profundidad explícita — todos los demás apilan por orden de DOM.
+
+**Checkpoint 2026-09-29 — "Product closeout" (mega-fase única, PARTE 1-10 del
+pedido del usuario), commit pendiente de push a `origin/main`.** Pedido
+explícito del usuario de cerrar en una sola fase sin microstages: auditoría
++ UX subagent, purga de Analytics (preservando Views), Music fuera de
+ProfileCard como elemento independiente, Logo como elemento interno nuevo,
+fix de shimmer, gradiente multicolor, animación por letra, efectos
+retro/CRT, y reorganización UX del menú Personalizar. 281/281 tests, `tsc`
+y `build` limpios.
+
+- **Analytics eliminado** (`AnalyticsCanvas.tsx`, `useAnalytics.ts`
+  borrados; tab/vista/rutas sacadas de `CanvasBoard.tsx`/`Topbar.tsx`) —
+  **esto adelanta fuera de orden el paso 3 del roadmap anterior** ("Social/
+  Browse → eliminar Analytics"), por pedido explícito del usuario en esta
+  fase, no por decisión unilateral. `ProfileViewTracker.tsx`,
+  `useProfileViews.ts`, `src/lib/analytics.ts` (telemetría genérica,
+  `analytics.canvasEdit(...)` sigue en uso) y el insert de `profile_views`
+  en `[handle]/page.tsx` quedaron **intactos** — el contador de Views
+  público no depende de ninguno de los archivos borrados.
+- **Music dejó de participar de `computeComposition`/`computeBlockLayout`**
+  — ya no crece la card, ya no tiene anchor propio dentro de ProfileCard.
+  Reaparece como `MusicCardData`, un elemento top-level más del canvas
+  (`addMusicCard()` en `CanvasBoard.tsx`, entrada "Music" en el menú `+`,
+  mismo patrón `add_music`/`update_music` que ya existía desde la vieja
+  etapa standalone). `MusicCardWidget.tsx` ahora renderiza el reproductor
+  real (`ProfileMusicPlayer.tsx`, el mismo componente, self-hosted MP3
+  únicamente) en vez del viejo link-preview de Spotify/YouTube/SoundCloud;
+  nuevos campos `audioUrl/title/artist/volume` en `MusicCardData`. **Sin
+  migración automática**: un `card.music` viejo (dentro de ProfileCard) no
+  se traslada solo a un `MusicCardData` nuevo — el owner tiene que crear el
+  elemento Music de nuevo y resubir el MP3 si lo quiere de vuelta. Ver
+  "Music dejó de ser un bloque interno" en Modelo de datos, arriba.
+- **Logo agregado como bloque interno de ProfileCard** (`card.logo`) — ver
+  su entrada en Modelo de datos, arriba. Reemplazó a Music en el tab
+  CONTENIDO del menú (`ProfileConfigMenu.tsx`).
+- **Shimmer fix** (`textEffects.ts`) — el bug real era que shimmer no hacía
+  nada sin un gradiente explícito configurado (invisible sobre color
+  sólido). `resolveTextEffectStyle` ahora sintetiza un gradiente plano de 2
+  stops a partir del color sólido resuelto del rol cuando no hay gradiente
+  — shimmer funciona en cualquier combinación shadow/glow/stroke/blur +
+  color sólido o gradiente. Intensidad/banda reafinadas (más sutil).
+- **Gradiente multicolor** — `TextGradientEffect.colors: string[]` (N≥2,
+  antes `{from,to}` fijo a 2) + nuevo primitivo `@/ui/GradientStops.tsx`
+  (agregar/quitar stops). `{from,to}` sigue leyéndose como fallback
+  defensivo de datos viejos. Disponible en cualquier rol de texto vía
+  `RoleTypographyFields.tsx`.
+- **Animación por letra en Nombre** (`card.effects.textRoles.name.letterAnimation`,
+  `{amplitude?, speed?, stagger?}`) — `NameLine` en `ProfileCard.tsx` pasa a
+  renderizar un `<span>` por carácter cuando está activa. Combinada con
+  gradiente multicolor: color sólido interpolado por índice de letra
+  (`colorForLetterIndex`, `cardColors.ts`), NO un gradiente posicional —
+  evita el "corte" visual que produciría un `background-clip` fijo sobre
+  letras que se mueven independientemente. Combinada con shimmer: pulso de
+  opacidad escalonado por letra en vez del barrido normal, misma razón.
+  Shadow/glow/stroke se heredan del contenedor padre (CSS cascade/`filter`
+  ya componen todo el subárbol), sin duplicar por `<span>`. Nuevas
+  keyframes compartidas en `cardMotion.ts` (`mnemo-letter-bounce`, lee
+  amplitud de `--letter-amp` por span; `mnemo-letter-shimmer-pulse`).
+- **Efectos retro/CRT** (`CardEffects.retro` — scanlines/noise/flicker/
+  chromaticAberration, cada uno independiente) — nuevas capas en
+  `CardLayers.tsx`, renderizadas sobre el Content Layer. Scanlines: overlay
+  `repeating-linear-gradient` + `mix-blend-mode: multiply`. Noise: reutiliza
+  el mismo data-URI SVG `feTurbulence` que `GuestbookWidget.tsx`/
+  `MobilePublicCanvas.tsx` ya usaban para grano estático, ahora
+  parametrizado/toggleable. Flicker: reutiliza el sistema de keyframes
+  compartido de `cardMotion.ts` (`resolveFlickerAnimation`, mismo patrón
+  que el glow-pulse existente). Aberración cromática: **no clona el
+  contenido** — aplica `filter: drop-shadow(...)` con dos offsets rojo/cian
+  directamente sobre el Content Layer (técnica CSS estándar liviana, sin
+  canvas). UI: nuevo Collapsible "Retro" en `ProfileEffectsMenu.tsx`, mismo
+  patrón de agrupamiento que "Movimiento".
+- **Reorganización UX del menú Personalizar** — auditoría hecha por un
+  subagente especializado en UX/UI (persona de product designer senior),
+  lanzado explícitamente para esto por pedido del usuario; su reporte se
+  tomó como insumo de diseño, no como instrucción con autoridad de usuario.
+  Se mantuvo la estructura de 4 tabs raíz (CONTENIDO/FONDO/TEXTO/EFECTOS,
+  ahora en español) — se evaluó reestructurar pero no se encontró una
+  alternativa mejor que además respetara "no navegación anidada profunda".
+  Cambios: "Efectos globales de texto" subido al tope del tab TEXTO;
+  "Gradient"→"Gradiente"; PFP "Avanzado"→"Estilo de foto" (colisión de
+  nombre con el "Avanzado" de BlockStyleFields); Retro agrupado en un solo
+  Collapsible (ver arriba) en vez de 4 sueltos. Cero presets, cero estilos
+  generados, cero reducción de capacidades — solo reorganización.
+
+**Limitaciones conocidas, sin resolver dentro de esta fase:**
+- Logo y los efectos Retro no llegan a `space_mobile`/`MobilePublicCanvas.tsx`
+  (regla explícita de no tocar mobile legacy salvo necesidad estricta —
+  acá la única edición a ese archivo fue reponer un helper `musicLabel`
+  inline que se rompió al borrar `ProfileMusicMenu.tsx`, cero cambio de
+  comportamiento).
+  `PublicCanvas.tsx` (un componente separado, no referenciado por
+  `[handle]/page.tsx`, que sí importa `ProfileCard.tsx`) tampoco se tocó.
+- El tuning visual exacto de los efectos retro (opacidades/curvas de
+  scanlines, ritmo de flicker, offset de aberración cromática) no se pudo
+  verificar en navegador — valores elegidos por criterio, no medidos.
+- Ningún dato viejo de `card.music`/`musicAnchorX/Y`/`musicWidth` se migra
+  automáticamente al nuevo `MusicCardData` — ver arriba.
 
 ## La próxima sesión
 
@@ -493,20 +592,28 @@ código) antes de escribir código.
 producto** (ver "Reprioridad 2026-09-18"). **Gallery está eliminada del
 roadmap (2026-09-19) — no implementar, no retomar sin pedido explícito.**
 
-**Effects/Personalization está DONE (FASE 1+2+3, ver checkpoints arriba) —
-ya no es el próximo paso.** El incidente de Vercel de 2026-09-18 quedó
-resuelto hace mucho (múltiples deploys exitosos desde entonces, incluidos
-los de las 3 fases de personalización) — el "PASO 0" que estaba acá ya no
-aplica, no hace falta re-verificar deployment por ese incidente puntual.
+**Effects/Personalization y el "Product closeout" del 2026-09-29 (ver
+checkpoint arriba) están DONE** — ya no son el próximo paso. El incidente de
+Vercel de 2026-09-18 quedó resuelto hace mucho, no hace falta re-verificar
+deployment por ese incidente puntual.
 
-**QA manual pendiente de FASE 3** (nunca ejecutado en vivo dentro de esta
-sesión — ver el checklist que el usuario definió al pedir la fase):
-Gradient por rol + color sólido deshabilitándose correctamente, Blur,
-Shimmer, Gradient+Shimmer combinados, Border animation, Hover Glow, Hover
-Scale, Tilt+Hover, Tilt+Spotlight+Hover, Floating+Tilt sin regresión de
-movimiento, PFP border/shadow/glow/glow-animation, persistencia
-(cambiar→guardar→recargar), y confirmar que `space_mobile` no se vio
-afectado (no debería — cero cambios ahí).
+**QA manual pendiente** (nunca ejecutado en vivo dentro de esta sesión —
+ninguno de los dos checklists de abajo se pudo correr en navegador real):
+- De FASE 3: Gradient por rol + color sólido deshabilitándose correctamente,
+  Blur, Shimmer, Gradient+Shimmer combinados, Border animation, Hover Glow,
+  Hover Scale, Tilt+Hover, Tilt+Spotlight+Hover, Floating+Tilt sin regresión
+  de movimiento, PFP border/shadow/glow/glow-animation, persistencia
+  (cambiar→guardar→recargar), y confirmar que `space_mobile` no se vio
+  afectado.
+- Del "Product closeout" (2026-09-29): shimmer sin gradiente configurado,
+  gradiente multicolor (3+ stops), animación por letra sola y combinada con
+  gradiente multicolor/shimmer, Logo (subir/arrastrar/resize/opacidad/
+  rotación/profundidad, dentro de los bounds de la card), Music como
+  elemento independiente (crear desde el menú `+`, subir MP3, drag/resize
+  del elemento, reproducción real), los 4 efectos Retro individualmente y
+  combinados entre sí y con el resto de los efectos existentes, y el nuevo
+  menú Personalizar completo (los 4 tabs, el Collapsible Retro, "Estilo de
+  foto").
 
 Orden exacto de lo que queda:
 
@@ -522,10 +629,12 @@ Orden exacto de lo que queda:
    eso cuenta como excepción válida a "no tocar mobile legacy" antes de
    planificar esta etapa en detalle.
 2. **ProfileCard QA/freeze** — las combinaciones de bloques/tamaños/efectos
-   ya especificadas por el usuario (incluye el QA manual de FASE 3 de arriba).
-3. Recién después: Social/Browse, eliminar Analytics, Global Design System,
-   QA final. P4B (purga de datos legacy) se retoma cuando el usuario lo pida
-   — ya no bloquea nada de lo anterior.
+   ya especificadas por el usuario (incluye los dos QA manuales pendientes
+   de arriba).
+3. Recién después: Social/Browse, Global Design System, QA final. P4B
+   (purga de datos legacy) se retoma cuando el usuario lo pida — ya no
+   bloquea nada de lo anterior. Analytics ya fue eliminado (ver checkpoint
+   2026-09-29) — no queda pendiente.
 
-No reintroducir Gallery sin pedido explícito, y no tocar
-Social/Browse/Analytics/Global Design System hasta cerrar ProfileCard QA.
+No reintroducir Gallery sin pedido explícito, y no tocar Social/Browse/
+Global Design System hasta cerrar ProfileCard QA.

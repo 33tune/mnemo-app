@@ -3,7 +3,13 @@ import React, { useEffect, type CSSProperties } from "react";
 import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
-import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
+import { useMotionKeyframes, resolveGlowPulseAnimation, resolveFlickerAnimation } from "@/lib/cardMotion";
+
+// "Product closeout" (Parte 8): static SVG feTurbulence grain texture, same
+// technique GuestbookWidget.tsx/MobilePublicCanvas.tsx already use for their
+// static grain overlay — reused verbatim here as the VHS/analog noise layer,
+// now toggleable/parametrized instead of baked into those two components.
+const NOISE_DATA_URI = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
 // Shared epoch so all floating cards stay in phase with each other.
 const FLOAT_EPOCH = typeof window !== "undefined" ? Date.now() : 0;
@@ -138,7 +144,26 @@ export default function CardLayers({
   // doesn't need the shared motion keyframes below — only glowPulseOn does.
   const hoverGlowOn = effects?.interactions?.hoverGlow ?? false;
 
-  useMotionKeyframes(glowPulseOn);
+  // "Product closeout" (Parte 8): composable analog/retro screen effects —
+  // each independently toggled/configured, CSS/SVG-data-URI only. Scanlines
+  // and noise are static overlay layers on top of content (Layer 4);
+  // chromatic aberration is applied directly to the Content Layer's own
+  // `filter` (drop-shadow-based RGB fringing, the standard lightweight CSS
+  // technique — no cloning of children, no canvas); flicker reuses the
+  // shared glow-pulse-style keyframe system (cardMotion.ts) exactly like
+  // glow's own animation does.
+  const retro = effects?.retro;
+  const scanlines = retro?.scanlines;
+  const noise = retro?.noise;
+  const flicker = retro?.flicker;
+  const chroma = retro?.chromaticAberration;
+  const chromaOffset = 0.5 + (chroma?.intensity ?? 0.4) * 2.5;
+  const chromaOpacity = 0.35 + (chroma?.intensity ?? 0.4) * 0.35;
+  const contentFilter = chroma?.enabled
+    ? `drop-shadow(${chromaOffset.toFixed(2)}px 0 0 rgba(255,0,80,${chromaOpacity.toFixed(2)})) drop-shadow(-${chromaOffset.toFixed(2)}px 0 0 rgba(0,220,255,${chromaOpacity.toFixed(2)}))`
+    : undefined;
+
+  useMotionKeyframes(glowPulseOn || !!flicker?.enabled);
 
   return (
     // Stage FASE 1: floating (outer, owns `animation`) and tilt (inner, owns
@@ -247,9 +272,37 @@ export default function CardLayers({
           )}
 
           {/* ── Content Layer ── */}
-          <div style={{ position: "absolute", inset: 0, borderRadius: rad }}>
+          <div style={{ position: "absolute", inset: 0, borderRadius: rad, filter: contentFilter }}>
             {children}
           </div>
+
+          {/* ── Layer 4: Retro/CRT overlays (Parte 8 — on top of content,
+               the classic "screen effect" look; each fully independent) ── */}
+          {scanlines?.enabled && (
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
+              backgroundImage: "repeating-linear-gradient(to bottom, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0.9) 1px, transparent 1px, transparent 3px)",
+              opacity: (scanlines.intensity ?? 0.5) * 0.35,
+              mixBlendMode: "multiply",
+            }} />
+          )}
+          {noise?.enabled && (
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
+              backgroundImage: NOISE_DATA_URI,
+              opacity: (noise.intensity ?? 0.5) * 0.5,
+              mixBlendMode: "overlay",
+            }} />
+          )}
+          {flicker?.enabled && (
+            <div style={{ position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none", opacity: flicker.intensity ?? 0.5 }}>
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: rad,
+                background: "#000", mixBlendMode: "multiply",
+                animation: resolveFlickerAnimation(flicker.speed ?? 1),
+              }} />
+            </div>
+          )}
         </div>
       </div>
     </div>
