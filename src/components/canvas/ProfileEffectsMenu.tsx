@@ -33,6 +33,9 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
   function patchGlow(patch: Partial<NonNullable<CardEffects["glow"]>>) {
     onChange({ ...effects, glow: { ...effects?.glow, ...patch } });
   }
+  function patchGlowAnimation(patch: Partial<NonNullable<NonNullable<CardEffects["glow"]>["animation"]>>) {
+    patchGlow({ animation: { enabled: false, ...effects?.glow?.animation, ...patch } });
+  }
   function patchShadow(patch: Partial<NonNullable<CardEffects["shadow"]>>) {
     onChange({ ...effects, shadow: { ...effects?.shadow, ...patch } });
   }
@@ -47,6 +50,8 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
   const shadowOn   = !!sh?.intensity && sh.intensity > 0;
   const shadowInt  = sh?.intensity ?? 0.5;
   const glowInt    = glow?.intensity ?? 0;
+  // Same "presence = on, 1 = no-op too" contract as useCardInteractions.ts.
+  const hoverScaleOn = inter?.hoverScale != null && inter.hoverScale !== 1;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
@@ -63,6 +68,23 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
             Layer 0c split. */}
         <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bord?.opacity ?? 1}
           onChange={v => patchBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+
+        {/* Stage FASE 3: "border animation" pulses the card's own Glow
+            (reuses that system rather than inventing a second one — see
+            CardEffects.glow.animation's header) — a border with no glow
+            configured just won't show much, which is expected, not a bug. */}
+        <MenuRow label="Animación (glow pulsante)">
+          <Toggle value={!!glow?.animation?.enabled} onChange={v => patchGlowAnimation({ enabled: v })} />
+        </MenuRow>
+        {glow?.animation?.enabled && (
+          <>
+            {!anyGlow && (
+              <MenuNote>Activá Glow más abajo para ver el pulso — por ahora no hay glow visible que animar.</MenuNote>
+            )}
+            <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={glow?.animation?.speed ?? 1}
+              onChange={v => patchGlowAnimation({ speed: v })} fmt={v => `${v.toFixed(1)}x`} />
+          </>
+        )}
       </MenuSection>
 
       <Collapsible label="Sombra">
@@ -138,6 +160,30 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
         {(!!anim?.floating || !!inter?.tilt3d) && (
           <MenuNote>Flotación e inclinación pueden estar activas al mismo tiempo.</MenuNote>
         )}
+
+        <Divider />
+
+        {/* Stage FASE 3: previously dead controls (Toggle existed since
+            FASE 2, nothing ever read them) — now implemented via
+            useCardInteractions.ts's onMouseEnter + CardLayers.tsx's
+            `--hover-glow`/`--hover-scale`, each on its own nested layer so
+            neither fights Tilt/Floating/Spotlight — all four can be active
+            simultaneously. See useCardInteractions.ts's header. */}
+        <MenuSection label="Hover">
+          <MenuRow label="Glow al pasar">
+            <Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} />
+          </MenuRow>
+          <MenuRow label="Escala al pasar">
+            <Toggle
+              value={hoverScaleOn}
+              onChange={v => patchInteractions({ hoverScale: v ? 1.05 : undefined })}
+            />
+          </MenuRow>
+          {hoverScaleOn && (
+            <SliderRow label="Intensidad" min={1.01} max={1.15} step={0.01} value={inter?.hoverScale ?? 1.05}
+              onChange={v => patchInteractions({ hoverScale: v })} fmt={v => `${Math.round((v - 1) * 100)}%`} />
+          )}
+        </MenuSection>
       </Collapsible>
 
       <Collapsible label="Spotlight">
@@ -160,14 +206,6 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
                 (solo UI sobre resolvers ya existentes). */}
           </>
         )}
-
-        <Divider />
-
-        <MenuSection label="Hover">
-          <MenuRow label="Glow al pasar">
-            <Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} />
-          </MenuRow>
-        </MenuSection>
       </Collapsible>
     </div>
   );

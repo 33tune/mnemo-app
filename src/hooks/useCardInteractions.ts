@@ -2,6 +2,14 @@
 import { useRef, useCallback } from "react";
 import type { CardEffects } from "@/types";
 
+// Stage FASE 3 (Text & Motion Effects): hoverGlow/hoverScale extend this
+// SAME hook (not a second mouse-event system) — same ref, same CSS-var
+// mechanism tilt/spotlight already use. CardLayers.tsx reads `--hover-glow`
+// (0-1, drives a dedicated glow layer's opacity, CSS-transitioned) and
+// `--hover-scale` (a plain scale factor, also CSS-transitioned) on their own
+// nested wrapper elements — see that file's header for why nesting, not
+// sharing a property, is what keeps every motion effect independent (the
+// same principle that fixed the tilt/floating coupling in FASE 1).
 export function useCardInteractions(
   effects: CardEffects | undefined,
   cardRef: React.RefObject<HTMLElement | null>,
@@ -15,6 +23,12 @@ export function useCardInteractions(
   const tiltOn      = effects?.interactions?.tilt3d    ?? false;
   const spotlightOn = effects?.interactions?.spotlight ?? false;
   const maxTilt     = effects?.interactions?.tiltIntensity ?? (isProfileCard ? 10 : 5);
+  const hoverGlowOn  = effects?.interactions?.hoverGlow ?? false;
+  // Presence (not a separate boolean) is what enables hover-scale — same
+  // "absence = off" contract as card.music/blockStyle overrides elsewhere.
+  // 1 or unset both mean "no scale", since scale(1) is a no-op anyway.
+  const hoverScaleTarget = effects?.interactions?.hoverScale;
+  const hoverScaleOn = hoverScaleTarget != null && hoverScaleTarget !== 1;
 
   const startLerpLoop = useCallback(() => {
     if (isAnimating.current) return;
@@ -68,6 +82,19 @@ export function useCardInteractions(
     }
   }, [tiltOn, spotlightOn, maxTilt, cardRef, startLerpLoop]);
 
+  // Fires once on cursor entry — independent of onMouseMove, so hover-glow/
+  // hover-scale engage immediately even if the cursor lands and never moves
+  // again, unlike tilt/spotlight which are genuinely mouse-position-driven.
+  // CSS `transition` on the reading elements (CardLayers.tsx) does the
+  // smoothing here — no rAF loop needed, since these targets are simple
+  // two-state (on/off) values, not a continuously-moving position.
+  const onMouseEnter = useCallback(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    if (hoverGlowOn) el.style.setProperty("--hover-glow", "1");
+    if (hoverScaleOn) el.style.setProperty("--hover-scale", String(hoverScaleTarget));
+  }, [cardRef, hoverGlowOn, hoverScaleOn, hoverScaleTarget]);
+
   const onMouseLeave = useCallback(() => {
     const el = cardRef.current;
     if (!el) return;
@@ -77,7 +104,9 @@ export function useCardInteractions(
 
     el.style.setProperty("--spot-x", "-200%");
     el.style.setProperty("--spot-y", "-200%");
+    el.style.setProperty("--hover-glow", "0");
+    el.style.setProperty("--hover-scale", "1");
   }, [cardRef, startLerpLoop]);
 
-  return { onMouseMove, onMouseLeave };
+  return { onMouseMove, onMouseEnter, onMouseLeave };
 }

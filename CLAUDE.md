@@ -214,8 +214,11 @@ GALLERY                  ELIMINADA DEL ROADMAP (2026-09-19) — no implementar,
                           no reintroducir sin pedido explícito del usuario.
                           Todo lo documentado en checkpoints previos sobre un
                           plan de Gallery queda obsoleto/no vigente.
-5. Effects + Personalization   gaps puntuales, no una reconstrucción — ver
-                                 audit 2026-09-18
+5. Effects + Personalization
+   FASE 1 — Personalization Core (infra)     DONE (commit ef160a2 — 2026-09-28)
+   FASE 2 — Personalization UI/UX            DONE (commit 41f7ea3 — 2026-09-29)
+   FASE 3 — Text & Motion Effects            DONE (mismo commit que este
+                                              checkpoint — ver detalle abajo)
 6. Responsive ProfileCard      decisión pendiente (celulares reales sí/no,
                                  ver abajo) — ya no depende de Gallery
 7. ProfileCard QA / freeze
@@ -350,10 +353,108 @@ resize vertical de `f41a88f`/`9304607`, que nunca se pudieron verificar en
 producción por el incidente.** No asumir que el fix funciona en producción
 solo porque los tests pasan — esta etapa específica quedó sin QA en vivo.
 
-**Siguiente etapa: Effects/Personalization** (gaps puntuales — shadow blur
-independiente de intensity, font weight/letter-spacing, y verificar en
-browser si tilt+floating se pisan al estar ambos activos, ver detalle en
-"La próxima sesión" abajo) — ya no bloqueada por Gallery.
+**Checkpoint 2026-09-28 — FASE 1: Personalization Core (commit `ef160a2`),
+pusheado a `origin/main`.** Infraestructura pura, cero UI nueva:
+- `src/lib/cardColors.ts` — `resolveCardColors(baseColor, overrides)`, color
+  por rol (name/handle/descriptor/location/bio/views/linksIcon). `withOpacity`/
+  `luminance` movidos acá desde `ProfileCard.tsx` (misma implementación,
+  ahora compartida).
+- `src/lib/cardTypography.ts` — única fuente de verdad de tipografía para
+  render (`resolveCardTypography`) Y el composition engine
+  (`resolveTypographyMetrics`) — `TEXT_METRICS` se movió de
+  `cardComposition.ts` a acá (como `TYPOGRAPHY_METRICS`, importado con el
+  mismo nombre local, cero otro cambio de línea allá).
+  `CompositionTypographyInput` extendida solo con opcionales — sin overrides,
+  medición byte-idéntica a antes.
+- `src/lib/textEffects.ts` — shadow/glow/stroke de texto,
+  `resolveTextEffectStyle()`.
+- `src/lib/blockStyle.ts` — primera versión de overrides visuales por
+  bloque (`card.blockStyle`): background/textColor/iconColor/radius
+  ÚNICAMENTE — deliberadamente sin padding/border/tamaño (cambiarían la
+  caja que mide `computeBlockLayout()`).
+- `CardLayers.tsx`: shadow/glow desacoplados de `intensity` (blur/offset/
+  opacity independientes); border opacity separada de shadow/glow en su
+  propia capa; tilt y floating separados en wrappers anidados (bug
+  confirmado: una animación CSS y un `transform` inline en el MISMO
+  elemento compiten, la animación siempre gana mientras corre — por eso
+  tilt quedaba muerto con floating activo); background color + imagen
+  ahora conviven (`bgStyle.ts` dejó de usar el shorthand `background`, que
+  pisaba `background-color`).
+- Todo campo nuevo opcional, default = comportamiento exacto anterior.
+  262/262 tests, `tsc`/`build` limpios.
+
+**Checkpoint 2026-09-29 — FASE 2: Personalization UI/UX (commit `41f7ea3`),
+pusheado a `origin/main`.** La UI completa sobre la infraestructura de FASE 1:
+- **Navegación aplanada**: `ProfileConfigMenu` pasó de root→puertas
+  Datos/Estilo→4 puertas más, a un solo Tabs bar de un nivel: **Content /
+  Background / Text / Effects**. "Forma" se eliminó — pasó a llamarse
+  "Borde" (colisionaba conceptualmente con la "Forma"/shape del PFP).
+- Nuevos primitivos en `@/ui`: `ColorRow`, `FontSelect`, `OffsetRow`.
+- Nuevos componentes compartidos: `BlockStyleFields.tsx` (un solo editor
+  reutilizable de `blockStyle` para los 5 bloques, un Toggle comunica
+  explícitamente "hereda" vs "override personalizado"),
+  `RoleTypographyFields.tsx` (editor reutilizable por rol de texto:
+  Color/Font/Size visibles, Weight/Letter-spacing/Line-height detrás de
+  "Avanzado").
+  `ProfileTypographyMenu.tsx` reescrito como la pestaña TEXT (6 roles +
+  Efectos de texto). `PersonalizePanel.tsx` reemplazado por
+  `ProfileBackgroundMenu.tsx` (tab Background) + `ProfileEffectsMenu.tsx`
+  (tab Effects: Borde/Sombra/Glow/Movimiento/Spotlight, 5 secciones
+  independientes en vez de un "Más efectos" único).
+- `CardEffects.pfp` nuevo (border/shadow/glow del PFP), wireado en
+  `ProfileIdentityMenu.tsx`.
+- 264/264 tests, `tsc`/`build` limpios.
+
+**Checkpoint 2026-09-29 — FASE 3: Text & Motion Effects, pusheado a
+`origin/main`.** Cierra la capa de efectos visuales/motion de ProfileCard:
+- **Fix `hoverGlow`/`hoverScale`** — existían Toggles en 5 archivos desde
+  antes de esta fase, pero ningún renderer los leía (confirmado por audit,
+  no solo "a verificar"). Ahora `useCardInteractions.ts` expone también
+  `onMouseEnter` (mismo hook, mismo ref, mismo mecanismo de CSS vars que
+  tilt/spotlight — no un segundo sistema de eventos), y `CardLayers.tsx`
+  lee `--hover-glow`/`--hover-scale` en capas/wrappers propios (glow: capa
+  de opacity con `transition`; scale: wrapper anidado con `transform` +
+  `transition`, sin tocar el wrapper de tilt). Tilt + Spotlight + Hover
+  Glow + Hover Scale + Floating: los 5 pueden estar activos simultáneamente,
+  cada uno en su propia capa/propiedad.
+- **`src/lib/cardMotion.ts`** (nuevo) — centraliza las 2 animaciones nuevas
+  (`mnemo-text-shimmer`, `mnemo-glow-pulse`) en un solo par de `@keyframes`
+  globales, inyectados una sola vez (no por-card, a diferencia de floating,
+  cuyo keyframe sí hornea un valor por-card) — evita repetir
+  `<style>`-injection ad-hoc en 3 componentes. `resolveShimmerAnimation`/
+  `resolveGlowPulseAnimation` son funciones puras testeadas
+  (`cardMotion.test.ts`).
+- **Text gradient/shimmer — per-role, deliberadamente separado de
+  `card.effects.text`.** `card.effects.text` (shadow/glow/stroke/blur) sigue
+  siendo card-wide, sin cambios de forma (compat total con FASE 1/2, ya
+  shippeado). Gradient/shimmer viven en un campo NUEVO,
+  `card.effects.textRoles?: Partial<Record<TextRole, RoleTextEffect>>` — el
+  único efecto que el producto pide explícitamente por rol (username-style
+  accent, no un tratamiento uniforme de toda la card).
+  `resolveTextEffectStyle(effect?, roleEffect?)` ahora toma dos parámetros
+  independientes; `ProfileCard.tsx` resuelve un estilo por rol (6 llamadas,
+  no una compartida). **La única exclusión real**: gradient reemplaza el
+  color sólido (`color: transparent` es requisito de
+  `background-clip: text`) — el `ColorRow` de color sólido se atenúa/
+  deshabilita en la UI cuando el gradient de ese rol está activo. Shadow/
+  glow/stroke siguen aplicando normalmente sobre gradient text (operan
+  sobre la forma del glyph, no sobre el fill — sin conflicto real de CSS).
+  Shimmer requiere gradient en el MISMO rol (si no, es inerte a propósito —
+  no hay gradient sintético de fallback).
+- **PFP glow-pulse** — `AvatarEl` se reestructuró en un wrapper +
+  dos capas (glow propio vs. borde+sombra+foto), para que el pulso de
+  glow nunca anime la sombra plana ni el borde.
+- **Border animation** — pulsa el Glow existente de la card
+  (`CardEffects.glow.animation`), reutilizando el sistema Border/Glow que
+  ya estaba cerrado en vez de crear uno nuevo; un borde sin glow visible
+  configurado simplemente no muestra pulso (comportamiento esperado, no bug).
+- **NO implementado, deliberadamente**: glitch/RGB-split/chromatic
+  aberration, cursor trail, particles de fondo, typewriter, noise
+  configurable, spotlight con posición manual — ver el audit previo a esta
+  fase para el razonamiento de cada exclusión.
+- Cero cambios en `computeComposition()`, `blockConstraints.ts`, resize,
+  anchors, mobile/`space_mobile`. Todo campo nuevo opcional, default =
+  comportamiento exacto anterior. 276/276 tests, `tsc`/`build` limpios.
 
 ## Modelo de datos — bloques internos ya implementados
 
@@ -392,29 +493,24 @@ código) antes de escribir código.
 producto** (ver "Reprioridad 2026-09-18"). **Gallery está eliminada del
 roadmap (2026-09-19) — no implementar, no retomar sin pedido explícito.**
 
-**PASO 0, antes de cualquier otra cosa:** confirmar que el deployment de
-Vercel para el HEAD actual de `origin/main` salió bien (ver "Checkpoint
-2026-09-18 — Incidente de deployment" más arriba — al cerrar esta sesión
-todavía no estaba confirmado), y recién ahí hacer QA manual real en
-producción del resize vertical de ProfileCard (`f41a88f`/`9304607`) — nunca
-se pudo verificar en vivo por el incidente de Vercel. Si el QA encuentra
-que el bug sigue apareciendo, **releer las dos rondas de fix documentadas
-arriba antes de proponer una tercera** — ya se descartaron `minH`
-derivado de formatos y luego un problema de centrado; la causa confirmada
-fue growth compitiendo con resize.
+**Effects/Personalization está DONE (FASE 1+2+3, ver checkpoints arriba) —
+ya no es el próximo paso.** El incidente de Vercel de 2026-09-18 quedó
+resuelto hace mucho (múltiples deploys exitosos desde entonces, incluidos
+los de las 3 fases de personalización) — el "PASO 0" que estaba acá ya no
+aplica, no hace falta re-verificar deployment por ese incidente puntual.
 
-Orden exacto de lo que queda después del Paso 0:
+**QA manual pendiente de FASE 3** (nunca ejecutado en vivo dentro de esta
+sesión — ver el checklist que el usuario definió al pedir la fase):
+Gradient por rol + color sólido deshabilitándose correctamente, Blur,
+Shimmer, Gradient+Shimmer combinados, Border animation, Hover Glow, Hover
+Scale, Tilt+Hover, Tilt+Spotlight+Hover, Floating+Tilt sin regresión de
+movimiento, PFP border/shadow/glow/glow-animation, persistencia
+(cambiar→guardar→recargar), y confirmar que `space_mobile` no se vio
+afectado (no debería — cero cambios ahí).
 
-1. **Effects/Personalization** — mayormente ya implementado y wireado a
-   ProfileCard vía `PersonalizePanel.tsx`/`ProfileTypographyMenu.tsx`. Gaps
-   puntuales encontrados en el audit: shadow blur no es independiente de
-   shadow intensity (`sBlur = intensity * 40` en `CardLayers.tsx`); no hay
-   control de font weight ni letter-spacing; **riesgo real a verificar**:
-   tilt y floating animan la misma propiedad `transform` del mismo elemento
-   — podrían pisarse entre sí si ambos están activos, confirmar en browser
-   antes de dar Motion por cerrado. El invariante "opacity nunca toca
-   content" está confirmado sólido en `CardLayers.tsx` (capas separadas).
-2. **Responsive** — el motor de composición ya es size-aware; el gap real es
+Orden exacto de lo que queda:
+
+1. **Responsive** — el motor de composición ya es size-aware; el gap real es
    que `card.w`/`card.h` son valores fijos sin binding al viewport en vista
    pública (hoy se re-escala con `scale()` uniforme, no reflow real).
    **Decisión pendiente del usuario, todavía sin resolver:** hoy un
@@ -425,12 +521,11 @@ Orden exacto de lo que queda después del Paso 0:
    pero sí dejar de usarlo para ese tráfico) — confirmar con el usuario si
    eso cuenta como excepción válida a "no tocar mobile legacy" antes de
    planificar esta etapa en detalle.
-3. **ProfileCard QA/freeze** — las combinaciones de bloques/tamaños/efectos
-   ya especificadas por el usuario.
-4. Recién después: Social/Browse, eliminar Analytics, Global Design System,
+2. **ProfileCard QA/freeze** — las combinaciones de bloques/tamaños/efectos
+   ya especificadas por el usuario (incluye el QA manual de FASE 3 de arriba).
+3. Recién después: Social/Browse, eliminar Analytics, Global Design System,
    QA final. P4B (purga de datos legacy) se retoma cuando el usuario lo pida
    — ya no bloquea nada de lo anterior.
 
-No adelantar Effects/Responsive fuera de este orden, no reintroducir Gallery
-sin pedido explícito, y no tocar Social/Browse/Analytics/Global Design
-System hasta cerrar ProfileCard QA.
+No reintroducir Gallery sin pedido explícito, y no tocar
+Social/Browse/Analytics/Global Design System hasta cerrar ProfileCard QA.

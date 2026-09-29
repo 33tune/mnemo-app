@@ -28,6 +28,7 @@ import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
 import { withOpacity, luminance, resolveCardColors } from "@/lib/cardColors";
 import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveTextEffectStyle } from "@/lib/textEffects";
+import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 
 // ── Draggable block keys (Stage 3B.3-B) ─────────────────────────────────────
@@ -341,7 +342,7 @@ function ProfileCard({
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
   const effectiveEffects: CardEffects = getProfileCardEffects(card);
 
-  const { onMouseMove: onInteractMove, onMouseLeave: onInteractLeave } =
+  const { onMouseMove: onInteractMove, onMouseEnter: onInteractEnter, onMouseLeave: onInteractLeave } =
     useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>, true);
 
   // ── Portal position ──
@@ -415,9 +416,26 @@ function ProfileCard({
     linksIcon: card.linksIconColor,
   });
   const typography = resolveCardTypography(card, nameFontSize);
-  // Stage FASE 1: infrastructure only — no menu writes card.effects.text yet
-  // (see CLAUDE.md checkpoint). Absent -> {} -> spread is a pure no-op.
-  const textEffectStyle = resolveTextEffectStyle(effectiveEffects.text);
+  // Stage FASE 1: card-wide shadow/glow/stroke/blur (effectiveEffects.text).
+  // Stage FASE 3: gradient/shimmer are per-role (card.effects.textRoles) —
+  // see RoleTextEffect's header in types/index.ts for why these two are
+  // split. One resolveTextEffectStyle call per role, not one shared style
+  // object, since each role's gradient/shimmer is independent.
+  const textRoles = card.effects?.textRoles;
+  const nameEffectStyle       = resolveTextEffectStyle(effectiveEffects.text, textRoles?.name);
+  const handleEffectStyle     = resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle);
+  const descriptorEffectStyle = resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor);
+  const locationEffectStyle   = resolveTextEffectStyle(effectiveEffects.text, textRoles?.location);
+  const bioEffectStyle        = resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio);
+  const viewsEffectStyle      = resolveTextEffectStyle(effectiveEffects.text, textRoles?.views);
+  const anyShimmerActive = !!(
+    (textRoles?.name?.gradient && textRoles?.name?.shimmer) ||
+    (textRoles?.handle?.gradient && textRoles?.handle?.shimmer) ||
+    (textRoles?.descriptor?.gradient && textRoles?.descriptor?.shimmer) ||
+    (textRoles?.location?.gradient && textRoles?.location?.shimmer) ||
+    (textRoles?.bio?.gradient && textRoles?.bio?.shimmer) ||
+    (textRoles?.views?.gradient && textRoles?.views?.shimmer)
+  );
   // Stage FASE 1: per-block visual overrides (background/radius always;
   // textColor/iconColor only for the 3 blocks without their own finer-grained
   // color system — see blockStyle.ts's header for why Identity/Links don't
@@ -444,16 +462,30 @@ function ProfileCard({
 
   const pfpShadowIntensity = pfpFx?.shadow?.intensity ?? 0;
   const pfpGlowIntensity   = pfpFx?.glow?.intensity ?? 0;
-  const pfpShadowLayers: string[] = [];
+  // Stage FASE 3: plain shadow and glow, split into two separate strings —
+  // "PFP animation" (glow pulse) must only animate the glow layer's
+  // opacity, never the plain shadow, so they can no longer share one
+  // combined boxShadow the way they did before this stage (same reasoning
+  // as CardLayers.tsx's plainShadowLayers/glowLayers split).
+  const avatarPlainShadowLayers: string[] = [];
   if (pfpFx?.shadow ? pfpShadowIntensity > 0 : (variant === "guns" || variant === "poster")) {
-    pfpShadowLayers.push(pfpFx?.shadow
+    avatarPlainShadowLayers.push(pfpFx?.shadow
       ? `0 ${Math.round(pfpShadowIntensity * 12)}px ${Math.round(pfpShadowIntensity * 28)}px ${pfpFx.shadow.color ?? withOpacity(baseColor, 0.14)}`
       : `0 6px 28px ${withOpacity(baseColor, 0.14)}`);
   }
+  const avatarPlainShadow = avatarPlainShadowLayers.length > 0 ? avatarPlainShadowLayers.join(", ") : "none";
+
+  const avatarGlowLayers: string[] = [];
   if (pfpGlowIntensity > 0) {
-    pfpShadowLayers.push(`0 0 ${pfpFx?.glow?.radius ?? Math.round(pfpGlowIntensity * 24)}px ${pfpFx?.glow?.color ?? "#ffffff"}`);
+    avatarGlowLayers.push(`0 0 ${pfpFx?.glow?.radius ?? Math.round(pfpGlowIntensity * 24)}px ${pfpFx?.glow?.color ?? "#ffffff"}`);
   }
-  const avatarShadow = pfpShadowLayers.length > 0 ? pfpShadowLayers.join(", ") : "none";
+  const avatarGlowShadow = avatarGlowLayers.length > 0 ? avatarGlowLayers.join(", ") : undefined;
+  const pfpGlowPulseOn = pfpFx?.glow?.animation?.enabled ?? false;
+  // Stage FASE 3: ensures the shared shimmer/glow-pulse @keyframes exist
+  // before anything on this card tries to use them — safe to call
+  // alongside CardLayers.tsx's own useMotionKeyframes call for the card's
+  // border animation (idempotent injection, see cardMotion.ts).
+  useMotionKeyframes(anyShimmerActive || pfpGlowPulseOn);
 
   // ── Free-mode drag ────────────────────────────────────────────────────────
 
@@ -635,21 +667,36 @@ function ProfileCard({
   // ── Element renderers ─────────────────────────────────────────────────────
 
   function AvatarEl({ size = avatarSize, style }: { size?: number; style?: CSSProperties }) {
+    // Stage FASE 3: outer wrapper owns size/positioning (what `style`
+    // overrides, e.g. renderComposed()'s `width/height:100%` for a
+    // resolved pfpBox) and hosts the glow layer; inner div keeps the photo
+    // clip (overflow:hidden) + border + plain shadow, unaffected by the
+    // glow's own opacity/pulse. box-shadow on the inner div still paints
+    // outside it same as before — overflow:hidden never clips box-shadow.
     return (
-      <div style={{
-        width: size, height: size, borderRadius: `${avatarRadiusPct}%`, overflow: "hidden",
-        border: avatarBorder, background: "rgba(255,255,255,0.06)",
-        boxShadow: avatarShadow, flexShrink: 0, ...style,
-      }}>
-        {card.photo ? (
-          <img src={card.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} draggable={false} />
-        ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width={size * 0.34} height={size * 0.34} viewBox="0 0 24 24" fill="none" stroke={faintColor} strokeWidth="1.5" strokeLinecap="round">
-              <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-            </svg>
-          </div>
+      <div style={{ position: "relative", width: size, height: size, flexShrink: 0, ...style }}>
+        {avatarGlowShadow && (
+          <div style={{
+            position: "absolute", inset: 0, borderRadius: `${avatarRadiusPct}%`,
+            boxShadow: avatarGlowShadow, pointerEvents: "none",
+            animation: pfpGlowPulseOn ? resolveGlowPulseAnimation(pfpFx?.glow?.animation?.speed ?? 1) : undefined,
+          }} />
         )}
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: `${avatarRadiusPct}%`, overflow: "hidden",
+          border: avatarBorder, background: "rgba(255,255,255,0.06)",
+          boxShadow: avatarPlainShadow,
+        }}>
+          {card.photo ? (
+            <img src={card.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} draggable={false} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width={size * 0.34} height={size * 0.34} viewBox="0 0 24 24" fill="none" stroke={faintColor} strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+              </svg>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -665,7 +712,7 @@ function ProfileCard({
       <div style={{
         fontFamily: globalFont, fontSize: typography.name.fontSize, fontWeight: typography.name.fontWeight,
         color: resolvedColors.name, lineHeight: typography.name.lineHeight, letterSpacing: typography.name.letterSpacing,
-        textAlign, ...textEffectStyle, ...style,
+        textAlign, ...nameEffectStyle, ...style,
       }}>
         {card.name}
       </div>
@@ -679,7 +726,7 @@ function ProfileCard({
         letterSpacing: typography.handle.letterSpacing, textAlign,
         ...(typography.handle.lineHeight != null ? { lineHeight: typography.handle.lineHeight } : {}),
         ...(typography.handle.fontWeight != null ? { fontWeight: typography.handle.fontWeight } : {}),
-        ...textEffectStyle, ...style,
+        ...handleEffectStyle, ...style,
       }}>
         @{card.handle}
       </div>
@@ -693,7 +740,7 @@ function ProfileCard({
         letterSpacing: typography.descriptor.letterSpacing, textAlign,
         ...(typography.descriptor.lineHeight != null ? { lineHeight: typography.descriptor.lineHeight } : {}),
         ...(typography.descriptor.fontWeight != null ? { fontWeight: typography.descriptor.fontWeight } : {}),
-        ...textEffectStyle, ...style,
+        ...descriptorEffectStyle, ...style,
       }}>
         {card.status}
       </div>
@@ -708,7 +755,7 @@ function ProfileCard({
         letterSpacing: typography.location.letterSpacing, textAlign,
         ...(typography.location.lineHeight != null ? { lineHeight: typography.location.lineHeight } : {}),
         ...(typography.location.fontWeight != null ? { fontWeight: typography.location.fontWeight } : {}),
-        ...textEffectStyle, ...style,
+        ...locationEffectStyle, ...style,
       }}>
         ● {card.location}
       </div>
@@ -721,7 +768,7 @@ function ProfileCard({
         fontFamily: fontStyle(card.bioFont, MONO), fontSize: typography.bio.fontSize, color: resolvedColors.bio,
         lineHeight: typography.bio.lineHeight, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"], textAlign,
         ...(typography.bio.fontWeight != null ? { fontWeight: typography.bio.fontWeight } : {}),
-        ...textEffectStyle, ...style,
+        ...bioEffectStyle, ...style,
       } as CSSProperties}>{card.bio}</div>
     );
   }
@@ -735,7 +782,7 @@ function ProfileCard({
         textAlign,
         ...(typography.views.lineHeight != null ? { lineHeight: typography.views.lineHeight } : {}),
         ...(typography.views.fontWeight != null ? { fontWeight: typography.views.fontWeight } : {}),
-        ...textEffectStyle, ...style,
+        ...viewsEffectStyle, ...style,
       }}>
         {fmtNum(viewCount)} views
       </div>
@@ -1245,6 +1292,7 @@ function ProfileCard({
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
         onClick={onClick}
         onMouseMove={onInteractMove}
+        onMouseEnter={onInteractEnter}
         onMouseLeave={onInteractLeave}
         style={{
           position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,

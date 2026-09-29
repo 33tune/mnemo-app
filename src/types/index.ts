@@ -37,6 +37,53 @@ export interface TextEffects {
   shadow?: TextShadowEffect;
   glow?:   TextGlowEffect;
   stroke?: TextStrokeEffect;
+  // Stage FASE 3: filter: blur(px) on the glyphs themselves — distinct from
+  // shadow.blur, which only blurs the shadow layer, never the glyph. Stays
+  // card-wide like shadow/glow/stroke above (not per-role — see
+  // CardEffects.textRoles below for what IS per-role and why the split).
+  blur?: number;
+}
+
+// Stage FASE 3 (Text & Motion Effects): gradient text (background-clip:text)
+// — mutually exclusive with a role's solid color, gradient always wins when
+// present (see textEffects.ts's resolveTextEffectStyle and
+// ProfileTypographyMenu.tsx, where the solid ColorRow disables itself when
+// this is set). angle in degrees, same convention as CardEffects.gradient.
+export interface TextGradientEffect {
+  from:  string;
+  to:    string;
+  angle: number;
+}
+// A highlight band sweeping across gradient text — requires `gradient` to
+// also be set on the SAME role (see resolveTextEffectStyle's header for
+// why: shimmer has nothing to sweep across otherwise, and there's
+// deliberately no synthesized fallback gradient). Presence = enabled, same
+// "absence = off" contract as card.music/blockStyle elsewhere.
+export interface TextShimmerEffect {
+  intensity?: number; // 0-1, opacity of the sweeping band
+  speed?:     number; // unitless multiplier, 1 = default pace
+}
+// Deliberately separate from TextEffects (above): shadow/glow/stroke/blur
+// are card-wide (one setting affects every text role uniformly, unchanged
+// since FASE 1/2) — gradient/shimmer are the one thing this stage's product
+// spec explicitly requires per-role (username-style accent effects belong
+// to individual roles, not the whole card at once; see CLAUDE.md's FASE 3
+// checkpoint). Two separate fields on CardEffects rather than folding these
+// into TextEffects keeps existing FASE 1/2 data (already shipped) untouched
+// — no shape change to `card.effects.text`, no migration needed.
+export interface RoleTextEffect {
+  gradient?: TextGradientEffect;
+  shimmer?:  TextShimmerEffect;
+}
+export type TextRole = "name" | "handle" | "descriptor" | "location" | "bio" | "views";
+
+// Stage FASE 3: shared by CardEffects.glow.animation and
+// CardEffects.pfp.glow.animation — same shape, same resolver
+// (cardMotion.ts's resolveGlowPulseAnimation), applied to whichever glow
+// layer it's attached to.
+export interface GlowPulseAnimation {
+  enabled: boolean;
+  speed?:  number; // unitless multiplier, 1 = default pace
 }
 
 export type CanvasImage = {
@@ -619,6 +666,13 @@ export type CardEffects = {
     // intensity*30 formula (CardLayers.tsx), same visual result as before
     // this field existed. See CardLayers.tsx's glow layer for the exact math.
     radius?: number; // px
+    // Stage FASE 3: "border animation" in the UI (ProfileEffectsMenu's
+    // "Borde" section) — pulses this same glow's opacity via
+    // cardMotion.ts's shared keyframe. Reuses the glow the user already
+    // configured rather than introducing a second glow concept; a pulse
+    // with no visible glow underneath (intensity 0, outer/inner both off)
+    // is an accepted no-op, not a bug.
+    animation?: GlowPulseAnimation;
   };
   shadow?: {
     color?: string;
@@ -633,10 +687,14 @@ export type CardEffects = {
     offsetY?: number; // px
     opacity?: number; // 0–1
   };
-  // Stage FASE 1: per-text-effect infrastructure (shadow/glow/stroke on the
-  // TEXT itself, distinct from the card-level shadow/glow above). No UI
-  // exposes this yet — see textEffects.ts.
+  // Stage FASE 1: per-text-effect infrastructure (shadow/glow/stroke/blur on
+  // the TEXT itself, distinct from the card-level shadow/glow above).
+  // Card-wide — applies uniformly to every text role. See textEffects.ts.
   text?: TextEffects;
+  // Stage FASE 3: per-role gradient/shimmer — see RoleTextEffect's header
+  // for why this is a separate field from `text` above rather than folded
+  // into it.
+  textRoles?: Partial<Record<TextRole, RoleTextEffect>>;
   // Stage FASE 2: PFP-specific border/shadow/glow — same shape as the
   // card-level fields above, deliberately separate (the avatar is a single
   // div, not the multi-layer CardLayers.tsx stack, so it resolves these
@@ -646,7 +704,10 @@ export type CardEffects = {
   pfp?: {
     border?: { color?: string; width?: number; opacity?: number };
     shadow?: { color?: string; intensity?: number };
-    glow?:   { color?: string; intensity?: number; radius?: number };
+    // Stage FASE 3: same GlowPulseAnimation as the card-level glow above —
+    // same shared keyframe (cardMotion.ts), independent instance (its own
+    // speed, its own element).
+    glow?:   { color?: string; intensity?: number; radius?: number; animation?: GlowPulseAnimation };
   };
   gradient?: {
     from: string;
@@ -660,8 +721,16 @@ export type CardEffects = {
     spotlight?: boolean;
     spotlightColor?: string;
     spotlightSize?: number;
+    // Stage FASE 3: previously dead (Toggle existed in 5 menus, nothing
+    // ever read these) — now implemented via useCardInteractions.ts's
+    // onMouseEnter + CardLayers.tsx's `--hover-glow`/`--hover-scale` CSS
+    // vars, each on its OWN nested layer/wrapper so neither fights tilt's
+    // transform or floating's animation (same nesting principle FASE 1
+    // used to fix that exact coupling — see CardLayers.tsx). hoverScale's
+    // presence (not a separate boolean) is what enables it, matching the
+    // rest of this codebase's "absence = off" contract; 1 is a no-op too.
     hoverGlow?: boolean;
-    hoverScale?: number;
+    hoverScale?: number; // target scale on hover, e.g. 1.05 — absent/1 = off
   };
   animations?: {
     floating?: boolean;

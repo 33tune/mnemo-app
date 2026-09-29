@@ -3,6 +3,7 @@ import React, { useEffect, type CSSProperties } from "react";
 import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
+import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
 
 // Shared epoch so all floating cards stay in phase with each other.
 const FLOAT_EPOCH = typeof window !== "undefined" ? Date.now() : 0;
@@ -69,7 +70,14 @@ export default function CardLayers({
   // original round(9)=9); every derived layer below must independently
   // reproduce the pre-existing exact formula when glow.radius is absent.
   const glowBaseRadius = glow?.radius ?? glowInt * 30;
-  const shadows: string[] = [];
+  // Stage FASE 3: plain shadow (+ selection ring) and glow are now built as
+  // two SEPARATE layer strings, not one combined `boxShadow` — "border
+  // animation" pulses only the glow's opacity (see the glow layer below),
+  // and doing that on a div that also carries the plain drop-shadow/
+  // selection ring would incorrectly pulse those too. Same "each effect
+  // owns its own property on its own element" rule FASE 1 already
+  // established for tilt/floating and border-opacity/shadow.
+  const plainShadowLayers: string[] = [];
   if (sh?.intensity && sh.intensity > 0) {
     const sColorBase = sh.color ?? "#000000";
     const sOpacity   = sh.opacity ?? (sh.color ? 1 : 0.5);
@@ -77,19 +85,23 @@ export default function CardLayers({
     const sBlur      = sh.blur    ?? Math.round(sh.intensity * 40);
     const sOffsetX   = sh.offsetX ?? 0;
     const sOffsetY   = sh.offsetY ?? Math.round(sh.intensity * 8);
-    shadows.push(`${sOffsetX}px ${sOffsetY}px ${sBlur}px ${sColor}`);
+    plainShadowLayers.push(`${sOffsetX}px ${sOffsetY}px ${sBlur}px ${sColor}`);
   } else {
-    shadows.push("0 4px 20px rgba(0,0,0,0.2)");
+    plainShadowLayers.push("0 4px 20px rgba(0,0,0,0.2)");
   }
+  if (isSel) plainShadowLayers.push("0 0 0 1.5px rgba(255,255,255,0.35)");
+  const boxShadow = plainShadowLayers.join(", ");
+
+  const glowLayers: string[] = [];
   if (glow?.outer && glowInt > 0) {
-    shadows.push(`0 0 ${Math.round(glowBaseRadius)}px ${glowColor}`);
-    shadows.push(`0 0 ${Math.round(glowBaseRadius * 2)}px ${glowColor}40`);
+    glowLayers.push(`0 0 ${Math.round(glowBaseRadius)}px ${glowColor}`);
+    glowLayers.push(`0 0 ${Math.round(glowBaseRadius * 2)}px ${glowColor}40`);
   }
-  if (isSel) shadows.push("0 0 0 1.5px rgba(255,255,255,0.35)");
   if (glow?.inner && glowInt > 0) {
-    shadows.push(`inset 0 0 ${Math.round(glowBaseRadius * (2 / 3))}px ${glowColor}60`);
+    glowLayers.push(`inset 0 0 ${Math.round(glowBaseRadius * (2 / 3))}px ${glowColor}60`);
   }
-  const boxShadow = shadows.join(", ");
+  const glowBoxShadow = glowLayers.join(", ");
+  const glowPulseOn = glow?.animation?.enabled ?? false;
 
   // Border
   const borderColor = bord?.color ?? (isSel ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)");
@@ -116,6 +128,18 @@ export default function CardLayers({
     wrapperAnimStyle.animation = `mnemo-float-${cardId} ${speed}s ease-in-out -${phase}ms infinite`;
   }
 
+  // Stage FASE 3: hoverGlow (own opacity layer below, driven by the
+  // `--hover-glow` CSS var useCardInteractions.ts sets on mouseenter/leave)
+  // reuses the card's own glow color when one is configured, falling back
+  // to the same default glow color as the static Glow effect — so a card
+  // with no glow configured at all still gets a sensible hover accent
+  // instead of needing the user to set up static Glow first. It's a plain
+  // CSS `transition` on opacity, not a looping @keyframes animation, so it
+  // doesn't need the shared motion keyframes below — only glowPulseOn does.
+  const hoverGlowOn = effects?.interactions?.hoverGlow ?? false;
+
+  useMotionKeyframes(glowPulseOn);
+
   return (
     // Stage FASE 1: floating (outer, owns `animation`) and tilt (inner, owns
     // the static `transform`) are now two nested elements instead of one
@@ -127,67 +151,105 @@ export default function CardLayers({
     // genuinely compose (floating's translateY, tilt's rotateX/rotateY) —
     // still one animation system, just no longer forced onto one element.
     <div style={{ ...wrapperAnimStyle, position: "absolute", inset: 0 }}>
+      {/* Stage FASE 3: hover-scale — its own nested wrapper, owns `transform:
+          scale(...)` via a CSS var + CSS `transition` (not a @keyframes
+          animation, so it can't fight floating's `animation` even though
+          both are on ancestors of the tilt div below). Absent/1 -> scale(1),
+          a no-op, byte-identical to before this stage. */}
       <div style={{
-        ...style,
-        position: "absolute",
-        inset: 0,
-        borderRadius: rad,
-        transform: "perspective(1000px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg))",
+        position: "absolute", inset: 0,
+        transform: "scale(var(--hover-scale,1))",
+        transition: "transform 0.2s ease",
         willChange: "transform",
       }}>
+        <div style={{
+          ...style,
+          position: "absolute",
+          inset: 0,
+          borderRadius: rad,
+          transform: "perspective(1000px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg))",
+          willChange: "transform",
+        }}>
 
-        {/* ── Layer 0a: Background fill (opacity-affected) ── */}
-        <div style={{
-          position: "absolute", inset: 0, borderRadius: rad,
-          // Stage FASE 1: backgroundColor always applied (not an either/or
-          // with the image) — bgImageStyle only ever sets backgroundImage/
-          // -size/-position/-repeat (longhand, never the `background`
-          // shorthand that used to wipe this out), so color shows through
-          // wherever the image doesn't fully cover (repeat-mode gaps,
-          // transparent regions) instead of being silently discarded.
-          backgroundColor: bgColor,
-          ...(bg?.image ? bgImageStyle(bg.image, bg.imageMode) : {}),
-          opacity:              bgOpacity,
-          filter:               bgBlur > 0 ? `blur(${bgBlur}px)` : undefined,
-          backdropFilter:       isGlass ? "blur(20px)" : undefined,
-          WebkitBackdropFilter: isGlass ? "blur(20px)" : undefined,
-        }} />
-        {/* ── Layer 0b: Shadow + glow (never affected by border opacity) ── */}
-        <div style={{
-          position: "absolute", inset: 0, borderRadius: rad,
-          boxShadow,
-          pointerEvents: "none",
-        }} />
-        {/* ── Layer 0c: Border (own independent opacity — Stage FASE 1: split
-             out of 0b so lowering border opacity no longer also fades the
-             shadow/glow/selection ring it used to share a layer with) ── */}
-        <div style={{
-          position: "absolute", inset: 0, borderRadius: rad,
-          border,
-          opacity: bord?.opacity ?? 1,
-          pointerEvents: "none",
-        }} />
-
-        {/* ── Layer 1: Gradient Overlay ── */}
-        {grad && (
+          {/* ── Layer 0a: Background fill (opacity-affected) ── */}
           <div style={{
-            position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
-            background: `linear-gradient(${grad.angle}deg,${grad.from},${grad.to})`,
-            opacity: grad.opacity,
+            position: "absolute", inset: 0, borderRadius: rad,
+            // Stage FASE 1: backgroundColor always applied (not an either/or
+            // with the image) — bgImageStyle only ever sets backgroundImage/
+            // -size/-position/-repeat (longhand, never the `background`
+            // shorthand that used to wipe this out), so color shows through
+            // wherever the image doesn't fully cover (repeat-mode gaps,
+            // transparent regions) instead of being silently discarded.
+            backgroundColor: bgColor,
+            ...(bg?.image ? bgImageStyle(bg.image, bg.imageMode) : {}),
+            opacity:              bgOpacity,
+            filter:               bgBlur > 0 ? `blur(${bgBlur}px)` : undefined,
+            backdropFilter:       isGlass ? "blur(20px)" : undefined,
+            WebkitBackdropFilter: isGlass ? "blur(20px)" : undefined,
           }} />
-        )}
-
-        {/* ── Layer 2: Spotlight (follows cursor via CSS vars on parent) ── */}
-        {spotOn && (
+          {/* ── Layer 0b-glow: Glow only (own opacity/animation — Stage FASE 3:
+               split out of the combined shadow so "border animation" can
+               pulse ONLY this layer's opacity without also pulsing the plain
+               drop-shadow or the selection ring) ── */}
+          {glowBoxShadow && (
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: rad,
+              boxShadow: glowBoxShadow,
+              pointerEvents: "none",
+              animation: glowPulseOn ? resolveGlowPulseAnimation(glow?.animation?.speed ?? 1) : undefined,
+            }} />
+          )}
+          {/* ── Layer 0b: Plain shadow + selection ring (never affected by
+               border opacity, never affected by glow's pulse) ── */}
           <div style={{
-            position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
-            background: `radial-gradient(circle at var(--spot-x,50%) var(--spot-y,30%),${spotlightColor} 0%,transparent ${spotlightSize}%)`,
+            position: "absolute", inset: 0, borderRadius: rad,
+            boxShadow,
+            pointerEvents: "none",
           }} />
-        )}
+          {/* ── Layer 0c: Border (own independent opacity — Stage FASE 1: split
+               out of 0b so lowering border opacity no longer also fades the
+               shadow/glow/selection ring it used to share a layer with) ── */}
+          <div style={{
+            position: "absolute", inset: 0, borderRadius: rad,
+            border,
+            opacity: bord?.opacity ?? 1,
+            pointerEvents: "none",
+          }} />
 
-        {/* ── Content Layer ── */}
-        <div style={{ position: "absolute", inset: 0, borderRadius: rad }}>
-          {children}
+          {/* ── Layer 1: Gradient Overlay ── */}
+          {grad && (
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
+              background: `linear-gradient(${grad.angle}deg,${grad.from},${grad.to})`,
+              opacity: grad.opacity,
+            }} />
+          )}
+
+          {/* ── Layer 2: Spotlight (follows cursor via CSS vars on parent) ── */}
+          {spotOn && (
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
+              background: `radial-gradient(circle at var(--spot-x,50%) var(--spot-y,30%),${spotlightColor} 0%,transparent ${spotlightSize}%)`,
+            }} />
+          )}
+
+          {/* ── Layer 3: Hover glow (Stage FASE 3 — own opacity, CSS-transitioned
+               via the `--hover-glow` var useCardInteractions.ts sets on
+               mouseenter/leave; independent of the static Glow effect above,
+               though it reuses the same color when one's configured) ── */}
+          {hoverGlowOn && (
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
+              boxShadow: `0 0 24px ${glowColor}80, 0 0 48px ${glowColor}40`,
+              opacity: "var(--hover-glow, 0)",
+              transition: "opacity 0.25s ease",
+            }} />
+          )}
+
+          {/* ── Content Layer ── */}
+          <div style={{ position: "absolute", inset: 0, borderRadius: rad }}>
+            {children}
+          </div>
         </div>
       </div>
     </div>

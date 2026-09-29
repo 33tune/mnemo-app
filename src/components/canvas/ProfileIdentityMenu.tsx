@@ -123,6 +123,19 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, onChange 
                   onChange={v => patchPfpGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
                 <SliderRow label="Radio" min={0} max={40} step={1} value={pfpFx.glow.radius ?? Math.round((pfpFx.glow.intensity ?? 0.5) * 24)}
                   onChange={v => patchPfpGlow({ radius: v })} unit="px" />
+                {/* Stage FASE 3: same shared glow-pulse system as the card's
+                    own "Animación" in ProfileEffectsMenu's Borde section —
+                    cardMotion.ts's one keyframe, independent instance. */}
+                <MenuRow label="Animación (pulso)">
+                  <Toggle
+                    value={!!pfpFx.glow.animation?.enabled}
+                    onChange={v => patchPfpGlow({ animation: { enabled: v, speed: pfpFx.glow?.animation?.speed } })}
+                  />
+                </MenuRow>
+                {pfpFx.glow.animation?.enabled && (
+                  <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={pfpFx.glow.animation?.speed ?? 1}
+                    onChange={v => patchPfpGlow({ animation: { enabled: true, speed: v } })} fmt={v => `${v.toFixed(1)}x`} />
+                )}
               </>
             )}
           </MenuSection>

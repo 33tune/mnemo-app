@@ -1,5 +1,5 @@
 "use client";
-import type { ProfileCardData, TextFont, TextShadowEffect, TextGlowEffect, TextStrokeEffect, TextEffects } from "@/types";
+import type { ProfileCardData, TextFont, TextShadowEffect, TextGlowEffect, TextStrokeEffect, TextEffects, TextRole, RoleTextEffect } from "@/types";
 import { CANVAS_FONTS } from "@/lib/fontList";
 import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveCardColors } from "@/lib/cardColors";
@@ -60,6 +60,26 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
     patchTextFx({ stroke: { ...textFx?.stroke, ...p } });
   }
 
+  // Stage FASE 3: gradient/shimmer are per-role (card.effects.textRoles) —
+  // see RoleTextEffect's header for why these two are split from the
+  // card-wide `text` above. Turning gradient off also clears shimmer in
+  // the SAME patch (shimmer is inert without a gradient to sweep across —
+  // leaving it set would be dangling, confusing state).
+  const textRoles = card.effects?.textRoles;
+  function patchRoleTextEffect(role: TextRole, patch: Partial<RoleTextEffect>) {
+    onChange({ effects: { ...card.effects, textRoles: { ...textRoles, [role]: { ...textRoles?.[role], ...patch } } } });
+  }
+  function makeGradientHandlers(role: TextRole) {
+    const current = textRoles?.[role];
+    return {
+      gradient: current?.gradient,
+      shimmer: current?.shimmer,
+      onGradientChange: (v: RoleTextEffect["gradient"]) =>
+        patchRoleTextEffect(role, { gradient: v, shimmer: v ? current?.shimmer : undefined }),
+      onShimmerChange: (v: RoleTextEffect["shimmer"]) => patchRoleTextEffect(role, { shimmer: v }),
+    };
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
       <MenuSection label="Fuente general" first>
@@ -79,6 +99,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         weight={typography.name.fontWeight} onWeightChange={v => onChange({ nameFontWeight: v })}
         letterSpacing={typography.name.letterSpacing} onLetterSpacingChange={v => onChange({ nameLetterSpacing: v })}
         lineHeight={typography.name.lineHeight} lineHeightMin={0.9} lineHeightMax={2} onLineHeightChange={v => onChange({ nameLineHeight: v })}
+        {...makeGradientHandlers("name")}
       />
 
       <RoleTypographyFields
@@ -90,6 +111,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         weight={typography.handle.fontWeight ?? 400} onWeightChange={v => onChange({ handleFontWeight: v })}
         letterSpacing={typography.handle.letterSpacing} onLetterSpacingChange={v => onChange({ handleLetterSpacing: v })}
         lineHeight={typography.handle.lineHeight ?? 1.4} lineHeightMin={0.9} lineHeightMax={2} onLineHeightChange={v => onChange({ monoLineHeight: v })}
+        {...makeGradientHandlers("handle")}
       />
 
       <RoleTypographyFields
@@ -101,6 +123,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         weight={typography.descriptor.fontWeight ?? 400} onWeightChange={v => onChange({ descriptorFontWeight: v })}
         letterSpacing={typography.descriptor.letterSpacing} onLetterSpacingChange={v => onChange({ descriptorLetterSpacing: v })}
         lineHeight={typography.descriptor.lineHeight ?? 1.4} lineHeightMin={0.9} lineHeightMax={2} onLineHeightChange={v => onChange({ monoLineHeight: v })}
+        {...makeGradientHandlers("descriptor")}
       />
 
       <RoleTypographyFields
@@ -112,6 +135,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         weight={typography.location.fontWeight ?? 400} onWeightChange={v => onChange({ locationFontWeight: v })}
         letterSpacing={typography.location.letterSpacing} onLetterSpacingChange={v => onChange({ locationLetterSpacing: v })}
         lineHeight={typography.location.lineHeight ?? 1.4} lineHeightMin={0.9} lineHeightMax={2} onLineHeightChange={v => onChange({ monoLineHeight: v })}
+        {...makeGradientHandlers("location")}
       />
 
       <RoleTypographyFields
@@ -124,6 +148,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         lineHeight={typography.bio.lineHeight} lineHeightMin={1} lineHeightMax={2.4} onLineHeightChange={v => onChange({ bioLineHeight: v })}
         // No letterSpacing props: bio never had that concept (see
         // cardTypography.ts) — omitting them hides the row entirely.
+        {...makeGradientHandlers("bio")}
       />
 
       <RoleTypographyFields
@@ -135,6 +160,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         weight={typography.views.fontWeight ?? 400} onWeightChange={v => onChange({ viewsFontWeight: v })}
         letterSpacing={typography.views.letterSpacing} onLetterSpacingChange={v => onChange({ viewsLetterSpacing: v })}
         lineHeight={typography.views.lineHeight ?? 1.4} lineHeightMin={0.9} lineHeightMax={2} onLineHeightChange={v => onChange({ monoLineHeight: v })}
+        {...makeGradientHandlers("views")}
       />
 
       {/* Contact Links' icon color lives in ProfileContactLinksMenu (next to
@@ -195,6 +221,17 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
                 onChange={v => patchStroke({ width: v })} />
             </>
           )}
+        </MenuSection>
+
+        <Divider />
+
+        {/* Stage FASE 3: filter: blur() on the glyphs themselves — distinct
+            from Sombra's own blur above (that only blurs the shadow layer).
+            Card-wide like Sombra/Glow/Stroke above, not per-role (see
+            types/index.ts's TextEffects/RoleTextEffect split). */}
+        <MenuSection label="Blur">
+          <SliderRow label="Intensidad" min={0} max={8} step={0.5} value={textFx?.blur ?? 0} unit="px"
+            onChange={v => patchTextFx({ blur: v || undefined })} />
         </MenuSection>
       </Collapsible>
     </div>
