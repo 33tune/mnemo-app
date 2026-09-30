@@ -938,13 +938,13 @@ function ProfileCard({
         position: "absolute", inset: 0, display: "flex", flexDirection: "column",
         alignItems: "center", padding: `${pad}px`, gap, zIndex: 3, overflow: "hidden",
       }}>
-        <AvatarEl />
-        {card.name && <NameLine style={{ textAlign: "center", marginTop: variant === "minimal" ? 2 : 4 }} />}
-        {card.handle && <HandleLine style={{ marginTop: -2 }} />}
-        {card.status && <DescriptorLine style={{ textAlign: "center" }} />}
-        {card.location && <LocationLine style={{ textAlign: "center" }} />}
-        {card.bio && <BioText style={{ maxWidth: "100%", textAlign: "center", overflow: "hidden", minHeight: 0 }} />}
-        {card.showViews && <ViewsLine />}
+        {AvatarEl({})}
+        {card.name && NameLine({ style: { textAlign: "center", marginTop: variant === "minimal" ? 2 : 4 } })}
+        {card.handle && HandleLine({ style: { marginTop: -2 } })}
+        {card.status && DescriptorLine({ style: { textAlign: "center" } })}
+        {card.location && LocationLine({ style: { textAlign: "center" } })}
+        {card.bio && BioText({ style: { maxWidth: "100%", textAlign: "center", overflow: "hidden", minHeight: 0 } })}
+        {card.showViews && ViewsLine({})}
       </div>
     );
   }
@@ -956,14 +956,14 @@ function ProfileCard({
         position: "absolute", inset: 0, display: "flex", flexDirection: "row",
         alignItems: "center", padding: `${pad}px`, gap: pad, zIndex: 3, overflow: "hidden",
       }}>
-        <AvatarEl style={{ flexShrink: 0 }} />
+        {AvatarEl({ style: { flexShrink: 0 } })}
         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
-          {card.name && <NameLine />}
-          {card.handle && <HandleLine />}
-          {card.status && <DescriptorLine />}
-          {card.location && <LocationLine />}
-          {card.bio && <BioText style={{ overflow: "hidden", minHeight: 0 }} />}
-          {card.showViews && <ViewsLine />}
+          {card.name && NameLine({})}
+          {card.handle && HandleLine({})}
+          {card.status && DescriptorLine({})}
+          {card.location && LocationLine({})}
+          {card.bio && BioText({ style: { overflow: "hidden", minHeight: 0 } })}
+          {card.showViews && ViewsLine({})}
         </div>
         {/* suppress unused warning */}
         <span style={{ display: "none" }}>{photoW}</span>
@@ -974,13 +974,13 @@ function ProfileCard({
   function renderFree() {
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 3 }}>
-        <FreeWrap elemKey="photo"><AvatarEl /></FreeWrap>
-        {card.name && <FreeWrap elemKey="name"><NameLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
-        {card.handle && <FreeWrap elemKey="handle"><HandleLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
-        {card.status && <FreeWrap elemKey="descriptor"><DescriptorLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
-        {card.location && <FreeWrap elemKey="location"><LocationLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
-        {card.bio && <FreeWrap elemKey="bio"><BioText style={{ maxWidth: 160, textAlign: "center" }} /></FreeWrap>}
-        {card.showViews && <FreeWrap elemKey="views"><ViewsLine style={{ whiteSpace: "nowrap" }} /></FreeWrap>}
+        {FreeWrap({ elemKey: "photo", children: AvatarEl({}) })}
+        {card.name && FreeWrap({ elemKey: "name", children: NameLine({ style: { whiteSpace: "nowrap" } }) })}
+        {card.handle && FreeWrap({ elemKey: "handle", children: HandleLine({ style: { whiteSpace: "nowrap" } }) })}
+        {card.status && FreeWrap({ elemKey: "descriptor", children: DescriptorLine({ style: { whiteSpace: "nowrap" } }) })}
+        {card.location && FreeWrap({ elemKey: "location", children: LocationLine({ style: { whiteSpace: "nowrap" } }) })}
+        {card.bio && FreeWrap({ elemKey: "bio", children: BioText({ style: { maxWidth: 160, textAlign: "center" } }) })}
+        {card.showViews && FreeWrap({ elemKey: "views", children: ViewsLine({ style: { whiteSpace: "nowrap" } }) })}
         {/* Free-mode hint */}
         {canInteract && (
           <div style={{
@@ -1270,7 +1270,7 @@ function ProfileCard({
             }}
             onMouseDown={isAnchorDraggable ? startAnchorDrag : undefined}
           >
-            <AvatarEl size={pfpBox.w} style={{ width: "100%", height: "100%" }} />
+            {AvatarEl({ size: pfpBox.w, style: { width: "100%", height: "100%" } })}
           </div>
         )}
         {identityRect && (identityRect.w > 0 || identityRect.h > 0) && (
@@ -1287,27 +1287,27 @@ function ProfileCard({
           >
             {boxes.name && card.name && (
               <div style={{ position: "absolute", left: boxes.name.x - identityRect.x, top: boxes.name.y - identityRect.y, width: boxes.name.w, height: boxes.name.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-                <NameLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+                {NameLine({ style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } })}
               </div>
             )}
             {boxes.handle && card.handle && (
               <div style={{ position: "absolute", left: boxes.handle.x - identityRect.x, top: boxes.handle.y - identityRect.y, width: boxes.handle.w, height: boxes.handle.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-                <HandleLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+                {HandleLine({ style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } })}
               </div>
             )}
             {boxes.descriptor && card.status && (
               <div style={{ position: "absolute", left: boxes.descriptor.x - identityRect.x, top: boxes.descriptor.y - identityRect.y, width: boxes.descriptor.w, height: boxes.descriptor.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-                <DescriptorLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+                {DescriptorLine({ style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } })}
               </div>
             )}
             {boxes.bio && card.bio && (
               <div style={{ position: "absolute", left: boxes.bio.x - identityRect.x, top: boxes.bio.y - identityRect.y, width: boxes.bio.w, height: boxes.bio.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
-                <BioText style={{
+                {BioText({ style: {
                   display: "-webkit-box",
                   WebkitLineClamp: boxes.bio.lines ?? 1,
                   WebkitBoxOrient: "vertical" as CSSProperties["WebkitBoxOrient"],
                   overflow: "hidden",
-                }} />
+                } })}
               </div>
             )}
           </div>
@@ -1322,7 +1322,7 @@ function ProfileCard({
             }}
             onMouseDown={isAnchorDraggable ? startLocationDrag : undefined}
           >
-            <LocationLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+            {LocationLine({ style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } })}
           </div>
         )}
         {boxes.views && card.showViews && (
@@ -1335,7 +1335,7 @@ function ProfileCard({
             }}
             onMouseDown={isAnchorDraggable ? startViewsDrag : undefined}
           >
-            <ViewsLine style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} />
+            {ViewsLine({ style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } })}
           </div>
         )}
         {boxes.links && contactLinks.length > 0 && blockFits(boxes.links) && (

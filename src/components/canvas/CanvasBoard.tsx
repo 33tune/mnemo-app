@@ -446,7 +446,20 @@ export default function CanvasBoard({
   const [wallpaperMenuOpen, setWallpaperMenuOpen] = useState(false);
   const [isLoading,     setIsLoading]     = useState(false);
   const [publishState,  setPublishState]  = useState<PublishState>("idle");
-  const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("home");
+  // Bug fix (2026-09-30): "space" is the canvas [handle]/page.tsx actually
+  // publishes (queried by `type="space"`) and the only one `publishSpace`/
+  // `isSpaceCanvas` treat as editable/publishable ("Mobile View editing is
+  // retired — 'space' is the only editable composition now", see
+  // switchMode() below) — i.e. it IS MyLand. `"home"` is a real, separate,
+  // still-used concept (see `homeBg` below — it's the backdrop behind the
+  // Social/chats view), but it was never meant to be the canvas /dashboard
+  // lands on. It only looked that way while the Analytics tab defaulted to
+  // covering the screen on mount regardless of which canvas sat underneath
+  // it — removing that overlay (Product closeout phase) surfaced the fact
+  // that the default canvasMode was never actually switched to "space" on
+  // load, so owners opening /dashboard landed on "home" (a canvas nothing
+  // publishes or ever presents as MyLand) instead of their real profile.
+  const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("space");
 
   const cards        = useMemo(() => elements.filter(e => e.elementType === "card")        as (CanvasCard        & { elementType: "card" })[], [elements]);
   const images       = useMemo(() => elements.filter(e => e.elementType === "image")       as (CanvasImageType   & { elementType: "image" })[], [elements]);
@@ -491,7 +504,7 @@ export default function CanvasBoard({
   const savingRef         = useRef(false);
   const lastSavedStateRef = useRef<CanvasState | null>(null);
   // ── Mode switching ───────────────────────────────────────────────────────────
-  const canvasModeRef  = useRef<CanvasMode>("home");
+  const canvasModeRef  = useRef<CanvasMode>("space");
   // ── Ops queue ────────────────────────────────────────────────────────────────
   const hasLoadedRef       = useRef(false);
   const sessionIdRef       = useRef(0);
@@ -676,6 +689,43 @@ export default function CanvasBoard({
     createClient().auth.getUser().then(({ data: { user } }) => {
       setCurrentUserId(user?.id ?? undefined);
       setAuthResolved(true);
+      // Maintenance cleanup ("Product closeout" follow-up): the deleted
+      // AnalyticsCanvas.tsx used to persist its 6 stat-cards' drag layout to
+      // this localStorage key — the ONLY piece of state Analytics ever wrote
+      // anywhere (confirmed by audit: useAnalytics.ts was always read-only
+      // against profile_views, and no canvas_ops/canvases row was ever
+      // written by anything Analytics-related). Nothing reads this key
+      // anymore now that the component is gone — remove it outright rather
+      // than leave genuinely dead state sitting in the user's browser.
+      if (user?.id) {
+        try { localStorage.removeItem(`mnemo-analytics-layout-${user.id}`); } catch { /* ignore */ }
+      }
+      // Bug fix (2026-09-30): `homeBg` (the Social/chats view's backdrop —
+      // see its declaration) used to be populated only as a side-effect of
+      // the main load effect running with canvasMode==="home", back when
+      // "home" was the default/initial editing canvas. Now that the default
+      // is "space" (see canvasMode's declaration above), that condition
+      // would never fire and homeBg would stay stuck at its hardcoded
+      // fallback. Fetch it independently, once, exactly matching the scope
+      // it always had (owner-only — viewers never populated it either,
+      // since the whole canvas-load effect short-circuits to `initialState`
+      // for canEdit===false and never touches canvasMode/homeBg there).
+      if (canEdit && user?.id) {
+        createClient()
+          .from("canvases")
+          .select("data")
+          .eq("user_id", user.id)
+          .eq("type", "home")
+          .maybeSingle()
+          .then(({ data: row }) => {
+            const s = (row?.data ?? {}) as Partial<CanvasState>;
+            setHomeBg({
+              color:           s.bgColor   || "#0a0a0c",
+              wallpaper:       s.wallpaper || "",
+              wallpaperLoaded: !!s.wallpaper,
+            });
+          });
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

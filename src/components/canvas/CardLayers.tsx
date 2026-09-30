@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, type CSSProperties } from "react";
+import React, { useEffect, useMemo, type CSSProperties } from "react";
 import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
@@ -15,8 +15,22 @@ const NOISE_DATA_URI = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org
 const FLOAT_EPOCH = typeof window !== "undefined" ? Date.now() : 0;
 
 function useCardAnimations(cardId: string, effects: CardEffects | undefined) {
+  // Animation lifecycle fix ("Product closeout" maintenance): the dependency
+  // here MUST be the primitive values this effect actually reads (floating
+  // flag + floatHeight), not the `effects.animations` object itself.
+  // `effects` (and therefore `effects.animations`) is rebuilt as a brand-new
+  // object on every render of the caller (ProfileCard.tsx's `effectiveEffects`
+  // and every card widget's own local equivalent both construct it fresh
+  // inline) — depending on that reference meant this effect re-ran on every
+  // single render while floating was on, tearing down and recreating the
+  // `<style>` tag (and therefore restarting the float animation) far more
+  // often than floatHeight itself ever actually changed. Floating's actual
+  // lifecycle is now stable across re-renders; it only re-injects when the
+  // toggle or height genuinely changes.
+  const floatOn = effects?.animations?.floating ?? false;
+  const floatH  = effects?.animations?.floatHeight ?? 8;
   useEffect(() => {
-    if (!effects?.animations?.floating) return;
+    if (!floatOn) return;
     const id = `mnemo-anim-${cardId}`;
     let el = document.getElementById(id) as HTMLStyleElement | null;
     if (!el) {
@@ -24,11 +38,9 @@ function useCardAnimations(cardId: string, effects: CardEffects | undefined) {
       el.id = id;
       document.head.appendChild(el);
     }
-    const a = effects.animations;
-    const floatH = a.floatHeight ?? 8;
     el.textContent = `@keyframes mnemo-float-${cardId}{0%,100%{transform:translateY(0)}50%{transform:translateY(-${floatH}px)}}`;
     return () => { el?.remove(); };
-  }, [cardId, effects?.animations]);
+  }, [cardId, floatOn, floatH]);
 }
 
 interface CardLayersProps {
@@ -125,13 +137,24 @@ export default function CardLayers({
   const spotlightSize  = effects?.interactions?.spotlightSize  ?? 65;
   const spotOn         = effects?.interactions?.spotlight       ?? false;
 
-  // Wrapper animation — negative delay syncs all cards to the same global phase
+  // Wrapper animation — negative delay syncs all cards to the same global
+  // phase. Animation lifecycle fix: `phase` used to be computed inline from
+  // `Date.now()` on every render, which produced a DIFFERENT `animation`
+  // shorthand string each time (a few ms apart) even when nothing about the
+  // animation actually changed — React's style diffing then reassigned
+  // `style.animation` on every re-render, which restarts a CSS animation's
+  // timeline. `useMemo` computes the phase once per (cardId, speed) pair, so
+  // the string — and therefore the running animation — stays untouched
+  // across ordinary re-renders (e.g. the parallax-driven ones that fire up
+  // to 60x/sec while the mouse is moving).
+  const floatSpeed = anim?.floating ? (anim.floatSpeed ?? 3) : 0;
+  const floatPhase = useMemo(
+    () => (floatSpeed > 0 ? (Date.now() - FLOAT_EPOCH) % (floatSpeed * 1000) : 0),
+    [cardId, floatSpeed],
+  );
   const wrapperAnimStyle: CSSProperties = {};
   if (anim?.floating) {
-    const speed   = anim.floatSpeed ?? 3;
-    const periodMs = speed * 1000;
-    const phase    = (Date.now() - FLOAT_EPOCH) % periodMs;
-    wrapperAnimStyle.animation = `mnemo-float-${cardId} ${speed}s ease-in-out -${phase}ms infinite`;
+    wrapperAnimStyle.animation = `mnemo-float-${cardId} ${floatSpeed}s ease-in-out -${floatPhase}ms infinite`;
   }
 
   // Stage FASE 3: hoverGlow (own opacity layer below, driven by the
