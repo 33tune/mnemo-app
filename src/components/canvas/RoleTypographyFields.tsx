@@ -116,8 +116,15 @@ export default function RoleTypographyFields({
         </MenuRow>
         {shimmer && (
           <>
-            <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={shimmer.intensity ?? 0.45}
-              onChange={v => onShimmerChange({ ...shimmer, intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+            {/* Bug fix: with a gradient active, Shimmer scrolls the gradient's
+                own colors (resolveGradientFlowCss/GRADIENT_FLOW_ANIMATION_NAME
+                in textEffects.ts/cardMotion.ts) instead of sweeping a highlight
+                band — "Intensidad" (highlight opacity) has nothing to control
+                in that mode, so it only shows for the flat-color sweep. */}
+            {!gradientOn && (
+              <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={shimmer.intensity ?? 0.45}
+                onChange={v => onShimmerChange({ ...shimmer, intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+            )}
             <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={shimmer.speed ?? 1}
               onChange={v => onShimmerChange({ ...shimmer, speed: v })} fmt={v => `${v.toFixed(1)}x`} />
           </>

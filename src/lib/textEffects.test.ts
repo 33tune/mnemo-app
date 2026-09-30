@@ -89,16 +89,48 @@ test("resolveTextEffectStyle (Product closeout — shimmer fix): shimmer without
   assert.equal(style.backgroundClip, "text");
 });
 
-test("resolveTextEffectStyle: gradient + shimmer combine into a two-layer background with animation", () => {
+test("resolveTextEffectStyle (bug fix — real gradient flow): gradient + shimmer scrolls the gradient's own colors, not a static highlight over a frozen gradient", () => {
   const style = resolveTextEffectStyle(undefined, {
     gradient: { colors: ["#ff0000", "#0000ff"], angle: 45 },
     shimmer: { intensity: 0.5, speed: 1 },
   });
-  assert.ok(String(style.backgroundImage).includes("linear-gradient(45deg, #ff0000, #0000ff)"));
-  assert.ok(String(style.backgroundImage).startsWith("linear-gradient(100deg,"));
+  // Single animated layer — the stop list duplicated back-to-back so a
+  // 0%->100% background-position sweep loops seamlessly (see
+  // resolveGradientFlowCss's header).
+  assert.equal(style.backgroundImage, "linear-gradient(45deg, #ff0000, #0000ff, #ff0000, #0000ff)");
+  assert.equal(style.backgroundSize, "200% 100%");
+  assert.equal(style.backgroundPosition, "0% 0");
+  assert.ok(String(style.animation).includes("mnemo-text-gradient-flow"));
+  assert.ok(!String(style.animation).includes("mnemo-text-shimmer"));
+  assert.equal(style.color, "transparent");
+});
+
+test("resolveTextEffectStyle (bug fix — real gradient flow): works for 3+ stop / rainbow-style gradients, duplicating the full stop list", () => {
+  const style = resolveTextEffectStyle(undefined, {
+    gradient: { colors: ["#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#0000ff", "#8b00ff"], angle: 90 },
+    shimmer: {},
+  });
+  assert.equal(
+    style.backgroundImage,
+    "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff)",
+  );
+  assert.equal(style.backgroundSize, "200% 100%");
+});
+
+test("resolveTextEffectStyle (bug fix — real gradient flow): speed maps through to the flow animation's duration, same contract as plain shimmer", () => {
+  const slow = resolveTextEffectStyle(undefined, { gradient: { colors: ["#fff", "#000"], angle: 0 }, shimmer: { speed: 0.5 } });
+  const fast = resolveTextEffectStyle(undefined, { gradient: { colors: ["#fff", "#000"], angle: 0 }, shimmer: { speed: 2 } });
+  const slowDuration = parseFloat(String(slow.animation).split(" ")[1]);
+  const fastDuration = parseFloat(String(fast.animation).split(" ")[1]);
+  assert.ok(fastDuration < slowDuration, `expected faster speed to produce a shorter duration: ${fastDuration} vs ${slowDuration}`);
+});
+
+test("resolveTextEffectStyle (bug fix — real gradient flow): no explicit gradient + shimmer still uses the original static-surface highlight sweep, unchanged", () => {
+  const style = resolveTextEffectStyle(undefined, { shimmer: { intensity: 0.5 } }, "#ff8800");
+  assert.ok(String(style.backgroundImage).includes("#ff8800"));
   assert.equal(style.backgroundSize, "250% 100%, 100% 100%");
   assert.ok(String(style.animation).includes("mnemo-text-shimmer"));
-  assert.equal(style.color, "transparent");
+  assert.ok(!String(style.animation).includes("mnemo-text-gradient-flow"));
 });
 
 test("resolveTextEffectStyle: shadow/glow/stroke (effect param) still work combined with gradient (roleEffect param) — no CSS-level conflict", () => {

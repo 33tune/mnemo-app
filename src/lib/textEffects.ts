@@ -32,11 +32,21 @@
  * resolved solid color (`resolvedColor`), so background-clip:text has a
  * valid surface regardless. This is why `resolveTextEffectStyle` now takes
  * a third parameter it didn't have in FASE 3.
+ *
+ * Gradient-flow fix (later bug fix): with shimmer AND an explicit gradient
+ * both set, shimmer used to just sweep a static highlight band over a
+ * FROZEN gradient — the multicolor stops themselves never moved, which is
+ * not what "shimmer" on multicolor text should look like. It now animates
+ * the gradient's own `background-position` continuously (GRADIENT_FLOW_
+ * ANIMATION_NAME) instead of overlaying a highlight — see
+ * resolveGradientFlowCss below and the branch in resolveTextEffectStyle.
+ * The no-gradient sweeping-highlight case (shimmer on a flat resolved
+ * color) is untouched — there's no hue to scroll through with one color.
  */
 import type { CSSProperties } from "react";
 import type { TextEffects, RoleTextEffect, TextGradientEffect } from "@/types";
 import { withOpacity } from "./cardColors";
-import { resolveShimmerAnimation } from "./cardMotion";
+import { resolveShimmerAnimation, resolveGradientFlowAnimation } from "./cardMotion";
 
 const DEFAULT_SHADOW_COLOR = "#000000";
 const DEFAULT_SHADOW_OPACITY_NO_COLOR = 0.5; // reproduces the pre-existing "rgba(0,0,0,0.5)" look when nothing is set
@@ -66,6 +76,22 @@ export function resolveGradientCss(gradient: TextGradientEffect): string {
   const safeStops = stops.length >= 2 ? stops : [...stops, ...stops]; // degenerate 1-color input still paints something
   const angle = gradient.angle ?? 90;
   return `linear-gradient(${angle}deg, ${safeStops.join(", ")})`;
+}
+
+/**
+ * Bug fix — real animated gradient flow: the color stop list, DUPLICATED
+ * back-to-back, so `background-size:200%` + animating `background-position`
+ * from 0% to 100% (GRADIENT_FLOW_ANIMATION_NAME, cardMotion.ts) scrolls by
+ * exactly one full copy of the (doubled) image — the loop has no visible
+ * seam regardless of stop count or whether the first/last colors match, so
+ * there's no need to force the user's color list to close on itself.
+ */
+function resolveGradientFlowCss(gradient: TextGradientEffect): string {
+  const stops = gradient.colors?.length ? gradient.colors
+    : [gradient.from, gradient.to].filter((c): c is string => !!c);
+  const safeStops = stops.length >= 2 ? stops : [...stops, ...stops];
+  const angle = gradient.angle ?? 90;
+  return `linear-gradient(${angle}deg, ${[...safeStops, ...safeStops].join(", ")})`;
 }
 
 /**
@@ -114,20 +140,33 @@ export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTe
   // background-clip:text still has a valid surface to sweep a highlight
   // across — same visible role color, just now animatable.
   if (hasGradient || hasShimmer) {
-    const baseGradient = roleEffect!.gradient
-      ? resolveGradientCss(roleEffect!.gradient!)
-      : `linear-gradient(90deg, ${resolvedColor ?? "#ffffff"}, ${resolvedColor ?? "#ffffff"})`;
-
-    if (hasShimmer) {
+    if (hasShimmer && hasGradient) {
+      // Bug fix — real gradient flow: with an EXPLICIT (possibly
+      // multicolor) gradient configured, "Shimmer" no longer sweeps a
+      // static highlight over a frozen gradient (that read as "barely
+      // moving" / effectively static for anything but a plain 2-color
+      // gradient, since only the highlight band — not the colors
+      // themselves — ever animated). It now scrolls the gradient's own
+      // colors continuously through the text — see resolveGradientFlowCss.
+      style.backgroundImage = resolveGradientFlowCss(roleEffect!.gradient!);
+      style.backgroundSize = "200% 100%";
+      style.backgroundPosition = "0% 0";
+      style.backgroundRepeat = "no-repeat";
+      style.animation = resolveGradientFlowAnimation(roleEffect!.shimmer!.speed ?? 1);
+    } else if (hasShimmer) {
+      // No explicit gradient — shimmer on a solid color. Nothing to
+      // "flow" (a flat color has no hue to scroll through), so this stays
+      // the original sweeping-highlight-over-a-flat-surface treatment.
       const intensity = roleEffect!.shimmer!.intensity ?? DEFAULT_SHIMMER_INTENSITY;
+      const flatGradient = `linear-gradient(90deg, ${resolvedColor ?? "#ffffff"}, ${resolvedColor ?? "#ffffff"})`;
       const shimmerBand = `linear-gradient(100deg, transparent 38%, rgba(255,255,255,${intensity}) 50%, transparent 62%)`;
-      style.backgroundImage = `${shimmerBand}, ${baseGradient}`;
+      style.backgroundImage = `${shimmerBand}, ${flatGradient}`;
       style.backgroundSize = "250% 100%, 100% 100%";
       style.backgroundPosition = "-120% 0, 0 0";
       style.backgroundRepeat = "no-repeat, no-repeat";
       style.animation = resolveShimmerAnimation(roleEffect!.shimmer!.speed ?? 1);
     } else {
-      style.backgroundImage = baseGradient;
+      style.backgroundImage = resolveGradientCss(roleEffect!.gradient!);
     }
     style.backgroundClip = "text";
     style.WebkitBackgroundClip = "text";

@@ -1,7 +1,9 @@
 /**
  * Centralized motion-effect keyframes for ProfileCard (Stage FASE 3 — Text &
  * Motion Effects; extended in "Product closeout" with letter-bounce and
- * flicker). None of these keyframes bake in a per-card value EXCEPT
+ * flicker; extended again with a real animated multicolor gradient flow —
+ * see GRADIENT_FLOW_ANIMATION_NAME). None of these keyframes bake in a
+ * per-card value EXCEPT
  * letter-bounce's amplitude, which is read from a CSS custom property
  * (`--letter-amp`, set inline per element) rather than baked into the
  * keyframe rule itself — so every keyframe here can still be injected ONCE,
@@ -23,6 +25,7 @@ export const GLOW_PULSE_ANIMATION_NAME = "mnemo-glow-pulse";
 export const LETTER_BOUNCE_ANIMATION_NAME = "mnemo-letter-bounce";
 export const LETTER_SHIMMER_PULSE_ANIMATION_NAME = "mnemo-letter-shimmer-pulse";
 export const FLICKER_ANIMATION_NAME = "mnemo-flicker";
+export const GRADIENT_FLOW_ANIMATION_NAME = "mnemo-text-gradient-flow";
 
 const KEYFRAMES_STYLE_ID = "mnemo-motion-keyframes";
 
@@ -55,12 +58,27 @@ const KEYFRAMES_CSS = `
   96%      { opacity: 0.6; }
   97%      { opacity: 0; }
 }
+/* Real multicolor gradient flow (bug fix — "shimmer" used to only sweep a
+ * static highlight OVER a fixed gradient; this actually scrolls the
+ * gradient's own colors through the text). The CSS background-image this
+ * animates is the color stop list DUPLICATED back-to-back with
+ * background-size:200% — moving background-position from 0% to 100%
+ * shifts by exactly one full copy of the (doubled) image, so the frame at
+ * 100% is pixel-identical to the frame at 0% and the infinite loop has no
+ * visible seam, regardless of how many stops or whether the first/last
+ * colors match. See resolveGradientFlowCss in textEffects.ts.
+ */
+@keyframes ${GRADIENT_FLOW_ANIMATION_NAME} {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 100% 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   @keyframes ${SHIMMER_ANIMATION_NAME}              { from, to { background-position: 0 0, 0 0; } }
   @keyframes ${GLOW_PULSE_ANIMATION_NAME}           { from, to { opacity: 0.85; } }
   @keyframes ${LETTER_BOUNCE_ANIMATION_NAME}        { from, to { transform: translateY(0); } }
   @keyframes ${LETTER_SHIMMER_PULSE_ANIMATION_NAME} { from, to { opacity: 1; } }
   @keyframes ${FLICKER_ANIMATION_NAME}              { from, to { opacity: 0; } }
+  @keyframes ${GRADIENT_FLOW_ANIMATION_NAME}        { from, to { background-position: 0% 0; } }
 }
 `;
 
@@ -97,6 +115,7 @@ const SHIMMER_BASE_DURATION_S = 3.2;
 const GLOW_PULSE_BASE_DURATION_S = 2.5;
 const LETTER_BOUNCE_BASE_DURATION_S = 1.2;
 const FLICKER_BASE_DURATION_S = 4;
+const GRADIENT_FLOW_BASE_DURATION_S = 6;
 
 /** Pure — the `animation` shorthand string to apply inline. `speed` is a
  * unitless multiplier (1 = default pace, higher = faster), matching the
@@ -131,4 +150,12 @@ export function resolveLetterShimmerPulseAnimation(speed = 1, delaySeconds = 0):
 export function resolveFlickerAnimation(speed = 1): string {
   const duration = clampDuration(FLICKER_BASE_DURATION_S / Math.max(0.1, speed));
   return `${FLICKER_ANIMATION_NAME} ${duration.toFixed(2)}s steps(1, end) infinite`;
+}
+
+/** `linear` (not ease-in-out) is required here, not a style choice — any
+ * easing would speed up/slow down around the loop seam, reading as a
+ * stutter each cycle instead of a continuous, constant-speed color flow. */
+export function resolveGradientFlowAnimation(speed = 1): string {
+  const duration = clampDuration(GRADIENT_FLOW_BASE_DURATION_S / Math.max(0.1, speed));
+  return `${GRADIENT_FLOW_ANIMATION_NAME} ${duration.toFixed(2)}s linear infinite`;
 }

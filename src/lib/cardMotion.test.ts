@@ -2,9 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   resolveShimmerAnimation, resolveGlowPulseAnimation, resolveLetterBounceAnimation,
-  resolveLetterShimmerPulseAnimation, resolveFlickerAnimation,
+  resolveLetterShimmerPulseAnimation, resolveFlickerAnimation, resolveGradientFlowAnimation,
   SHIMMER_ANIMATION_NAME, GLOW_PULSE_ANIMATION_NAME, LETTER_BOUNCE_ANIMATION_NAME,
-  LETTER_SHIMMER_PULSE_ANIMATION_NAME, FLICKER_ANIMATION_NAME,
+  LETTER_SHIMMER_PULSE_ANIMATION_NAME, FLICKER_ANIMATION_NAME, GRADIENT_FLOW_ANIMATION_NAME,
 } from "./cardMotion";
 
 test("resolveShimmerAnimation: default speed produces the base duration", () => {
@@ -80,4 +80,23 @@ test("resolveFlickerAnimation: higher speed means shorter duration", () => {
   const slowDuration = Number(slow.match(/([\d.]+)s/)![1]);
   const fastDuration = Number(fast.match(/([\d.]+)s/)![1]);
   assert.ok(fastDuration < slowDuration);
+});
+
+test("resolveGradientFlowAnimation: default speed produces the base duration, linear easing (constant speed, no seam stutter)", () => {
+  const anim = resolveGradientFlowAnimation();
+  assert.equal(anim, `${GRADIENT_FLOW_ANIMATION_NAME} 6.00s linear infinite`);
+});
+
+test("resolveGradientFlowAnimation: higher speed means shorter duration", () => {
+  const slow = resolveGradientFlowAnimation(0.5);
+  const fast = resolveGradientFlowAnimation(2);
+  const slowDuration = Number(slow.match(/([\d.]+)s/)![1]);
+  const fastDuration = Number(fast.match(/([\d.]+)s/)![1]);
+  assert.ok(fastDuration < slowDuration);
+});
+
+test("resolveGradientFlowAnimation: duration is clamped to a sane range", () => {
+  const extreme = resolveGradientFlowAnimation(1000);
+  const duration = Number(extreme.match(/([\d.]+)s/)![1]);
+  assert.ok(duration >= 0.4);
 });
