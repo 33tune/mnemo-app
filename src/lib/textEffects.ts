@@ -37,8 +37,8 @@
  * both set, shimmer used to just sweep a static highlight band over a
  * FROZEN gradient — the multicolor stops themselves never moved, which is
  * not what "shimmer" on multicolor text should look like. It now animates
- * the gradient's own `background-position` continuously (GRADIENT_FLOW_
- * ANIMATION_NAME) instead of overlaying a highlight — see
+ * the gradient's own stop offsets continuously, along its angle (GRADIENT_
+ * FLOW_ANIMATION_NAME) instead of overlaying a highlight — see
  * resolveGradientFlowCss below and the branch in resolveTextEffectStyle.
  * The no-gradient sweeping-highlight case (shimmer on a flat resolved
  * color) is untouched — there's no hue to scroll through with one color.
@@ -46,7 +46,7 @@
 import type { CSSProperties } from "react";
 import type { TextEffects, RoleTextEffect, TextGradientEffect } from "@/types";
 import { withOpacity } from "./cardColors";
-import { resolveShimmerAnimation, resolveGradientFlowAnimation } from "./cardMotion";
+import { resolveShimmerAnimation, resolveGradientFlowAnimation, GRADIENT_FLOW_OFFSET_PROPERTY } from "./cardMotion";
 
 const DEFAULT_SHADOW_COLOR = "#000000";
 const DEFAULT_SHADOW_OPACITY_NO_COLOR = 0.5; // reproduces the pre-existing "rgba(0,0,0,0.5)" look when nothing is set
@@ -79,19 +79,33 @@ export function resolveGradientCss(gradient: TextGradientEffect): string {
 }
 
 /**
- * Bug fix — real animated gradient flow: the color stop list, DUPLICATED
- * back-to-back, so `background-size:200%` + animating `background-position`
- * from 0% to 100% (GRADIENT_FLOW_ANIMATION_NAME, cardMotion.ts) scrolls by
- * exactly one full copy of the (doubled) image — the loop has no visible
- * seam regardless of stop count or whether the first/last colors match, so
- * there's no need to force the user's color list to close on itself.
+ * Bug fix — real animated gradient flow, along the gradient's OWN angle: a
+ * `repeating-linear-gradient` whose period is exactly the full gradient
+ * line (stops evenly spaced 0%→100%, closing back on the first color), with
+ * every stop offset by the animated `--mnemo-flow-offset` custom property
+ * (GRADIENT_FLOW_ANIMATION_NAME, cardMotion.ts — registered via @property so
+ * it interpolates). Animating that offset by one full period (0% → -100%)
+ * is seamless for any stop count, and — unlike the previous
+ * `background-size:200%` + horizontal `background-position` sweep, which
+ * only ever moved along X — it scrolls along whatever `angle` is set:
+ * at 0°/180° the old approach produced no visible motion at all, and at
+ * diagonal angles it jumped at every loop. Percentages here are relative to
+ * the gradient line, so the visible density (one full period across the
+ * element) is the same as before at the default 90°.
  */
-function resolveGradientFlowCss(gradient: TextGradientEffect): string {
+export function resolveGradientFlowCss(gradient: TextGradientEffect): string {
   const stops = gradient.colors?.length ? gradient.colors
     : [gradient.from, gradient.to].filter((c): c is string => !!c);
   const safeStops = stops.length >= 2 ? stops : [...stops, ...stops];
   const angle = gradient.angle ?? 90;
-  return `linear-gradient(${angle}deg, ${[...safeStops, ...safeStops].join(", ")})`;
+  const n = safeStops.length;
+  const positioned = [...safeStops, safeStops[0]].map((c, i) =>
+    // `, 0%` fallback: before cardMotion's <style> is injected (SSR, first
+    // frame) the property isn't registered/set yet — an unresolved var()
+    // would invalidate the whole background-image and, with
+    // `color: transparent`, leave the text invisible instead of static.
+    `${c} calc(var(${GRADIENT_FLOW_OFFSET_PROPERTY}, 0%) + ${+(i * 100 / n).toFixed(4)}%)`);
+  return `repeating-linear-gradient(${angle}deg, ${positioned.join(", ")})`;
 }
 
 /**
@@ -149,9 +163,6 @@ export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTe
       // themselves — ever animated). It now scrolls the gradient's own
       // colors continuously through the text — see resolveGradientFlowCss.
       style.backgroundImage = resolveGradientFlowCss(roleEffect!.gradient!);
-      style.backgroundSize = "200% 100%";
-      style.backgroundPosition = "0% 0";
-      style.backgroundRepeat = "no-repeat";
       style.animation = resolveGradientFlowAnimation(roleEffect!.shimmer!.speed ?? 1);
     } else if (hasShimmer) {
       // No explicit gradient — shimmer on a solid color. Nothing to

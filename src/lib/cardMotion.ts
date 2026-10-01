@@ -26,6 +26,9 @@ export const LETTER_BOUNCE_ANIMATION_NAME = "mnemo-letter-bounce";
 export const LETTER_SHIMMER_PULSE_ANIMATION_NAME = "mnemo-letter-shimmer-pulse";
 export const FLICKER_ANIMATION_NAME = "mnemo-flicker";
 export const GRADIENT_FLOW_ANIMATION_NAME = "mnemo-text-gradient-flow";
+/** Registered via @property below so it interpolates — read inside the
+ * gradient's stop positions by textEffects.ts's resolveGradientFlowCss. */
+export const GRADIENT_FLOW_OFFSET_PROPERTY = "--mnemo-flow-offset";
 
 const KEYFRAMES_STYLE_ID = "mnemo-motion-keyframes";
 
@@ -60,17 +63,22 @@ const KEYFRAMES_CSS = `
 }
 /* Real multicolor gradient flow (bug fix — "shimmer" used to only sweep a
  * static highlight OVER a fixed gradient; this actually scrolls the
- * gradient's own colors through the text). The CSS background-image this
- * animates is the color stop list DUPLICATED back-to-back with
- * background-size:200% — moving background-position from 0% to 100%
- * shifts by exactly one full copy of the (doubled) image, so the frame at
- * 100% is pixel-identical to the frame at 0% and the infinite loop has no
- * visible seam, regardless of how many stops or whether the first/last
- * colors match. See resolveGradientFlowCss in textEffects.ts.
+ * gradient's own colors through the text). Animates the registered
+ * ${GRADIENT_FLOW_OFFSET_PROPERTY}, which offsets every stop of a
+ * repeating-linear-gradient whose period is the full gradient line — one
+ * full period per cycle, so 100% is identical to 0% (no seam), and the
+ * motion follows the gradient's angle instead of always running along X
+ * (a horizontal background-position sweep was invisible at 0°/180°). See
+ * resolveGradientFlowCss in textEffects.ts.
  */
+@property ${GRADIENT_FLOW_OFFSET_PROPERTY} {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
 @keyframes ${GRADIENT_FLOW_ANIMATION_NAME} {
-  0%   { background-position: 0% 0; }
-  100% { background-position: 100% 0; }
+  from { ${GRADIENT_FLOW_OFFSET_PROPERTY}: 0%; }
+  to   { ${GRADIENT_FLOW_OFFSET_PROPERTY}: -100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   @keyframes ${SHIMMER_ANIMATION_NAME}              { from, to { background-position: 0 0, 0 0; } }
@@ -78,7 +86,7 @@ const KEYFRAMES_CSS = `
   @keyframes ${LETTER_BOUNCE_ANIMATION_NAME}        { from, to { transform: translateY(0); } }
   @keyframes ${LETTER_SHIMMER_PULSE_ANIMATION_NAME} { from, to { opacity: 1; } }
   @keyframes ${FLICKER_ANIMATION_NAME}              { from, to { opacity: 0; } }
-  @keyframes ${GRADIENT_FLOW_ANIMATION_NAME}        { from, to { background-position: 0% 0; } }
+  @keyframes ${GRADIENT_FLOW_ANIMATION_NAME}        { from, to { ${GRADIENT_FLOW_OFFSET_PROPERTY}: 0%; } }
 }
 `;
 

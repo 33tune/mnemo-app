@@ -94,27 +94,47 @@ test("resolveTextEffectStyle (bug fix — real gradient flow): gradient + shimme
     gradient: { colors: ["#ff0000", "#0000ff"], angle: 45 },
     shimmer: { intensity: 0.5, speed: 1 },
   });
-  // Single animated layer — the stop list duplicated back-to-back so a
-  // 0%->100% background-position sweep loops seamlessly (see
-  // resolveGradientFlowCss's header).
-  assert.equal(style.backgroundImage, "linear-gradient(45deg, #ff0000, #0000ff, #ff0000, #0000ff)");
-  assert.equal(style.backgroundSize, "200% 100%");
-  assert.equal(style.backgroundPosition, "0% 0");
+  // Single animated layer — a repeating gradient whose period is the full
+  // gradient line, every stop offset by the animated --mnemo-flow-offset
+  // (see resolveGradientFlowCss's header). No background-size/-position
+  // sweep anymore: that only ever moved along X, ignoring `angle`.
+  assert.equal(
+    style.backgroundImage,
+    "repeating-linear-gradient(45deg, #ff0000 calc(var(--mnemo-flow-offset, 0%) + 0%), #0000ff calc(var(--mnemo-flow-offset, 0%) + 50%), #ff0000 calc(var(--mnemo-flow-offset, 0%) + 100%))",
+  );
+  assert.equal(style.backgroundSize, undefined);
+  assert.equal(style.backgroundPosition, undefined);
   assert.ok(String(style.animation).includes("mnemo-text-gradient-flow"));
   assert.ok(!String(style.animation).includes("mnemo-text-shimmer"));
   assert.equal(style.color, "transparent");
 });
 
-test("resolveTextEffectStyle (bug fix — real gradient flow): works for 3+ stop / rainbow-style gradients, duplicating the full stop list", () => {
+test("resolveTextEffectStyle (bug fix — real gradient flow): works for 3+ stop / rainbow-style gradients, one evenly spaced period closing on the first color", () => {
+  const colors = ["#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#0000ff", "#8b00ff"];
+  const style = resolveTextEffectStyle(undefined, { gradient: { colors, angle: 90 }, shimmer: {} });
+  const css = String(style.backgroundImage);
+  assert.ok(css.startsWith("repeating-linear-gradient(90deg, "));
+  const stops = css.slice("repeating-linear-gradient(90deg, ".length, -1).split(/, (?=#)/);
+  assert.equal(stops.length, colors.length + 1);
+  assert.deepEqual(stops.map(s => s.split(" ")[0]), [...colors, colors[0]]);
+  assert.ok(stops[0].endsWith("+ 0%)"));
+  assert.ok(stops[stops.length - 1].endsWith("+ 100%)"));
+});
+
+test("resolveTextEffectStyle (bug fix — real gradient flow): the gradient angle is preserved for every angle (flow follows it, incl. 0°/180° where a horizontal sweep was invisible)", () => {
+  for (const angle of [0, 45, 90, 135, 180, 270]) {
+    const style = resolveTextEffectStyle(undefined, { gradient: { colors: ["#ff0000", "#0000ff"], angle }, shimmer: {} });
+    assert.ok(String(style.backgroundImage).startsWith(`repeating-linear-gradient(${angle}deg, `));
+  }
+});
+
+test("resolveTextEffectStyle (bug fix — real gradient flow): legacy {from,to} gradient data still flows", () => {
   const style = resolveTextEffectStyle(undefined, {
-    gradient: { colors: ["#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#0000ff", "#8b00ff"], angle: 90 },
+    gradient: { colors: [], angle: 90, from: "#ff0000", to: "#0000ff" },
     shimmer: {},
   });
-  assert.equal(
-    style.backgroundImage,
-    "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff)",
-  );
-  assert.equal(style.backgroundSize, "200% 100%");
+  assert.ok(String(style.backgroundImage).includes("#ff0000 calc("));
+  assert.ok(String(style.backgroundImage).includes("#0000ff calc("));
 });
 
 test("resolveTextEffectStyle (bug fix — real gradient flow): speed maps through to the flow animation's duration, same contract as plain shimmer", () => {
