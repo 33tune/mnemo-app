@@ -23,10 +23,10 @@ import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
 import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
-import { withOpacity, luminance, resolveCardColors, colorForLetterIndex } from "@/lib/cardColors";
+import { withOpacity, luminance, resolveCardColors } from "@/lib/cardColors";
 import { resolveCardTypography } from "@/lib/cardTypography";
-import { resolveTextEffectStyle } from "@/lib/textEffects";
-import { useMotionKeyframes, resolveGlowPulseAnimation, resolveLetterBounceAnimation, resolveLetterShimmerPulseAnimation } from "@/lib/cardMotion";
+import { resolveTextEffectStyle, resolveLetterEffectStyle } from "@/lib/textEffects";
+import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 
 // ── Draggable block keys (Stage 3B.3-B) ─────────────────────────────────────
@@ -484,10 +484,9 @@ function ProfileCard({
     textRoles?.name?.shimmer || textRoles?.handle?.shimmer || textRoles?.descriptor?.shimmer ||
     textRoles?.location?.shimmer || textRoles?.bio?.shimmer || textRoles?.views?.shimmer
   );
-  // Product closeout: Name's per-letter bounce animation. Uses shadow/glow/
-  // stroke/blur only (no gradient/shimmer background-clip — see NameLine's
-  // per-letter branch below for why that's a solid-color-per-letter
-  // situation instead).
+  // Product closeout: Name's per-letter bounce animation. The parent gets
+  // shadow/glow/stroke/blur only; gradient/shimmer go on each letter span
+  // (see NameLine's per-letter branch / resolveLetterEffectStyle).
   const nameLetterAnim = textRoles?.name?.letterAnimation;
   const nameShadowStyle = resolveTextEffectStyle(effectiveEffects.text);
   // Stage FASE 1: per-block visual overrides (background/radius always;
@@ -775,47 +774,22 @@ function ProfileCard({
       );
     }
 
-    // Product closeout: per-letter bounce. Gradient/multicolor becomes a
-    // SOLID color interpolated per character index instead of a sliced
-    // background-clip — a position-fixed gradient would visibly "shear"
-    // once letters independently translate via their own bounce transform,
-    // so per-letter solid interpolation is the correct choice here, not a
-    // shortcut (see cardColors.ts's colorForLetterIndex). Shadow/glow/
-    // stroke are CSS-inherited properties (cascade from the parent to each
-    // span automatically) and `filter` composites the whole subtree as one
-    // unit — nameShadowStyle on the parent is enough, no per-span
-    // duplication needed. Shimmer becomes a per-letter staggered opacity
-    // pulse instead of its usual position-swept band, for the same
-    // shearing reason as gradient.
-    const gradient = textRoles?.name?.gradient;
-    const gradientColors = gradient
-      ? (gradient.colors?.length ? gradient.colors : [gradient.from, gradient.to].filter((c): c is string => !!c))
-      : null;
-    const hasShimmer = !!textRoles?.name?.shimmer;
+    // Per-letter bounce, COMPOSED with gradient/shimmer rather than
+    // replacing them: each span gets the role's own gradient/shimmer fill
+    // (sliced so the word reads as one gradient) plus its bounce — see
+    // textEffects.ts's resolveLetterEffectStyle for why the fill lives on
+    // each span and not on this parent. Shadow/glow/stroke are
+    // CSS-inherited and `filter` composites the whole subtree, so
+    // nameShadowStyle on the parent is still all they need.
     const chars = card.name.split("");
-    const amplitude = nameLetterAnim.amplitude ?? 4;
-    const speed = nameLetterAnim.speed ?? 1;
-    const stagger = nameLetterAnim.stagger ?? 0.05;
 
     return (
       <div style={{ ...baseStyle, color: resolvedColors.name, ...nameShadowStyle, ...style }}>
-        {chars.map((ch, i) => {
-          const animations = [resolveLetterBounceAnimation(speed, i * stagger)];
-          if (hasShimmer) animations.push(resolveLetterShimmerPulseAnimation(speed, i * stagger));
-          return (
-            <span
-              key={i}
-              style={{
-                display: "inline-block",
-                animation: animations.join(", "),
-                ...(gradientColors ? { color: colorForLetterIndex(gradientColors, i, chars.length) } : {}),
-                ["--letter-amp" as string]: `${amplitude}px`,
-              } as CSSProperties}
-            >
-              {ch === " " ? " " : ch}
-            </span>
-          );
-        })}
+        {chars.map((ch, i) => (
+          <span key={i} style={resolveLetterEffectStyle(textRoles?.name, resolvedColors.name, i, chars.length)}>
+            {ch === " " ? " " : ch}
+          </span>
+        ))}
       </div>
     );
   }

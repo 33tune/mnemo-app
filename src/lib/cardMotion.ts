@@ -128,9 +128,12 @@ const GRADIENT_FLOW_BASE_DURATION_S = 6;
 /** Pure — the `animation` shorthand string to apply inline. `speed` is a
  * unitless multiplier (1 = default pace, higher = faster), matching the
  * slider contract in RoleTypographyFields.tsx. */
-export function resolveShimmerAnimation(speed = 1): string {
+export function resolveShimmerAnimation(speed = 1, delaySeconds = 0): string {
   const duration = clampDuration(SHIMMER_BASE_DURATION_S / Math.max(0.1, speed));
-  return `${SHIMMER_ANIMATION_NAME} ${duration.toFixed(2)}s ease-in-out infinite`;
+  // `delaySeconds` only used by Name's per-letter path (textEffects.ts's
+  // resolveLetterEffectStyle) — absent/0 keeps the exact original string.
+  const delay = delaySeconds > 0 ? ` ${delaySeconds.toFixed(3)}s` : "";
+  return `${SHIMMER_ANIMATION_NAME} ${duration.toFixed(2)}s ease-in-out${delay} infinite`;
 }
 
 /** Same contract as resolveShimmerAnimation, shared by card glow (border

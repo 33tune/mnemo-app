@@ -46,7 +46,7 @@
 import type { CSSProperties } from "react";
 import type { TextEffects, RoleTextEffect, TextGradientEffect } from "@/types";
 import { withOpacity } from "./cardColors";
-import { resolveShimmerAnimation, resolveGradientFlowAnimation, GRADIENT_FLOW_OFFSET_PROPERTY } from "./cardMotion";
+import { resolveShimmerAnimation, resolveGradientFlowAnimation, resolveLetterBounceAnimation, GRADIENT_FLOW_OFFSET_PROPERTY } from "./cardMotion";
 
 const DEFAULT_SHADOW_COLOR = "#000000";
 const DEFAULT_SHADOW_OPACITY_NO_COLOR = 0.5; // reproduces the pre-existing "rgba(0,0,0,0.5)" look when nothing is set
@@ -184,5 +184,62 @@ export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTe
     style.color = "transparent";
   }
 
+  return style;
+}
+
+/**
+ * Name's per-letter path: the style for ONE `<span>` (character `index` of
+ * `total`), composing letter animation WITH the role's gradient/shimmer
+ * instead of replacing them. Each effect owns its own property:
+ *
+ * - Letter animation: `transform` (mnemo-letter-bounce keyframe) + `--letter-amp`.
+ * - Gradient/shimmer fill: the exact same resolveTextEffectStyle output the
+ *   non-animated path uses (so dd816a9's angle-following flow is preserved
+ *   as-is), applied PER SPAN — not on the parent. `background-clip:text` on
+ *   the parent does not clip to children that run their own transform
+ *   animation (Chrome paints those in separate layers and the text comes
+ *   out invisible), which is why the fill has to live on each letter.
+ * - Gradient continuity across the word: each span's background is sized to
+ *   `total` letter-widths and positioned at its own slice (i/(total-1)), so
+ *   the letters together show one gradient spanning the word, with the
+ *   gradient's own angle. This is free to do because the flow animates
+ *   `--mnemo-flow-offset`, not `background-position` (dd816a9) — and the
+ *   flow runs with no per-letter delay so every slice stays in phase.
+ *   Slices assume roughly equal glyph widths (no layout measurement).
+ * - Shimmer without gradient: the flat-color sweep, per span, delayed by the
+ *   same stagger as the bounce so the band travels across the word.
+ *
+ * Card-wide shadow/glow/stroke/blur are NOT included — they stay on the
+ * parent (inherited by the spans / `filter` on the subtree), unchanged.
+ */
+export function resolveLetterEffectStyle(
+  roleEffect: RoleTextEffect | undefined,
+  resolvedColor: string | undefined,
+  index: number,
+  total: number,
+): CSSProperties {
+  const letter = roleEffect?.letterAnimation;
+  const speed = letter?.speed ?? 1;
+  const delay = index * (letter?.stagger ?? 0.05);
+  const fill = resolveTextEffectStyle(undefined, roleEffect, resolvedColor);
+  const style: CSSProperties = {
+    display: "inline-block",
+    ...fill,
+    ["--letter-amp" as string]: `${letter?.amplitude ?? 4}px`,
+  } as CSSProperties;
+
+  if (roleEffect?.gradient) {
+    style.backgroundSize = `${total * 100}% 100%`;
+    style.backgroundPosition = `${total > 1 ? +(index / (total - 1) * 100).toFixed(4) : 0}% 0`;
+    style.backgroundRepeat = "no-repeat";
+  }
+
+  const animations = [resolveLetterBounceAnimation(speed, delay)];
+  if (roleEffect?.shimmer) {
+    animations.push(roleEffect.gradient
+      ? String(fill.animation)
+      : resolveShimmerAnimation(roleEffect.shimmer.speed ?? 1, delay));
+  }
+  style.animation = animations.join(", ");
   return style;
 }

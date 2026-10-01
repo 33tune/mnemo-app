@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveTextEffectStyle } from "./textEffects";
+import { resolveTextEffectStyle, resolveLetterEffectStyle } from "./textEffects";
 
 test("resolveTextEffectStyle: undefined input returns empty style (no visual change)", () => {
   assert.deepEqual(resolveTextEffectStyle(undefined), {});
@@ -167,4 +167,68 @@ test("resolveTextEffectStyle: gradient/shimmer are per-role — a role with no r
   const style = resolveTextEffectStyle({ shadow: { color: "#000000" } }, undefined);
   assert.equal(style.backgroundImage, undefined);
   assert.equal(style.color, undefined);
+});
+
+// ── Name per-letter path: letter animation composed WITH gradient/shimmer ──
+
+const RAINBOW = ["#ff0000", "#ff8800", "#ffee00", "#00cc44", "#0066ff", "#8a2be2"];
+
+test("resolveLetterEffectStyle: gradient + shimmer + letter animation all apply at once (shimmer is not replaced by letter animation)", () => {
+  const role = { gradient: { colors: RAINBOW, angle: 90 }, shimmer: { speed: 1 }, letterAnimation: { amplitude: 6, speed: 1, stagger: 0.05 } };
+  const s = resolveLetterEffectStyle(role, "#ffffff", 2, 8);
+  const anim = String(s.animation);
+  assert.ok(anim.includes("mnemo-letter-bounce"), anim);
+  assert.ok(anim.includes("mnemo-text-gradient-flow"), anim);
+  assert.ok(!anim.includes("mnemo-letter-shimmer-pulse"), anim);
+  // Same fill as the non-animated path (dd816a9's angle-following flow).
+  assert.equal(s.backgroundImage, resolveTextEffectStyle(undefined, role, "#ffffff").backgroundImage);
+  assert.equal(s.backgroundClip, "text");
+  assert.equal(s.color, "transparent");
+  assert.equal((s as Record<string, unknown>)["--letter-amp"], "6px");
+});
+
+test("resolveLetterEffectStyle: gradient flow has no per-letter delay (all slices stay in phase); bounce keeps its stagger", () => {
+  const role = { gradient: { colors: RAINBOW, angle: 0 }, shimmer: { speed: 1 }, letterAnimation: { stagger: 0.1 } };
+  const a = String(resolveLetterEffectStyle(role, undefined, 0, 5).animation);
+  const b = String(resolveLetterEffectStyle(role, undefined, 3, 5).animation);
+  const flowOf = (x: string) => x.split(", ").find(p => p.includes("mnemo-text-gradient-flow"));
+  assert.equal(flowOf(a), flowOf(b));
+  assert.ok(b.includes("mnemo-letter-bounce") && b.includes("0.300s"), b);
+});
+
+test("resolveLetterEffectStyle: each letter shows its own slice of one word-wide gradient, for any angle", () => {
+  for (const angle of [0, 45, 90, 135, 180]) {
+    const role = { gradient: { colors: RAINBOW, angle }, letterAnimation: {} };
+    const first = resolveLetterEffectStyle(role, undefined, 0, 5);
+    const mid = resolveLetterEffectStyle(role, undefined, 2, 5);
+    const last = resolveLetterEffectStyle(role, undefined, 4, 5);
+    assert.equal(first.backgroundSize, "500% 100%");
+    assert.equal(first.backgroundPosition, "0% 0");
+    assert.equal(mid.backgroundPosition, "50% 0");
+    assert.equal(last.backgroundPosition, "100% 0");
+    assert.ok(String(first.backgroundImage).includes(`${angle}deg`));
+  }
+});
+
+test("resolveLetterEffectStyle: gradient without shimmer — static sliced gradient + bounce, no flow animation", () => {
+  const s = resolveLetterEffectStyle({ gradient: { colors: RAINBOW, angle: 90 }, letterAnimation: {} }, undefined, 1, 4);
+  assert.ok(String(s.backgroundImage).startsWith("linear-gradient(90deg"));
+  assert.ok(!String(s.animation).includes("mnemo-text-gradient-flow"));
+  assert.ok(String(s.animation).includes("mnemo-letter-bounce"));
+});
+
+test("resolveLetterEffectStyle: shimmer without gradient — flat-color sweep per letter, staggered like the bounce", () => {
+  const s = resolveLetterEffectStyle({ shimmer: { speed: 1 }, letterAnimation: { stagger: 0.05 } }, "#ff8800", 2, 4);
+  assert.ok(String(s.backgroundImage).includes("#ff8800"));
+  assert.equal(s.backgroundSize, "250% 100%, 100% 100%"); // not sliced — its keyframe owns background-position
+  assert.ok(String(s.animation).includes("mnemo-text-shimmer 3.20s ease-in-out 0.100s infinite"), String(s.animation));
+});
+
+test("resolveLetterEffectStyle: letter animation alone — bounce only, plain inherited color", () => {
+  const s = resolveLetterEffectStyle({ letterAnimation: {} }, "#ffffff", 0, 3);
+  assert.equal(s.backgroundImage, undefined);
+  assert.equal(s.color, undefined);
+  assert.equal(s.display, "inline-block");
+  assert.ok(String(s.animation).startsWith("mnemo-letter-bounce"));
+  assert.ok(!String(s.animation).includes(","));
 });

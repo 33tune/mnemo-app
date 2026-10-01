@@ -100,3 +100,9 @@ test("resolveGradientFlowAnimation: duration is clamped to a sane range", () => 
   const duration = Number(extreme.match(/([\d.]+)s/)![1]);
   assert.ok(duration >= 0.4);
 });
+
+test("resolveShimmerAnimation: no delay keeps the original string; a delay is inserted before `infinite`", () => {
+  assert.equal(resolveShimmerAnimation(1), resolveShimmerAnimation(1, 0));
+  assert.ok(!resolveShimmerAnimation(1).includes("0.000s"));
+  assert.ok(resolveShimmerAnimation(1, 0.25).endsWith("ease-in-out 0.250s infinite"));
+});
