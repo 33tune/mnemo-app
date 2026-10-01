@@ -9,7 +9,7 @@ import BlockStyleFields from "./BlockStyleFields";
 type ContactLinksPatch = Partial<ProfileCardData>;
 
 interface Props {
-  card: Pick<ProfileCardData, "contactLinks" | "linksIconSize" | "blockStyle">;
+  card: Pick<ProfileCardData, "contactLinks" | "linksIconSize" | "blockStyle" | "blockStylePaused">;
   /** Stage 4.2-C.2.7: whether the block's resolved box still fits in the
    * card's padded content area (ProfileCard.tsx's blockFits). `undefined` =
    * not applicable; only an explicit `false` shows the note below. */

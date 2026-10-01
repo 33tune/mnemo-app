@@ -22,6 +22,10 @@ interface ProfileMetadataMenuProps {
 // TEXT, no acá — ver [[ProfileTypographyMenu]]. El estilo (background/color/
 // radio) de los bloques Location y Views vive acá, junto a su contenido —
 // mismo principio que Contact Links/Music (Stage FASE 2).
+// Block 1 (un solo dueño): el color de TEXTO de Ubicación/Views ya no se
+// edita acá (era un segundo control, blockStyle.<bloque>.textColor, que
+// pisaba al del rol en render) — vive solo en TEXTO, que además limpia ese
+// override viejo al editarse. Ver ProfileTypographyMenu.tsx.
 export default function ProfileMetadataMenu({ card, onChange }: ProfileMetadataMenuProps) {
   const { status, location, bio, showViews } = card;
   return (
@@ -36,7 +40,7 @@ export default function ProfileMetadataMenu({ card, onChange }: ProfileMetadataM
         <input value={location ?? ""} onChange={e => onChange({ location: e.target.value })}
           onMouseDown={e => e.stopPropagation()} placeholder="la plata, buenos aires" maxLength={60}
           style={fieldInputStyle} />
-        <BlockStyleFields card={card} blockKey="location" showTextColor onChange={onChange} />
+        <BlockStyleFields card={card} blockKey="location" onChange={onChange} />
       </MenuSection>
 
       <MenuSection label="Bio">
@@ -49,7 +53,7 @@ export default function ProfileMetadataMenu({ card, onChange }: ProfileMetadataM
         <MenuRow label="Mostrar cantidad">
           <Toggle value={!!showViews} onChange={v => onChange({ showViews: v })} />
         </MenuRow>
-        {showViews && <BlockStyleFields card={card} blockKey="views" showTextColor onChange={onChange} />}
+        {showViews && <BlockStyleFields card={card} blockKey="views" onChange={onChange} />}
       </MenuSection>
     </div>
   );

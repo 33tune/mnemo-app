@@ -1,11 +1,23 @@
 "use client";
 import type { CardEffects } from "@/types";
 import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, Divider, OffsetRow } from "@/ui";
+import { pauseEffect, toggleEffect, resumeWithIntensity, mergePatch } from "@/lib/effectPause";
+import {
+  CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_RADIUS_FALLBACK,
+  CARD_SPOTLIGHT_DEFAULT_SIZE, CARD_SPOTLIGHT_DEFAULT_COLOR, PROFILE_TILT_DEFAULT, CARD_EFFECT_ON_INTENSITY,
+  cardShadowDisplay, cardGlowRadius,
+} from "@/lib/effectEditorDefaults";
 
 interface Props {
-  effects?: CardEffects;
+  /** getProfileCardEffects(card) — what the card renders. Display only. */
+  effective: CardEffects;
+  /** card.effects as stored — the base every patch is built on (Block 1:
+   * read-effective / write-raw, see ProfileConfigMenu.tsx). */
+  raw?: CardEffects;
   onChange: (patch: CardEffects) => void;
 }
+
+type Shadow = NonNullable<CardEffects["shadow"]>;
 
 // Stage FASE 2 (Personalization UI/UX): the EFFECTS tab. Replaces
 // PersonalizePanel's old internal Tabs (Fondo/Forma/Efectos) — Background
@@ -20,53 +32,77 @@ interface Props {
 // sub-control here safe to expose: shadow blur/offset/opacity, glow radius,
 // and border opacity are all genuinely independent now — see that file's
 // header for the exact formulas these menu defaults mirror.
-export default function ProfileEffectsMenu({ effects, onChange }: Props) {
-  const bord  = effects?.border;
-  const glow  = effects?.glow;
-  const inter = effects?.interactions;
-  const anim  = effects?.animations;
-  const sh    = effects?.shadow;
+//
+// Block 1: reads `effective` (legacy borderColor/Width/Radius, glowColor/
+// Intensity and the variant's default spotlight included — so the menu
+// shows what the card really looks like), writes patches on `raw` only.
+// Shadow and hover-scale toggles pause instead of deleting ("apagar no
+// borra", effectPause.ts); Glow's Exterior/Interior flags were already
+// non-destructive (color/intensity live next to the flags, untouched).
+export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) {
+  const bord  = effective.border;
+  const glow  = effective.glow;
+  const inter = effective.interactions;
+  const anim  = effective.animations;
+  const sh    = effective.shadow;
 
   function patchBorder(patch: Partial<NonNullable<CardEffects["border"]>>) {
-    onChange({ ...effects, border: { ...effects?.border, ...patch } });
+    // mergePatch: a cleared field is DELETED (not stored as undefined), so a
+    // legacy borderColor underneath shows the same before and after reload.
+    onChange({ ...raw, border: mergePatch(raw?.border, patch) });
   }
   function patchGlow(patch: Partial<NonNullable<CardEffects["glow"]>>) {
-    onChange({ ...effects, glow: { ...effects?.glow, ...patch } });
+    onChange({ ...raw, glow: mergePatch(raw?.glow, patch) });
   }
   function patchGlowAnimation(patch: Partial<NonNullable<NonNullable<CardEffects["glow"]>["animation"]>>) {
-    patchGlow({ animation: { enabled: false, ...effects?.glow?.animation, ...patch } });
+    patchGlow({ animation: { enabled: false, ...raw?.glow?.animation, ...patch } });
   }
-  function patchShadow(patch: Partial<NonNullable<CardEffects["shadow"]>>) {
-    onChange({ ...effects, shadow: { ...effects?.shadow, ...patch } });
+  function patchShadow(patch: Partial<Shadow>) {
+    onChange({ ...raw, shadow: mergePatch(raw?.shadow, patch) });
   }
   function patchInteractions(patch: Partial<NonNullable<CardEffects["interactions"]>>) {
-    onChange({ ...effects, interactions: { ...effects?.interactions, ...patch } });
+    onChange({ ...raw, interactions: mergePatch(raw?.interactions, patch) });
   }
   function patchAnimations(patch: Partial<NonNullable<CardEffects["animations"]>>) {
-    onChange({ ...effects, animations: { ...effects?.animations, ...patch } });
+    onChange({ ...raw, animations: { ...raw?.animations, ...patch } });
   }
   function patchRetro(patch: Partial<NonNullable<CardEffects["retro"]>>) {
-    onChange({ ...effects, retro: { ...effects?.retro, ...patch } });
+    onChange({ ...raw, retro: { ...raw?.retro, ...patch } });
+  }
+
+  // Bug fix (Block 1): "off" used to write intensity:0 and "on" restored
+  // `intensity ?? 0.5` — i.e. 0 — so a shadow could never be turned back
+  // on. Off now pauses the whole config; on restores it (or, with nothing
+  // paused, whatever is stored), always with a visible intensity — this
+  // also revives shadows saved by the old "off" (intensity 0 + config).
+  function setShadowOn(on: boolean) {
+    onChange(on ? resumeWithIntensity(raw, "shadow") : pauseEffect(raw, "shadow"));
+  }
+  // A glow flag turned on over intensity 0 renders nothing (CardLayers
+  // requires intensity > 0) — same class of bug as the shadow above.
+  function setGlowFlag(flag: "outer" | "inner", on: boolean) {
+    const needsIntensity = on && !((glow?.intensity ?? 0) > 0);
+    patchGlow({ [flag]: on, ...(needsIntensity ? { intensity: CARD_EFFECT_ON_INTENSITY } : {}) });
   }
 
   const anyGlow    = !!(glow?.outer || glow?.inner);
   const shadowOn   = !!sh?.intensity && sh.intensity > 0;
-  const shadowInt  = sh?.intensity ?? 0.5;
+  const shadowFx   = cardShadowDisplay(sh);
   const glowInt    = glow?.intensity ?? 0;
   // Same "presence = on, 1 = no-op too" contract as useCardInteractions.ts.
   const hoverScaleOn = inter?.hoverScale != null && inter.hoverScale !== 1;
-  const retro = effects?.retro;
+  const retro = effective.retro;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
       <MenuSection label="Borde" first>
         <ColorRow
-          label="Color" value={bord?.color ?? "#ffffff"} onChange={v => patchBorder({ color: v })}
-          clearable={!!bord?.color} onClear={() => patchBorder({ color: undefined })}
+          label="Color" value={bord?.color ?? CARD_BORDER_DEFAULT_COLOR} onChange={v => patchBorder({ color: v })} keepAlpha
+          clearable={!!raw?.border?.color} onClear={() => patchBorder({ color: undefined })}
         />
-        <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? 1}
+        <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? CARD_BORDER_DEFAULT_WIDTH}
           onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`} />
-        <SliderRow label="Radio" min={0} max={60} step={1} value={bord?.radius ?? 14}
+        <SliderRow label="Radio" min={0} max={60} step={1} value={bord?.radius ?? CARD_RADIUS_FALLBACK}
           onChange={v => patchBorder({ radius: v })} unit="px" />
         {/* FASE 1: this no longer also fades shadow/glow — see CardLayers.tsx's
             Layer 0c split. */}
@@ -93,21 +129,24 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
 
       <Collapsible label="Sombra">
         <MenuRow label="Activar">
-          <Toggle value={shadowOn} onChange={v => patchShadow({ intensity: v ? shadowInt : 0 })} />
+          <Toggle value={shadowOn} onChange={setShadowOn} />
         </MenuRow>
+        {/* CardLayers always draws a faint baseline shadow when this is off
+            ("0 4px 20px rgba(0,0,0,0.2)") — say so instead of implying none. */}
+        {!shadowOn && <MenuNote>Apagada: queda la sombra base sutil de la card.</MenuNote>}
         {shadowOn && (
           <>
             <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={sh!.intensity ?? 0}
               onChange={v => patchShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
-            <ColorRow label="Color" value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} />
+            <ColorRow label="Color" value={shadowFx.color} onChange={v => patchShadow({ color: v })} />
             <Collapsible label="Avanzado">
-              <SliderRow label="Blur" min={0} max={80} step={1} value={sh?.blur ?? Math.round((sh!.intensity ?? 0) * 40)}
+              <SliderRow label="Blur" min={0} max={80} step={1} value={shadowFx.blur}
                 unit="px" onChange={v => patchShadow({ blur: v })} />
               <OffsetRow
-                x={sh?.offsetX ?? 0} y={sh?.offsetY ?? Math.round((sh!.intensity ?? 0) * 8)}
+                x={shadowFx.offsetX} y={shadowFx.offsetY}
                 min={-40} max={40} onChange={(x, y) => patchShadow({ offsetX: x, offsetY: y })}
               />
-              <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={sh?.opacity ?? (sh?.color ? 1 : 0.5)}
+              <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={shadowFx.opacity}
                 onChange={v => patchShadow({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
             </Collapsible>
           </>
@@ -116,18 +155,18 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
 
       <Collapsible label="Glow">
         <MenuRow label="Exterior">
-          <Toggle value={!!glow?.outer} onChange={v => patchGlow({ outer: v })} />
+          <Toggle value={!!glow?.outer} onChange={v => setGlowFlag("outer", v)} />
         </MenuRow>
         <MenuRow label="Interior">
-          <Toggle value={!!glow?.inner} onChange={v => patchGlow({ inner: v })} />
+          <Toggle value={!!glow?.inner} onChange={v => setGlowFlag("inner", v)} />
         </MenuRow>
         {anyGlow && (
           <>
-            <ColorRow label="Color" value={glow?.color ?? "#a855f7"} onChange={v => patchGlow({ color: v })} />
+            <ColorRow label="Color" value={glow?.color ?? CARD_GLOW_DEFAULT_COLOR} onChange={v => patchGlow({ color: v })} />
             <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={glowInt}
               onChange={v => patchGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
             <Collapsible label="Avanzado">
-              <SliderRow label="Radio" min={0} max={60} step={1} value={glow?.radius ?? Math.round(glowInt * 30)}
+              <SliderRow label="Radio" min={0} max={60} step={1} value={cardGlowRadius(glow)}
                 unit="px" onChange={v => patchGlow({ radius: v })} />
             </Collapsible>
           </>
@@ -156,7 +195,7 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
             <Toggle value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} />
           </MenuRow>
           {inter?.tilt3d && (
-            <SliderRow label="Intensidad" min={1} max={20} step={0.5} value={inter?.tiltIntensity ?? 10}
+            <SliderRow label="Intensidad" min={1} max={20} step={0.5} value={inter?.tiltIntensity ?? PROFILE_TILT_DEFAULT}
               onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${v}°`} />
           )}
         </MenuSection>
@@ -180,7 +219,7 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
           <MenuRow label="Escala al pasar">
             <Toggle
               value={hoverScaleOn}
-              onChange={v => patchInteractions({ hoverScale: v ? 1.05 : undefined })}
+              onChange={v => onChange(toggleEffect(raw, "interactions.hoverScale", v, { fallback: 1.05 }))}
             />
           </MenuRow>
           {hoverScaleOn && (
@@ -196,12 +235,14 @@ export default function ProfileEffectsMenu({ effects, onChange }: Props) {
         </MenuRow>
         {inter?.spotlight && (
           <>
+            {/* Effective color (usually the variant's derived rgba) — the
+                swatch shows its hue; alpha editing comes in Block 2. */}
             <ColorRow
               label="Color"
-              value={inter?.spotlightColor?.startsWith("#") ? inter.spotlightColor : "#ffffff"}
-              onChange={v => patchInteractions({ spotlightColor: v })}
+              value={inter?.spotlightColor ?? CARD_SPOTLIGHT_DEFAULT_COLOR}
+              onChange={v => patchInteractions({ spotlightColor: v })} keepAlpha
             />
-            <SliderRow label="Radio" min={20} max={100} step={1} value={inter?.spotlightSize ?? 65}
+            <SliderRow label="Radio" min={20} max={100} step={1} value={inter?.spotlightSize ?? CARD_SPOTLIGHT_DEFAULT_SIZE}
               onChange={v => patchInteractions({ spotlightSize: v })} unit="%" />
             {/* Posición manual/estática: no implementada — el spotlight hoy
                 sigue al cursor vía CSS vars (useCardInteractions.ts) y no

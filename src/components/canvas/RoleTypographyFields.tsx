@@ -28,10 +28,14 @@ interface Props {
   letterSpacing?: number;
   onLetterSpacingChange?: (v: number) => void;
 
-  lineHeight: number;
-  lineHeightMin: number;
-  lineHeightMax: number;
-  onLineHeightChange: (v: number) => void;
+  /** Absent (Handle/Descriptor/Ubicación/Views) -> the line-height row is
+   * skipped. Block 1: those four share ONE field (card.monoLineHeight),
+   * now edited once, card-wide, at the top of TEXTO — see
+   * ProfileTypographyMenu.tsx. */
+  lineHeight?: number;
+  lineHeightMin?: number;
+  lineHeightMax?: number;
+  onLineHeightChange?: (v: number) => void;
 
   /** Gradient replaces solid `color` when set (mutually exclusive — see
    * textEffects.ts's resolveTextEffectStyle). Shimmer works standalone too
@@ -87,7 +91,9 @@ export default function RoleTypographyFields({
         {onLetterSpacingChange && (
           <SliderRow label="Espaciado" min={-1} max={4} step={0.1} value={letterSpacing ?? 0} unit="px" onChange={onLetterSpacingChange} />
         )}
-        <SliderRow label="Interlineado" min={lineHeightMin} max={lineHeightMax} step={0.05} value={lineHeight} fmt={v => v.toFixed(2)} onChange={onLineHeightChange} />
+        {onLineHeightChange && lineHeight != null && (
+          <SliderRow label="Interlineado" min={lineHeightMin ?? 0.9} max={lineHeightMax ?? 2} step={0.05} value={lineHeight} fmt={v => v.toFixed(2)} onChange={onLineHeightChange} />
+        )}
       </Collapsible>
 
       <Collapsible label="Gradiente">
@@ -145,7 +151,7 @@ export default function RoleTypographyFields({
                 onChange={v => onLetterAnimationChange({ ...letterAnimation, amplitude: v })} unit="px" />
               <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={letterAnimation.speed ?? 1}
                 onChange={v => onLetterAnimationChange({ ...letterAnimation, speed: v })} fmt={v => `${v.toFixed(1)}x`} />
-              <SliderRow label="Stagger" min={0} max={0.2} step={0.01} value={letterAnimation.stagger ?? 0.05}
+              <SliderRow label="Escalonado" min={0} max={0.2} step={0.01} value={letterAnimation.stagger ?? 0.05}
                 onChange={v => onLetterAnimationChange({ ...letterAnimation, stagger: v })} fmt={v => `${Math.round(v * 1000)}ms`} />
             </>
           )}

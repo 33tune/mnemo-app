@@ -68,8 +68,13 @@ export function useCardInteractions(
     if (!el || (!tiltOn && !spotlightOn)) return;
 
     const r  = el.getBoundingClientRect();
-    const nx = (e.clientX - r.left) / r.width;
-    const ny = (e.clientY - r.top)  / r.height;
+    if (r.width <= 0 || r.height <= 0) return;
+    // Block 1: clamped to the card's own box — defensive, so any stray
+    // event from outside it (e.g. a portaled child's mousemove bubbling
+    // through the React tree) can never push tilt/spotlight past the
+    // values a real in-card position produces.
+    const nx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const ny = Math.min(1, Math.max(0, (e.clientY - r.top)  / r.height));
 
     if (tiltOn) {
       targetTilt.current.x = (ny - 0.5) * maxTilt * -1;

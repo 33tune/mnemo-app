@@ -63,10 +63,11 @@ export interface TextGradientEffect {
   /** @deprecated see `from`. */
   to?:    string;
 }
-// A highlight band sweeping across gradient text — requires `gradient` to
-// also be set on the SAME role (see resolveTextEffectStyle's header for
-// why: shimmer has nothing to sweep across otherwise, and there's
-// deliberately no synthesized fallback gradient). Presence = enabled, same
+// Shimmer on a text role. Works with OR without `gradient` on the same
+// role ("Product closeout" fix): with a gradient, the gradient's own stops
+// flow along its angle; without one, a highlight band sweeps across a flat
+// surface synthesized from the role's resolved solid color — see
+// textEffects.ts's resolveTextEffectStyle. Presence = enabled, same
 // "absence = off" contract as card.music/blockStyle elsewhere.
 export interface TextShimmerEffect {
   intensity?: number; // 0-1, opacity of the sweeping band
@@ -489,6 +490,12 @@ export type ProfileCardData = {
   // header). Absent per-block or per-field = inherits ProfileCard's own
   // look exactly as before this stage.
   blockStyle?:      Partial<Record<BlockStyleKey, BlockStyleOverride>>;
+  // Block 1 ("apagar no borra"): editor-only stash for a block override the
+  // user switched OFF ("Personalizar este bloque"), restored when switched
+  // back ON — same idea as CardEffects.paused, as a sibling field because
+  // blockStyle doesn't live in effects. Nothing renders from it:
+  // resolveBlockStyle (blockStyle.ts) only reads `blockStyle[key]`.
+  blockStylePaused?: Partial<Record<BlockStyleKey, BlockStyleOverride>>;
   // Style
   bgColor:         string;
   bgImage:         string;
@@ -809,6 +816,13 @@ export type CardEffects = {
   };
   opacity?: number;
   padding?: number;
+  // Block 1 ("apagar no borra"): editor-only stash of effects the user
+  // toggled OFF, kept at the same path they had in the active tree so
+  // toggling back ON restores the exact previous config. No renderer reads
+  // this (it rides along harmlessly through getProfileCardEffects()'s
+  // `...card.effects` spread) — see effectPause.ts for the helpers and the
+  // never-in-both invariant.
+  paused?: Omit<CardEffects, "paused">;
 };
 
 // ── Space-level identity settings ────────────────────────────────────────────

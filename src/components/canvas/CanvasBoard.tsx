@@ -46,19 +46,21 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
+import { shouldSkipCanvasShortcut, isEditorOpen, type GuardElement } from "@/lib/editorGuards";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
 
-// Returns true when focus is inside an editable field — used to suppress
-// keyboard shortcuts that would conflict with text input.
-function isEditingInput(): boolean {
-  const el = document.activeElement as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName.toLowerCase();
-  if (tag === "input" || tag === "textarea" || tag === "select") return true;
-  if (el.isContentEditable) return true;
-  return false;
+// Returns true when a global canvas shortcut must NOT run: focus/target is
+// an editable field, OR anywhere inside an editor panel (MenuPanel's
+// `data-mnemo-editor` root) — Block 1 P0 fix: a focused <button>/Toggle in
+// a config menu used to let Backspace delete the card being edited and
+// Ctrl+Z pop the canvas undo stack. See editorGuards.ts.
+function isEditingInput(e?: Event): boolean {
+  return shouldSkipCanvasShortcut(
+    (e?.target ?? null) as GuardElement | null,
+    document.activeElement as GuardElement | null,
+  );
 }
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB per image
@@ -1111,10 +1113,13 @@ export default function CanvasBoard({
 
     function handler(e: KeyboardEvent) {
       if (!canInteractRef.current) return;
-      if (isEditingInput()) return;
+      if (isEditingInput(e)) return;
 
       // DELETE / BACKSPACE — same path as trash: enqueueOp handles storage + DB cleanup
       if (e.key === "Delete" || e.key === "Backspace") {
+        // Block 1: never while a config menu is open, even with focus on
+        // <body> (gear click, tabbing out) — see isEditorOpen.
+        if (isEditorOpen(document)) return;
         const rawIds = selIdsRef.current;
         if (!rawIds.size) return;
         // A deliberate solo selection can still delete the Presentation Card
@@ -1185,6 +1190,7 @@ export default function CanvasBoard({
 
       // Ctrl+Z — undo last tracked action
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        if (isEditorOpen(document)) return;
         e.preventDefault();
         undoStackRef.current.pop()?.();
         return;
@@ -1205,7 +1211,7 @@ export default function CanvasBoard({
   useEffect(() => {
     function handler(e: ClipboardEvent) {
       if (!canInteractRef.current) return;
-      if (isEditingInput()) return;
+      if (isEditingInput(e)) return;
       const items = Array.from(e.clipboardData?.items ?? []);
       const imageFiles = items
         .filter(item => item.kind === "file" && item.type.startsWith("image/"))
@@ -3215,8 +3221,10 @@ export default function CanvasBoard({
             // from the UI, still needed to render/replay any pre-existing
             // data of these types) — this is only Phase A (cut creation),
             // not the data/render-path purge, which is a separate decision.
+            // Block 1: "Gallery" removed too — Gallery is out of the roadmap
+            // (see CLAUDE.md). Same Phase-A-only approach: addGallery() and
+            // the gallery render/replay paths stay for pre-existing data.
             {label:"Free Text",     fn:()=>{setAddingText(true);      setMenuOpen(false);}},
-            {label:"Gallery",       fn:()=>{addGallery();             setMenuOpen(false);}},
             {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
             {label:"Music",         fn:()=>{addMusicCard();           setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
@@ -3245,11 +3253,16 @@ export default function CanvasBoard({
         <div onClick={e=>e.stopPropagation()} style={{position:"fixed",bottom:66,right:202,background:"rgba(10,10,12,0.97)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:6,padding:"10px 12px",backdropFilter:"blur(40px)",zIndex:1000,width:200,boxShadow:"0 16px 48px rgba(0,0,0,0.85)",fontFamily:MONO,display:"flex",flexDirection:"column",gap:8}}>
           <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>BACKGROUND</div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {/* Block 1: picking a color no longer also clears the wallpaper
+                (it used to enqueue set_wallpaper:"" on every input tick). The
+                color is the base layer and the wallpaper paints over it — they
+                coexist; REMOVE WALLPAPER is the explicit way to drop it. */}
             <div title="Background color" style={{width:26,height:26,borderRadius:5,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",flexShrink:0}}>
-              <input type="color" value={bgColor} onChange={e=>{enqueueOp({type:"set_bg",value:e.target.value});enqueueOp({type:"set_wallpaper",value:"" });}} style={{width:"100%",height:"100%",border:"none",cursor:"pointer",padding:2}} />
+              <input type="color" value={bgColor} onChange={e=>enqueueOp({type:"set_bg",value:e.target.value})} style={{width:"100%",height:"100%",border:"none",cursor:"pointer",padding:2}} />
             </div>
             <span style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.3)",letterSpacing:1}}>BACKGROUND COLOR</span>
           </div>
+          {wallpaper&&(<span style={{fontFamily:MONO,fontSize:7,color:"rgba(255,255,255,0.28)",letterSpacing:0.5,lineHeight:1.4}}>El wallpaper se muestra encima del color.</span>)}
           <WallpaperMenuBtn label="UPLOAD WALLPAPER" onClick={()=>wallpaperRef.current?.click()} />
           {wallpaper&&(<WallpaperMenuBtn label="REMOVE WALLPAPER" onClick={()=>enqueueOp({type:"set_wallpaper",value:""})} />)}
           {(wallpaper||bgColor!=="#0a0a0c")&&(<WallpaperMenuBtn label="RESET TO DEFAULT" onClick={()=>{enqueueOp({type:"set_wallpaper",value:""});enqueueOp({type:"set_bg",value:"#0a0a0c"});enqueueOp({type:"set_wallpaper_blur",value:0});enqueueOp({type:"set_wallpaper_brightness",value:100});enqueueOp({type:"set_wallpaper_vignette",value:0});}} dim />)}

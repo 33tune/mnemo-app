@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { T } from "./tokens";
+import { toHexInputValue } from "@/lib/cardColors";
 
 interface ColorSwatchProps {
   value:      string;
@@ -27,7 +28,11 @@ export function ColorSwatch({ value, onChange, size, clearable, onClear }: Color
         <div style={{ position: "absolute", inset: 0, background: value || T.surface.raised }} />
         <input
           type="color"
-          value={value?.startsWith("#") ? value : "#141416"}
+          // Block 1: rgb()/rgba()/short-hex values (every derived role color,
+          // most effective defaults) used to open the picker on a fixed
+          // "#141416" — now it opens on the real hue (alpha dropped, the
+          // native picker has none).
+          value={toHexInputValue(value) ?? "#141416"}
           onChange={e => onChange(e.target.value)}
           onMouseDown={e => e.stopPropagation()}
           style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}

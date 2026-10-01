@@ -5,6 +5,10 @@ import { uploadToStorage } from "@/lib/storage";
 import { T, MenuSection, MenuRow, SliderRow, ActionButton, ColorRow, Toggle, Collapsible } from "@/ui";
 import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
 import BlockStyleFields from "./BlockStyleFields";
+import { getPaused, pauseEffect, removeEffect, resumeWithIntensity, mergePatch } from "@/lib/effectPause";
+import {
+  pfpBorderDisplay, pfpShadowOn, pfpVariantShadowOn, pfpShadowColor, PFP_GLOW_DEFAULT_COLOR, pfpGlowRadius,
+} from "@/lib/effectEditorDefaults";
 
 type IdentityPatch = Partial<ProfileCardData>;
 
@@ -13,6 +17,9 @@ interface ProfileIdentityMenuProps {
   cardW:    number;
   cardH:    number;
   pad:      number;
+  /** Resolved base text color (ProfileCard.tsx) — the PFP's default border/
+   * shadow colors derive from it, so the menu can show the real ones. */
+  baseColor: string;
   onChange: (patch: IdentityPatch) => void;
 }
 
@@ -26,7 +33,7 @@ interface ProfileIdentityMenuProps {
 // bloque Identity vivven acá también — mismo principio que Contact
 // Links/Music: el estilo de "esta cosa" vive junto al resto de sus
 // controles, no en una pestaña aparte.
-export default function ProfileIdentityMenu({ card, cardW, cardH, pad, onChange }: ProfileIdentityMenuProps) {
+export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor, onChange }: ProfileIdentityMenuProps) {
   const { photo, name, handle, photoSize, pfpSizePx, pfpRadius } = card;
   const [editingName, setEditingName] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -38,13 +45,46 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, onChange 
     onChange({ effects: { ...card.effects, pfp: { ...card.effects?.pfp, ...patch } } });
   }
   function patchPfpBorder(patch: Partial<NonNullable<NonNullable<ProfileCardData["effects"]>["pfp"]>["border"]>) {
-    patchPfpFx({ border: { ...pfpFx?.border, ...patch } });
+    // Creating pfp.border switches render to `border.width ?? 2` — seed the
+    // width currently shown (0 on minimal) so editing only the color doesn't
+    // also make a border appear.
+    patchPfpFx({ border: mergePatch(pfpFx?.border ?? { width: pfpBorder.width }, patch) });
   }
   function patchPfpShadow(patch: Partial<NonNullable<NonNullable<ProfileCardData["effects"]>["pfp"]>["shadow"]>) {
-    patchPfpFx({ shadow: { ...pfpFx?.shadow, ...patch } });
+    // No stored shadow = the guns/poster variant default is what's visible
+    // (the controls only show while it's on) — seed the intensity the
+    // slider displays, otherwise an explicit shadow without intensity
+    // would render as 0 and the edit would make the shadow vanish.
+    patchPfpFx({ shadow: mergePatch(pfpFx?.shadow ?? { intensity: 0.5 }, patch) });
   }
   function patchPfpGlow(patch: Partial<NonNullable<NonNullable<ProfileCardData["effects"]>["pfp"]>["glow"]>) {
-    patchPfpFx({ glow: { ...pfpFx?.glow, ...patch } });
+    patchPfpFx({ glow: mergePatch(pfpFx?.glow, patch) });
+  }
+
+  // Block 1 (estado efectivo): the photo style shows what ProfileCard.tsx
+  // actually draws — absent pfp.border/pfp.shadow fall back to variant-
+  // derived values there (minimal = no border; guns/poster = a default
+  // shadow), so the controls read those same formulas
+  // (effectEditorDefaults.ts) instead of fixed placeholders.
+  const variant = card.variant;
+  const pfpBorder = pfpBorderDisplay(variant, baseColor, pfpFx?.border);
+  const shadowOn = pfpShadowOn(variant, pfpFx?.shadow);
+  // "Apagar no borra" (effectPause.ts). The PFP shadow needs one extra
+  // rule: on guns/poster, ABSENCE renders the variant's default shadow, so
+  // "off" must leave an explicit {intensity: 0} sentinel; and "on" with
+  // nothing paused simply drops the sentinel, bringing the variant default
+  // back exactly as it was.
+  function setPfpShadowOn(on: boolean) {
+    const effects = card.effects;
+    const variantDefault = pfpVariantShadowOn(variant);
+    if (!on) {
+      onChange({ effects: pauseEffect(effects, "pfp.shadow", variantDefault ? { intensity: 0 } : undefined) });
+      return;
+    }
+    const hasPaused = getPaused(effects, "pfp.shadow") !== undefined;
+    if (!hasPaused && variantDefault) { onChange({ effects: removeEffect(effects, "pfp.shadow") }); return; }
+    // resumeWithIntensity: a stashed/legacy intensity 0 would render nothing.
+    onChange({ effects: resumeWithIntensity(effects, "pfp.shadow") });
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -93,24 +133,27 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, onChange 
         <Collapsible label="Estilo de foto">
           <MenuSection label="Borde" first>
             <ColorRow
-              label="Color" value={pfpFx?.border?.color} onChange={v => patchPfpBorder({ color: v })}
+              label="Color" value={pfpBorder.color} onChange={v => patchPfpBorder({ color: v })}
               clearable={!!pfpFx?.border?.color} onClear={() => patchPfpBorder({ color: undefined })}
             />
-            <SliderRow label="Grosor" min={0} max={6} step={0.5} value={pfpFx?.border?.width ?? 2}
+            <SliderRow label="Grosor" min={0} max={6} step={0.5} value={pfpBorder.width}
               onChange={v => patchPfpBorder({ width: v })} unit="px" />
-            <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={pfpFx?.border?.opacity ?? 1}
+            <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={pfpBorder.opacity}
               onChange={v => patchPfpBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
           </MenuSection>
 
           <MenuSection label="Sombra">
             <MenuRow label="Activar">
-              <Toggle value={!!pfpFx?.shadow} onChange={v => patchPfpFx({ shadow: v ? { intensity: 0.5 } : undefined })} />
+              <Toggle value={shadowOn} onChange={setPfpShadowOn} />
             </MenuRow>
-            {pfpFx?.shadow && (
+            {shadowOn && (
               <>
-                <ColorRow label="Color" value={pfpFx.shadow.color} onChange={v => patchPfpShadow({ color: v })}
-                  clearable={!!pfpFx.shadow.color} onClear={() => patchPfpShadow({ color: undefined })} />
-                <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={pfpFx.shadow.intensity ?? 0.5}
+                {/* With no pfp.shadow stored (guns/poster variant default),
+                    these show the closest equivalent; editing one stores an
+                    explicit shadow from then on. */}
+                <ColorRow label="Color" value={pfpShadowColor(baseColor, pfpFx?.shadow)} onChange={v => patchPfpShadow({ color: v })}
+                  clearable={!!pfpFx?.shadow?.color} onClear={() => patchPfpShadow({ color: undefined })} />
+                <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={pfpFx?.shadow?.intensity ?? 0.5}
                   onChange={v => patchPfpShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
               </>
             )}
@@ -118,14 +161,14 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, onChange 
 
           <MenuSection label="Glow">
             <MenuRow label="Activar">
-              <Toggle value={!!pfpFx?.glow} onChange={v => patchPfpFx({ glow: v ? { intensity: 0.5 } : undefined })} />
+              <Toggle value={!!pfpFx?.glow} onChange={v => onChange({ effects: v ? resumeWithIntensity(card.effects, "pfp.glow") : pauseEffect(card.effects, "pfp.glow") })} />
             </MenuRow>
             {pfpFx?.glow && (
               <>
-                <ColorRow label="Color" value={pfpFx.glow.color ?? "#ffffff"} onChange={v => patchPfpGlow({ color: v })} />
-                <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={pfpFx.glow.intensity ?? 0.5}
+                <ColorRow label="Color" value={pfpFx.glow.color ?? PFP_GLOW_DEFAULT_COLOR} onChange={v => patchPfpGlow({ color: v })} />
+                <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={pfpFx.glow.intensity ?? 0}
                   onChange={v => patchPfpGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
-                <SliderRow label="Radio" min={0} max={40} step={1} value={pfpFx.glow.radius ?? Math.round((pfpFx.glow.intensity ?? 0.5) * 24)}
+                <SliderRow label="Radio" min={0} max={40} step={1} value={pfpGlowRadius(pfpFx.glow)}
                   onChange={v => patchPfpGlow({ radius: v })} unit="px" />
                 {/* Stage FASE 3: same shared glow-pulse system as the card's
                     own "Animación" in ProfileEffectsMenu's Borde section —

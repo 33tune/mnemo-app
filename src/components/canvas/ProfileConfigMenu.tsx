@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { ProfileCardData, CardEffects } from "@/types";
 import { T, Tabs } from "@/ui";
 import { getCardPadding } from "@/lib/cardGeometry";
+import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
@@ -51,6 +52,13 @@ export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange
   function patchEffects(effects: CardEffects) {
     onChange({ effects });
   }
+  // Block 1 (read-effective / write-raw): what the card RENDERS is
+  // getProfileCardEffects(card) — card.effects merged with legacy fields
+  // (bgColor, glowColor/Intensity, borderColor/Width/Radius, opacity) and
+  // variant defaults (spotlight, glass). Menus display `effective`, but
+  // build every patch on top of the raw `card.effects`, so a derived value
+  // is only ever persisted when the user actually changes that control.
+  const effective = getProfileCardEffects(card);
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -66,6 +74,7 @@ export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange
             cardW={card.w}
             cardH={card.h}
             pad={getCardPadding(card.variant)}
+            baseColor={baseColor}
             onChange={onChange}
           />
           <ProfileMetadataMenu card={card} onChange={onChange} />
@@ -75,7 +84,7 @@ export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange
       )}
 
       {view === "background" && (
-        <ProfileBackgroundMenu effects={card.effects} onChange={patchEffects} />
+        <ProfileBackgroundMenu effective={effective} raw={card.effects} onChange={patchEffects} />
       )}
 
       {view === "text" && (
@@ -83,7 +92,7 @@ export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange
       )}
 
       {view === "effects" && (
-        <ProfileEffectsMenu effects={card.effects} onChange={patchEffects} />
+        <ProfileEffectsMenu effective={effective} raw={card.effects} onChange={patchEffects} />
       )}
     </div>
   );

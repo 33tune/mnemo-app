@@ -116,3 +116,53 @@ export function colorForLetterIndex(colors: string[], index: number, total: numb
   if (total <= 1) return colors[0];
   return interpolateMulticolor(colors, index / (total - 1));
 }
+
+/**
+ * Block 1 (editor): the `#rrggbb` an `<input type="color">` can show for
+ * any color string the renderer produces — `#rgb`, `#rrggbb`, `#rrggbbaa`,
+ * `rgb()`/`rgba()` (what withOpacity returns, so every derived role color
+ * and most effective defaults). Alpha is dropped: the native picker has no
+ * alpha channel, but showing the right hue beats the old blanket fallback.
+ * Returns undefined for anything it can't parse (named colors, gradients).
+ */
+export function toHexInputValue(color: string | undefined): string | undefined {
+  if (!color) return undefined;
+  const c = color.trim().toLowerCase();
+  const hex = /^#([0-9a-f]{3,8})$/.exec(c);
+  if (hex) {
+    const h = hex[1];
+    if (h.length === 3 || h.length === 4) return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`;
+    if (h.length === 6 || h.length === 8) return `#${h.slice(0, 6)}`;
+    return undefined;
+  }
+  const rgb = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*[\d.]+\s*)?\)$/.exec(c);
+  if (rgb) {
+    const parts = [rgb[1], rgb[2], rgb[3]].map(n => Math.min(255, Number(n)).toString(16).padStart(2, "0"));
+    return `#${parts.join("")}`;
+  }
+  return undefined;
+}
+
+/** Alpha channel of a color string (rgba() 4th arg, #rrggbbaa, else 1). */
+export function colorAlpha(color: string | undefined): number {
+  if (!color) return 1;
+  const c = color.trim().toLowerCase();
+  const rgba = /^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\s*\)$/.exec(c);
+  if (rgba) return Math.max(0, Math.min(1, Number(rgba[1])));
+  const hex8 = /^#[0-9a-f]{6}([0-9a-f]{2})$/.exec(c);
+  if (hex8) return parseInt(hex8[1], 16) / 255;
+  return 1;
+}
+
+/**
+ * Block 1 (until Block 2 adds a real alpha editor): the native color
+ * picker only yields opaque `#rrggbb`, so picking a hue over a translucent
+ * effective color (spotlight ~0.14, default border 0.08, default card bg
+ * 0.055) used to turn it into a solid white blotch. This keeps the
+ * previous effective alpha on the new hue; opaque previous colors pass the
+ * new value through unchanged.
+ */
+export function keepAlphaOf(next: string, previous: string | undefined): string {
+  const alpha = colorAlpha(previous);
+  return alpha < 1 ? withOpacity(next, +alpha.toFixed(3)) : next;
+}

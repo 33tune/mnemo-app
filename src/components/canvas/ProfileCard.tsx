@@ -10,6 +10,7 @@ import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
+import { isEventFromNode } from "@/lib/editorGuards";
 import CardLayers from "./CardLayers";
 import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
@@ -342,6 +343,29 @@ function ProfileCard({
 
   const { onMouseMove: onInteractMove, onMouseEnter: onInteractEnter, onMouseLeave: onInteractLeave } =
     useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>, true);
+  // Block 1 (panel <-> card pointer isolation): the config menu is portaled
+  // to document.body from INSIDE this card's JSX, so React bubbles the
+  // panel's mousemove/mouseover up to the handlers below (fiber tree, not
+  // DOM tree) — tilt/spotlight used to follow the cursor across the panel
+  // with out-of-range positions, and since React computes enter/leave on the
+  // fiber tree too, moving card -> panel never fired onMouseLeave (hover
+  // glow/scale stuck on). Every handler now only reacts to events whose
+  // target is really inside the card's DOM, and enter/leave are derived
+  // from mouseover containment: pointer reaching the panel = leave.
+  const pointerInsideRef = useRef(false);
+  const handleInteractMove = (e: React.MouseEvent) => {
+    if (isEventFromNode(cardRef.current, e.target)) onInteractMove(e);
+  };
+  const handleInteractOver = (e: React.MouseEvent) => {
+    const inside = isEventFromNode(cardRef.current, e.target);
+    if (inside === pointerInsideRef.current) return;
+    pointerInsideRef.current = inside;
+    if (inside) onInteractEnter(); else onInteractLeave();
+  };
+  const handleInteractLeave = () => {
+    pointerInsideRef.current = false;
+    onInteractLeave();
+  };
 
   // ── Portal position ──
   const [portalPos, setPortalPos] = useState<{ left: number; top: number } | null>(null);
@@ -474,9 +498,12 @@ function ProfileCard({
   const nameEffectStyle       = resolveTextEffectStyle(effectiveEffects.text, textRoles?.name, resolvedColors.name);
   const handleEffectStyle     = resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle, resolvedColors.handle);
   const descriptorEffectStyle = resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor, resolvedColors.descriptor);
-  const locationEffectStyle   = resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolvedColors.location);
+  // Block 1: the flat-shimmer surface uses the color Location/Views really
+  // render with (block textColor override included, same expression as
+  // LocationLine/ViewsLine below), not the bare role color.
+  const locationEffectStyle   = resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location);
   const bioEffectStyle        = resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio);
-  const viewsEffectStyle      = resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolvedColors.views);
+  const viewsEffectStyle      = resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views);
   // Product closeout — shimmer fix: shimmer no longer requires gradient to
   // be set (see textEffects.ts's header), so "is shimmer active anywhere"
   // is now just "is `shimmer` present", not "gradient AND shimmer".
@@ -1345,9 +1372,9 @@ function ProfileCard({
         ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
         onClick={onClick}
-        onMouseMove={onInteractMove}
-        onMouseEnter={onInteractEnter}
-        onMouseLeave={onInteractLeave}
+        onMouseMove={handleInteractMove}
+        onMouseOver={handleInteractOver}
+        onMouseLeave={handleInteractLeave}
         style={{
           position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
           zIndex: card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),

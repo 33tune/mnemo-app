@@ -1,6 +1,7 @@
 "use client";
 import type { ProfileCardData, BlockStyleKey, BlockStyleOverride } from "@/types";
 import { resolveBlockStyle } from "@/lib/blockStyle";
+import { mergePatch } from "@/lib/effectPause";
 import { Collapsible, MenuRow, MenuNote, ColorRow, SliderRow, Toggle } from "@/ui";
 
 interface Props {
@@ -9,11 +10,11 @@ interface Props {
    * contract every other updateProfile() patch uses), so writing just one
    * block's override without the others already set would silently drop
    * them. See the `set()` merge below. */
-  card:           Pick<ProfileCardData, "blockStyle">;
+  card:           Pick<ProfileCardData, "blockStyle" | "blockStylePaused">;
   blockKey:       BlockStyleKey;
   showTextColor?: boolean;
   showIconColor?: boolean;
-  onChange:       (patch: Pick<ProfileCardData, "blockStyle">) => void;
+  onChange:       (patch: Pick<ProfileCardData, "blockStyle" | "blockStylePaused">) => void;
 }
 
 // Stage FASE 2 (Personalization UI/UX): the one reusable editor for every
@@ -32,6 +33,23 @@ export default function BlockStyleFields({ card, blockKey, showTextColor, showIc
   function set(next: BlockStyleOverride | undefined) {
     onChange({ blockStyle: { ...card.blockStyle, [blockKey]: next } });
   }
+  // Block 1 ("apagar no borra"): OFF moves this block's override into
+  // card.blockStylePaused instead of deleting it; ON restores it (or starts
+  // empty when nothing was stashed). Never in both places at once.
+  function setActive(on: boolean) {
+    if (on) {
+      const stashed = card.blockStylePaused?.[blockKey];
+      onChange({
+        blockStyle: { ...card.blockStyle, [blockKey]: stashed ?? {} },
+        blockStylePaused: mergePatch(card.blockStylePaused, { [blockKey]: undefined }),
+      });
+    } else {
+      onChange({
+        blockStyle: mergePatch(card.blockStyle, { [blockKey]: undefined }),
+        blockStylePaused: raw ? { ...card.blockStylePaused, [blockKey]: raw } : card.blockStylePaused,
+      });
+    }
+  }
   function patch(p: Partial<BlockStyleOverride>) {
     set({ ...raw, ...p });
   }
@@ -39,7 +57,7 @@ export default function BlockStyleFields({ card, blockKey, showTextColor, showIc
   return (
     <Collapsible label="Estilo" defaultOpen={active}>
       <MenuRow label="Personalizar este bloque">
-        <Toggle value={active} onChange={v => set(v ? {} : undefined)} />
+        <Toggle value={active} onChange={setActive} />
       </MenuRow>
       <MenuNote>
         {active ? "Estilo personalizado para este bloque." : "Hereda el estilo de la ProfileCard."}

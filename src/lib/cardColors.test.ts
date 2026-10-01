@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { luminance, withOpacity, resolveCardColors, interpolateMulticolor, colorForLetterIndex } from "./cardColors";
+import { luminance, withOpacity, resolveCardColors, interpolateMulticolor, colorForLetterIndex, toHexInputValue, keepAlphaOf, colorAlpha } from "./cardColors";
 
 test("withOpacity: converts hex to rgba with given alpha", () => {
   assert.equal(withOpacity("#ffffff", 0.5), "rgba(255,255,255,0.5)");
@@ -73,4 +73,24 @@ test("colorForLetterIndex: first and last character map to the first and last st
 
 test("colorForLetterIndex: a single-character string returns the first stop", () => {
   assert.equal(colorForLetterIndex(["#ff0000", "#0000ff"], 0, 1), "#ff0000");
+});
+
+test("toHexInputValue: normalizes every renderer color format to #rrggbb for <input type=color>", () => {
+  assert.equal(toHexInputValue("#ABCDEF"), "#abcdef");
+  assert.equal(toHexInputValue("#fff"), "#ffffff");
+  assert.equal(toHexInputValue("#11223344"), "#112233");
+  assert.equal(toHexInputValue("rgba(255,255,255,0.45)"), "#ffffff");
+  assert.equal(toHexInputValue("rgb(15, 15, 15)"), "#0f0f0f");
+  assert.equal(toHexInputValue(withOpacity("#a855f7", 0.3)), "#a855f7");
+  assert.equal(toHexInputValue("red"), undefined);
+  assert.equal(toHexInputValue(undefined), undefined);
+});
+
+test("keepAlphaOf: preserves a translucent previous alpha, passes opaque through", () => {
+  assert.equal(keepAlphaOf("#ff0000", "rgba(255,255,255,0.08)"), "rgba(255,0,0,0.08)");
+  assert.equal(keepAlphaOf("#ff0000", "#ffffff"), "#ff0000");
+  assert.equal(keepAlphaOf("#ff0000", undefined), "#ff0000");
+  assert.equal(keepAlphaOf("#00ff00", "#ffffff80"), "rgba(0,255,0,0.502)");
+  assert.equal(colorAlpha("rgba(1,2,3,0.055)"), 0.055);
+  assert.equal(colorAlpha("rgb(1,2,3)"), 1);
 });
