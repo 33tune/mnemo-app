@@ -132,7 +132,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
           shows `nameFont ?? font` (so a legacy card.font still displays
           correctly) and writes nameFont. */}
       <MenuSection label="Alineación" first>
-        <Tabs tabs={ALIGN_TABS} active={card.textAlign ?? "left"} onChange={v => onChange({ textAlign: v as TextAlign })} />
+        <Tabs tabs={ALIGN_TABS} active={card.textAlign ?? "left"} onChange={v => onChange({ textAlign: v as TextAlign })} label="Alineación" />
       </MenuSection>
 
       {/* Block 1 (truthful labels): monoLineHeight is ONE field shared by

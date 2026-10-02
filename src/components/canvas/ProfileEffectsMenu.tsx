@@ -99,15 +99,19 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
         <ColorRow
           label="Color" value={bord?.color ?? CARD_BORDER_DEFAULT_COLOR} onChange={v => patchBorder({ color: v })} keepAlpha
           clearable={!!raw?.border?.color} onClear={() => patchBorder({ color: undefined })}
+          state={raw?.border?.color ? "modified" : undefined} onReset={() => patchBorder({ color: undefined })}
         />
         <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? CARD_BORDER_DEFAULT_WIDTH}
-          onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`} />
+          onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`}
+          state={raw?.border?.width !== undefined ? "modified" : undefined} onReset={() => patchBorder({ width: undefined })} />
         <SliderRow label="Radio" min={0} max={60} step={1} value={bord?.radius ?? CARD_RADIUS_FALLBACK}
-          onChange={v => patchBorder({ radius: v })} unit="px" />
+          onChange={v => patchBorder({ radius: v })} unit="px"
+          state={raw?.border?.radius !== undefined ? "modified" : undefined} onReset={() => patchBorder({ radius: undefined })} />
         {/* FASE 1: this no longer also fades shadow/glow — see CardLayers.tsx's
             Layer 0c split. */}
         <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bord?.opacity ?? 1}
-          onChange={v => patchBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+          onChange={v => patchBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`}
+          state={raw?.border?.opacity !== undefined ? "modified" : undefined} onReset={() => patchBorder({ opacity: undefined })} />
 
         {/* Stage FASE 3: "border animation" pulses the card's own Glow
             (reuses that system rather than inventing a second one — see
@@ -224,7 +228,8 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
           </MenuRow>
           {hoverScaleOn && (
             <SliderRow label="Intensidad" min={1.01} max={1.15} step={0.01} value={inter?.hoverScale ?? 1.05}
-              onChange={v => patchInteractions({ hoverScale: v })} fmt={v => `${Math.round((v - 1) * 100)}%`} />
+              onChange={v => patchInteractions({ hoverScale: v })} fmt={v => `${Math.round((v - 1) * 100)}%`}
+              displayScale={100} displayOffset={-1} />
           )}
         </MenuSection>
       </Collapsible>
@@ -235,15 +240,20 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
         </MenuRow>
         {inter?.spotlight && (
           <>
-            {/* Effective color (usually the variant's derived rgba) — the
-                swatch shows its hue; alpha editing comes in Block 2. */}
+            {/* Effective color (usually the variant's derived rgba). Block 2:
+                alpha is editable in the picker; a stored color shows the
+                modified dot, whose reset drops back to the variant's. */}
             <ColorRow
               label="Color"
               value={inter?.spotlightColor ?? CARD_SPOTLIGHT_DEFAULT_COLOR}
               onChange={v => patchInteractions({ spotlightColor: v })} keepAlpha
+              state={raw?.interactions?.spotlightColor ? "modified" : undefined}
+              onReset={() => patchInteractions({ spotlightColor: undefined })}
             />
             <SliderRow label="Radio" min={20} max={100} step={1} value={inter?.spotlightSize ?? CARD_SPOTLIGHT_DEFAULT_SIZE}
-              onChange={v => patchInteractions({ spotlightSize: v })} unit="%" />
+              onChange={v => patchInteractions({ spotlightSize: v })} unit="%"
+              state={raw?.interactions?.spotlightSize !== undefined ? "modified" : undefined}
+              onReset={() => patchInteractions({ spotlightSize: undefined })} />
             {/* Posición manual/estática: no implementada — el spotlight hoy
                 sigue al cursor vía CSS vars (useCardInteractions.ts) y no
                 existe infraestructura de posición fija. Agregarla sería

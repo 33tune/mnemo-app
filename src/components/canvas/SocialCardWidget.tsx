@@ -10,7 +10,7 @@ import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
-import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
+import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible, IconButton } from "@/ui";
 
 type InternalDrag = { id: string; startX: number; startY: number; startMouseX: number; startMouseY: number };
 
@@ -230,11 +230,11 @@ function SocialCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <MenuPanel pos={portalPos} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
+        <MenuPanel pos={portalPos} label="Editor de Social" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
 
           {/* Header */}
-          <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.1em", textTransform: "uppercase", color: T.text.muted, marginBottom: T.space[4] }}>
-            Social Card
+          <div style={{ ...T.type.title, color: T.ui.text.primary, marginBottom: T.space[4] }}>
+            Social
           </div>
 
           {/* CONTENIDO */}
@@ -244,21 +244,15 @@ function SocialCardWidget({
                 {(card.socialLinks ?? []).map((sl, idx) => (
                   <div key={sl.id} style={{ display: "flex", alignItems: "center", gap: 6, background: T.surface.raised, border: `1px solid ${T.border.subtle}`, borderRadius: T.radius.sm, padding: "5px 8px" }}>
                     <SocialIconBtn platform={detectPlatform(sl.url)} url={sl.url} color={T.text.secondary} size={12} />
-                    <span style={{ fontFamily: T.font.mono, fontSize: 9, color: T.text.muted, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ ...T.type.value, color: T.ui.text.secondary, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {sl.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 28)}
                     </span>
                     {sl.x !== undefined && (
-                      <button title="Reset position" onClick={() => updateCard(card.id, { socialLinks: (card.socialLinks ?? []).map((s, i) => i === idx ? { ...s, x: undefined, y: undefined } : s) })} onMouseDown={e => e.stopPropagation()}
-                        style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 10, cursor: "pointer", padding: "0 2px" }}
-                        onMouseEnter={e => e.currentTarget.style.color = T.text.primary} onMouseLeave={e => e.currentTarget.style.color = T.text.muted}>
-                        ⊙
-                      </button>
+                      <IconButton icon="reset" aria-label="Restablecer posición"
+                        onClick={() => updateCard(card.id, { socialLinks: (card.socialLinks ?? []).map((s, i) => i === idx ? { ...s, x: undefined, y: undefined } : s) })} />
                     )}
-                    <button onClick={() => updateCard(card.id, { socialLinks: (card.socialLinks ?? []).filter((_, i) => i !== idx) })} onMouseDown={e => e.stopPropagation()}
-                      style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 14, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}
-                      onMouseEnter={e => e.currentTarget.style.color = T.accent.danger} onMouseLeave={e => e.currentTarget.style.color = T.text.muted}>
-                      ×
-                    </button>
+                    <IconButton icon="close" tone="danger" aria-label="Eliminar link" title="Eliminar"
+                      onClick={() => updateCard(card.id, { socialLinks: (card.socialLinks ?? []).filter((_, i) => i !== idx) })} />
                   </div>
                 ))}
               </div>
@@ -346,7 +340,7 @@ function SocialCardWidget({
             const anyGlow = !!(glow?.outer || glow?.inner);
             return (
               <MenuSection label="Efectos">
-                <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Glow</div>
+                <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Glow</div>
                 <MenuRow label="Exterior"><Toggle value={!!glow?.outer} onChange={v => patchGlow({ outer: v })} /></MenuRow>
                 <MenuRow label="Interior"><Toggle value={!!glow?.inner} onChange={v => patchGlow({ inner: v })} /></MenuRow>
                 {anyGlow && (<>
@@ -354,12 +348,12 @@ function SocialCardWidget({
                   <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={glow?.intensity ?? 0} onChange={v => patchGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
                 </>)}
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Sombra</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Sombra</div>
                   <MenuRow label="Color"><ColorSwatch value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} /></MenuRow>
                   <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={sh?.intensity ?? 0} onChange={v => patchShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
                 </div>
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Borde</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Borde</div>
                   <MenuRow label="Color">
                     <ColorSwatch value={bord?.color ?? "#ffffff"} onChange={v => patchBorder({ color: v })}
                       clearable={!!bord?.color} onClear={() => patchBorder({ color: undefined })} />
@@ -377,20 +371,20 @@ function SocialCardWidget({
               const inter = card.effects?.interactions;
               const anim  = card.effects?.animations;
               return (<>
-                <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Flotación</div>
-                <MenuRow label="Activar"><Toggle value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} /></MenuRow>
+                <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Flotación</div>
+                <MenuRow label="Activar"><Toggle label="Activar flotación" value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} /></MenuRow>
                 {anim?.floating && (<>
                   <SliderRow label="Altura" min={2} max={24} step={1} value={anim?.floatHeight ?? 8} onChange={v => patchAnimations({ floatHeight: v })} unit="px" />
                   <SliderRow label="Velocidad" min={1} max={8} step={0.5} value={anim?.floatSpeed ?? 3} onChange={v => patchAnimations({ floatSpeed: v })} fmt={v => `${v}s`} />
                 </>)}
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Inclinación 3D</div>
-                  <MenuRow label="Activar"><Toggle value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} /></MenuRow>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Inclinación 3D</div>
+                  <MenuRow label="Activar"><Toggle label="Activar inclinación 3D" value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} /></MenuRow>
                   {inter?.tilt3d && <SliderRow label="Intensidad" min={1} max={15} step={0.5} value={inter?.tiltIntensity ?? 6} onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${v}°`} />}
                 </div>
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Spotlight</div>
-                  <MenuRow label="Activar"><Toggle value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} /></MenuRow>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Spotlight</div>
+                  <MenuRow label="Activar"><Toggle label="Activar spotlight" value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} /></MenuRow>
                   {inter?.spotlight && (<>
                     <MenuRow label="Color">
                       <ColorSwatch value={inter?.spotlightColor?.startsWith("#") ? inter.spotlightColor : "#ffffff"} onChange={v => patchInteractions({ spotlightColor: v })} />
@@ -399,7 +393,7 @@ function SocialCardWidget({
                   </>)}
                 </div>
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Hover</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Hover</div>
                   <MenuRow label="Glow al pasar"><Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} /></MenuRow>
                 </div>
               </>);

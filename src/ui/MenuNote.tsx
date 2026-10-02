@@ -9,15 +9,17 @@ interface MenuNoteProps {
 // nunca accent/danger), sin iconos ni emojis. Es información de estado, no una
 // alerta: algo que el usuario configuró existe pero no se está mostrando, y
 // este es el único lugar donde puede enterarse de por qué.
+// Block 2: "help" type (DM Sans 12/16, secondary) on an L2 group surface —
+// Space Mono is reserved for section headers and numeric values.
 export function MenuNote({ children }: MenuNoteProps) {
   return (
-    <div style={{
-      fontFamily: T.font.mono, fontSize: T.size.label, lineHeight: 1.5,
-      color: T.text.secondary,
-      background: T.surface.input,
-      border: `1px solid ${T.border.subtle}`,
-      borderRadius: T.radius.sm,
-      padding: "6px 8px",
+    <div role="note" style={{
+      ...T.type.help,
+      color: T.ui.text.secondary,
+      background: T.ui.surface.group,
+      boxShadow: `inset 0 0 0 0.5px ${T.ui.line.group}`,
+      borderRadius: T.ui.radius.control,
+      padding: "8px 10px",
     }}>
       {children}
     </div>

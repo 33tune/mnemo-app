@@ -53,6 +53,13 @@ export default function BlockStyleFields({ card, blockKey, showTextColor, showIc
   function patch(p: Partial<BlockStyleOverride>) {
     set({ ...raw, ...p });
   }
+  // Block 2: reset = delete the raw key (never store undefined).
+  function reset(key: keyof BlockStyleOverride) {
+    set(mergePatch(raw, { [key]: undefined }));
+  }
+  function fieldState(key: keyof BlockStyleOverride) {
+    return raw?.[key] !== undefined ? "modified" as const : "inherited" as const;
+  }
 
   return (
     <Collapsible label="Estilo" defaultOpen={active}>
@@ -66,21 +73,25 @@ export default function BlockStyleFields({ card, blockKey, showTextColor, showIc
         <>
           <ColorRow
             label="Background" value={raw?.bg} onChange={v => patch({ bg: v })}
-            clearable={!!raw?.bg} onClear={() => patch({ bg: undefined })}
+            clearable={!!raw?.bg} onClear={() => reset("bg")}
+            state={fieldState("bg")} onReset={() => reset("bg")}
           />
           {showTextColor && (
             <ColorRow
               label="Color de texto" value={raw?.textColor} onChange={v => patch({ textColor: v })}
-              clearable={!!raw?.textColor} onClear={() => patch({ textColor: undefined })}
+              clearable={!!raw?.textColor} onClear={() => reset("textColor")}
+              state={fieldState("textColor")} onReset={() => reset("textColor")}
             />
           )}
           {showIconColor && (
             <ColorRow
               label="Color de ícono" value={raw?.iconColor} onChange={v => patch({ iconColor: v })}
-              clearable={!!raw?.iconColor} onClear={() => patch({ iconColor: undefined })}
+              clearable={!!raw?.iconColor} onClear={() => reset("iconColor")}
+              state={fieldState("iconColor")} onReset={() => reset("iconColor")}
             />
           )}
-          <SliderRow label="Radio" min={0} max={24} step={1} value={resolved.radius} unit="px" onChange={v => patch({ radius: v })} />
+          <SliderRow label="Radio" min={0} max={24} step={1} value={resolved.radius} unit="px" onChange={v => patch({ radius: v })}
+            state={raw?.radius !== undefined ? "modified" : undefined} onReset={() => reset("radius")} />
         </>
       )}
     </Collapsible>

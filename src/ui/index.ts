@@ -1,11 +1,14 @@
 export { T }              from "./tokens";
 export { MenuPanel }      from "./MenuPanel";
 export { MenuSection }    from "./MenuSection";
-export { MenuRow }        from "./MenuRow";
+export { MenuRow, FieldResetMark, InheritedChip, useFieldLabelId, FieldLabelProvider, labelStyle }
+                          from "./MenuRow";
+export type { FieldState, FieldStateProps } from "./MenuRow";
 export { SliderRow }      from "./SliderRow";
 export { Toggle }         from "./Toggle";
 export { Tabs }           from "./Tabs";
 export { ColorSwatch }    from "./ColorSwatch";
+export { ColorPopover }   from "./ColorPopover";
 export { TextInput }      from "./TextInput";
 export { ActionButton }   from "./ActionButton";
 export { Divider }        from "./Divider";
@@ -15,3 +18,6 @@ export { ColorRow }       from "./ColorRow";
 export { FontSelect }     from "./FontSelect";
 export { OffsetRow }      from "./OffsetRow";
 export { GradientStops }  from "./GradientStops";
+export { Icon }           from "./icons";
+export type { IconName }  from "./icons";
+export { IconButton }     from "./IconButton";

@@ -1,41 +1,36 @@
 "use client";
 import React from "react";
-import { T } from "./tokens";
+import { useFieldLabelId } from "./MenuRow";
 
 interface ToggleProps {
-  value:    boolean;
-  onChange: (v: boolean) => void;
+  value:     boolean;
+  onChange:  (v: boolean) => void;
+  /** Accessible name. Optional: inside a labelled MenuRow the row's label
+   * is used automatically (aria-labelledby). */
+  label?:    string;
+  disabled?: boolean;
 }
 
-export function Toggle({ value, onChange }: ToggleProps) {
+// Block 2: a real switch — <button role="switch" aria-checked>, so Space/
+// Enter toggle it natively and it is reachable by Tab. 36x22, off = 12%
+// white track, on = near-white track with a dark knob; knob slides 180ms
+// (editor.css .mn-switch — reduced motion: fade only). Same props as before,
+// every existing call site keeps working.
+export function Toggle({ value, onChange, label, disabled }: ToggleProps) {
+  const labelledBy = useFieldLabelId();
   return (
-    <div
-      onClick={e => { e.stopPropagation(); onChange(!value); }}
+    <button
+      type="button"
+      role="switch"
+      aria-checked={value}
+      aria-label={label}
+      aria-labelledby={label ? undefined : labelledBy}
+      aria-disabled={disabled || undefined}
+      className="mn-switch"
       onMouseDown={e => e.stopPropagation()}
-      style={{
-        width:      T.comp.toggleW,
-        height:     T.comp.toggleH,
-        borderRadius: T.radius.full,
-        background: value ? T.accent.default : T.surface.raised,
-        border:     `1px solid ${value ? T.border.strong : T.border.subtle}`,
-        position:   "relative",
-        cursor:     "pointer",
-        flexShrink: 0,
-        transition: "background 0.15s ease, border-color 0.15s ease",
-        userSelect: "none",
-      }}
+      onClick={e => { e.stopPropagation(); if (!disabled) onChange(!value); }}
     >
-      <div style={{
-        position:   "absolute",
-        top:        2,
-        left:       value ? T.comp.toggleW - T.comp.toggleH + 2 : 2,
-        width:      T.comp.toggleH - 4,
-        height:     T.comp.toggleH - 4,
-        borderRadius: "50%",
-        background: value ? T.surface.base : T.text.muted,
-        transition: "left 0.15s ease, background 0.15s ease",
-        boxShadow:  "0 1px 3px rgba(0,0,0,0.4)",
-      }} />
-    </div>
+      <span className="mn-switch__knob" aria-hidden />
+    </button>
   );
 }

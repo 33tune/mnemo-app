@@ -47,6 +47,7 @@ import { analytics } from "@/lib/analytics";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
 import { shouldSkipCanvasShortcut, isEditorOpen, type GuardElement } from "@/lib/editorGuards";
+import { T as UIT, Icon, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote } from "@/ui";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -3202,15 +3203,21 @@ export default function CanvasBoard({
             </svg>
           </div>
         ):(
-          <button onClick={e=>{e.stopPropagation();setMenuOpen(m=>{if(m)setWallpaperMenuOpen(false);return!m;});}} style={{width:38,height:38,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.08)",background:menuOpen?"rgba(212,240,196,0.1)":"rgba(10,10,12,0.9)",color:menuOpen?"rgba(212,240,196,0.8)":"rgba(255,255,255,0.5)",fontSize:18,cursor:"pointer",backdropFilter:"blur(12px)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:MONO,transition:"all 0.2s"}}>
-            {menuOpen?"×":"+"}
+          <button onClick={e=>{e.stopPropagation();setMenuOpen(m=>{if(m)setWallpaperMenuOpen(false);return!m;});}}
+            aria-label="Agregar elemento" aria-expanded={menuOpen} aria-controls="mnemo-add-menu"
+            style={{width:38,height:38,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.08)",background:menuOpen?"rgba(255,255,255,0.10)":"rgba(10,10,12,0.9)",color:menuOpen?UIT.ui.text.primary:"rgba(255,255,255,0.5)",cursor:"pointer",backdropFilter:"blur(12px)",display:"flex",alignItems:"center",justifyContent:"center",transition:`background-color ${UIT.motion.fast}ms ${UIT.motion.ease}, color ${UIT.motion.fast}ms ${UIT.motion.ease}`}}>
+            {/* Block 2: SVG icon instead of the "+"/"×" text glyphs. */}
+            <Icon name={menuOpen?"close":"plus"} size={16} />
           </button>
         )}
       </div>
       )}
 
       {!isReadOnly && view === "canvas" && menuOpen&&(
-        <div onClick={e=>e.stopPropagation()} style={{position:"fixed",bottom:66,right:20,background:"rgba(10,10,12,0.97)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:6,padding:"4px",backdropFilter:"blur(40px)",zIndex:1000,minWidth:180,boxShadow:"0 16px 48px rgba(0,0,0,0.85)",fontFamily:MONO}}>
+        // Block 2: restyled with the editor system (data-mnemo-ui = editor.css
+        // styling scope only — NOT an editor root for editorGuards). Same
+        // items, same handlers; Block 4 moves/reworks this chrome.
+        <div data-mnemo-ui="" id="mnemo-add-menu" role="group" aria-label="Agregar elemento" onClick={e=>e.stopPropagation()} style={mylandMenuSurface({position:"fixed",bottom:66,right:20,padding:4,zIndex:1000,width:180,boxSizing:"border-box"})}>
           {[
             // Stage 4.2-C.2.1: "New Card" (generic standalone CanvasCard),
             // "Links", "Media" and "Guestbook" were removed from here —
@@ -3229,86 +3236,78 @@ export default function CanvasBoard({
             {label:"Music",         fn:()=>{addMusicCard();           setMenuOpen(false);}},
             {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
           ].map(item=>(
-            <button key={item.label} onClick={item.fn}
-              style={{display:"block",width:"100%",padding:"7px 11px",borderRadius:4,border:"none",background:"transparent",color:"rgba(255,255,255,0.55)",fontSize:9,letterSpacing:1.5,cursor:"pointer",textAlign:"left",fontFamily:MONO,textTransform:"uppercase",transition:"background 0.08s ease, color 0.08s ease"}}
-              onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="rgba(255,255,255,0.88)";}}
-              onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}>
+            <button key={item.label} type="button" className="mn-menuitem" onClick={item.fn}>
               {item.label}
             </button>
           ))}
-          <div style={{width:"100%",height:1,background:"rgba(255,255,255,0.06)",margin:"3px 0"}} />
-          <button onClick={e=>{e.stopPropagation();setWallpaperMenuOpen(o=>!o);}}
-            style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"7px 11px",borderRadius:4,border:"none",background:wallpaperMenuOpen?"rgba(255,255,255,0.06)":"transparent",color:wallpaperMenuOpen?"rgba(255,255,255,0.88)":"rgba(255,255,255,0.55)",fontSize:9,letterSpacing:1.5,cursor:"pointer",textAlign:"left",fontFamily:MONO,textTransform:"uppercase",transition:"background 0.08s ease, color 0.08s ease"}}
-            onMouseEnter={e=>{if(!wallpaperMenuOpen){e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="rgba(255,255,255,0.88)";}}}
-            onMouseLeave={e=>{if(!wallpaperMenuOpen){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.55)";}}}
-          >
-            <span>MYLAND SETTINGS</span>
-            <span style={{opacity:0.4}}>{wallpaperMenuOpen?"▲":"▶"}</span>
+          <div aria-hidden style={{height:1,background:UIT.ui.line.group,margin:"4px 6px"}} />
+          <button type="button" className="mn-menuitem" aria-expanded={wallpaperMenuOpen} aria-controls="mnemo-myland-settings"
+            onClick={e=>{e.stopPropagation();setWallpaperMenuOpen(o=>!o);}}>
+            <span>Ajustes de MyLand</span>
+            <Icon name={wallpaperMenuOpen?"chevron-left":"chevron-right"} size={16} style={{opacity:0.62}} />
           </button>
         </div>
       )}
 
       {/* ── Wallpaper submenu ── */}
+      {/* Block 2: restyled with the src/ui primitives and the >= 10px type
+          scale, same place, same operations (every enqueueOp below is the
+          one the old 7-9px mono menu sent). Block 4 moves this to "Espacio". */}
       {!isReadOnly && view === "canvas" && menuOpen && wallpaperMenuOpen && (
-        <div onClick={e=>e.stopPropagation()} style={{position:"fixed",bottom:66,right:202,background:"rgba(10,10,12,0.97)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:6,padding:"10px 12px",backdropFilter:"blur(40px)",zIndex:1000,width:200,boxShadow:"0 16px 48px rgba(0,0,0,0.85)",fontFamily:MONO,display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>BACKGROUND</div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <div data-mnemo-ui="" id="mnemo-myland-settings" role="region" aria-label="Ajustes de MyLand" onClick={e=>e.stopPropagation()} style={mylandMenuSurface({position:"fixed",bottom:66,right:206,padding:16,zIndex:1000,width:256,boxSizing:"border-box",maxHeight:"calc(100vh - 140px)",overflowY:"auto",display:"flex",flexDirection:"column",fontFamily:SANS})}>
+          <MenuSection label="Fondo" first>
             {/* Block 1: picking a color no longer also clears the wallpaper
                 (it used to enqueue set_wallpaper:"" on every input tick). The
                 color is the base layer and the wallpaper paints over it — they
-                coexist; REMOVE WALLPAPER is the explicit way to drop it. */}
-            <div title="Background color" style={{width:26,height:26,borderRadius:5,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",flexShrink:0}}>
-              <input type="color" value={bgColor} onChange={e=>enqueueOp({type:"set_bg",value:e.target.value})} style={{width:"100%",height:"100%",border:"none",cursor:"pointer",padding:2}} />
-            </div>
-            <span style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.3)",letterSpacing:1}}>BACKGROUND COLOR</span>
-          </div>
-          {wallpaper&&(<span style={{fontFamily:MONO,fontSize:7,color:"rgba(255,255,255,0.28)",letterSpacing:0.5,lineHeight:1.4}}>El wallpaper se muestra encima del color.</span>)}
-          <WallpaperMenuBtn label="UPLOAD WALLPAPER" onClick={()=>wallpaperRef.current?.click()} />
-          {wallpaper&&(<WallpaperMenuBtn label="REMOVE WALLPAPER" onClick={()=>enqueueOp({type:"set_wallpaper",value:""})} />)}
-          {(wallpaper||bgColor!=="#0a0a0c")&&(<WallpaperMenuBtn label="RESET TO DEFAULT" onClick={()=>{enqueueOp({type:"set_wallpaper",value:""});enqueueOp({type:"set_bg",value:"#0a0a0c"});enqueueOp({type:"set_wallpaper_blur",value:0});enqueueOp({type:"set_wallpaper_brightness",value:100});enqueueOp({type:"set_wallpaper_vignette",value:0});}} dim />)}
-          <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
-          <WallpaperSlider label="BLUR" value={wallpaperBlur} min={0} max={40} unit="px" onChange={v=>enqueueOp({type:"set_wallpaper_blur",value:v})} />
-          <WallpaperSlider label="BRILLO" value={wallpaperBrightness} min={0} max={200} unit="%" onChange={v=>enqueueOp({type:"set_wallpaper_brightness",value:v})} />
-          <WallpaperSlider label="VIÑETADO" value={wallpaperVignette} min={0} max={100} unit="" onChange={v=>enqueueOp({type:"set_wallpaper_vignette",value:v})} />
+                coexist; "Quitar wallpaper" is the explicit way to drop it. */}
+            <ColorRow label="Color de fondo" value={bgColor} onChange={v=>enqueueOp({type:"set_bg",value:v})} />
+            {wallpaper&&(<MenuNote>El wallpaper se muestra encima del color.</MenuNote>)}
+            <WallpaperMenuBtn label="Subir wallpaper" onClick={()=>wallpaperRef.current?.click()} />
+            {wallpaper&&(<WallpaperMenuBtn label="Quitar wallpaper" onClick={()=>enqueueOp({type:"set_wallpaper",value:""})} danger />)}
+            {(wallpaper||bgColor!=="#0a0a0c")&&(<WallpaperMenuBtn label="Restablecer fondo por defecto" onClick={()=>{enqueueOp({type:"set_wallpaper",value:""});enqueueOp({type:"set_bg",value:"#0a0a0c"});enqueueOp({type:"set_wallpaper_blur",value:0});enqueueOp({type:"set_wallpaper_brightness",value:100});enqueueOp({type:"set_wallpaper_vignette",value:0});}} dim />)}
+            <WallpaperSlider label="Desenfoque" value={wallpaperBlur} min={0} max={40} unit="px" defaultValue={0} onChange={v=>enqueueOp({type:"set_wallpaper_blur",value:v})} />
+            <WallpaperSlider label="Brillo" value={wallpaperBrightness} min={0} max={200} unit="%" defaultValue={100} onChange={v=>enqueueOp({type:"set_wallpaper_brightness",value:v})} />
+            <WallpaperSlider label="Viñetado" value={wallpaperVignette} min={0} max={100} unit="" defaultValue={0} onChange={v=>enqueueOp({type:"set_wallpaper_vignette",value:v})} />
+          </MenuSection>
           {/* ── MÚSICA ── */}
-          <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
-          <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>MÚSICA</div>
-          {spaceMusic?.url ? (
-            <div style={{display:"flex",flexDirection:"column",gap:4}}>
-              <div style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.5)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{spaceMusic.name ?? "ambient.mp3"}</div>
-              <WallpaperMenuBtn label="CAMBIAR MÚSICA" onClick={()=>spaceMusicRef.current?.click()} />
-              <WallpaperMenuBtn label="QUITAR MÚSICA" onClick={()=>enqueueOp({type:"set_space_music",value:undefined})} dim />
-            </div>
-          ) : (
-            <WallpaperMenuBtn label="SUBIR MÚSICA (.mp3)" onClick={()=>spaceMusicRef.current?.click()} />
-          )}
+          <MenuSection label="Música">
+            {spaceMusic?.url ? (
+              <>
+                <div style={{...UIT.type.value,color:UIT.ui.text.secondary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{spaceMusic.name ?? "ambient.mp3"}</div>
+                <WallpaperMenuBtn label="Cambiar música" onClick={()=>spaceMusicRef.current?.click()} />
+                <WallpaperMenuBtn label="Quitar música" onClick={()=>enqueueOp({type:"set_space_music",value:undefined})} danger />
+              </>
+            ) : (
+              <WallpaperMenuBtn label="Subir música (.mp3)" onClick={()=>spaceMusicRef.current?.click()} />
+            )}
+          </MenuSection>
           {/* ── FUENTES ── */}
-          <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
-          <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>FUENTE GLOBAL</div>
-          {spaceFont ? (
-            <div style={{display:"flex",flexDirection:"column",gap:4}}>
-              <div style={{fontFamily:`"${spaceFont.name}", ${SANS}`,fontSize:11,color:"rgba(255,255,255,0.6)",padding:"4px 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{spaceFont.name}</div>
-              <WallpaperMenuBtn label="CAMBIAR FUENTE" onClick={()=>spaceFontRef.current?.click()} />
-              <WallpaperMenuBtn label="QUITAR FUENTE" onClick={()=>enqueueOp({type:"set_space_font",value:undefined})} dim />
-            </div>
-          ) : (
-            <WallpaperMenuBtn label="SUBIR FUENTE (.woff2 .woff .ttf .otf)" onClick={()=>spaceFontRef.current?.click()} />
-          )}
+          <MenuSection label="Fuente global">
+            {spaceFont ? (
+              <>
+                <div style={{fontFamily:`"${spaceFont.name}", ${SANS}`,fontSize:13,lineHeight:"18px",color:UIT.ui.text.primary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{spaceFont.name}</div>
+                <WallpaperMenuBtn label="Cambiar fuente" onClick={()=>spaceFontRef.current?.click()} />
+                <WallpaperMenuBtn label="Quitar fuente" onClick={()=>enqueueOp({type:"set_space_font",value:undefined})} danger />
+              </>
+            ) : (
+              <WallpaperMenuBtn label="Subir fuente (.woff2 .woff .ttf .otf)" onClick={()=>spaceFontRef.current?.click()} />
+            )}
+          </MenuSection>
           {/* ── CURSOR ── */}
-          <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:"4px 0"}}/>
-          <div style={{fontFamily:MONO,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.18)",textTransform:"uppercase",marginBottom:2}}>CURSOR</div>
-          {spaceCursor?.url ? (
-            <div style={{display:"flex",flexDirection:"column",gap:4}}>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <img src={spaceCursor.url} alt="cursor" style={{width:20,height:20,objectFit:"contain",imageRendering:"pixelated",opacity:0.7}} />
-                <span style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.4)"}}>cursor.png</span>
-              </div>
-              <WallpaperMenuBtn label="CAMBIAR CURSOR" onClick={()=>spaceCursorRef.current?.click()} />
-              <WallpaperMenuBtn label="QUITAR CURSOR" onClick={()=>enqueueOp({type:"set_space_cursor",value:undefined})} dim />
-            </div>
-          ) : (
-            <WallpaperMenuBtn label="SUBIR CURSOR (.png)" onClick={()=>spaceCursorRef.current?.click()} />
-          )}
+          <MenuSection label="Cursor">
+            {spaceCursor?.url ? (
+              <>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <img src={spaceCursor.url} alt="Cursor actual" style={{width:20,height:20,objectFit:"contain",imageRendering:"pixelated",opacity:0.7}} />
+                  <span style={{...UIT.type.value,color:UIT.ui.text.secondary}}>cursor.png</span>
+                </div>
+                <WallpaperMenuBtn label="Cambiar cursor" onClick={()=>spaceCursorRef.current?.click()} />
+                <WallpaperMenuBtn label="Quitar cursor" onClick={()=>enqueueOp({type:"set_space_cursor",value:undefined})} danger />
+              </>
+            ) : (
+              <WallpaperMenuBtn label="Subir cursor (.png)" onClick={()=>spaceCursorRef.current?.click()} />
+            )}
+          </MenuSection>
         </div>
       )}
 
@@ -3415,28 +3414,33 @@ export default function CanvasBoard({
   );
 }
 
-function WallpaperSlider({label,value,min,max,unit,onChange}:{label:string;value:number;min:number;max:number;unit:string;onChange:(v:number)=>void}) {
+// Block 2: MyLand settings controls now compose the shared src/ui
+// primitives (SliderRow: label association, editable value, double-click
+// reset; ActionButton: system button, red only on hover for removals).
+// Same signatures/operations as before; `defaultValue` and `danger` are new.
+function WallpaperSlider({label,value,min,max,unit,onChange,defaultValue}:{label:string;value:number;min:number;max:number;unit:string;onChange:(v:number)=>void;defaultValue?:number}) {
+  return <SliderRow label={label} value={value} min={min} max={max} step={1} unit={unit} defaultValue={defaultValue} onChange={onChange} />;
+}
+
+function WallpaperMenuBtn({label,onClick,dim,danger}:{label:string;onClick:()=>void;dim?:boolean;danger?:boolean}) {
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:3}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontFamily:"'Space Mono',monospace",fontSize:7,letterSpacing:1.5,color:"rgba(255,255,255,0.35)",textTransform:"uppercase"}}>{label}</span>
-        <span style={{fontFamily:"'Space Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.25)"}}>{value}{unit}</span>
-      </div>
-      <input type="range" min={min} max={max} value={value} onChange={e=>onChange(Number(e.target.value))} onMouseDown={e=>e.stopPropagation()}
-        style={{width:"100%",accentColor:"rgba(232,224,212,0.6)",cursor:"pointer",height:3}} />
-    </div>
+    <ActionButton variant={danger ? "danger" : dim ? "ghost" : "secondary"} fullWidth onClick={() => onClick()}>
+      {label}
+    </ActionButton>
   );
 }
 
-function WallpaperMenuBtn({label,onClick,dim}:{label:string;onClick:()=>void;dim?:boolean}) {
-  return (
-    <button onClick={onClick}
-      style={{display:"block",width:"100%",padding:"6px 0",border:"none",background:"transparent",color:dim?"rgba(255,255,255,0.28)":"rgba(255,255,255,0.55)",fontSize:8,letterSpacing:1.5,cursor:"pointer",textAlign:"left",fontFamily:"'Space Mono',monospace",textTransform:"uppercase",transition:"color 0.08s"}}
-      onMouseEnter={e=>{e.currentTarget.style.color=dim?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.88)";}}
-      onMouseLeave={e=>{e.currentTarget.style.color=dim?"rgba(255,255,255,0.28)":"rgba(255,255,255,0.55)";}}>
-      {label}
-    </button>
-  );
+/** L1-like surface for the "+" menu and the MyLand settings submenu (no
+ * blur: the editor body is solid; Block 4 gives the chrome its own L0). */
+function mylandMenuSurface(extra: React.CSSProperties): React.CSSProperties {
+  return {
+    background: UIT.ui.surface.panel,
+    border: `0.5px solid ${UIT.ui.line.panel}`,
+    borderRadius: UIT.ui.radius.group,
+    boxShadow: UIT.ui.shadow.panel,
+    color: UIT.ui.text.primary,
+    ...extra,
+  };
 }
 
 function TBtn({children,onClick,active,title}:{children:React.ReactNode;onClick:()=>void;active?:boolean;title?:string}) {

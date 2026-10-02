@@ -1,0 +1,413 @@
+/*
+ * MNEMO editor stylesheet (Block 2 — editor visual infrastructure).
+ *
+ * Delivery decision: the design tokens stay a TS object (`T`, src/ui/
+ * tokens.ts) and the ~800 existing inline styles stay inline. This ONE
+ * sheet only covers what inline styles cannot express: :hover/:active,
+ * :focus-visible rings, range thumb/track pseudo-elements, state attributes
+ * ([data-state], [data-inherited], [aria-disabled]), prefers-reduced-motion,
+ * prefers-reduced-transparency and the @supports fallback for
+ * backdrop-filter.
+ *
+ * It is imported once, from src/app/layout.tsx — Next's App Router allows
+ * global CSS from any component, but layout is the one place guaranteed to
+ * load before any editor mounts. Every rule is scoped under an editor root
+ * (`[data-mnemo-editor]`, MenuPanel / ColorPopover) or `[data-mnemo-ui]`
+ * (styling-only scope for editor-like UI that must NOT act as an editor root
+ * for editorGuards, e.g. the MyLand settings submenu) — nothing here can
+ * reach card render. Custom properties are `--ui-*` and live only here.
+ */
+
+:where([data-mnemo-editor], [data-mnemo-ui]) {
+  --ui-text-1: rgba(255,255,255,0.94);
+  --ui-text-2: rgba(255,255,255,0.62);
+  --ui-text-3: rgba(255,255,255,0.46);
+  --ui-text-dis: rgba(255,255,255,0.28);
+  --ui-group: rgba(255,255,255,0.05);
+  --ui-group-hover: rgba(255,255,255,0.08);
+  --ui-control: rgba(255,255,255,0.06);
+  --ui-control-hover: rgba(255,255,255,0.10);
+  --ui-control-active: rgba(255,255,255,0.14);
+  --ui-line: rgba(255,255,255,0.10);
+  --ui-line-strong: rgba(255,255,255,0.20);
+  --ui-fill: rgba(255,255,255,0.88);
+  --ui-track: rgba(255,255,255,0.12);
+  --ui-on: #F2F2F4;
+  --ui-danger: #FF5A52;
+  --ui-ring: 0 0 0 2px rgba(20,20,23,1), 0 0 0 3.5px rgba(255,255,255,0.70);
+  --ui-disabled: 0.38;
+  /* Review round (A11Y-12): placeholders/tertiary on the control fill need
+     >= 4.5:1 — 0.46 measured 4.46:1 there. */
+  --ui-text-ph: rgba(255,255,255,0.52);
+  --ui-fast: 120ms;
+  --ui-base: 180ms;
+  --ui-panel: 220ms;
+  --ui-seg: 240ms;
+  --ui-ease: cubic-bezier(0.32,0.72,0,1);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Panel (L1) ─────────────────────────────────────────────────────────── */
+.mn-panel[data-mnemo-editor] {
+  background: rgba(20,20,23,0.94);
+  border: 0.5px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 24px 64px -12px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.3);
+  color: var(--ui-text-1);
+}
+@media (max-resolution: 1dppx) {
+  .mn-panel[data-mnemo-editor] { border-width: 1px; }
+}
+.mn-panel[data-mnemo-editor]::-webkit-scrollbar { width: 6px; }
+.mn-panel[data-mnemo-editor]::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+
+/* ── Popover (L3) — the only blurred surface ────────────────────────────── */
+.mn-popover[data-mnemo-editor] {
+  background: #1E1E23;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 32px rgba(0,0,0,0.5);
+  color: var(--ui-text-1);
+  /* Opacity only: never scale/animate a blurred surface (spec 8). */
+  animation: mn-pop-in var(--ui-fast) var(--ui-ease);
+}
+@media (max-resolution: 1dppx) {
+  .mn-popover[data-mnemo-editor] { border-width: 1px; }
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mn-popover[data-mnemo-editor] {
+    background: rgba(30,30,35,0.90);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .mn-popover[data-mnemo-editor] {
+    background: #1E1E23;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .mn-panel[data-mnemo-editor] { background: #141417; }
+}
+@keyframes mn-pop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Focus ring (every interactive primitive) ───────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) :where(button, [role="switch"], [role="tab"], [role="slider"], a, .mn-focusable):focus { outline: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) :where(button, [role="switch"], [role="tab"], [role="slider"], a, .mn-focusable):focus-visible {
+  outline: none;
+  box-shadow: var(--ui-ring);
+}
+
+/* ── Switch ─────────────────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch {
+  position: relative; flex-shrink: 0;
+  width: 36px; height: 22px; padding: 0; margin: 0;
+  border: none; border-radius: 999px;
+  background: var(--ui-track);
+  cursor: pointer;
+  transition: background-color var(--ui-base) var(--ui-ease);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch:hover { background: rgba(255,255,255,0.18); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] { background: var(--ui-on); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"]:hover { background: #FFFFFF; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch__knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform var(--ui-base) var(--ui-ease), background-color var(--ui-base) var(--ui-ease);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] .mn-switch__knob {
+  transform: translateX(14px);
+  background: #141417;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-disabled="true"] { opacity: var(--ui-disabled); cursor: not-allowed; }
+
+/* ── Range (SliderRow / OffsetRow) — not animated on purpose ────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 16px; margin: 0; padding: 0;
+  background: transparent; cursor: pointer;
+  --ui-pct: 50%;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus { outline: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right, var(--ui-fill) 0 var(--ui-pct), var(--ui-track) var(--ui-pct) 100%);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-track {
+  height: 4px; border-radius: 2px; background: var(--ui-track);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-progress {
+  height: 4px; border-radius: 2px; background: var(--ui-fill);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; margin-top: -6px;
+  border: none; border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(0,0,0,0.2);
+  transition: transform var(--ui-fast) var(--ui-ease);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-thumb {
+  width: 16px; height: 16px; border: none; border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.45);
+  transition: transform var(--ui-fast) var(--ui-ease);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-webkit-slider-thumb { transform: scale(1.15); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-moz-range-thumb { transform: scale(1.15); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus-visible::-webkit-slider-thumb { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus-visible::-moz-range-thumb { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:disabled { opacity: var(--ui-disabled); cursor: not-allowed; }
+
+/* Click-to-edit numeric value */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value {
+  background: transparent; border: none; padding: 0 4px; margin: 0 -4px 0 0;
+  border-radius: 4px; cursor: text;
+  font-family: 'Space Mono', monospace; font-size: 11px; line-height: 16px;
+  font-variant-numeric: tabular-nums; color: var(--ui-text-2);
+  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value:hover { background: var(--ui-control); color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-value { color: var(--ui-text-3); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input {
+  width: 56px; height: 20px; padding: 0 4px; margin: 0 -4px 0 0; box-sizing: border-box;
+  background: var(--ui-control); color: var(--ui-text-1);
+  border: none; border-radius: 4px; text-align: right;
+  font-family: 'Space Mono', monospace; font-size: 11px; font-variant-numeric: tabular-nums;
+  outline: none; box-shadow: var(--ui-ring);
+}
+
+/* ── Field state (modified dot -> reset, inherited chip) ────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field { position: relative; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark {
+  position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
+  width: 14px; height: 20px; padding: 0; margin: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: 4px; cursor: pointer;
+  color: var(--ui-text-2);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ui-fill);
+  transition: opacity var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark svg {
+  position: absolute; opacity: 0; transition: opacity var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:hover .mn-field__mark::before,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:focus-within .mn-field__mark::before { opacity: 0; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:hover .mn-field__mark svg,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:focus-within .mn-field__mark svg { opacity: 1; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark:hover { color: var(--ui-text-1); background: var(--ui-control); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-chip {
+  position: relative; display: inline-flex; align-items: center; height: 16px; padding: 0 6px;
+  border-radius: 999px; background: var(--ui-control);
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.04em;
+  color: var(--ui-text-2); white-space: nowrap;
+}
+
+/* ── Icon button ────────────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  padding: 0; margin: 0; border: none; border-radius: 8px;
+  background: transparent; color: var(--ui-text-2); cursor: pointer;
+  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:hover { background: var(--ui-control-hover); color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:active { background: var(--ui-control-active); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn[data-tone="danger"]:hover { color: var(--ui-danger); background: rgba(255,90,82,0.10); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled { background: var(--ui-control); box-shadow: inset 0 0 0 0.5px var(--ui-line); color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled:hover { background: var(--ui-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:disabled { opacity: var(--ui-disabled); cursor: not-allowed; background: transparent; }
+
+/* ── Action button ──────────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; padding: 0 14px; border-radius: 8px; box-sizing: border-box;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; line-height: 18px;
+  cursor: pointer; user-select: none; white-space: nowrap;
+  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease, box-shadow var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary { background: var(--ui-on); color: #141417; border: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary:hover:not(:disabled) { background: #FFFFFF; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary:active:not(:disabled) { background: #DADADF; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary { background: var(--ui-control); color: var(--ui-text-1); border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary:hover:not(:disabled) { background: var(--ui-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary:active:not(:disabled) { background: var(--ui-control-active); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost { background: transparent; color: var(--ui-text-2); border: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost:hover:not(:disabled) { background: var(--ui-control); color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost:active:not(:disabled) { background: var(--ui-control-hover); }
+/* Destructive: neutral at rest, red only on hover/active. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger { background: transparent; color: var(--ui-text-2); border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger:hover:not(:disabled) { color: var(--ui-danger); background: rgba(255,90,82,0.10); box-shadow: inset 0 0 0 0.5px rgba(255,90,82,0.35); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger:active:not(:disabled) { background: rgba(255,90,82,0.16); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn:disabled { opacity: var(--ui-disabled); cursor: not-allowed; }
+/* (0,4,0) — beats the (0,3,0) :hover:not(:disabled) shadows above. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn.mn-btn:focus-visible:not(:disabled) { box-shadow: var(--ui-ring); }
+
+/* ── Text input / select ────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input {
+  background: var(--ui-control);
+  border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line);
+  border-radius: 8px; color: var(--ui-text-1);
+  transition: box-shadow var(--ui-fast) ease, background-color var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input::placeholder { color: var(--ui-text-ph); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:hover { background: var(--ui-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:focus { outline: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-select {
+  -webkit-appearance: none; appearance: none;
+  padding-right: 28px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='rgba(255,255,255,0.62)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+  cursor: pointer;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-select option { background: #18181C; color: rgba(255,255,255,0.94); }
+
+/* ── Tabs: underline ────────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab {
+  color: var(--ui-text-2);
+  transition: color var(--ui-fast) ease, box-shadow var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab:hover { color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab[aria-selected="true"] { color: var(--ui-text-1); box-shadow: inset 0 -2px 0 var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab[aria-selected="true"]:focus-visible { box-shadow: var(--ui-ring), inset 0 -2px 0 var(--ui-text-1); }
+
+/* ── Tabs: segmented ────────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__thumb {
+  transition: transform var(--ui-seg) var(--ui-ease);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn {
+  color: var(--ui-text-2);
+  transition: color var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn:hover { color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn[aria-checked="true"] { color: var(--ui-text-1); }
+
+/* ── Collapsible ────────────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn {
+  color: rgba(255,255,255,0.52);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: color var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn:hover,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn[aria-expanded="true"] { color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__chev { transition: transform var(--ui-panel) var(--ui-ease); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn[aria-expanded="true"] .mn-collapse__chev { transform: rotate(90deg); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__body {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows var(--ui-panel) var(--ui-ease), opacity var(--ui-panel) var(--ui-ease);
+  opacity: 0;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__body[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__inner {
+  /* overflow must clip for the 0fr -> 1fr animation; the padding/negative
+     margin pair gives focus rings and the modified-dot gutter (left -14px)
+     room inside the clip box without shifting layout. */
+  min-height: 0; overflow: hidden;
+  padding: 4px 16px; margin: -4px -16px;
+}
+
+/* ── Color well + picker ────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well {
+  position: relative; flex-shrink: 0; padding: 0; margin: 0;
+  border: none; border-radius: 50%; cursor: pointer; overflow: hidden;
+  background-color: #2A2A30;
+  background-image: conic-gradient(#3A3A42 25%, #24242A 0 50%, #3A3A42 0 75%, #24242A 0);
+  background-size: 8px 8px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 0 0 1.5px rgba(255,255,255,0.32);
+  transition: box-shadow var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:hover { box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 0 0 2px rgba(255,255,255,0.40); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well[aria-disabled="true"] { cursor: not-allowed; opacity: var(--ui-disabled); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hex {
+  font-family: 'Space Mono', monospace; font-size: 11px; line-height: 16px;
+  font-variant-numeric: tabular-nums; color: var(--ui-text-2); white-space: nowrap;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-hex { color: var(--ui-text-3); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar { touch-action: none; cursor: crosshair; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar { cursor: ew-resize; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area { box-shadow: inset 0 0 0 0.5px rgba(255,255,255,0.10); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area:focus-visible,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar:focus-visible { box-shadow: var(--ui-ring); outline: none; }
+
+/* ── Gradient bar ───────────────────────────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop {
+  position: absolute; top: 50%; padding: 0; margin: 0;
+  width: 14px; height: 14px; border-radius: 50%; cursor: pointer;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+  transform: translate(-50%, -50%);
+  transition: transform var(--ui-fast) var(--ui-ease);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop:hover { transform: translate(-50%, -50%) scale(1.12); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop[aria-checked="true"] {
+  transform: translate(-50%, -50%) scale(1.2);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 0 0 3.5px rgba(255,255,255,0.55);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop:focus-visible { box-shadow: var(--ui-ring); }
+
+/* ── Menu list items (MyLand / + menu) ──────────────────────────────────── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; height: 32px; padding: 0 10px; box-sizing: border-box;
+  border: none; border-radius: 8px; background: transparent; cursor: pointer; text-align: left;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; line-height: 18px; color: var(--ui-text-2);
+  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem:hover,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem[aria-expanded="true"] { background: var(--ui-control); color: var(--ui-text-1); }
+
+/* ── Motion preferences ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :where([data-mnemo-editor], [data-mnemo-ui]),
+  :where([data-mnemo-editor], [data-mnemo-ui]) *,
+  :where([data-mnemo-editor], [data-mnemo-ui]) *::before {
+    transition-property: opacity, color, background-color !important;
+    transition-duration: 100ms !important;
+    animation: none !important;
+  }
+  /* Vendor pseudo-elements in their own rules: an unknown one (Firefox
+     doesn't know ::-webkit-slider-thumb) invalidates a whole selector list. */
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-thumb { transition: none !important; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-thumb { transition: none !important; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__body { transition: none !important; }
+}
+
+/* ── Review round: pressed (fill +0.08 already via :active) + scale .98 ── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem { transition-property: background-color, color, box-shadow, transform; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn:active:not(:disabled),
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:active:not(:disabled),
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem:active { transform: scale(0.98); }
+
+/* ── Review round (A11Y-6): forced colors / Windows High Contrast ───────
+   box-shadow rings vanish there; a transparent outline becomes visible.
+   Controls drawn with backgrounds get system-color borders/fills. */
+:where([data-mnemo-editor], [data-mnemo-ui]) :focus-visible { outline: 2px solid transparent !important; outline-offset: 2px; }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) :focus-visible { outline-color: Highlight !important; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch { border: 1px solid ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch__knob { forced-color-adjust: none; background: ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] { forced-color-adjust: none; background: Highlight; border-color: Highlight; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] .mn-switch__knob { background: HighlightText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-runnable-track { forced-color-adjust: none; background: ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-track { forced-color-adjust: none; background: ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-thumb { forced-color-adjust: none; background: Highlight; border: 1px solid ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-thumb { forced-color-adjust: none; background: Highlight; border: 1px solid ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__thumb { forced-color-adjust: none; background: Highlight !important; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn[aria-checked="true"] { forced-color-adjust: none; color: HighlightText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab[aria-selected="true"] { border-bottom: 2px solid Highlight; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-well, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop { border: 1px solid ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop[aria-checked="true"] { border: 2px solid Highlight; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled { border: 1px solid ButtonText; }
+}

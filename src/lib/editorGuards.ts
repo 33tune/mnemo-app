@@ -20,6 +20,14 @@
 
 /** Attribute every editor panel root carries (MenuPanel.tsx). */
 export const EDITOR_ATTR = "data-mnemo-editor";
+/** Block 2 review: styling scope for editor-like UI that is NOT a panel
+ * root (the "+" menu and the MyLand settings submenu in CanvasBoard). For
+ * KEYBOARD shortcuts it is editor territory too — a focused color well or
+ * button there must not let Backspace delete the selected canvas element —
+ * but it deliberately does NOT count for isEditorOpen(): an open "+" menu
+ * isn't an editor, and gating every Delete on it would change the canvas'
+ * behavior while that menu is merely open. */
+export const EDITOR_UI_ATTR = "data-mnemo-ui";
 
 /** Minimal structural shape of a DOM element these guards need — lets the
  * tests pass plain objects instead of requiring a DOM. */
@@ -37,10 +45,10 @@ export function isEditableElement(el: GuardElement | null | undefined): boolean 
   return !!el.isContentEditable;
 }
 
-/** True when `el` is (inside) an editor panel root. */
+/** True when `el` is (inside) an editor panel root or editor-styled UI. */
 export function isInsideEditor(el: GuardElement | null | undefined): boolean {
   if (!el || typeof el.closest !== "function") return false;
-  return el.closest(`[${EDITOR_ATTR}]`) != null;
+  return el.closest(`[${EDITOR_ATTR}], [${EDITOR_UI_ATTR}]`) != null;
 }
 
 /**

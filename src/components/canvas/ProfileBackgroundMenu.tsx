@@ -61,11 +61,13 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
         <ColorRow
           label="Color" value={bg?.color ?? CARD_BG_DEFAULT_COLOR} onChange={v => patchBg({ color: v })} keepAlpha
           clearable={!!raw?.bg?.color} onClear={() => patchBg({ color: undefined })}
+          state={raw?.bg?.color ? "modified" : undefined} onReset={() => patchBg({ color: undefined })}
         />
       </MenuSection>
 
       <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bg?.opacity ?? 1}
-        onChange={v => patchBg({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+        onChange={v => patchBg({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`}
+        state={raw?.bg?.opacity !== undefined ? "modified" : undefined} onReset={() => patchBg({ opacity: undefined })} />
 
       <MenuSection label="Imagen / GIF">
         <div style={{ display: "flex", gap: 6 }}>

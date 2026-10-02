@@ -64,7 +64,7 @@ export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange
     <div style={{ display: "flex", flexDirection: "column" }}>
       <Header />
       <div style={{ marginBottom: T.space[4] }}>
-        <Tabs tabs={TAB_ITEMS} active={view} onChange={id => setView(id as View)} variant="underline" />
+        <Tabs tabs={TAB_ITEMS} active={view} onChange={id => setView(id as View)} variant="underline" label="Secciones del editor" />
       </div>
 
       {view === "content" && (

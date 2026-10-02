@@ -1453,7 +1453,7 @@ function ProfileCard({
 
         {/* ── Config menu ── */}
         {menuOpen && canInteract && portalPos && createPortal(
-          <MenuPanel pos={portalPos} width={288} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
+          <MenuPanel pos={portalPos} width={288} label="Editor de ProfileCard" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
             <ProfileConfigMenu card={card} linksFits={linksFits} baseColor={baseColor} onChange={patch => updateProfile(card.id, patch)} />
           </MenuPanel>
         , document.body)}

@@ -1,7 +1,9 @@
 "use client";
-import React from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { T } from "./tokens";
-import { toHexInputValue } from "@/lib/cardColors";
+import { IconButton } from "./IconButton";
+import { ColorPopover, wellHex, wellAlpha } from "./ColorPopover";
+import { useFieldLabelId, useFieldDescId } from "./MenuRow";
 
 interface ColorSwatchProps {
   value:      string;
@@ -9,47 +11,69 @@ interface ColorSwatchProps {
   size?:      number;
   clearable?: boolean;
   onClear?:   () => void;
+  /** Block 2: alpha bar + rgba() output. Off by default — many renderer
+   * paths (withOpacity, luminance, per-letter gradient interpolation) only
+   * understand hex, so alpha is opt-in per call site (ColorRow's
+   * keepAlpha sites turn it on). */
+  alpha?:     boolean;
+  /** Accessible name; inside a labelled MenuRow the row label is used. */
+  label?:     string;
+  /** Hex readout next to the well (default on). */
+  showHex?:   boolean;
 }
 
-export function ColorSwatch({ value, onChange, size, clearable, onClear }: ColorSwatchProps) {
-  const sz = size ?? T.comp.swatchSize;
+// Block 2: "ColorWell" — 24px circle with a dark ring + light hairline so
+// any color (black on the dark panel, white, translucent over the checker)
+// reads; hex in Space Mono 11 beside it. Click opens ColorPopover (custom
+// SV/hue/alpha picker, replaces the native <input type=color>, which had
+// no alpha and no keyboard model). Same props as before + optional ones.
+export function ColorSwatch({ value, onChange, size, clearable, onClear, alpha = false, label, showHex = true }: ColorSwatchProps) {
+  const sz = size ?? T.ui.size.swatch;
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const labelledBy = useFieldLabelId();
+  const describedBy = useFieldDescId();
+  // The popover is named after the row ("Color: Background") when the well
+  // itself has no explicit label (A11Y-11). Read at open time, client only.
+  const rowLabel = open && !label && labelledBy && typeof document !== "undefined"
+    ? document.getElementById(labelledBy)?.textContent ?? undefined
+    : undefined;
+  // Review round (UX-3): no value = nothing stored and nothing known to
+  // show (e.g. a block inheriting the card) — no fake "#FFFFFF".
+  const empty = !value;
+  const close = useCallback(() => setOpen(false), []);
+  const hex = wellHex(value);
+  const a = wellAlpha(value);
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <div style={{
-        position:     "relative",
-        width:        sz,
-        height:       sz,
-        borderRadius: T.radius.xs,
-        overflow:     "hidden",
-        border:       `1px solid ${T.border.default}`,
-        cursor:       "pointer",
-        flexShrink:   0,
-      }}>
-        <div style={{ position: "absolute", inset: 0, background: value || T.surface.raised }} />
-        <input
-          type="color"
-          // Block 1: rgb()/rgba()/short-hex values (every derived role color,
-          // most effective defaults) used to open the picker on a fixed
-          // "#141416" — now it opens on the real hue (alpha dropped, the
-          // native picker has none).
-          value={toHexInputValue(value) ?? "#141416"}
-          onChange={e => onChange(e.target.value)}
-          onMouseDown={e => e.stopPropagation()}
-          style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
-        />
-      </div>
+    <div style={{ display: "flex", alignItems: "center", gap: T.space[2] }}>
+      {showHex && (
+        <span className="mn-hex" aria-hidden>
+          {empty ? "—" : <>{hex}{a < 1 ? ` ${Math.round(a * 100)}%` : ""}</>}
+        </span>
+      )}
+      <button
+        ref={btnRef}
+        type="button"
+        className="mn-well"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={label ? `${label}: ${empty ? "sin color propio" : hex}` : undefined}
+        aria-labelledby={label ? undefined : labelledBy}
+        aria-describedby={describedBy}
+        aria-description={label ? undefined : (empty ? "sin color propio" : hex)}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+        style={{ width: sz, height: sz }}
+      >
+        <span aria-hidden style={{ position: "absolute", inset: 0, borderRadius: "50%", background: value || "transparent" }} />
+      </button>
       {clearable && value && onClear && (
-        <button
-          onMouseDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); onClear(); }}
-          style={{
-            background: "transparent", border: "none", padding: "0 3px",
-            color: T.text.muted, fontSize: 14, cursor: "pointer", lineHeight: 1,
-            fontFamily: T.font.sans,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = T.accent.danger; }}
-          onMouseLeave={e => { e.currentTarget.style.color = T.text.muted; }}
-        >×</button>
+        <IconButton icon="close" aria-label="Quitar color" size={24} iconSize={14}
+          onClick={() => { onClear(); requestAnimationFrame(() => btnRef.current?.focus({ preventScroll: true })); }} />
+      )}
+      {open && (
+        <ColorPopover anchor={btnRef.current} value={value} alpha={alpha} label={label ?? rowLabel} onChange={onChange} onClose={close} />
       )}
     </div>
   );

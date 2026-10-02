@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { ContactLink, ProfileCardData } from "@/types";
-import { T, MenuSection, MenuNote, SliderRow, TextInput } from "@/ui";
+import { T, MenuSection, MenuNote, SliderRow, TextInput, IconButton } from "@/ui";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
 import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
 import BlockStyleFields from "./BlockStyleFields";
@@ -78,52 +78,40 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
           {links.map(link => (
             <div key={link.id} style={{
               display: "flex", alignItems: "center", gap: 6,
-              background: T.surface.raised, border: `1px solid ${T.border.subtle}`,
-              borderRadius: T.radius.sm, padding: "5px 8px",
+              background: T.ui.surface.group, boxShadow: `inset 0 0 0 0.5px ${T.ui.line.group}`,
+              borderRadius: T.ui.radius.control, padding: "2px 2px 2px 10px", minHeight: T.ui.size.row,
             }}>
-              <PlatformIcon platform={detectPlatform(link.url)} size={12} color={T.text.secondary} />
+              <PlatformIcon platform={detectPlatform(link.url)} size={12} color={T.ui.text.secondary} />
               {editingId === link.id ? (
                 <TextInput
                   value={editUrl}
                   onChange={setEditUrl}
                   onKeyDown={e => {
                     if (e.key === "Enter") confirmEdit();
-                    if (e.key === "Escape") { setEditingId(null); setEditUrl(""); }
+                    // stopPropagation: Esc cancels the edit only — it must not
+                    // also reach MenuPanel's Esc and close the whole editor.
+                    if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); setEditUrl(""); }
                   }}
                   placeholder="https://..."
+                  label="Editar URL del link"
                   type="url"
                   mono
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, height: T.ui.size.control }}
                 />
               ) : (
                 <span style={{
-                  fontFamily: T.font.mono, fontSize: 9, color: T.text.muted, flex: 1,
+                  ...T.type.value, color: T.ui.text.secondary, flex: 1, minWidth: 0,
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   {PLATFORM_LABELS[detectPlatform(link.url)]} · {link.url.replace(/^https?:\/\/(www\.)?/, "")}
                 </span>
               )}
               {editingId === link.id ? (
-                <button
-                  title="Confirmar"
-                  onClick={confirmEdit}
-                  onMouseDown={e => e.stopPropagation()}
-                  style={{ background: "transparent", border: "none", color: T.text.secondary, fontSize: 12, cursor: "pointer", padding: "0 2px" }}
-                >✓</button>
+                <IconButton icon="check" aria-label="Confirmar cambio" title="Confirmar" onClick={confirmEdit} />
               ) : (
-                <button
-                  title="Editar"
-                  onClick={() => startEdit(link)}
-                  onMouseDown={e => e.stopPropagation()}
-                  style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 11, cursor: "pointer", padding: "0 2px" }}
-                >✎</button>
+                <IconButton icon="pencil" aria-label={`Editar link de ${PLATFORM_LABELS[detectPlatform(link.url)]}`} title="Editar" onClick={() => startEdit(link)} />
               )}
-              <button
-                title="Eliminar"
-                onClick={() => removeLink(link.id)}
-                onMouseDown={e => e.stopPropagation()}
-                style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 14, cursor: "pointer", lineHeight: 1, padding: "0 2px" }}
-              >×</button>
+              <IconButton icon="close" tone="danger" aria-label={`Eliminar link de ${PLATFORM_LABELS[detectPlatform(link.url)]}`} title="Eliminar" onClick={() => removeLink(link.id)} />
             </div>
           ))}
         </div>
@@ -136,20 +124,13 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
             onChange={setNewUrl}
             onKeyDown={e => e.key === "Enter" && addLink()}
             placeholder="instagram.com/usuario, github.com/user…"
+            label="URL del link nuevo"
             type="url"
             mono
             style={{ flex: 1 }}
           />
-          <button
-            onClick={addLink}
-            onMouseDown={e => e.stopPropagation()}
-            style={{
-              height: T.comp.inputH, padding: "0 12px",
-              background: T.surface.raised, border: `1px solid ${T.border.default}`,
-              borderRadius: T.radius.md, color: T.text.secondary, fontFamily: T.font.mono,
-              fontSize: 12, cursor: "pointer", flexShrink: 0,
-            }}
-          >+</button>
+          <IconButton icon="plus" aria-label="Agregar link" title="Agregar" onClick={addLink}
+            size={T.comp.inputH} className="mn-iconbtn--filled" />
         </div>
       )}
 

@@ -314,10 +314,10 @@ function StatsCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <MenuPanel pos={portalPos} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
+        <MenuPanel pos={portalPos} label="Editor de Stats" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
 
           {/* Header */}
-          <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.12em", color: T.text.muted, textTransform: "uppercase", paddingBottom: T.space[3], marginBottom: T.space[2] }}>
+          <div style={{ ...T.type.title, color: T.ui.text.primary, paddingBottom: T.space[3], marginBottom: T.space[2] }}>
             Stats
           </div>
 
@@ -336,10 +336,10 @@ function StatsCardWidget({
                     transition: "all 0.12s ease",
                   }}
                 >
-                  <span style={{ fontFamily: T.font.mono, fontSize: T.size.xs, color: block.visible ? T.text.secondary : T.text.muted, letterSpacing: "0.05em" }}>
+                  <span style={{ fontFamily: T.font.mono, fontSize: T.size.xs, color: block.visible ? T.text.secondary : T.ui.text.secondary, letterSpacing: "0.05em" }}>
                     {getStatLabel(block)}
                   </span>
-                  <span style={{ fontFamily: T.font.mono, fontSize: T.size.sm, color: block.visible ? T.text.primary : T.text.muted, fontWeight: 600 }}>
+                  <span style={{ fontFamily: T.font.mono, fontSize: T.size.sm, color: block.visible ? T.text.primary : T.ui.text.tertiary, fontWeight: 600 }}>
                     {fmtNum(getStatValue(block.id))}
                   </span>
                 </div>
@@ -347,7 +347,7 @@ function StatsCardWidget({
             </div>
 
             <div style={{ marginTop: T.space[3] }}>
-              <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase", marginBottom: T.space[2] }}>
+              <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[2] }}>
                 Diseño
               </div>
               <div style={{ display: "flex", gap: T.space[1] }}>
@@ -361,7 +361,7 @@ function StatsCardWidget({
                       textTransform: "uppercase" as const,
                       border: layout === l ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
                       background: layout === l ? T.surface.overlay : T.surface.input,
-                      color: layout === l ? T.text.primary : T.text.muted,
+                      color: layout === l ? T.text.primary : T.ui.text.secondary,
                     }}
                   >{l}</button>
                 ))}
@@ -449,7 +449,7 @@ function StatsCardWidget({
               onChange={v => updateCard(card.id, { textSize: v })}
               unit="px" />
             <div style={{ marginTop: T.space[2] }}>
-              <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
+              <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>
                 Fuente
               </div>
               <div style={{ display: "flex", flexWrap: "wrap" as const, gap: T.space[1], maxHeight: 120, overflowY: "auto" }}>
@@ -462,7 +462,7 @@ function StatsCardWidget({
                       fontFamily: f.style, fontSize: T.size.xs,
                       border: (card.font ?? "Space Mono") === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
                       background: (card.font ?? "Space Mono") === f.key ? T.surface.overlay : T.surface.input,
-                      color: (card.font ?? "Space Mono") === f.key ? T.text.primary : T.text.muted,
+                      color: (card.font ?? "Space Mono") === f.key ? T.text.primary : T.ui.text.secondary,
                     }}
                   >{f.label}</button>
                 ))}
@@ -480,7 +480,7 @@ function StatsCardWidget({
             const anyGlow = !!(glow?.outer || glow?.inner);
             return (
               <MenuSection label="Efectos">
-                <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Glow</div>
+                <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Glow</div>
                 <MenuRow label="Exterior">
                   <Toggle value={!!glow?.outer} onChange={v => patchGlow({ outer: v })} />
                 </MenuRow>
@@ -496,7 +496,7 @@ function StatsCardWidget({
                 </>)}
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Sombra</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Sombra</div>
                   <MenuRow label="Color">
                     <ColorSwatch value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} />
                   </MenuRow>
@@ -505,7 +505,7 @@ function StatsCardWidget({
                 </div>
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Borde</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Borde</div>
                   <MenuRow label="Color">
                     <ColorSwatch value={bord?.color ?? "#ffffff"} onChange={v => patchBorder({ color: v })}
                       clearable={!!bord?.color} onClear={() => patchBorder({ color: undefined })} />
@@ -525,9 +525,9 @@ function StatsCardWidget({
               const inter = card.effects?.interactions;
               const anim  = card.effects?.animations;
               return (<>
-                <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Flotación</div>
+                <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Flotación</div>
                 <MenuRow label="Activar">
-                  <Toggle value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} />
+                  <Toggle label="Activar flotación" value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} />
                 </MenuRow>
                 {anim?.floating && (<>
                   <SliderRow label="Altura" min={2} max={24} step={1}
@@ -537,9 +537,9 @@ function StatsCardWidget({
                 </>)}
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Inclinación 3D</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Inclinación 3D</div>
                   <MenuRow label="Activar">
-                    <Toggle value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} />
+                    <Toggle label="Activar inclinación 3D" value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} />
                   </MenuRow>
                   {inter?.tilt3d && (
                     <SliderRow label="Intensidad" min={1} max={15} step={0.5}
@@ -548,9 +548,9 @@ function StatsCardWidget({
                 </div>
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Spotlight</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Spotlight</div>
                   <MenuRow label="Activar">
-                    <Toggle value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} />
+                    <Toggle label="Activar spotlight" value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} />
                   </MenuRow>
                   {inter?.spotlight && (<>
                     <MenuRow label="Color">
@@ -564,7 +564,7 @@ function StatsCardWidget({
                 </div>
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Hover</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Hover</div>
                   <MenuRow label="Glow al pasar">
                     <Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} />
                   </MenuRow>

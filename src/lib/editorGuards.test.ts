@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isEditableElement, isInsideEditor, shouldSkipCanvasShortcut, isEventFromNode, isEditorOpen, EDITOR_ATTR, type GuardElement } from "./editorGuards";
+import { isEditableElement, isInsideEditor, shouldSkipCanvasShortcut, isEventFromNode, isEditorOpen, EDITOR_ATTR, EDITOR_UI_ATTR, type GuardElement } from "./editorGuards";
 
 function el(tagName: string, opts: { editable?: boolean; inEditor?: boolean } = {}): GuardElement {
   return {
     tagName,
     isContentEditable: !!opts.editable,
-    closest: (sel: string) => (opts.inEditor && sel === `[${EDITOR_ATTR}]` ? {} : null),
+    closest: (sel: string) => (opts.inEditor && sel.split(",").map(x => x.trim()).includes(`[${EDITOR_ATTR}]`) ? {} : null),
   };
 }
 
@@ -63,4 +63,16 @@ test("isEditorOpen: any mounted data-mnemo-editor root counts, regardless of foc
   assert.equal(isEditorOpen({ querySelector: (s: string) => (s === `[${EDITOR_ATTR}]` ? {} : null) }), true);
   assert.equal(isEditorOpen({ querySelector: () => null }), false);
   assert.equal(isEditorOpen(null), false);
+});
+
+test("Block 2 review: [data-mnemo-ui] (MyLand / + menu) is editor territory for shortcuts, not for isEditorOpen", () => {
+  const inUi: GuardElement = {
+    tagName: "BUTTON",
+    closest: (sel: string) => (sel.split(",").map(x => x.trim()).includes(`[${EDITOR_UI_ATTR}]`) ? {} : null),
+  };
+  assert.equal(isInsideEditor(inUi), true);
+  assert.equal(shouldSkipCanvasShortcut(inUi, null), true, "a focused well/button in MyLand must not let Backspace delete");
+  assert.equal(shouldSkipCanvasShortcut(null, inUi), true);
+  // isEditorOpen keeps looking for panel roots only.
+  assert.equal(isEditorOpen({ querySelector: (s: string) => (s === `[${EDITOR_UI_ATTR}]` ? {} : null) }), false);
 });

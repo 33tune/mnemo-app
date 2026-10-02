@@ -81,9 +81,10 @@ export default function RoleTypographyFields({
   return (
     <MenuSection label={label} first={first}>
       <div style={{ opacity: gradientOn ? 0.4 : 1, pointerEvents: gradientOn ? "none" : undefined }}>
-        <ColorRow label="Color" value={color} onChange={onColorChange} clearable={hasColorOverride} onClear={onColorClear} />
+        <ColorRow label="Color" value={color} onChange={onColorChange} clearable={hasColorOverride} onClear={onColorClear}
+          state={hasColorOverride ? "modified" : "inherited"} onReset={onColorClear} />
       </div>
-      <FontSelect value={font} onChange={v => onFontChange(v as TextFont)} fonts={CANVAS_FONTS} />
+      <FontSelect value={font} onChange={v => onFontChange(v as TextFont)} fonts={CANVAS_FONTS} label={`Fuente: ${label}`} />
       <SliderRow label="Tamaño" min={fontSizeMin} max={fontSizeMax} step={1} value={fontSize} unit="px" onChange={onFontSizeChange} />
 
       <Collapsible label="Avanzado">

@@ -36,6 +36,19 @@ interface ProfileIdentityMenuProps {
 export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor, onChange }: ProfileIdentityMenuProps) {
   const { photo, name, handle, photoSize, pfpSizePx, pfpRadius } = card;
   const [editingName, setEditingName] = useState(false);
+  // Review round (A11Y-2): Enter commits / Esc cancels (restores the name
+  // the field opened with); both hand focus back to the name button.
+  const nameAtEdit = useRef<string>("");
+  const nameBtnRef = useRef<HTMLDivElement>(null);
+  function openNameEdit() {
+    nameAtEdit.current = name ?? "";
+    setEditingName(true);
+  }
+  function closeNameEdit(cancel: boolean) {
+    if (cancel && (name ?? "") !== nameAtEdit.current) onChange({ name: nameAtEdit.current });
+    setEditingName(false);
+    requestAnimationFrame(() => nameBtnRef.current?.focus({ preventScroll: true }));
+  }
   const photoRef = useRef<HTMLInputElement>(null);
   const { min: sizeMin, max: sizeMax } = getPfpSizeBounds(cardW, cardH, pad);
   const currentSize = resolvePfpSize(photoSize, pfpSizePx, cardW, cardH, pad);
@@ -123,7 +136,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
           onChange={v => onChange({ pfpSizePx: v })} />
 
         <SliderRow label="Forma" min={0} max={100} step={1} value={pfpRadius ?? 100} unit="%"
-          fmt={v => pfpRadiusToPercent(v) === 50 ? "○" : pfpRadiusToPercent(v) === 0 ? "□" : `${Math.round(v)}%`}
+          fmt={v => pfpRadiusToPercent(v) === 50 ? "círculo" : pfpRadiusToPercent(v) === 0 ? "cuadrado" : `${Math.round(v)}%`}
           onChange={v => onChange({ pfpRadius: v })} />
 
         {/* UX audit finding: this used to be called "Avanzado", same label
@@ -195,14 +208,22 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
             value={name}
             onChange={e => onChange({ name: e.target.value })}
             onBlur={() => setEditingName(false)}
-            onKeyDown={e => e.key === "Enter" && setEditingName(false)}
+            onKeyDown={e => {
+              if (e.key === "Enter") { e.preventDefault(); closeNameEdit(false); }
+              else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeNameEdit(true); }
+            }}
             onMouseDown={e => e.stopPropagation()}
             placeholder="nombre"
+            aria-label="Nombre"
+            className="mn-focusable"
             style={{ width: "100%", background: "transparent", color: T.text.primary, fontSize: 18, fontWeight: 600, fontFamily: T.font.sans, padding: "6px 0", borderBottom: `1px solid ${T.border.default}`, boxSizing: "border-box", outline: "none" }}
           />
         ) : (
-          <div onClick={() => setEditingName(true)}
-            style={{ fontSize: 18, fontWeight: 600, fontFamily: T.font.sans, color: name ? T.text.primary : T.text.muted, cursor: "text", padding: "6px 0", borderBottom: `1px solid ${T.border.subtle}` }}>
+          // Block 2: keyboard-operable (Tab + Enter/Space opens the field).
+          <div ref={nameBtnRef} onClick={openNameEdit}
+            role="button" tabIndex={0} aria-label={name ? `Nombre: ${name}. Editar` : "Editar nombre"} className="mn-focusable"
+            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openNameEdit(); } }}
+            style={{ fontSize: 18, fontWeight: 600, fontFamily: T.font.sans, color: name ? T.ui.text.primary : T.ui.text.tertiary, cursor: "text", padding: "6px 0", borderBottom: `1px solid ${T.ui.line.group}` }}>
             {name || "nombre"}
           </div>
         )}
@@ -210,7 +231,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
 
       <MenuSection label="Handle">
         <MenuRow>
-          <span style={{ fontFamily: T.font.mono, fontSize: T.size.sm, color: T.text.muted }}>@{handle}</span>
+          <span style={{ ...T.type.help, color: T.ui.text.secondary }}>@{handle}</span>
         </MenuRow>
       </MenuSection>
 

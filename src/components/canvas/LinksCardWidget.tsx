@@ -10,7 +10,7 @@ import { useCardInteractions } from "@/hooks/useCardInteractions";
 import CardLayers from "./CardLayers";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
-import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, Tabs, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
+import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, Tabs, ColorSwatch, TextInput, ActionButton, Divider, Collapsible, IconButton } from "@/ui";
 import { CANVAS_FONTS } from "@/lib/fontList";
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 
@@ -543,10 +543,10 @@ function LinksCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <MenuPanel pos={portalPos} onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
+        <MenuPanel pos={portalPos} label="Editor de Links" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
 
           {/* Header */}
-          <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.12em", color: T.text.muted, textTransform: "uppercase", paddingBottom: T.space[3], marginBottom: T.space[2] }}>
+          <div style={{ ...T.type.title, color: T.ui.text.primary, paddingBottom: T.space[3], marginBottom: T.space[2] }}>
             Links
           </div>
 
@@ -574,7 +574,7 @@ function LinksCardWidget({
                             onChange={setEditLabel}
                             onKeyDown={e => {
                               if (e.key === "Enter") confirmEdit();
-                              if (e.key === "Escape") { setEditingId(null); setEditUrl(""); setEditLabel(""); }
+                              if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); setEditUrl(""); setEditLabel(""); }
                             }}
                             placeholder="Texto del botón"
                           />
@@ -583,7 +583,7 @@ function LinksCardWidget({
                             onChange={setEditUrl}
                             onKeyDown={e => {
                               if (e.key === "Enter") confirmEdit();
-                              if (e.key === "Escape") { setEditingId(null); setEditUrl(""); setEditLabel(""); }
+                              if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); setEditUrl(""); setEditLabel(""); }
                             }}
                             placeholder="https://..."
                             type="url"
@@ -596,7 +596,7 @@ function LinksCardWidget({
                           onChange={setEditUrl}
                           onKeyDown={e => {
                             if (e.key === "Enter") confirmEdit();
-                            if (e.key === "Escape") { setEditingId(null); setEditUrl(""); }
+                            if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); setEditUrl(""); }
                           }}
                           placeholder="https://..."
                           type="url"
@@ -606,40 +606,23 @@ function LinksCardWidget({
                       )
                     ) : (
                       <span style={{
-                        fontFamily: T.font.mono, fontSize: 9, color: T.text.muted, flex: 1,
+                        ...T.type.value, color: T.ui.text.secondary, flex: 1, minWidth: 0,
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
                         {link.kind === "button" ? link.label : link.url.replace(/^https?:\/\/(www\.)?/, "")}
                       </span>
                     )}
                     {link.x !== undefined && editingId !== link.id && (
-                      <button
-                        title="Restablecer posición"
-                        onClick={() => updateCard(card.id, { links: (card.links ?? []).map(l => l.id === link.id ? { ...l, x: undefined, y: undefined } : l) })}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 10, cursor: "pointer", padding: "0 2px" }}
-                      >⊙</button>
+                      <IconButton icon="reset" aria-label="Restablecer posición"
+                        onClick={() => updateCard(card.id, { links: (card.links ?? []).map(l => l.id === link.id ? { ...l, x: undefined, y: undefined } : l) })} />
                     )}
                     {editingId === link.id ? (
-                      <button
-                        title="Confirmar"
-                        onClick={confirmEdit}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{ background: "transparent", border: "none", color: T.text.secondary, fontSize: 12, cursor: "pointer", padding: "0 2px" }}
-                      >✓</button>
+                      <IconButton icon="check" aria-label="Confirmar cambio" title="Confirmar" onClick={confirmEdit} />
                     ) : (
-                      <button
-                        title="Editar"
-                        onClick={() => startEdit(link)}
-                        onMouseDown={e => e.stopPropagation()}
-                        style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 11, cursor: "pointer", padding: "0 2px" }}
-                      >✎</button>
+                      <IconButton icon="pencil" aria-label="Editar link" title="Editar" onClick={() => startEdit(link)} />
                     )}
-                    <button
-                      onClick={() => updateCard(card.id, { links: (card.links ?? []).filter(l => l.id !== link.id) })}
-                      onMouseDown={e => e.stopPropagation()}
-                      style={{ background: "transparent", border: "none", color: T.text.muted, fontSize: 14, cursor: "pointer", lineHeight: 1, padding: "0 2px" }}
-                    >×</button>
+                    <IconButton icon="close" tone="danger" aria-label="Eliminar link" title="Eliminar"
+                      onClick={() => updateCard(card.id, { links: (card.links ?? []).filter(l => l.id !== link.id) })} />
                   </div>
                 ))}
               </div>
@@ -649,7 +632,8 @@ function LinksCardWidget({
             {(card.links ?? []).length < 12 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <Tabs
-                  tabs={[{ id: "icon", label: "Icon Link" }, { id: "button", label: "Button Link" }]}
+                  tabs={[{ id: "icon", label: "Link de ícono" }, { id: "button", label: "Link de botón" }]}
+                  label="Tipo de link"
                   active={addKind}
                   onChange={v => setAddKind(v as "icon" | "button")}
                 />
@@ -671,16 +655,8 @@ function LinksCardWidget({
                     mono
                     style={{ flex: 1 }}
                   />
-                  <button
-                    onClick={addLink}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{
-                      height: T.comp.inputH, padding: "0 12px",
-                      background: T.surface.raised, border: `1px solid ${T.border.default}`,
-                      borderRadius: T.radius.md, color: T.text.secondary, fontFamily: T.font.mono,
-                      fontSize: 12, cursor: "pointer", flexShrink: 0,
-                    }}
-                  >+</button>
+                  <IconButton icon="plus" aria-label="Agregar link" title="Agregar" onClick={addLink}
+                    size={T.comp.inputH} className="mn-iconbtn--filled" />
                 </div>
               </div>
             )}
@@ -774,21 +750,23 @@ function LinksCardWidget({
               onChange={v => updateCard(card.id, { iconGap: v })}
               unit="px" />
             <div style={{ marginTop: T.space[2] }}>
-              <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
+              <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>
                 Orientación
               </div>
               <Tabs
                 tabs={[{ id: "horizontal", label: "Horizontal" }, { id: "vertical", label: "Vertical" }]}
+                label="Orientación"
                 active={orientation}
                 onChange={v => updateCard(card.id, { iconOrientation: v as "horizontal" | "vertical" })}
               />
             </div>
             <div style={{ marginTop: T.space[3] }}>
-              <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
+              <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>
                 Mostrar
               </div>
               <Tabs
                 tabs={[{ id: "icons", label: "Solo íconos" }, { id: "icons-text", label: "Íconos + texto" }]}
+                label="Mostrar"
                 active={displayMode}
                 onChange={v => updateCard(card.id, { displayMode: v as "icons" | "icons-text" })}
               />
@@ -800,7 +778,7 @@ function LinksCardWidget({
                   onChange={v => updateCard(card.id, { textSize: v })}
                   unit="px" />
                 <div style={{ marginTop: T.space[2] }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>
                     Fuente
                   </div>
                   <div style={{ display: "flex", gap: T.space[1], flexWrap: "wrap" as const, maxHeight: 120, overflowY: "auto" }}>
@@ -810,7 +788,7 @@ function LinksCardWidget({
                           padding: `${T.space[1]}px ${T.space[2]}px`, borderRadius: T.radius.xs, cursor: "pointer",
                           border: card.font === f.key ? `1px solid ${T.border.strong}` : `1px solid ${T.border.subtle}`,
                           background: card.font === f.key ? T.surface.overlay : T.surface.input,
-                          color: card.font === f.key ? T.text.primary : T.text.muted,
+                          color: card.font === f.key ? T.text.primary : T.ui.text.secondary,
                           fontFamily: f.style, fontSize: T.size.xs, letterSpacing: "0.02em",
                         }}
                       >{f.label}</button>
@@ -831,7 +809,7 @@ function LinksCardWidget({
             const anyGlow = !!(glow?.outer || glow?.inner);
             return (
               <MenuSection label="Efectos">
-                <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Glow</div>
+                <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Glow</div>
                 <MenuRow label="Exterior">
                   <Toggle value={!!glow?.outer} onChange={v => patchGlow({ outer: v })} />
                 </MenuRow>
@@ -847,7 +825,7 @@ function LinksCardWidget({
                 </>)}
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Sombra</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Sombra</div>
                   <MenuRow label="Color">
                     <ColorSwatch value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} />
                   </MenuRow>
@@ -856,7 +834,7 @@ function LinksCardWidget({
                 </div>
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Borde</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Borde</div>
                   <MenuRow label="Color">
                     <ColorSwatch value={bord?.color ?? "#ffffff"} onChange={v => patchBorder({ color: v })}
                       clearable={!!bord?.color} onClear={() => patchBorder({ color: undefined })} />
@@ -876,9 +854,9 @@ function LinksCardWidget({
               const inter = card.effects?.interactions;
               const anim  = card.effects?.animations;
               return (<>
-                <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Flotación</div>
+                <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Flotación</div>
                 <MenuRow label="Activar">
-                  <Toggle value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} />
+                  <Toggle label="Activar flotación" value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} />
                 </MenuRow>
                 {anim?.floating && (<>
                   <SliderRow label="Altura" min={2} max={24} step={1}
@@ -888,9 +866,9 @@ function LinksCardWidget({
                 </>)}
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Inclinación 3D</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Inclinación 3D</div>
                   <MenuRow label="Activar">
-                    <Toggle value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} />
+                    <Toggle label="Activar inclinación 3D" value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} />
                   </MenuRow>
                   {inter?.tilt3d && (
                     <SliderRow label="Intensidad" min={1} max={15} step={0.5}
@@ -899,9 +877,9 @@ function LinksCardWidget({
                 </div>
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Spotlight</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Spotlight</div>
                   <MenuRow label="Activar">
-                    <Toggle value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} />
+                    <Toggle label="Activar spotlight" value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} />
                   </MenuRow>
                   {inter?.spotlight && (<>
                     <MenuRow label="Color">
@@ -915,7 +893,7 @@ function LinksCardWidget({
                 </div>
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
-                  <div style={{ fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.08em", color: T.text.muted, textTransform: "uppercase" as const, marginBottom: T.space[1] }}>Hover</div>
+                  <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Hover</div>
                   <MenuRow label="Glow al pasar">
                     <Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} />
                   </MenuRow>

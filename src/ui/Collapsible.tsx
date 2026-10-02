@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { T } from "./tokens";
+import { Icon } from "./icons";
 
 interface CollapsibleProps {
   label:        string;
@@ -8,45 +9,54 @@ interface CollapsibleProps {
   defaultOpen?: boolean;
 }
 
+// Block 2: disclosure with aria-expanded/aria-controls; the body animates
+// open/closed via grid-template-rows 0fr -> 1fr (220ms, editor.css
+// .mn-collapse__body; reduced motion: instant). The body stays mounted so
+// it can animate, and is `inert` while closed — not focusable, not read by
+// screen readers. Open state is still local and not remembered (Block 3
+// owns persistence).
 export function Collapsible({ label, children, defaultOpen = false }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const bodyId = useId();
+  const btnId = useId();
   return (
     <div style={{ marginTop: T.space[4] }}>
       <button
+        type="button"
+        aria-expanded={open}
+        id={btnId}
+        aria-controls={bodyId}
+        className="mn-collapse__btn"
         onMouseDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
         style={{
           display:        "flex",
           alignItems:     "center",
-          justifyContent: "space-between",
+          gap:            T.space[1],
           width:          "100%",
-          padding:        `${T.space[2]}px 0`,
+          minHeight:      T.ui.size.row,
+          padding:        0,
           background:     "transparent",
           border:         "none",
-          borderTop:      `1px solid ${T.border.subtle}`,
+          // Top hairline + focus ring: editor.css (.mn-collapse__btn).
+          borderRadius:   0,
           cursor:         "pointer",
           userSelect:     "none",
+          textAlign:      "left",
         }}
       >
-        <span style={{
-          fontFamily:    T.font.mono,
-          fontSize:      T.size.label,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color:         open ? T.text.secondary : T.text.muted,
-          transition:    "color 0.12s",
-        }}>
-          {label}
+        <span className="mn-collapse__chev" style={{ display: "inline-flex" }}>
+          <Icon name="chevron-right" size={12} />
         </span>
-        <svg width="10" height="10" viewBox="0 0 10 10" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s ease", flexShrink: 0 }}>
-          <path d="M1 3L5 7L9 3" stroke={T.text.muted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        </svg>
+        <span style={{ ...T.type.section, color: "inherit" }}>{label}</span>
       </button>
-      {open && (
-        <div style={{ display: "flex", flexDirection: "column", gap: T.space[2], paddingTop: T.space[3] }}>
-          {children}
+      <div id={bodyId} role="group" aria-labelledby={btnId} className="mn-collapse__body" data-open={open} inert={!open}>
+        <div className="mn-collapse__inner">
+          <div style={{ display: "flex", flexDirection: "column", gap: T.space[2], paddingTop: T.space[2] }}>
+            {children}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

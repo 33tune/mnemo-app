@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { T } from "./tokens";
+import { useFieldLabelId } from "./MenuRow";
 
 interface FontOption {
   key:    string;
@@ -16,27 +17,38 @@ interface FontSelectProps {
   value:    string;
   onChange: (v: string) => void;
   fonts:    FontOption[];
+  /** Accessible name; inside a labelled MenuRow the row label is used. */
+  label?:   string;
 }
 
 // Styled replacement for the raw <select> ProfileTypographyMenu used to
 // build inline (Fase 2: Personalization UI/UX) — kept generic (fonts passed
 // in, no @/lib/fontList dependency here) so @/ui stays decoupled from
 // app-level data.
-export function FontSelect({ value, onChange, fonts }: FontSelectProps) {
+// Block 2: still a native <select> (keyboard + screen reader support for
+// free), styled as an editor control (.mn-input .mn-select: 28px, radius 8,
+// hairline, custom chevron, focus ring). The closed select also renders the
+// CURRENT font in its own typeface — cheap, and it previews the choice.
+export function FontSelect({ value, onChange, fonts, label }: FontSelectProps) {
+  const labelledBy = useFieldLabelId();
+  const current = fonts.find(f => f.key === value);
   return (
     <select
       value={value}
+      className="mn-input mn-select"
+      aria-label={label ?? (labelledBy ? undefined : "Fuente")}
+      aria-labelledby={label ? undefined : labelledBy}
       onChange={e => onChange(e.target.value)}
       onMouseDown={e => e.stopPropagation()}
       style={{
-        background: "transparent", border: `1px solid ${T.border.default}`,
-        borderRadius: T.radius.sm, padding: "4px 8px", outline: "none",
-        color: T.text.secondary, fontSize: T.size.sm, fontFamily: T.font.sans,
-        cursor: "pointer", width: "100%",
+        height: T.ui.size.control, padding: "0 10px", boxSizing: "border-box",
+        ...T.type.label, lineHeight: "normal",
+        fontFamily: current?.style ?? T.font.sans,
+        width: "100%",
       }}
     >
       {fonts.map(f => (
-        <option key={f.key} value={f.key} style={{ background: T.surface.base, fontFamily: f.style ?? T.font.sans }}>{f.label}</option>
+        <option key={f.key} value={f.key} style={{ fontFamily: f.style ?? T.font.sans }}>{f.label}</option>
       ))}
     </select>
   );
