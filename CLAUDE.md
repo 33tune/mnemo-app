@@ -5,6 +5,512 @@ sesión nueva debe leerlo y verificar el estado real del repo (git log, código)
 antes de escribir código — no asumir que lo implementado coincide con lo
 planeado acá hasta confirmarlo.
 
+## MNEMO — CURRENT PROJECT CHECKPOINT
+
+**Checkpoint actualizado el 2026-10-02, al cerrar la propuesta de Menu
+Design Refinement.** Esta sección es la fuente de verdad vigente sobre el
+estado del proyecto. Donde contradiga secciones más viejas de este archivo,
+en particular "La próxima sesión" al final, que todavía apunta a Responsive
+como próximo paso, manda esta sección.
+
+### Estado actual
+
+- **Proyecto:** MNEMO / MyLand. **Branch principal:** `main`.
+- **Último commit estable: `ae8d8ea`** (Block 2), pusheado a `origin/main`.
+  Verificado el 2026-10-02 contra el remoto:
+  `main -> ae8d8ea -> origin/main`.
+- **Block 2 está TERMINADO.**
+- **Verificación sobre `ae8d8ea`, corrida el 2026-10-02:**
+  - `npm test`: 358/358.
+  - `npx tsc --noEmit --incremental false`: limpio.
+  - `npx next build`: limpio.
+- **Working tree:** solo hay dos cambios sin commitear, ambos conocidos.
+  - `CLAUDE.md`: esta sección de checkpoint. Hay que preservarla.
+  - `.claude/settings.local.json`: permisos locales.
+  - Ningún cambio de código sin commitear.
+  - `next-env.d.ts` puede aparecer modificado de forma transitoria al
+    correr `next dev`/`next build`, porque Next lo regenera. No es trabajo
+    del equipo.
+- **Etapa actual:** Menu Design Refinement. La propuesta está aprobada y
+  las decisiones del usuario (O1–O4) ya están tomadas. **La Iteración 0
+  todavía NO empezó.** Ver "Orden de implementación".
+- **`.claude/settings.local.json` NO entra nunca en commits.** Commitear
+  siempre con `git add -A -- . ':!.claude/settings.local.json'` o agregando
+  rutas explícitas.
+
+### Blocks completados (rediseño del editor de personalización)
+
+**Block 1: corrección crítica, estado y seguridad de interacción.**
+- Terminado y pusheado. Commit `acda388`.
+- **Seguridad de teclado:** guard de teclado sobre `[data-mnemo-editor]`
+  (`src/lib/editorGuards.ts`).
+- **Aislamiento de eventos:** los eventos del panel no mueven la card.
+- **Pausa de efectos:** modelo de pausa `effects.paused`
+  (`src/lib/effectPause.ts`). Pausar ≠ borrar.
+- **Estado efectivo:** los menús leen el valor efectivo y escriben el raw
+  (`src/lib/effectEditorDefaults.ts`, con test de paridad).
+- **Una propiedad, un dueño:** se eliminó "Fuente general". Un solo
+  "Interlineado de textos secundarios". El color de Ubicación/Views tiene
+  como dueño a TEXTO.
+- **Varios:** Gallery salió del menú `+`. El fondo de MyLand ya no borra el
+  wallpaper.
+
+**Block 2: infraestructura visual y controles compartidos.**
+- Terminado y pusheado. Commit `ae8d8ea`.
+- **Tokens:** `T.ui`, `T.type`, `T.motion` y `T.z` en `src/ui/tokens.ts`.
+  Los tokens viejos se mantienen porque las cards renderizan con ellos.
+- **`src/ui/editor.css`:** scope `[data-mnemo-editor]`/`[data-mnemo-ui]`,
+  importado una sola vez desde `src/app/layout.tsx`.
+- **Íconos:** set SVG en `src/ui/icons` + `IconButton`. Reemplazó los
+  glifos unicode de los menús.
+- **Controles:**
+  - switch accesible;
+  - slider con valor editable;
+  - tabs y segmented con flechas;
+  - Collapsible animado;
+  - color well + `ColorPopover` con alpha;
+  - `GradientBar`.
+- **Estados de campo:** modificado/heredado con reset que borra la key.
+- **Panel:** `MenuPanel` con `role="dialog"` y devolución de foco.
+- **Helpers puros con tests:** `src/lib/colorModel.ts` y
+  `src/lib/uiNumeric.ts`.
+- **Revisión:** la hicieron el Visual/UI Designer, el UX Critic y el
+  Accessibility Reviewer sobre el código real. **Se corrigieron los 31
+  hallazgos.** Tests, `tsc` y build limpios.
+- **Decisión deliberada:** DM Sans 600 NO se carga. Cambiaría el render de
+  perfiles existentes: el Nombre en DM Sans pide 700 y pasaría de bold
+  sintético al peso real. Por eso el título del editor usa 500. Ver el
+  comentario en `tokens.ts`.
+- **Spec del rediseño:** el Design Review Final del editor está en
+  https://claude.ai/code/artifact/2a81416c-9e43-4364-88f2-d5eaa8c8bbd2.
+  Es la decisión de diseño del equipo, no una spec inmutable.
+
+### Backup de recuperación
+
+- **Branch local:** `recovery/block2-wip`.
+- **Commit WIP:** `04f8543eab2f97e770f82795c9904fcc2a4a1725`, con padre
+  `acda388`. Nunca fue pusheado.
+- **Qué guarda:** se creó como respaldo del trabajo parcial de Block 2.
+  `ae8d8ea` ya contiene el trabajo terminado.
+- **Eliminación:** la branch se puede borrar cuando se considere seguro con
+  `git branch -D recovery/block2-wip`, siempre con confirmación del usuario.
+- **No hacer checkout** de esa branch sobre un working tree con cambios.
+
+### Historial de recuperación (por qué existe `recovery/block2-wip`)
+
+- **El corte:** el 2026-10-01, el primer ingeniero de Block 2 se detuvo a
+  mitad del bloque por el **session limit de Claude**. No fue un error
+  técnico ni el corte de luz posterior.
+- **Qué sobrevivió:** su trabajo quedó intacto en el working tree. Una
+  auditoría read-only lo verificó byte a byte contra su transcript.
+- **El backup:** se hizo con un índice temporal (`GIT_INDEX_FILE` +
+  `write-tree` + `commit-tree` + `update-ref`), sin cambiar de branch. Hacer
+  checkout de la WIP y volver a `main` habría borrado los archivos nuevos
+  del working tree.
+- **El cierre:** un ingeniero de continuación completó Block 2 desde ese
+  working tree, sin rehacerlo. Después vinieron la review, las correcciones,
+  el commit y el push de `ae8d8ea`.
+
+### Decisiones de producto que no deben perderse
+
+**Alcance del producto**
+- ProfileCard es el núcleo del producto.
+- Music es un elemento independiente del canvas.
+- Las imágenes y decoraciones siguen siendo elementos visuales separados.
+- **No reintroducir:**
+  - SocialCard ni StatsCard standalone;
+  - Guestbook ni Gallery como módulos;
+  - Analytics;
+  - Favorites;
+  - ninguna otra feature ya descartada del roadmap.
+- Stats queda limitado a Views.
+- No estilos prearmados.
+
+**Personalización**
+- No presets visuales (Minimal / Glass / Creator ni ningún otro, visibles o
+  "invisibles").
+- No perfiles genéricos generados por IA.
+- No inline editing por ahora. Click en el canvas puede seleccionar o
+  enfocar, pero la edición pasa por el panel.
+- Mantener la personalización profunda. Progressive disclosure sí,
+  eliminación de capacidades no. Los controles avanzados siguen existiendo.
+- No sacrificar capacidades para simplificar la interfaz.
+- Background independiente por elemento/módulo.
+- La opacidad afecta solamente al background, nunca al contenido.
+- Efectos granulares mediante sliders, no presets.
+
+**Estética del editor**
+- Puede usar estética glass/translucent inspirada en principios de
+  iOS/macOS, sin ser un clon. "Glass" es la estética del EDITOR; **no es un
+  preset de perfil**.
+- La dirección visual aprobada es **"Darkroom" ("Cuarto oscuro")**: editor
+  monocromático, con vidrio solo en el chrome y el header. Refina el
+  "vidrio ahumado, cuerpo sólido" de Block 2. Ver "Dirección UX/UI
+  aprobada".
+- Objetivo: un editor creativo premium, moderno, minimalista, profesional y
+  con personalidad.
+
+### Menu Design Refinement: cómo se decidió
+
+**Block 2 creó la infraestructura, pero el diseño de los menús NO está
+terminado.** El 2026-10-02 el equipo especializado hizo la auditoría y la
+propuesta de Menu Design Refinement. No se implementó nada todavía.
+
+**Proceso:**
+1. **Seis auditorías independientes sobre el código real:**
+   - UX Lead / IA;
+   - Interaction Designer;
+   - Visual/UI Designer;
+   - Design Systems;
+   - UX Critic;
+   - Accessibility Reviewer.
+2. **Debate entre roles sobre 10 puntos en disputa.** El UX Lead tuvo la
+   decisión final de estructura y el Critic poder de bloqueo con evidencia.
+3. **Propuesta consolidada.**
+4. **Decisiones finales del usuario sobre O1–O4.**
+
+**Límite de la auditoría:** todo se juzgó leyendo el código. No hubo
+navegador manejable (ni Claude in Chrome ni Playwright). Solo se renderizó
+un mock estático con Edge headless.
+
+**Dónde están los reportes completos:** en el scratchpad de la sesión del
+2026-10-02, que es temporal y puede no sobrevivir:
+- `mdr_*.md`;
+- `mdr_pos_*.md`;
+- `mdr_decision.md`.
+
+Lo que hace falta para continuar está resumido acá. El Design Review Final
+anterior sigue en
+https://claude.ai/code/artifact/2a81416c-9e43-4364-88f2-d5eaa8c8bbd2.
+
+**Principio:** `same grammar, different vocabulary`. Todos los objetos
+comparten una gramática, y cada uno tiene su propio vocabulario.
+
+### Dirección UX/UI aprobada (decisión de producto)
+
+**Estructura**
+- **Inspector lateral acoplado a la derecha**, de unos 320px y colapsable.
+  - Es un landmark `<aside>` con un h2 visible (el nombre del objeto). Al
+    abrir, el foco va al h2; Esc lo devuelve a "Editar".
+  - En pantallas angostas o con zoom pasa a ser un overlay modal.
+  - Cambia de contenido según la selección.
+  - **No escribe nunca `card.x`/`card.y`.** Si la card queda tapada, se
+    compensa solo con un offset de vista.
+  - Ya no se mueve cuando la card crece.
+- **Botón "Editar" real** en lugar del engranaje `div` de 20px.
+- **ProfileCard: facetas `Contenido / Fondo / Texto / Efectos`.**
+  - Usan tabs APG con tabpanel y un header fijo al scrollear.
+  - No se desmontan: el estado abierto y el scroll se recuerdan por objeto
+    durante la sesión.
+  - Cada faceta tiene "Abrir todo".
+  - No hay faceta "Layout": posición y tamaño se hacen arrastrando.
+- **Filas resumen.**
+  - Patrón APG Disclosure: un botón con `aria-expanded`, y el switch al
+    lado del botón, nunca dentro.
+  - El resumen se muestra en texto, en este orden: estado → valor principal
+    → resto. El estado nunca se trunca.
+  - Hay un solo nivel de detalle más **"Más ajustes"** inline.
+  - Profundidad máxima: faceta + fila + Más ajustes.
+- **Efectos agrupados por lo que se ve:** Borde y sombra · Brillo (Glow +
+  Pulso + Al pasar) · Movimiento · Retro.
+  - Arriba va un radiogroup "Alcance: Card | Foto".
+  - Los efectos de la foto salen de Contenido. Usan las mismas paths
+    `effects.pfp.*`, así que no hay migración.
+  - El radio de esquinas pasa a Fondo › Forma.
+  - Borde NO lleva switch mientras no exista una pausa real para borde en
+    `effectPause` (con test). Un ancho de 0 se muestra como "Sin borde".
+- **Music:** facetas Pista · Fondo · Texto · Efectos.
+- **Imagen:** el mismo inspector, sin facetas. Lleva header "Imagen" y
+  filas Forma · Capa (Fondo/Medio/Frente) · Link, con Bloquear y Eliminar en
+  el menú ⋯. En el canvas solo quedan los handles, más una toolbar APG de
+  botones reales.
+- **Espacio (MyLand):** sale del menú `+` y pasa al mismo shell.
+
+**Estados y acciones**
+- **Heredado/modificado en todos los campos.**
+- **Un solo modelo para reset, pausa y quitar.**
+  - Reset siempre borra la key cruda, también el doble click del slider.
+  - El punto de modificado es siempre visible: dibujado con SVG o borde
+    para que sobreviva a forced colors, con área de 24×24 y tooltip en
+    hover y en foco.
+  - La fila cerrada muestra "N cambios", con "Restablecer sección" y
+    Deshacer.
+  - Una pausa se muestra como "Pausado · valores".
+  - "Quitar X" es explícito y ofrece Deshacer en un snackbar `role=status`
+    de 10s o más.
+- **Editores de efectos compartidos** (Borde, Sombra, Brillo, Fondo,
+  Gradiente de N stops, Movimiento, Estilo de bloque).
+  - Se arman componiendo primitivas estructurales: `EditorShell` (que
+    evoluciona a partir de `MenuPanel`), `ObjectHeader`, `FacetTabs`,
+    `Group`, `SummaryRow`, `Field`, `PreviewChip`, `MediaField` y
+    `useEditorAnchor`.
+  - Cada objeto le pasa sus `caps`.
+  - **NO hay menús generados desde un schema ni registro de objetos.**
+- **Adaptadores por objeto:** un `EffectBinding` por dueño que encapsula
+  leer el valor efectivo, escribir el crudo y pausar.
+- **Test de matriz capacidad → ruta en la UI:** falla si un campo editable
+  queda sin lugar en la interfaz.
+
+**Dirección visual "Darkroom" ("Cuarto oscuro")**
+- **El editor es estrictamente monocromático y gris.** El único color que
+  aparece es el del propio usuario.
+- **Glass/translucency solo en el chrome y en el header fijo.**
+  - Chrome: fill ≥ .86, blur 24, saturate 140, hairline .14.
+  - Header: fill ≥ .88, blur 20.
+- **Cuerpo opaco .96.** Es la única superficie que admite texto terciario.
+  - Tiles .035/.07, que pasan a .055/.11 al abrirse.
+  - Opacidades de texto: meta activa .56, meta apagada ≥ .50, valor
+    heredado .50.
+  - Tipografía: parámetros en 12px solo dentro de tiles y con contraste
+    ≥ .62; nombres de fila e inputs en 13px.
+- **Forced colors:** el fondo pasa a `Canvas` sin blur.
+- **Jerarquía:** el título de grupo pesa más que el label de fila, y el
+  label más que el parámetro. Un disclosure no se ve igual que un header.
+  Space Mono solo para números y hex.
+- **Previews:**
+  - muestras de texto con la fuente, color o gradiente reales, sobre una
+    placa con el fondo efectivo de la card;
+  - chips de fuente renderizados en su propia fuente;
+  - una barra de gradiente única;
+  - miniaturas estáticas de Borde, Sombra y Brillo.
+- **Vocabulario:** uno solo (Intensidad / Tamaño / Velocidad) con unidades
+  humanas, y nunca valores crudos como 0.055.
+  - Las filas no se llaman "Activar".
+  - Peso solo con los pesos cargados. Un peso guardado que no está cargado
+    se muestra como "700 · sintético" y nunca se reescribe.
+  - Flotación pasa a "Duración del ciclo (s)", sin cambiar el raw.
+  - Todo en español.
+  - Nombres, unidades y `fmt` se centralizan en `effectEditorDefaults.ts`.
+- **Tokens:** una sola fuente. Las `--ui-*` se generan desde `T.ui` o
+  tienen un test de paridad, y otro test falla ante tokens legacy o
+  `rgba(` literales en menús o `src/ui`.
+
+**Microinteracciones de la Iteración 1**
+- **Quedan:**
+  - header y tabs fijos al scrollear;
+  - Reveal de los controles que dependen de un toggle;
+  - entrada del panel en 220ms y salida en 150ms (el foco vuelve al
+    empezar el cierre);
+  - resumen vivo con un fade de 120ms;
+  - aparición del punto de modificado;
+  - snackbar de Deshacer;
+  - todo con su rama de reduced-motion.
+- **NO se agregan:** springs, destello del valor, stagger, parallax,
+  sonido, blur en el cuerpo y modo Simple/Avanzado. Este último sería un
+  preset encubierto.
+- **Pasan a la Iteración 2:** scrubbing numérico y miniaturas animadas.
+
+**Siempre:**
+- sin presets;
+- sin modo Simple/Avanzado;
+- sin pérdida de capacidades;
+- el drag sigue siendo la interacción principal;
+- no convertir el editor en un formulario genérico de developer settings.
+
+### Decisiones del usuario (2026-10-02)
+
+- **O1, Accesibilidad: "Teclado + medidas ocultas".**
+  - El drag sigue siendo la interacción principal.
+  - Con un elemento seleccionado, las flechas lo mueven y Shift multiplica
+    el paso (×10). Alt + flechas cambia el tamaño. Los cambios se anuncian
+    vía `role=status`.
+  - Se agrega la fila "Medidas", cerrada por defecto dentro de "Más
+    ajustes", con campos numéricos de ancho/alto y X/Y. Es una alternativa
+    secundaria de precisión y accesibilidad.
+  - Todo escribe por los mismos caminos que el drag:
+    `clampFreeformCardSize`/`centerCardPosition` y
+    `nextAnchorAxis`/`snapAxis`. No se toca el motor.
+  - **No convertir Width/Height en sliders principales.**
+- **O2, Music: conectar "Tamaño" y "Fuente" al player.**
+  - Los controles deben afectar de verdad el render de Music, que hoy los
+    ignora y usa texto fijo de 10/8/7px.
+  - Sin un valor guardado se mantienen los tamaños actuales, así ningún
+    Music existente cambia.
+- **O3, Glow: "Neutro solo para lo nuevo".**
+  - Al encender un glow o un hover glow nuevo, el editor escribe un color
+    neutro explícito.
+  - El fallback de render `#a855f7` queda intacto.
+  - NO se migran destructivamente los perfiles que ya tienen violeta.
+- **O4, Music defaults: "Mismos editores, defaults propios".**
+  - Music usa los mismos editores e infraestructura que ProfileCard.
+  - Conserva sus defaults (radio 10, glow `outer:true`, tilt 15, spotlight
+    65) vía `caps`, con un test de paridad.
+  - No modificar el aspecto de los Music existentes.
+
+### Orden de implementación (próximo trabajo)
+
+**Cada iteración termina con:**
+- revisión del Visual/UI Designer, el UX Critic y el Accessibility Reviewer
+  sobre la implementación real;
+- correcciones;
+- `npm test`, `tsc` y `next build`;
+- commit (sin `settings.local.json`) y push.
+
+**La Iteración 0 tiene que quedar completamente cerrada y validada antes
+de empezar la Iteración 1.**
+
+**ITERACIÓN 0: correcciones y regresiones (NO empezada).** Son problemas
+que el equipo encontró leyendo el código; hay que verificarlos al
+corregirlos.
+
+**Teclado y borrado**
+- **Backspace/Delete puede borrar elementos indebidamente.** En el submenú
+  de MyLand y en el menú `+`, un click en una zona no enfocable o un botón
+  que se desmonta solo deja el foco en `<body>`, y `isEditorOpen` ignora
+  `data-mnemo-ui`.
+  - Arreglo: `tabIndex=-1` en esas superficies y un guard positivo, que
+    deja borrar solo si el foco está en el canvas o en la selección.
+  - Esc tiene que cerrar MyLand y el `+`.
+- **Esc + Backspace puede borrar la ProfileCard.** El que abre el panel es
+  un `div`, así que el foco cae a `<body>` y la card sigue seleccionada.
+  - Arreglo: un botón "Editar" real con `data-mnemo-ui` y devolución de
+    foco.
+  - El engranaje no puede seguir tapando el handle de resize nw.
+
+**Alto contraste (forced colors)**
+- Desaparecen los colores de los wells, el área SV, las barras de tono y
+  alfa del ColorPopover, la barra y los stops del gradiente, y el punto de
+  modificado.
+  - Arreglo: `forced-color-adjust: none` donde el color es la información,
+    y el punto dibujado con SVG o borde.
+
+**Labels y foco**
+- **Descriptor, Ubicación y Bio** (`ProfileMetadataMenu.tsx`) no tienen
+  label (solo placeholder) ni foco visible.
+  - Arreglo: migrarlos a `TextInput`.
+- También se nombran solo con un placeholder Título/Artista de Music y el
+  link de la imagen.
+- El `<img>` del avatar no tiene `alt`.
+- El hex del well se anuncia solo vía `aria-description`; tiene que pasar a
+  `aria-labelledby`.
+- Al quitar o eliminar algo el foco cae a `<body>`: foto, logo, fondo, un
+  link, un MP3 o un módulo. Arreglo: reusar `refocusFieldControl`.
+
+**Music (P0: el editor miente)**
+- Lee `card.effects` crudo en vez del valor efectivo: el switch de Glow se
+  muestra apagado mientras la card renderiza un glow legacy.
+  - Arreglo: `getMusicCardEffects()` en `src/lib`, con test de paridad.
+- Apagar el gradiente lo borra; tiene que pausarlo.
+- Glow y sombra pueden quedar encendidos con intensidad 0.
+- "Tamaño" y "Fuente" no hacen nada. Se conectan según O2.
+
+**Otras P0/P1 del reporte**
+- Esc dentro de los campos Hex/Alfa del ColorPopover: el primero revierte
+  lo escrito y el segundo cierra.
+- El color sólido "deshabilitado" por un gradiente sigue siendo operable
+  con teclado (`RoleTypographyFields.tsx`).
+- `minWidth:0` en la fila de edición de Contact Links.
+- El texto heredado (`.mn-value`/`.mn-hex`) a .46 queda en 4.47:1: subirlo
+  a .50.
+- El ítem "Profile" del menú `+` no hace nada si la card ya existe.
+
+**ITERACIÓN 1: ProfileCard Premium.**
+- Inspector acoplado + "Editar" + guard por foco. El guard no puede quedar
+  activo solo porque el aside está montado, porque eso mataría
+  Backspace/Ctrl+Z del canvas.
+- Las 4 facetas persistentes con tabpanel.
+- Filas resumen + "Más ajustes".
+- Agrupación de efectos.
+- Modelo de reset, pausa y quitar.
+- Darkroom.
+- Vocabulario.
+- Previews estáticas.
+- Editores compartidos + `EffectBinding` usados por Profile.
+- Escritura al soltar: la preview se aplica localmente en cada tick y la
+  cola de ops une los patches consecutivos del mismo id, con flush al
+  soltar, a los 250ms, en blur o al desmontar. Se hace en la cola, no en
+  los controles. Tests: 1 gesto → 1 op, sin commits perdidos, orden de
+  publicación intacto.
+- Región de status.
+- Test de matriz de capacidades.
+- O1.
+
+**ITERACIÓN 2: Music / Image / Space.**
+- La misma gramática llevada a Music (con O4), Imagen y Espacio.
+- Menú `+` con íconos y en español.
+- Chrome sin lima.
+- Click en un bloque → su fila, y hover en una fila → resaltado del bloque.
+  Esto toca el drag y el hit-stack de 3B.4, por eso se difirió.
+- Scrubbing numérico.
+- Miniaturas animadas.
+- Tira de preview del fondo.
+- Copiar ajustes entre roles: no es un preset.
+- Sin reintroducir features descartadas.
+
+### QA de Block 2: estado
+
+Verificado solo leyendo el código; **sigue sin QA en navegador.**
+- **OK:**
+  - el picker toma el foco al abrir;
+  - Esc cierra solo el picker cuando el foco está en el área o en las
+    barras;
+  - Tab y Shift+Tab salen del picker;
+  - recorrer Hex/Alfa no escribe;
+  - Hover Scale: tipear `8` da `1.08`;
+  - el trazo de los íconos a 12/14px;
+  - las filas de Links/Social no desbordan.
+- **Bugs (van en la Iteración 0):**
+  - Backspace en MyLand;
+  - Esc dentro de Hex/Alfa;
+  - forced colors.
+- **Pendiente en navegador:** todo lo anterior, más la navegación completa
+  por teclado.
+
+### Recuperación ante corte de luz o pérdida de sesión
+
+Si la sesión se pierde, **NO comenzar desde cero**. Primero verificar:
+
+1. `git status`
+2. `git log --oneline -5`
+3. `git remote -v`
+4. `git branch`
+5. `git ls-remote origin main`
+6. que `ae8d8ea` exista (`git cat-file -t ae8d8ea`)
+7. el estado de `CLAUDE.md` (esta sección)
+
+Estado esperado: `main -> ae8d8ea -> origin/main` (o un commit posterior
+documentado acá).
+
+Después:
+- Recuperar el contexto desde este archivo y revisar el código real antes de
+  hacer cambios.
+- Si hay cambios sin commitear que no se reconocen, auditarlos read-only y
+  respaldarlos antes de tocarlos. No resetear ni limpiar.
+- No asumir que hace falta una conversación anterior para reconstruir el
+  proyecto.
+- **Próximo paso:** empezar la **ITERACIÓN 0** (ver "Orden de
+  implementación"), solo con el OK explícito del usuario. Antes, confirmar
+  que el working tree solo tiene `CLAUDE.md` y `settings.local.json`
+  modificados.
+- Si `CLAUDE.md` aparece commiteado o pusheado más adelante, el estado
+  esperado es un commit posterior a `ae8d8ea` que solo agrega este
+  checkpoint.
+
+### Agentes y flujo de trabajo
+
+La próxima ronda vuelve a usar el equipo especializado. Cada agente
+inspecciona el código REAL:
+
+- UX Lead / Information Architecture;
+- Interaction Designer;
+- Visual/UI Designer;
+- Design Systems Specialist;
+- UX Critic;
+- Accessibility Reviewer, cuando corresponda;
+- Engineer, para implementación y correcciones.
+
+Ni el orquestador ni nadie dicta componentes específicos antes de que el
+equipo evalúe alternativas.
+
+**Flujo:** INSPECT → DISCUSS → DECIDE → IMPLEMENT → REVIEW → CORRECT → TEST
+→ TSC → BUILD → COMMIT → PUSH.
+
+**Reglas de resiliencia:**
+- Los ingenieros dejan una bitácora de progreso por ítem para poder retomar
+  si se cortan.
+- No commit ni push hasta que los reviewers terminaron y sus correcciones
+  están aplicadas.
+
 ## Arquitectura
 
 - ProfileCard es el **núcleo funcional** de MNEMO — el único componente
