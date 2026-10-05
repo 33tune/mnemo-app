@@ -32,8 +32,17 @@ como próximo paso, manda esta sección.
     del equipo.
 - **Etapa actual:** Menu Design Refinement.
   - La Iteración 0 está cerrada y revisada.
-  - **La Iteración 1 NO empezó:** arranca solo con el OK explícito del
-    usuario. Ver "Orden de implementación".
+  - **Nueva dirección UX/UI consolidada (2026-10-05)** en
+    **`docs/ux/menu-redesign/`**:
+    - `design-direction.md`;
+    - `interaction-model.md`;
+    - `implementation-plan.md`.
+  - **Esos tres documentos son la fuente de verdad del rediseño de menús.**
+    Hay que leerlos ANTES de implementar. Superan a la "Dirección UX/UI
+    aprobada" de abajo (facetas como entrada, filas resumen en texto) y a
+    las propuestas anteriores donde se contradigan.
+  - **La implementación NO empezó.** Arranca por la Fase 1 de
+    `implementation-plan.md` y solo con el OK explícito del usuario.
 - **`.claude/settings.local.json` NO entra nunca en commits.** Commitear
   siempre con `git add -A -- . ':!.claude/settings.local.json'` o agregando
   rutas explícitas.
@@ -151,6 +160,24 @@ como próximo paso, manda esta sección.
   con personalidad.
 
 ### Menu Design Refinement: cómo se decidió
+
+> **SUPERADO PARCIALMENTE (2026-10-05).** La dirección de diseño de menús vigente está en
+> `docs/ux/menu-redesign/`.
+>
+> **Qué cambió:**
+> - Se pasó de un modelo por facetas a uno objeto-primero: "tocá lo que ves y dale estilo".
+> - La entrada es una lista de objetos más un atajo de canvas que solo navega.
+> - Los controles principales son visuales y los efectos son tiles con preview.
+> - Se agregaron deshacer de estilo y vista previa de los efectos de hover.
+>
+> **Qué sigue vigente de esta sección y la siguiente:**
+> - el proceso histórico;
+> - los límites de producto;
+> - O1–O4;
+> - los valores de Darkroom no reemplazados;
+> - la Iteración 0.
+>
+> **Si algo de abajo contradice esos documentos, mandan los documentos.**
 
 **Block 2 creó la infraestructura, pero el diseño de los menús NO está
 terminado.** El 2026-10-02 el equipo especializado hizo la auditoría y la
@@ -422,7 +449,8 @@ código; se verificaron al corregirlos.
   a .50.
 - El ítem "Profile" del menú `+` no hace nada si la card ya existe.
 
-**ITERACIÓN 1: ProfileCard Premium.**
+**ITERACIÓN 1: ProfileCard Premium.** La lista de abajo es histórica. El alcance y el orden vigentes están en
+`docs/ux/menu-redesign/implementation-plan.md`, que tiene 7 fases y empieza por la Fase 1: Cimientos.
 - Inspector acoplado + "Editar" + guard por foco. El guard no puede quedar
   activo solo porque el aside está montado, porque eso mataría
   Backspace/Ctrl+Z del canvas.
@@ -622,10 +650,13 @@ Después:
   respaldarlos antes de tocarlos. No resetear ni limpiar.
 - No asumir que hace falta una conversación anterior para reconstruir el
   proyecto.
-- **Próximo paso:** la QA en navegador pendiente y después la
-  **ITERACIÓN 1** (ver "Orden de implementación"), **solo con el OK
-  explícito del usuario**. Antes, confirmar que el working tree solo tiene
-  `settings.local.json` modificado.
+- **Próximo paso:** implementar el rediseño de menús.
+  1. Leer `docs/ux/menu-redesign/` (los tres documentos).
+  2. Empezar por la Fase 1 de `implementation-plan.md`, **solo con el OK
+     explícito del usuario**.
+  - La QA en navegador de la Iteración 0 ya la hizo el usuario.
+  - Antes de empezar, confirmar que el working tree solo tiene
+    `settings.local.json` modificado.
 
 ### Agentes y flujo de trabajo
 
