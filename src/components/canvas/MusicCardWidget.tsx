@@ -12,10 +12,10 @@ import { detectBgModeFromFile } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
 import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
 import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, ColorRow, TextInput, ActionButton, Divider, Collapsible, MenuNote, NumberField, labelStyle, refocusFieldControl } from "@/ui";
-import { getMusicCardEffects, MUSIC_DEFAULT_RADIUS } from "@/lib/profileCardEffects";
-import { EFFECT_DISPLAY_DEFAULTS, GRADIENT_DEFAULT, cardShadowDisplay, glowFlagPatch, isCardGlowFlagVisible, isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
-import { mergePatch, pauseEffect, resumeWithIntensity, toggleEffect } from "@/lib/effectPause";
-import { neutralGlowPatch } from "@/lib/neutralGlow";
+import { getMusicCardEffects, MUSIC_DEFAULT_RADIUS, MUSIC_DEFAULT_TEXT_COLOR } from "@/lib/profileCardEffects";
+import { EFFECT_DISPLAY_DEFAULTS, GRADIENT_DEFAULT, cardShadowDisplay, isCardGlowFlagVisible, isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
+import { mergePatch } from "@/lib/effectPause";
+import { effectActions, type EffectOwner } from "@/lib/effectBinding";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import { MUSIC_TEXT_SIZE_DEFAULT } from "@/lib/musicPlayerFormat";
 import { resizeMinimums } from "@/lib/resizeMath";
@@ -89,7 +89,7 @@ function MusicCardWidget({
   // "Product closeout": card.textColor used to color the old link-preview
   // label directly — now the base ProfileMusicPlayer derives its 3 role
   // colors from, same withOpacity derivation ProfileCard.tsx already uses.
-  const musicBaseColor  = card.textColor?.startsWith("#") ? card.textColor : "#ffffff";
+  const musicBaseColor  = card.textColor?.startsWith("#") ? card.textColor : MUSIC_DEFAULT_TEXT_COLOR;
   const textColor       = withOpacity(musicBaseColor, 0.95);
   const secondaryColor  = withOpacity(musicBaseColor, 0.65);
   const mutedColor      = withOpacity(musicBaseColor, 0.45);
@@ -119,44 +119,24 @@ function MusicCardWidget({
   function setEffects(next: CardEffects) {
     updateCard(card.id, { effects: next });
   }
-  function patchBg(patch: Partial<NonNullable<CardEffects["bg"]>>) {
-    setEffects({ ...raw, bg: mergePatch(raw?.bg, patch) });
-  }
-  function patchBorder(patch: Partial<NonNullable<CardEffects["border"]>>) {
-    setEffects({ ...raw, border: mergePatch(raw?.border, patch) });
-  }
-  function patchGlow(patch: Partial<NonNullable<CardEffects["glow"]>>) {
-    setEffects({ ...raw, glow: mergePatch(raw?.glow, patch) });
-  }
-  function patchShadow(patch: Partial<NonNullable<CardEffects["shadow"]>>) {
-    setEffects({ ...raw, shadow: mergePatch(raw?.shadow, patch) });
-  }
+  // Menu redesign Phase 1: same effect owner model as ProfileCard
+  // (effectBinding.ts) — Music only differs in its raw/effective/write and
+  // its display defaults (O4), never in the switch semantics.
+  const owner: EffectOwner = { kind: "music", raw, effective: effectiveEffects, write: setEffects };
+  const fx = effectActions(owner);
+  const patchBg = (patch: Partial<NonNullable<CardEffects["bg"]>>) => fx.patch("bg", patch);
+  const patchBorder = (patch: Partial<NonNullable<CardEffects["border"]>>) => fx.patch("border", patch);
+  const patchGlow = (patch: Partial<NonNullable<CardEffects["glow"]>>) => fx.patch("glow", patch);
+  const patchShadow = (patch: Partial<NonNullable<CardEffects["shadow"]>>) => fx.patch("shadow", patch);
   function patchGradient(patch: Partial<NonNullable<CardEffects["gradient"]>>) {
     const base = raw?.gradient ?? GRADIENT_DEFAULT;
     setEffects({ ...raw, gradient: { ...base, ...patch } });
   }
-  function patchInteractions(patch: Partial<NonNullable<CardEffects["interactions"]>>) {
-    setEffects({ ...raw, interactions: mergePatch(raw?.interactions, patch) });
-  }
-  function patchAnimations(patch: Partial<NonNullable<CardEffects["animations"]>>) {
-    setEffects({ ...raw, animations: mergePatch(raw?.animations, patch) });
-  }
-  // Same switch semantics as ProfileCard (ProfileEffectsMenu.tsx): glow
-  // flags via glowFlagPatch (+ the O3 neutral color), shadow pause/resume.
-  function setGlowFlag(flag: "outer" | "inner", on: boolean) {
-    patchGlow({ ...glowFlagPatch(effectiveEffects.glow, flag, on), ...(on ? neutralGlowPatch(effectiveEffects) : {}) });
-  }
-  function setHoverGlow(on: boolean) {
-    const colorPatch = on ? neutralGlowPatch(effectiveEffects) : {};
-    setEffects({
-      ...raw,
-      interactions: mergePatch(raw?.interactions, { hoverGlow: on }),
-      ...(colorPatch.color ? { glow: mergePatch(raw?.glow, colorPatch) } : {}),
-    });
-  }
-  function setShadowOn(on: boolean) {
-    setEffects(on ? resumeWithIntensity(raw, "shadow") : pauseEffect(raw, "shadow"));
-  }
+  const patchInteractions = (patch: Partial<NonNullable<CardEffects["interactions"]>>) => fx.patch("interactions", patch);
+  const patchAnimations = (patch: Partial<NonNullable<CardEffects["animations"]>>) => fx.patch("animations", patch);
+  const setGlowFlag = (flag: "outer" | "inner", on: boolean) => fx.setGlowFlag(flag, on);
+  const setHoverGlow = (on: boolean) => fx.setHoverGlow(on);
+  const setShadowOn = (on: boolean) => fx.setEnabled("shadow", on);
   async function handleBgUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return;
     const [{ publicUrl }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
@@ -303,7 +283,7 @@ function MusicCardWidget({
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
                   <MenuRow label="Gradiente">
-                    <Toggle value={!!grad} onChange={v => setEffects(toggleEffect(raw, "gradient", v, { fallback: GRADIENT_DEFAULT }))} />
+                    <Toggle value={!!grad} onChange={v => fx.setEnabled("gradient", v)} />
                   </MenuRow>
                   {grad && (<>
                     <ColorRow label="Color A" value={grad.from} onChange={v => patchGradient({ from: v })} />
@@ -332,7 +312,7 @@ function MusicCardWidget({
               and times 8); no font = today's DM Sans / Space Mono. */}
           <MenuSection label="Texto">
             <MenuRow label="Color">
-              <ColorSwatch value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
+              <ColorSwatch value={card.textColor?.startsWith("#") ? card.textColor : MUSIC_DEFAULT_TEXT_COLOR}
                 onChange={v => updateCard(card.id, { textColor: v })} />
             </MenuRow>
             {/* Review r2 (Visual-5): stored value is the old "px" number, but

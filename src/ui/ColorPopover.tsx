@@ -3,7 +3,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { T } from "./tokens";
 import { EDITOR_ATTR } from "@/lib/editorGuards";
-import { formatColor, hsvToRgb, parseColor, rgbToHex, toHsva, resolveHexCommit, resolveAlphaCommit, resolveFieldEscape, type HSVA } from "@/lib/colorModel";
+import { formatColor, hsvToRgb, parseColor, rgbToHex, toHsva, resolveHexCommit, resolveAlphaCommit, resolveFieldEscape, HUE_SPECTRUM_CSS, svAreaCss, type HSVA } from "@/lib/colorModel";
 
 interface ColorPopoverProps {
   anchor:   HTMLElement | null;
@@ -17,7 +17,7 @@ interface ColorPopoverProps {
 
 const WIDTH = 240;
 const GAP = 8;
-const CHECKER = "conic-gradient(#3A3A42 25%, #24242A 0 50%, #3A3A42 0 75%, #24242A 0) 0 0 / 8px 8px";
+const CHECKER = `${T.ui.picker.checker} 0 0 / 8px 8px`;
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 // Block 2: the L3 color picker — SV area + hue bar + (optional) alpha bar +
@@ -226,7 +226,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
   const opaque = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
   const handle: React.CSSProperties = {
     position: "absolute", width: 14, height: 14, borderRadius: "50%",
-    border: "2px solid #FFFFFF", boxShadow: "0 0 0 1px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4)",
+    border: `2px solid ${T.ui.picker.handleBorder}`, boxShadow: T.ui.shadow.handle,
     transform: "translate(-50%, -50%)", pointerEvents: "none", boxSizing: "border-box",
   };
   const bar: React.CSSProperties = { position: "relative", height: 12, borderRadius: 6 };
@@ -281,7 +281,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
         onKeyDown={onAreaKey}
         style={{
           position: "relative", height: 148, borderRadius: 8,
-          background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), ${pureHue}`,
+          background: svAreaCss(pureHue),
           // Hairline + focus ring live in editor.css (.mn-picker__area) —
           // inline box-shadow would hide the :focus-visible ring.
         }}
@@ -298,7 +298,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
         aria-valuetext={`${Math.round(hsva.h)} grados`}
         onPointerDown={onHueDown}
         onKeyDown={onHueKey}
-        style={{ ...bar, background: "linear-gradient(to right, #f00 0%, #ff0 16.67%, #0f0 33.33%, #0ff 50%, #00f 66.67%, #f0f 83.33%, #f00 100%)" }}
+        style={{ ...bar, background: HUE_SPECTRUM_CSS }}
       >
         <span className="mn-picker__handle" style={{ ...handle, left: `${(hsva.h / 360) * 100}%`, top: "50%", background: pureHue }} />
       </div>

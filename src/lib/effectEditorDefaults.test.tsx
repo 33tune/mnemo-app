@@ -9,9 +9,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CardEffects } from "@/types";
 import CardLayers from "@/components/canvas/CardLayers";
-import { resolveTextEffectStyle } from "./textEffects";
+import { resolveTextEffectStyle, resolveLetterEffectStyle } from "./textEffects";
 import { withOpacity } from "./cardColors";
 import {
   CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_BG_DEFAULT_COLOR,
@@ -19,6 +21,7 @@ import {
   cardShadowDisplay, cardGlowRadius,
   TEXT_SHADOW_DEFAULTS, textShadowOpacity, TEXT_GLOW_DEFAULT_COLOR, textGlowRadius, TEXT_STROKE_DEFAULT_COLOR,
   nameFontSizeDefault, pfpBorderDisplay, pfpShadowOn, pfpShadowColor, pfpGlowRadius, PFP_GLOW_DEFAULT_COLOR,
+  EFFECT_ON_DEFAULTS, NAME_FONT_DEFAULT, MONO_ROLE_FONT_DEFAULT,
 } from "./effectEditorDefaults";
 
 function renderLayers(effects: CardEffects): string {
@@ -128,4 +131,31 @@ test("pfpGlowRadius: `radius ?? round(intensity * 24)` (ProfileCard.tsx avatarGl
   assert.equal(pfpGlowRadius({ intensity: 0.5 }), 12);
   assert.equal(pfpGlowRadius({ intensity: 0.5, radius: 30 }), 30);
   assert.equal(PFP_GLOW_DEFAULT_COLOR, "#ffffff");
+});
+
+// ── Menu redesign Phase 1: role/"on" defaults moved out of the menus ───────
+
+test("shimmer 'on' intensity == textEffects' DEFAULT_SHIMMER_INTENSITY (absent intensity renders the same band)", () => {
+  const absent = resolveTextEffectStyle(undefined, { shimmer: { speed: 1 } }, "#ffffff");
+  const explicit = resolveTextEffectStyle(undefined, { shimmer: { ...EFFECT_ON_DEFAULTS.textShimmer } }, "#ffffff");
+  assert.deepEqual(absent, explicit);
+});
+
+test("letter animation 'on' values == textEffects' fallbacks (absent fields render the same letter)", () => {
+  for (const i of [0, 3]) {
+    const absent = resolveLetterEffectStyle({ letterAnimation: {} }, "#ffffff", i, 5);
+    const explicit = resolveLetterEffectStyle({ letterAnimation: { ...EFFECT_ON_DEFAULTS.letterAnimation } }, "#ffffff", i, 5);
+    assert.deepEqual(absent, explicit);
+  }
+});
+
+test("role font defaults are pinned to ProfileCard.tsx's fallbacks", () => {
+  // ProfileCard.tsx: `card.nameFont ?? card.font ?? "DM Sans"` and
+  // `fontStyle(card.<role>Font, MONO)` with MONO = Space Mono.
+  const src = readFileSync(join(process.cwd(), "src/components/canvas/ProfileCard.tsx"), "utf8");
+  assert.ok(src.includes(`card.nameFont ?? card.font ?? "${NAME_FONT_DEFAULT}"`), "name font fallback");
+  assert.ok(src.includes(`const MONO = "'${MONO_ROLE_FONT_DEFAULT}', monospace"`), "mono role font fallback");
+  for (const f of ["handleFont", "statusFont", "locationFont", "bioFont", "viewsFont"]) {
+    assert.ok(src.includes(`fontStyle(card.${f}, MONO)`), f);
+  }
 });

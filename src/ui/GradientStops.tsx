@@ -4,6 +4,7 @@ import { T } from "./tokens";
 import { ColorSwatch } from "./ColorSwatch";
 import { IconButton } from "./IconButton";
 import { labelStyle } from "./MenuRow";
+import { GRADIENT_NEW_STOP_FALLBACK } from "@/lib/effectEditorDefaults";
 import { wellHex } from "./ColorPopover";
 
 interface GradientStopsProps {
@@ -15,7 +16,7 @@ interface GradientStopsProps {
 
 const DEFAULT_MIN = 2;
 const DEFAULT_MAX = 6;
-const NEW_STOP_FALLBACK = "#8a8a96";
+const NEW_STOP_FALLBACK = GRADIENT_NEW_STOP_FALLBACK;
 
 // Reusable N-color editor (Product closeout: multicolor gradient text).
 // Block 2 "GradientBar": a 20px bar rendering the real gradient (stops

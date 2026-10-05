@@ -28,7 +28,7 @@ interface SliderRowProps extends FieldStateProps {
 // Block 2: same props as before (every ~109 call site unchanged), now:
 // - <label htmlFor> + aria-valuetext (the formatted value, e.g. "45%"),
 // - custom 4px track / 16px thumb (editor.css .mn-range; the filled part
-//   comes from --ui-pct, set inline — sliders are never animated),
+//   comes from --mn-pct, set inline — sliders are never animated),
 // - the value is a click-to-edit field in the DISPLAYED unit (typing 50 on
 //   an opacity shown as "%"  means 0.5 — see uiNumeric.ts): Enter or blur
 //   commits (clamped/snapped to min/max/step), Esc cancels,
@@ -136,7 +136,7 @@ export function SliderRow({
         onChange={e => onChange(Number(e.target.value))}
         onMouseDown={e => e.stopPropagation()}
         onDoubleClick={onTrackDoubleClick}
-        style={{ ["--ui-pct" as string]: `${pct}%` } as React.CSSProperties}
+        style={{ ["--mn-pct" as string]: `${pct}%` } as React.CSSProperties}
       />
     </div>
   );

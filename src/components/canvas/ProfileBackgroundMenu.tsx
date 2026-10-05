@@ -4,7 +4,7 @@ import type { CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
 import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, ActionButton, Divider, Collapsible, refocusFieldControl } from "@/ui";
-import { toggleEffect, mergePatch } from "@/lib/effectPause";
+import { patchEffectGroup, setEffectEnabled } from "@/lib/effectBinding";
 import { CARD_BG_DEFAULT_COLOR, GRADIENT_DEFAULT
 } from "@/lib/effectEditorDefaults";
 
@@ -39,7 +39,7 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
   function patchBg(patch: Partial<NonNullable<CardEffects["bg"]>>) {
     // mergePatch: "clear" DELETES the key — see effectPause.ts (legacy
     // bgColor underneath must look the same before and after reload).
-    onChange({ ...raw, bg: mergePatch(raw?.bg, patch) });
+    onChange(patchEffectGroup(raw, "bg", patch));
   }
   function patchGradient(patch: Partial<NonNullable<CardEffects["gradient"]>>) {
     const base = raw?.gradient ?? GRADIENT_DEFAULT;
@@ -93,7 +93,7 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
 
         <MenuSection label="Gradiente" first>
           <MenuRow label="Activar">
-            <Toggle value={!!grad} onChange={v => onChange(toggleEffect(raw, "gradient", v, { fallback: GRADIENT_DEFAULT }))} />
+            <Toggle value={!!grad} onChange={v => onChange(setEffectEnabled(raw, "gradient", v))} />
           </MenuRow>
           {grad && (
             <>

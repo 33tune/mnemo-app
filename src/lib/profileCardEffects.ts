@@ -105,6 +105,10 @@ export function getProfileCardEffects(card: ProfileCardEffectsSource): CardEffec
  * tested in profileCardEffects.test.ts.
  */
 export const MUSIC_DEFAULT_RADIUS = 10;
+/** Music's base text color when none (or a non-hex legacy value) is stored —
+ * MusicCardWidget derives the player's 3 text tones from it, and the menu
+ * shows it. Shared so render and editor can't drift (menu redesign Phase 1). */
+export const MUSIC_DEFAULT_TEXT_COLOR = "#ffffff";
 export function getMusicCardEffects(card: ModuleCardEffectsSource): CardEffects {
   return getModuleCardEffects(card, MUSIC_DEFAULT_RADIUS);
 }

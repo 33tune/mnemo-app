@@ -33,7 +33,7 @@ export function OffsetRow({ label = "Desplazamiento", x, y, min, max, step = 1, 
               aria-valuetext={`${Math.round(val)}`}
               onChange={e => set(Number(e.target.value))}
               onMouseDown={e => e.stopPropagation()}
-              style={{ flex: 1, minWidth: 0, ["--ui-pct" as string]: `${pct(val)}%` } as React.CSSProperties}
+              style={{ flex: 1, minWidth: 0, ["--mn-pct" as string]: `${pct(val)}%` } as React.CSSProperties}
             />
             <span style={{ ...T.type.value, color: T.ui.text.secondary, minWidth: 22, textAlign: "right" }}>{Math.round(val)}</span>
           </div>

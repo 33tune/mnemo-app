@@ -1,13 +1,12 @@
 "use client";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
-import { neutralGlowPatch } from "@/lib/neutralGlow";
 import type { CardEffects } from "@/types";
 import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, Divider, OffsetRow } from "@/ui";
-import { pauseEffect, toggleEffect, resumeWithIntensity, mergePatch } from "@/lib/effectPause";
+import { effectActions, effectState, type EffectOwner } from "@/lib/effectBinding";
 import {
   CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_RADIUS_FALLBACK,
   CARD_SPOTLIGHT_DEFAULT_SIZE, CARD_SPOTLIGHT_DEFAULT_COLOR, PROFILE_TILT_DEFAULT, CARD_EFFECT_ON_INTENSITY,
-  cardShadowDisplay, cardGlowRadius, isCardGlowFlagVisible, glowFlagPatch,
+  EFFECT_ON_DEFAULTS, cardShadowDisplay, cardGlowRadius, isCardGlowFlagVisible,
 } from "@/lib/effectEditorDefaults";
 
 interface Props {
@@ -48,23 +47,18 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
   const anim  = effective.animations;
   const sh    = effective.shadow;
 
-  function patchBorder(patch: Partial<NonNullable<CardEffects["border"]>>) {
-    // mergePatch: a cleared field is DELETED (not stored as undefined), so a
-    // legacy borderColor underneath shows the same before and after reload.
-    onChange({ ...raw, border: mergePatch(raw?.border, patch) });
-  }
-  function patchGlow(patch: Partial<NonNullable<CardEffects["glow"]>>) {
-    onChange({ ...raw, glow: mergePatch(raw?.glow, patch) });
-  }
+  // Menu redesign Phase 1: the switch/patch semantics (read effective,
+  // write raw, pause instead of delete, O3 neutral glow, clear = delete the
+  // key) live in effectBinding.ts — shared with Music, PFP and text.
+  const owner: EffectOwner = { kind: "profile", raw, effective, write: onChange };
+  const fx = effectActions(owner);
+  const patchBorder = (patch: Partial<NonNullable<CardEffects["border"]>>) => fx.patch("border", patch);
+  const patchGlow = (patch: Partial<NonNullable<CardEffects["glow"]>>) => fx.patch("glow", patch);
   function patchGlowAnimation(patch: Partial<NonNullable<NonNullable<CardEffects["glow"]>["animation"]>>) {
     patchGlow({ animation: { enabled: false, ...raw?.glow?.animation, ...patch } });
   }
-  function patchShadow(patch: Partial<Shadow>) {
-    onChange({ ...raw, shadow: mergePatch(raw?.shadow, patch) });
-  }
-  function patchInteractions(patch: Partial<NonNullable<CardEffects["interactions"]>>) {
-    onChange({ ...raw, interactions: mergePatch(raw?.interactions, patch) });
-  }
+  const patchShadow = (patch: Partial<Shadow>) => fx.patch("shadow", patch);
+  const patchInteractions = (patch: Partial<NonNullable<CardEffects["interactions"]>>) => fx.patch("interactions", patch);
   function patchAnimations(patch: Partial<NonNullable<CardEffects["animations"]>>) {
     onChange({ ...raw, animations: { ...raw?.animations, ...patch } });
   }
@@ -72,39 +66,23 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
     onChange({ ...raw, retro: { ...raw?.retro, ...patch } });
   }
 
-  // Bug fix (Block 1): "off" used to write intensity:0 and "on" restored
-  // `intensity ?? 0.5` — i.e. 0 — so a shadow could never be turned back
-  // on. Off now pauses the whole config; on restores it (or, with nothing
-  // paused, whatever is stored), always with a visible intensity — this
-  // also revives shadows saved by the old "off" (intensity 0 + config).
-  function setShadowOn(on: boolean) {
-    onChange(on ? resumeWithIntensity(raw, "shadow") : pauseEffect(raw, "shadow"));
-  }
-  // A glow flag turned on over intensity 0 renders nothing (CardLayers
-  // requires intensity > 0) — same class of bug as the shadow above.
-  // Iteration 0 (O3): turning a glow on with no color anywhere writes the
-  // explicit neutral (neutralGlow.ts) — never recolors a visible glow.
-  function setGlowFlag(flag: "outer" | "inner", on: boolean) {
-    patchGlow({ ...glowFlagPatch(glow, flag, on), ...(on ? neutralGlowPatch(effective) : {}) });
-  }
-  function setHoverGlow(on: boolean) {
-    const colorPatch = on ? neutralGlowPatch(effective) : {};
-    onChange({
-      ...raw,
-      interactions: mergePatch(raw?.interactions, { hoverGlow: on }),
-      ...(colorPatch.color ? { glow: mergePatch(raw?.glow, colorPatch) } : {}),
-    });
-  }
+  // Bug fix (Block 1): off pauses the whole shadow config; on restores it
+  // with a visible intensity (effectBinding.setEffectEnabled). Glow flags:
+  // a flag turned on over intensity 0 is raised to a visible intensity, and
+  // a NEW glow gets the O3 neutral color — never recolors a visible glow.
+  const setShadowOn = (on: boolean) => fx.setEnabled("shadow", on);
+  const setGlowFlag = (flag: "outer" | "inner", on: boolean) => fx.setGlowFlag(flag, on);
+  const setHoverGlow = (on: boolean) => fx.setHoverGlow(on);
 
   // Iteration 0: switches show what renders (flag AND intensity > 0).
   const outerOn    = isCardGlowFlagVisible(glow, "outer");
   const innerOn    = isCardGlowFlagVisible(glow, "inner");
   const anyGlow    = outerOn || innerOn;
-  const shadowOn   = !!sh?.intensity && sh.intensity > 0;
+  const shadowOn   = effectState(raw, effective, "shadow").status === "on";
   const shadowFx   = cardShadowDisplay(sh);
   const glowInt    = glow?.intensity ?? 0;
   // Same "presence = on, 1 = no-op too" contract as useCardInteractions.ts.
-  const hoverScaleOn = inter?.hoverScale != null && inter.hoverScale !== 1;
+  const hoverScaleOn = effectState(raw, effective, "interactions.hoverScale").status === "on";
   const retro = effective.retro;
 
   return (
@@ -237,11 +215,11 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
           <MenuRow label="Escala al pasar">
             <Toggle
               value={hoverScaleOn}
-              onChange={v => onChange(toggleEffect(raw, "interactions.hoverScale", v, { fallback: 1.05 }))}
+              onChange={v => fx.setEnabled("interactions.hoverScale", v)}
             />
           </MenuRow>
           {hoverScaleOn && (
-            <SliderRow label="Intensidad" min={1.01} max={1.15} step={0.01} value={inter?.hoverScale ?? 1.05}
+            <SliderRow label="Intensidad" min={1.01} max={1.15} step={0.01} value={inter?.hoverScale ?? EFFECT_ON_DEFAULTS.hoverScale}
               onChange={v => patchInteractions({ hoverScale: v })} fmt={v => `${Math.round((v - 1) * 100)}%`}
               displayScale={100} displayOffset={-1} />
           )}

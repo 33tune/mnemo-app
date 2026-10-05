@@ -17,7 +17,7 @@
  * persisting `bg.glass: true` would freeze what is today a derived default
  * of "no bgColor and no bgImage").
  */
-import type { CardEffects, ProfileCardVariant } from "@/types";
+import type { CardEffects, ProfileCardVariant, TextFont, TextRole, RoleTextEffect } from "@/types";
 import { withOpacity } from "./cardColors";
 import { GLOW_NEUTRAL_COLOR } from "./neutralGlow";
 
@@ -201,3 +201,68 @@ export function glowFlagPatch(glow: CardEffects["glow"], flag: "outer" | "inner"
 
 /** Default gradient the editors start from (ProfileCard Fondo + Music). */
 export const GRADIENT_DEFAULT: NonNullable<CardEffects["gradient"]> = { from: "#0f0f0f", to: "#1a1a2e", angle: 135, opacity: 0.6 };
+
+// ── Menu redesign, Phase 1 (Cimientos): role typography defaults ───────────
+// Moved out of ProfileTypographyMenu.tsx / RoleTypographyFields.tsx, where
+// they were hardcoded per call site. Same values — Phase 1 changes no UI.
+
+/** ProfileCard.tsx: `card.nameFont ?? card.font ?? "DM Sans"`. */
+export const NAME_FONT_DEFAULT: TextFont = "DM Sans";
+/** ProfileCard.tsx: `fontStyle(card.<role>Font, MONO)` for every role but
+ * Name — absent = Space Mono. */
+export const MONO_ROLE_FONT_DEFAULT: TextFont = "Space Mono";
+/** Slider position shown while monoLineHeight is unset. Verified: with the
+ * field absent these four lines get NO line-height anywhere up the tree —
+ * globals.css has `@tailwind base` but Tailwind isn't installed (no
+ * preflight emitted in the build CSS), and no ancestor sets one — so they
+ * render with CSS `normal`, which depends on the font: ~1.48 for the
+ * default Space Mono (ascent 1.12 + descent 0.36 em). Shown as "normal",
+ * slider parked at the nearest step; never written until the user edits. */
+export const MONO_LINE_HEIGHT_NORMAL = 1.5;
+/** Weight shown when a role has no explicit weight (browser default 400). */
+export const ROLE_WEIGHT_FALLBACK = 400;
+
+type Range = readonly [min: number, max: number];
+/** Slider ranges per role (what the editor lets a user reach). */
+export const ROLE_TYPOGRAPHY_RANGES: Record<TextRole, { fontSize: Range; lineHeight?: Range }> & { monoLineHeight: Range } = {
+  name:       { fontSize: [10, 32], lineHeight: [0.9, 2] },
+  handle:     { fontSize: [7, 18] },
+  descriptor: { fontSize: [7, 18] },
+  location:   { fontSize: [7, 18] },
+  bio:        { fontSize: [7, 18], lineHeight: [1, 2.4] },
+  views:      { fontSize: [7, 18] },
+  monoLineHeight: [0.9, 2],
+};
+
+// ── "On" defaults: what the editor writes when an effect is switched on
+// with nothing paused (effectBinding.ts consumes these). NOT render
+// defaults — the renderer's own fallbacks are the display defaults above.
+
+/** Fallback color for a new gradient stop (GradientStops) — also the 2nd
+ * stop of a new text gradient. */
+export const GRADIENT_NEW_STOP_FALLBACK = "#8a8a96";
+
+export const EFFECT_ON_DEFAULTS = {
+  /** Card / Music background gradient. */
+  gradient:        GRADIENT_DEFAULT,
+  textShadow:      {},
+  textStroke:      { width: 1 },
+  /** textRoles.<role>.gradient */
+  textGradient:    { colors: ["#ffffff", GRADIENT_NEW_STOP_FALLBACK], angle: 90 },
+  /** textRoles.<role>.shimmer — intensity mirrors textEffects.ts's
+   * DEFAULT_SHIMMER_INTENSITY (parity-tested). */
+  textShimmer:     { intensity: 0.45, speed: 1 },
+  /** textRoles.name.letterAnimation — mirrors textEffects.ts's
+   * `amplitude ?? 4`, `speed ?? 1`, `stagger ?? 0.05` (parity-tested). */
+  letterAnimation: { amplitude: 4, speed: 1, stagger: 0.05 },
+  /** interactions.hoverScale */
+  hoverScale:      1.05,
+} as const satisfies {
+  gradient: NonNullable<CardEffects["gradient"]>;
+  textShadow: NonNullable<NonNullable<CardEffects["text"]>["shadow"]>;
+  textStroke: NonNullable<NonNullable<CardEffects["text"]>["stroke"]>;
+  textGradient: { colors: readonly string[]; angle: number };
+  textShimmer: NonNullable<RoleTextEffect["shimmer"]>;
+  letterAnimation: NonNullable<RoleTextEffect["letterAnimation"]>;
+  hoverScale: number;
+};

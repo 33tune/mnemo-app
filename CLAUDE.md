@@ -7,8 +7,9 @@ planeado acá hasta confirmarlo.
 
 ## MNEMO — CURRENT PROJECT CHECKPOINT
 
-**Checkpoint actualizado el 2026-10-02, al cerrar la propuesta de Menu
-Design Refinement.** Esta sección es la fuente de verdad vigente sobre el
+**Checkpoint actualizado el 2026-10-05, al cerrar la Fase 1 (Cimientos)
+del rediseño de menús** (antes: 2026-10-02, propuesta de Menu Design
+Refinement). Esta sección es la fuente de verdad vigente sobre el
 estado del proyecto. Donde contradiga secciones más viejas de este archivo,
 en particular "La próxima sesión" al final, que todavía apunta a Responsive
 como próximo paso, manda esta sección.
@@ -21,6 +22,14 @@ como próximo paso, manda esta sección.
   padre es `72c26d8` (checkpoint docs), que a su vez va sobre `ae8d8ea`
   (Block 2). Con `git log --oneline -3` se confirma.
 - **Block 2 y la Iteración 0 del Menu Design Refinement están TERMINADOS.**
+- **Fase 1 (Cimientos) del rediseño de menús: TERMINADA (2026-10-05).**
+  - Commit `feat: establish menu editor UX foundations`, sobre `2e76d1a`
+    (docs de la dirección UX), en la branch de sesión
+    `claude/zealous-goldberg-xlerxx` (pusheada; pendiente de merge a
+    `main`). Detalle en "Qué quedó implementado en la Fase 1".
+  - Verificación: `npm test` 447/447, `tsc` y `next build` limpios. Sin
+    cambios visibles: el CSS resuelto es idéntico (comparación mecánica y
+    206 estilos computados en Chromium, 0 diferencias).
 - **Verificación al cerrar la Iteración 0 (2026-10-05):**
   - `npm test`: 415/415.
   - `npx tsc --noEmit --incremental false`: limpio.
@@ -41,8 +50,9 @@ como próximo paso, manda esta sección.
     Hay que leerlos ANTES de implementar. Superan a la "Dirección UX/UI
     aprobada" de abajo (facetas como entrada, filas resumen en texto) y a
     las propuestas anteriores donde se contradigan.
-  - **La implementación NO empezó.** Arranca por la Fase 1 de
-    `implementation-plan.md` y solo con el OK explícito del usuario.
+  - **Fase 1 cerrada. La próxima es la Fase 2 (Shell: InspectorShell
+    acoplado + offset de vista + ObjectList)** de `implementation-plan.md`,
+    solo con el OK explícito del usuario.
 - **`.claude/settings.local.json` NO entra nunca en commits.** Commitear
   siempre con `git add -A -- . ':!.claude/settings.local.json'` o agregando
   rutas explícitas.
@@ -578,6 +588,53 @@ código; se verificaron al corregirlos.
   "Ángulo", "Duración del ciclo", "Sin título", "No se pudo cargar el
   audio", "Link"; toolbars en español.
 
+### Qué quedó implementado en la Fase 1 (Cimientos)
+
+Separación: **estado de edición** (`effectBinding.ts`) · **capacidades**
+(`editorCapabilities.ts`) · **defaults** (`effectEditorDefaults.ts`) ·
+**presentación** (`src/ui` + menús, que ya no deciden semántica).
+
+- **`src/lib/effectBinding.ts`:** un solo modelo de efecto para ProfileCard,
+  PFP, texto y Music. `EffectOwner {kind, raw, effective, write, variant?}`;
+  `effectState` (on/paused/off + modified; "on" = visible, del efectivo);
+  `setEffectEnabled` (apagar = pausar; encender = reanudar o el default
+  "on"; revive intensidad 0; O3 en glows nuevos; centinela del PFP shadow
+  en guns/poster); `setGlowFlag`, `setHoverGlow`, `patchEffectGroup` (clear
+  borra la key); `bindEffect`/`effectActions`; `displayDefaultsFor` (O4).
+  Reemplazó los 4 cableados duplicados (ProfileEffectsMenu, Music,
+  Typography, Identity). Test de equivalencia contra el cableado anterior,
+  verbatim, sobre 18 fixtures × variantes.
+  - `owner.write` es la costura donde la Fase 6 (style undo) toma snapshots.
+- **Defaults** (`effectEditorDefaults.ts`): `NAME_FONT_DEFAULT`,
+  `MONO_ROLE_FONT_DEFAULT`, `MONO_LINE_HEIGHT_NORMAL`, `ROLE_WEIGHT_FALLBACK`,
+  `ROLE_TYPOGRAPHY_RANGES`, `EFFECT_ON_DEFAULTS` (valores que escribe un
+  switch al encender) y `GRADIENT_NEW_STOP_FALLBACK`. Paridad testeada
+  contra `textEffects.ts` y `ProfileCard.tsx`.
+  `MUSIC_DEFAULT_TEXT_COLOR` vive en `profileCardEffects.ts` (render+editor).
+- **Tokens, una sola fuente:** `T.ui`/`T.motion` generan TODAS las `--ui-*`
+  (`uiCssVars()`, nombre `--ui-<grupo>-<key>`), inyectadas una vez por
+  `layout.tsx` (`<style id="mnemo-ui-tokens">`) en
+  `:where([data-mnemo-editor],[data-mnemo-ui],[data-mnemo-canvas])`.
+  `editor.css` ya no declara valores; solo `var()`. `--mn-*` = valores de
+  runtime por control (`--mn-pct`). Se resolvió una divergencia: el token
+  `shadow.popover` adoptó el valor que realmente renderizaba el CSS.
+- **Guardia de tokens** (`uiTokens.test.ts`): falla si `editor.css` declara
+  `--ui-*` propias, referencia una variable no generada o tiene colores
+  literales (única excepción: el chevron del select en data-URI, con
+  paridad a `T.ui.text.secondary`); si `src/ui` tiene literales o tokens
+  legacy; o si los menús suben su baseline de tokens legacy (Config 2,
+  Identity 5, Music 8 — solo puede bajar).
+- **Matriz capacidad→ruta** (`editorCapabilities.ts` + test): cada campo
+  de ProfileCard, sus efectos, efectos por rol, block styles, Music y sus
+  efectos es `route` (con evidencia en el código), `superseded` (apunta a
+  una ruta), `system`, `retired` o `unsupported` (caps por dueño). Exhaustiva
+  por tipo: un campo nuevo sin decidir rompe `tsc`; mover un control sin
+  actualizar su ruta rompe `npm test`. **No genera UI** (no es un registro
+  ni un schema de menús). Los `unsupported` de Music (border.opacity,
+  glow.radius/animation, sombra avanzada, hoverScale, retro) son los gaps
+  de paridad que cierra la Fase 4.
+- `src/lib/sourceScan.ts`: helper de los tests que leen código real.
+
 ### Huecos conocidos después de la Iteración 0 (documentados, no bugs)
 
 - **WCAG 2.5.7:**
@@ -641,7 +698,8 @@ Si la sesión se pierde, **NO comenzar desde cero**. Primero verificar:
 7. el estado de `CLAUDE.md` (esta sección)
 
 Estado esperado: `main` y `origin/main` en el mismo commit, que es el de la
-Iteración 0 (o uno posterior documentado acá).
+Iteración 0 (o uno posterior documentado acá). La Fase 1 está en la branch
+`claude/zealous-goldberg-xlerxx` hasta que se mergee a `main`.
 
 Después:
 - Recuperar el contexto desde este archivo y revisar el código real antes de
@@ -650,10 +708,10 @@ Después:
   respaldarlos antes de tocarlos. No resetear ni limpiar.
 - No asumir que hace falta una conversación anterior para reconstruir el
   proyecto.
-- **Próximo paso:** implementar el rediseño de menús.
+- **Próximo paso:** seguir el rediseño de menús.
   1. Leer `docs/ux/menu-redesign/` (los tres documentos).
-  2. Empezar por la Fase 1 de `implementation-plan.md`, **solo con el OK
-     explícito del usuario**.
+  2. La Fase 1 está cerrada. Seguir con la Fase 2 de
+     `implementation-plan.md`, **solo con el OK explícito del usuario**.
   - La QA en navegador de la Iteración 0 ya la hizo el usuario.
   - Antes de empezar, confirmar que el working tree solo tiene
     `settings.local.json` modificado.

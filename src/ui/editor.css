@@ -15,82 +15,60 @@
  * (`[data-mnemo-editor]`, MenuPanel / ColorPopover) or `[data-mnemo-ui]`
  * (styling-only scope for editor-like UI that must NOT act as an editor root
  * for editorGuards, e.g. the MyLand settings submenu) — nothing here can
- * reach card render. Custom properties are `--ui-*` and live only here.
+ * reach card render. Custom properties `--ui-*` are generated from T.ui
+ * (tokens.ts) and injected by layout.tsx; `--mn-*` are per-control runtime
+ * values set inline (e.g. a slider's fill %).
  */
 
 :where([data-mnemo-editor], [data-mnemo-ui]) {
-  --ui-text-1: rgba(255,255,255,0.94);
-  --ui-text-2: rgba(255,255,255,0.62);
-  /* Iteration 0: .46 -> .50 (inherited value/hex measured 4.47:1 on the
-     control fill; .50 clears 4.5:1). Parity with T.ui.text.tertiary is
-     tested (uiTokens.test.ts). */
-  --ui-text-3: rgba(255,255,255,0.50);
-  --ui-text-dis: rgba(255,255,255,0.28);
-  --ui-group: rgba(255,255,255,0.05);
-  --ui-group-hover: rgba(255,255,255,0.08);
-  --ui-control: rgba(255,255,255,0.06);
-  --ui-control-hover: rgba(255,255,255,0.10);
-  --ui-control-active: rgba(255,255,255,0.14);
-  --ui-line: rgba(255,255,255,0.10);
-  --ui-line-strong: rgba(255,255,255,0.20);
-  --ui-fill: rgba(255,255,255,0.88);
-  --ui-track: rgba(255,255,255,0.12);
-  --ui-on: #F2F2F4;
-  --ui-danger: #FF5A52;
-  --ui-ring: 0 0 0 2px rgba(20,20,23,1), 0 0 0 3.5px rgba(255,255,255,0.70);
-  --ui-disabled: 0.38;
-  /* Review round (A11Y-12): placeholders/tertiary on the control fill need
-     >= 4.5:1 — 0.46 measured 4.46:1 there. */
-  --ui-text-ph: rgba(255,255,255,0.52);
-  --ui-fast: 120ms;
-  --ui-base: 180ms;
-  --ui-panel: 220ms;
-  --ui-seg: 240ms;
-  --ui-ease: cubic-bezier(0.32,0.72,0,1);
+  /* Menu redesign Phase 1: the --ui-* custom properties are NOT declared
+     here any more — they are generated from T.ui / T.motion (src/ui/
+     tokens.ts, uiCssVars()) and injected once by src/app/layout.tsx, so
+     tokens.ts is the single source. This sheet only references them. */
   -webkit-font-smoothing: antialiased;
 }
 
 /* ── Panel (L1) ─────────────────────────────────────────────────────────── */
 .mn-panel[data-mnemo-editor] {
-  background: rgba(20,20,23,0.94);
-  border: 0.5px solid rgba(255,255,255,0.12);
-  border-radius: 16px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 24px 64px -12px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.3);
-  color: var(--ui-text-1);
+  background: var(--ui-surface-panel);
+  border: 0.5px solid var(--ui-line-panel);
+  border-radius: var(--ui-radius-panel);
+  box-shadow: var(--ui-shadow-panel);
+  color: var(--ui-text-primary);
 }
 @media (max-resolution: 1dppx) {
   .mn-panel[data-mnemo-editor] { border-width: 1px; }
 }
 .mn-panel[data-mnemo-editor]::-webkit-scrollbar { width: 6px; }
-.mn-panel[data-mnemo-editor]::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+.mn-panel[data-mnemo-editor]::-webkit-scrollbar-thumb { background: var(--ui-surface-scrollbar); border-radius: 3px; }
 
 /* ── Popover (L3) — the only blurred surface ────────────────────────────── */
 .mn-popover[data-mnemo-editor] {
-  background: #1E1E23;
-  border: 0.5px solid rgba(255,255,255,0.12);
-  border-radius: 12px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 32px rgba(0,0,0,0.5);
-  color: var(--ui-text-1);
+  background: var(--ui-surface-popover-solid);
+  border: 0.5px solid var(--ui-line-panel);
+  border-radius: var(--ui-radius-group);
+  box-shadow: var(--ui-shadow-popover);
+  color: var(--ui-text-primary);
   /* Opacity only: never scale/animate a blurred surface (spec 8). */
-  animation: mn-pop-in var(--ui-fast) var(--ui-ease);
+  animation: mn-pop-in var(--ui-motion-fast) var(--ui-motion-ease);
 }
 @media (max-resolution: 1dppx) {
   .mn-popover[data-mnemo-editor] { border-width: 1px; }
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .mn-popover[data-mnemo-editor] {
-    background: rgba(30,30,35,0.90);
+    background: var(--ui-surface-popover);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
     backdrop-filter: blur(20px) saturate(150%);
   }
 }
 @media (prefers-reduced-transparency: reduce) {
   .mn-popover[data-mnemo-editor] {
-    background: #1E1E23;
+    background: var(--ui-surface-popover-solid);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  .mn-panel[data-mnemo-editor] { background: #141417; }
+  .mn-panel[data-mnemo-editor] { background: var(--ui-surface-panel-opaque); }
 }
 @keyframes mn-pop-in {
   from { opacity: 0; }
@@ -101,7 +79,7 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) :where(button, [role="switch"], [role="tab"], [role="slider"], a, .mn-focusable):focus { outline: none; }
 :where([data-mnemo-editor], [data-mnemo-ui]) :where(button, [role="switch"], [role="tab"], [role="slider"], a, .mn-focusable):focus-visible {
   outline: none;
-  box-shadow: var(--ui-ring);
+  box-shadow: var(--ui-shadow-ring);
 }
 
 /* ── Switch ─────────────────────────────────────────────────────────────── */
@@ -109,87 +87,87 @@
   position: relative; flex-shrink: 0;
   width: 36px; height: 22px; padding: 0; margin: 0;
   border: none; border-radius: 999px;
-  background: var(--ui-track);
+  background: var(--ui-accent-track);
   cursor: pointer;
-  transition: background-color var(--ui-base) var(--ui-ease);
+  transition: background-color var(--ui-motion-base) var(--ui-motion-ease);
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch:hover { background: rgba(255,255,255,0.18); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] { background: var(--ui-on); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"]:hover { background: #FFFFFF; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch:hover { background: var(--ui-accent-track-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] { background: var(--ui-accent-on); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"]:hover { background: var(--ui-accent-on-hover); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch__knob {
   position: absolute; top: 2px; left: 2px;
   width: 18px; height: 18px; border-radius: 50%;
-  background: rgba(255,255,255,0.92);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-  transition: transform var(--ui-base) var(--ui-ease), background-color var(--ui-base) var(--ui-ease);
+  background: var(--ui-accent-knob);
+  box-shadow: var(--ui-shadow-knob);
+  transition: transform var(--ui-motion-base) var(--ui-motion-ease), background-color var(--ui-motion-base) var(--ui-motion-ease);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] .mn-switch__knob {
   transform: translateX(14px);
-  background: #141417;
+  background: var(--ui-accent-on-ink);
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-disabled="true"] { opacity: var(--ui-disabled); cursor: not-allowed; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-disabled="true"] { opacity: var(--ui-opacity-disabled); cursor: not-allowed; }
 
 /* ── Range (SliderRow / OffsetRow) — not animated on purpose ────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range {
   -webkit-appearance: none; appearance: none;
   width: 100%; height: 16px; margin: 0; padding: 0;
   background: transparent; cursor: pointer;
-  --ui-pct: 50%;
+  --mn-pct: 50%;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus { outline: none; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-runnable-track {
   height: 4px; border-radius: 2px;
-  background: linear-gradient(to right, var(--ui-fill) 0 var(--ui-pct), var(--ui-track) var(--ui-pct) 100%);
+  background: linear-gradient(to right, var(--ui-accent-fill) 0 var(--mn-pct), var(--ui-accent-track) var(--mn-pct) 100%);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-track {
-  height: 4px; border-radius: 2px; background: var(--ui-track);
+  height: 4px; border-radius: 2px; background: var(--ui-accent-track);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-progress {
-  height: 4px; border-radius: 2px; background: var(--ui-fill);
+  height: 4px; border-radius: 2px; background: var(--ui-accent-fill);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 16px; height: 16px; margin-top: -6px;
   border: none; border-radius: 50%;
-  background: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(0,0,0,0.2);
-  transition: transform var(--ui-fast) var(--ui-ease);
+  background: var(--ui-accent-thumb);
+  box-shadow: var(--ui-shadow-range-thumb);
+  transition: transform var(--ui-motion-fast) var(--ui-motion-ease);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-thumb {
   width: 16px; height: 16px; border: none; border-radius: 50%;
-  background: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.45);
-  transition: transform var(--ui-fast) var(--ui-ease);
+  background: var(--ui-accent-thumb);
+  box-shadow: var(--ui-shadow-range-thumb-moz);
+  transition: transform var(--ui-motion-fast) var(--ui-motion-ease);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-webkit-slider-thumb { transform: scale(1.15); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-moz-range-thumb { transform: scale(1.15); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus-visible::-webkit-slider-thumb { box-shadow: var(--ui-ring); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus-visible::-moz-range-thumb { box-shadow: var(--ui-ring); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:disabled { opacity: var(--ui-disabled); cursor: not-allowed; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus-visible::-webkit-slider-thumb { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus-visible::-moz-range-thumb { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:disabled { opacity: var(--ui-opacity-disabled); cursor: not-allowed; }
 
 /* Click-to-edit numeric value */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-value {
   background: transparent; border: none; padding: 0 4px; margin: 0 -4px 0 0;
   border-radius: 4px; cursor: text;
   font-family: 'Space Mono', monospace; font-size: 11px; line-height: 16px;
-  font-variant-numeric: tabular-nums; color: var(--ui-text-2);
-  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease;
+  font-variant-numeric: tabular-nums; color: var(--ui-text-secondary);
+  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value:hover { background: var(--ui-control); color: var(--ui-text-1); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-value { color: var(--ui-text-3); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value:hover { background: var(--ui-surface-control); color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-value { color: var(--ui-text-tertiary); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input {
   width: 56px; height: 20px; padding: 0 4px; margin: 0 -4px 0 0; box-sizing: border-box;
-  background: var(--ui-control); color: var(--ui-text-1);
+  background: var(--ui-surface-control); color: var(--ui-text-primary);
   border: none; border-radius: 4px; text-align: right;
   font-family: 'Space Mono', monospace; font-size: 11px; font-variant-numeric: tabular-nums;
-  outline: none; box-shadow: var(--ui-ring);
+  outline: none; box-shadow: var(--ui-shadow-ring);
 }
 /* Iteration 0: NumberField — the same value input, always visible: a
    hairline at rest, the shared ring only on focus. */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input.mn-value-input--field {
-  height: 24px; margin: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.32);
+  height: 24px; margin: 0; box-shadow: inset 0 0 0 1px var(--ui-line-field);
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input.mn-value-input--field:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input.mn-value-input--field:focus-visible { box-shadow: var(--ui-shadow-ring); }
 
 /* ── Field state (modified dot -> reset, inherited chip) ────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field { position: relative; }
@@ -198,43 +176,43 @@
   width: 14px; height: 20px; padding: 0; margin: 0;
   display: flex; align-items: center; justify-content: center;
   background: transparent; border: none; border-radius: 4px; cursor: pointer;
-  color: var(--ui-text-2);
+  color: var(--ui-text-secondary);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark::before {
   /* Iteration 0: drawn with a border in currentColor (not a background), so
      the "modified" dot survives forced colors (backgrounds are dropped). */
-  content: ""; width: 0; height: 0; border: 2.5px solid currentColor; border-radius: 50%; color: var(--ui-fill);
-  transition: opacity var(--ui-fast) ease;
+  content: ""; width: 0; height: 0; border: 2.5px solid currentColor; border-radius: 50%; color: var(--ui-accent-fill);
+  transition: opacity var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark svg {
-  position: absolute; opacity: 0; transition: opacity var(--ui-fast) ease;
+  position: absolute; opacity: 0; transition: opacity var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:hover .mn-field__mark::before,
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:focus-within .mn-field__mark::before { opacity: 0; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:hover .mn-field__mark svg,
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:focus-within .mn-field__mark svg { opacity: 1; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark:hover { color: var(--ui-text-1); background: var(--ui-control); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark:hover { color: var(--ui-text-primary); background: var(--ui-surface-control); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-chip {
   position: relative; display: inline-flex; align-items: center; height: 16px; padding: 0 6px;
-  border-radius: 999px; background: var(--ui-control);
+  border-radius: 999px; background: var(--ui-surface-control);
   font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.04em;
-  color: var(--ui-text-2); white-space: nowrap;
+  color: var(--ui-text-secondary); white-space: nowrap;
 }
 
 /* ── Icon button ────────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   padding: 0; margin: 0; border: none; border-radius: 8px;
-  background: transparent; color: var(--ui-text-2); cursor: pointer;
-  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease;
+  background: transparent; color: var(--ui-text-secondary); cursor: pointer;
+  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:hover { background: var(--ui-control-hover); color: var(--ui-text-1); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:active { background: var(--ui-control-active); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn[data-tone="danger"]:hover { color: var(--ui-danger); background: rgba(255,90,82,0.10); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled { background: var(--ui-control); box-shadow: inset 0 0 0 0.5px var(--ui-line); color: var(--ui-text-1); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled:hover { background: var(--ui-control-hover); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:focus-visible { box-shadow: var(--ui-ring); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:disabled { opacity: var(--ui-disabled); cursor: not-allowed; background: transparent; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:hover { background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:active { background: var(--ui-surface-control-active); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn[data-tone="danger"]:hover { color: var(--ui-accent-danger); background: var(--ui-accent-danger-tint); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled { background: var(--ui-surface-control); box-shadow: inset 0 0 0 0.5px var(--ui-line-control); color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:disabled { opacity: var(--ui-opacity-disabled); cursor: not-allowed; background: transparent; }
 
 /* ── Action button ──────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn {
@@ -242,36 +220,36 @@
   height: 32px; padding: 0 14px; border-radius: 8px; box-sizing: border-box;
   font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; line-height: 18px;
   cursor: pointer; user-select: none; white-space: nowrap;
-  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease, box-shadow var(--ui-fast) ease;
+  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, box-shadow var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary { background: var(--ui-on); color: #141417; border: none; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary:hover:not(:disabled) { background: #FFFFFF; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary:active:not(:disabled) { background: #DADADF; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary { background: var(--ui-control); color: var(--ui-text-1); border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary:hover:not(:disabled) { background: var(--ui-control-hover); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary:active:not(:disabled) { background: var(--ui-control-active); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost { background: transparent; color: var(--ui-text-2); border: none; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost:hover:not(:disabled) { background: var(--ui-control); color: var(--ui-text-1); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost:active:not(:disabled) { background: var(--ui-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary { background: var(--ui-accent-on); color: var(--ui-accent-on-ink); border: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary:hover:not(:disabled) { background: var(--ui-accent-on-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary:active:not(:disabled) { background: var(--ui-accent-on-active); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary { background: var(--ui-surface-control); color: var(--ui-text-primary); border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line-control); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary:hover:not(:disabled) { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary:active:not(:disabled) { background: var(--ui-surface-control-active); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost { background: transparent; color: var(--ui-text-secondary); border: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost:hover:not(:disabled) { background: var(--ui-surface-control); color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost:active:not(:disabled) { background: var(--ui-surface-control-hover); }
 /* Destructive: neutral at rest, red only on hover/active. */
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger { background: transparent; color: var(--ui-text-2); border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger:hover:not(:disabled) { color: var(--ui-danger); background: rgba(255,90,82,0.10); box-shadow: inset 0 0 0 0.5px rgba(255,90,82,0.35); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger:active:not(:disabled) { background: rgba(255,90,82,0.16); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn:disabled { opacity: var(--ui-disabled); cursor: not-allowed; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger { background: transparent; color: var(--ui-text-secondary); border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line-control); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger:hover:not(:disabled) { color: var(--ui-accent-danger); background: var(--ui-accent-danger-tint); box-shadow: inset 0 0 0 0.5px var(--ui-accent-danger-line); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--danger:active:not(:disabled) { background: var(--ui-accent-danger-tint-active); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn:disabled { opacity: var(--ui-opacity-disabled); cursor: not-allowed; }
 /* (0,4,0) — beats the (0,3,0) :hover:not(:disabled) shadows above. */
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn.mn-btn:focus-visible:not(:disabled) { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn.mn-btn:focus-visible:not(:disabled) { box-shadow: var(--ui-shadow-ring); }
 
 /* ── Text input / select ────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input {
-  background: var(--ui-control);
-  border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line);
-  border-radius: 8px; color: var(--ui-text-1);
-  transition: box-shadow var(--ui-fast) ease, background-color var(--ui-fast) ease;
+  background: var(--ui-surface-control);
+  border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line-control);
+  border-radius: 8px; color: var(--ui-text-primary);
+  transition: box-shadow var(--ui-motion-fast) ease, background-color var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input::placeholder { color: var(--ui-text-ph); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:hover { background: var(--ui-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input::placeholder { color: var(--ui-text-placeholder); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:hover { background: var(--ui-surface-control-hover); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:focus { outline: none; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:focus-visible { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-select {
   -webkit-appearance: none; appearance: none;
   padding-right: 28px !important;
@@ -279,43 +257,43 @@
   background-repeat: no-repeat; background-position: right 8px center;
   cursor: pointer;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-select option { background: #18181C; color: rgba(255,255,255,0.94); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-select option { background: var(--ui-surface-option); color: var(--ui-text-primary); }
 
 /* ── Tabs: underline ────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab {
-  color: var(--ui-text-2);
-  transition: color var(--ui-fast) ease, box-shadow var(--ui-fast) ease;
+  color: var(--ui-text-secondary);
+  transition: color var(--ui-motion-fast) ease, box-shadow var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab:hover { color: var(--ui-text-1); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab[aria-selected="true"] { color: var(--ui-text-1); box-shadow: inset 0 -2px 0 var(--ui-text-1); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab:focus-visible { box-shadow: var(--ui-ring); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab[aria-selected="true"]:focus-visible { box-shadow: var(--ui-ring), inset 0 -2px 0 var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab:hover { color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab[aria-selected="true"] { color: var(--ui-text-primary); box-shadow: inset 0 -2px 0 var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tab[aria-selected="true"]:focus-visible { box-shadow: var(--ui-shadow-ring), inset 0 -2px 0 var(--ui-text-primary); }
 
 /* ── Tabs: segmented ────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__thumb {
-  transition: transform var(--ui-seg) var(--ui-ease);
+  transition: transform var(--ui-motion-segment) var(--ui-motion-ease);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn {
-  color: var(--ui-text-2);
-  transition: color var(--ui-fast) ease;
+  color: var(--ui-text-secondary);
+  transition: color var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn:hover { color: var(--ui-text-1); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn[aria-checked="true"] { color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn:hover { color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn[aria-checked="true"] { color: var(--ui-text-primary); }
 
 /* ── Collapsible ────────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn {
-  color: rgba(255,255,255,0.52);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-  transition: color var(--ui-fast) ease;
+  color: var(--ui-text-section);
+  box-shadow: inset 0 1px 0 var(--ui-line-group);
+  transition: color var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn:focus-visible { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn:hover,
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn[aria-expanded="true"] { color: var(--ui-text-1); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__chev { transition: transform var(--ui-panel) var(--ui-ease); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn[aria-expanded="true"] { color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__chev { transition: transform var(--ui-motion-panel) var(--ui-motion-ease); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn[aria-expanded="true"] .mn-collapse__chev { transform: rotate(90deg); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__body {
   display: grid; grid-template-rows: 0fr;
-  transition: grid-template-rows var(--ui-panel) var(--ui-ease), opacity var(--ui-panel) var(--ui-ease);
+  transition: grid-template-rows var(--ui-motion-panel) var(--ui-motion-ease), opacity var(--ui-motion-panel) var(--ui-motion-ease);
   opacity: 0;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__body[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
@@ -331,53 +309,53 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-well {
   position: relative; flex-shrink: 0; padding: 0; margin: 0;
   border: none; border-radius: 50%; cursor: pointer; overflow: hidden;
-  background-color: #2A2A30;
-  background-image: conic-gradient(#3A3A42 25%, #24242A 0 50%, #3A3A42 0 75%, #24242A 0);
+  background-color: var(--ui-picker-well-base);
+  background-image: var(--ui-picker-checker);
   background-size: 8px 8px;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 0 0 1.5px rgba(255,255,255,0.32);
-  transition: box-shadow var(--ui-fast) ease;
+  box-shadow: var(--ui-shadow-well);
+  transition: box-shadow var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:hover { box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 0 0 2px rgba(255,255,255,0.40); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:focus-visible { box-shadow: var(--ui-ring); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well[aria-disabled="true"] { cursor: not-allowed; opacity: var(--ui-disabled); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:hover { box-shadow: var(--ui-shadow-well-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well[aria-disabled="true"] { cursor: not-allowed; opacity: var(--ui-opacity-disabled); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-hex {
   font-family: 'Space Mono', monospace; font-size: 11px; line-height: 16px;
-  font-variant-numeric: tabular-nums; color: var(--ui-text-2); white-space: nowrap;
+  font-variant-numeric: tabular-nums; color: var(--ui-text-secondary); white-space: nowrap;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-hex { color: var(--ui-text-3); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-hex { color: var(--ui-text-tertiary); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area,
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar { touch-action: none; cursor: crosshair; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar { cursor: ew-resize; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area { box-shadow: inset 0 0 0 0.5px rgba(255,255,255,0.10); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area { box-shadow: inset 0 0 0 0.5px var(--ui-line-control); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area:focus-visible,
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar:focus-visible { box-shadow: var(--ui-ring); outline: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar:focus-visible { box-shadow: var(--ui-shadow-ring); outline: none; }
 
 /* ── Gradient bar ───────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop {
   position: absolute; top: 50%; padding: 0; margin: 0;
   width: 14px; height: 14px; border-radius: 50%; cursor: pointer;
-  border: 2px solid #FFFFFF;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+  border: 2px solid var(--ui-picker-handle-border);
+  box-shadow: var(--ui-shadow-handle);
   transform: translate(-50%, -50%);
-  transition: transform var(--ui-fast) var(--ui-ease);
+  transition: transform var(--ui-motion-fast) var(--ui-motion-ease);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop:hover { transform: translate(-50%, -50%) scale(1.12); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop[aria-checked="true"] {
   transform: translate(-50%, -50%) scale(1.2);
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 0 0 3.5px rgba(255,255,255,0.55);
+  box-shadow: var(--ui-shadow-handle-selected);
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop:focus-visible { box-shadow: var(--ui-shadow-ring); }
 
 /* ── Menu list items (MyLand / + menu) ──────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; height: 32px; padding: 0 10px; box-sizing: border-box;
   border: none; border-radius: 8px; background: transparent; cursor: pointer; text-align: left;
-  font-family: 'DM Sans', sans-serif; font-size: 13px; line-height: 18px; color: var(--ui-text-2);
-  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; line-height: 18px; color: var(--ui-text-secondary);
+  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem:hover,
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem[aria-expanded="true"] { background: var(--ui-control); color: var(--ui-text-1); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem[aria-expanded="true"] { background: var(--ui-surface-control); color: var(--ui-text-primary); }
 
 /* ── Motion preferences ─────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
@@ -461,7 +439,7 @@
 [data-mnemo-canvas]:focus-visible::after {
   content: ""; position: absolute; inset: 48px 4px 4px 4px; pointer-events: none;
   border-radius: 6px; z-index: 2147483000;
-  box-shadow: 0 0 0 2px rgba(20,20,23,0.85), inset 0 0 0 2px rgba(255,255,255,0.75);
+  box-shadow: var(--ui-shadow-canvas-ring);
 }
 @media (forced-colors: active) {
   [data-mnemo-canvas]:focus-visible::after { box-shadow: none; outline: 2px solid Highlight; outline-offset: -2px; }
@@ -473,32 +451,32 @@
 :where([data-mnemo-ui]) .mn-canvas-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; padding: 0; margin: 0; border-radius: 50%;
-  background: rgba(12,12,14,0.96); border: 1px solid rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.78); cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease;
+  background: var(--ui-chrome-bg); border: 1px solid var(--ui-chrome-line);
+  color: var(--ui-chrome-text); cursor: pointer;
+  box-shadow: var(--ui-chrome-shadow);
+  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-ui]) .mn-canvas-btn:hover { background: rgba(40,40,44,0.98); color: var(--ui-text-1); }
+:where([data-mnemo-ui]) .mn-canvas-btn:hover { background: var(--ui-chrome-bg-hover); color: var(--ui-text-primary); }
 /* Review r2 (Visual-2): the pressed/expanded tint is OVERLAID on the opaque
    base — a translucent fill read white-on-white over light wallpapers. */
 :where([data-mnemo-ui]) .mn-canvas-btn[aria-expanded="true"],
 :where([data-mnemo-ui]) .mn-canvas-btn[aria-pressed="true"] {
-  background: linear-gradient(rgba(255,255,255,0.16), rgba(255,255,255,0.16)), rgba(12,12,14,0.96);
-  color: var(--ui-text-1); border-color: rgba(255,255,255,0.32);
+  background: linear-gradient(var(--ui-chrome-tint), var(--ui-chrome-tint)), var(--ui-chrome-bg);
+  color: var(--ui-text-primary); border-color: var(--ui-chrome-line-active);
 }
-:where([data-mnemo-ui]) .mn-canvas-btn:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-ui]) .mn-canvas-btn:focus-visible { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-ui]) .mn-canvas-btn--rect { border-radius: 6px; width: auto; min-width: 24px; padding: 0 6px; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.04em; }
 /* Review r2 (A11y-1 / Visual-1): flat variant for buttons INSIDE a canvas
    toolbar (layers, corners). Its look lives here, not inline, so the focus
    ring, hover and forced-colors borders keep working. */
-:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat { background: transparent; border: 1px solid transparent; box-shadow: none; color: rgba(255,255,255,0.78); }
-:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:hover { background: rgba(255,255,255,0.10); color: var(--ui-text-1); }
-:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat[aria-pressed="true"] { background: rgba(255,255,255,0.92); color: #0a0a0c; border-color: transparent; }
-:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat { background: transparent; border: 1px solid transparent; box-shadow: none; color: var(--ui-chrome-text); }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:hover { background: var(--ui-chrome-flat-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat[aria-pressed="true"] { background: var(--ui-chrome-flat-pressed); color: var(--ui-chrome-flat-ink); border-color: transparent; }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:focus-visible { box-shadow: var(--ui-shadow-ring); }
 /* Corner-shape glyph inside a flat button. */
-:where([data-mnemo-ui]) .mn-canvas-btn__shape { display: block; width: 14px; height: 14px; border: 1px solid rgba(255,255,255,0.55); }
-:where([data-mnemo-ui]) .mn-canvas-btn[aria-pressed="true"] .mn-canvas-btn__shape { border-color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.25); }
-:where([data-mnemo-ui]) .mn-canvas-btn--flat[aria-pressed="true"] .mn-canvas-btn__shape { border-color: #0a0a0c; background: rgba(10,10,12,0.25); }
+:where([data-mnemo-ui]) .mn-canvas-btn__shape { display: block; width: 14px; height: 14px; border: 1px solid var(--ui-chrome-shape); }
+:where([data-mnemo-ui]) .mn-canvas-btn[aria-pressed="true"] .mn-canvas-btn__shape { border-color: var(--ui-chrome-shape-pressed); background: var(--ui-chrome-shape-fill); }
+:where([data-mnemo-ui]) .mn-canvas-btn--flat[aria-pressed="true"] .mn-canvas-btn__shape { border-color: var(--ui-chrome-flat-ink); background: var(--ui-chrome-shape-fill-ink); }
 @media (forced-colors: active) {
   :where([data-mnemo-ui]) .mn-canvas-btn { border: 1px solid ButtonText; }
   :where([data-mnemo-ui]) .mn-canvas-btn[aria-expanded="true"],
@@ -510,4 +488,4 @@
 }
 /* Review r2: the image "Link" chip keeps its own look inline (lime when
    linked); focus ring from here. */
-:where([data-mnemo-ui]) .mn-canvas-btn--chip:focus-visible { box-shadow: var(--ui-ring); outline: none; }
+:where([data-mnemo-ui]) .mn-canvas-btn--chip:focus-visible { box-shadow: var(--ui-shadow-ring); outline: none; }

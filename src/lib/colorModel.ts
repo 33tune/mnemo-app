@@ -141,3 +141,17 @@ export function resolveFieldEscape(draft: string | null, initial: string | null)
   if (draft === null) return "close";
   return draft.trim().toUpperCase() === (initial ?? "").trim().toUpperCase() ? "close" : "revert";
 }
+
+// ── Picker backgrounds (menu redesign Phase 1) ─────────────────────────────
+// Color MATH, not editor chrome: the SV area and the hue bar must show the
+// full color space whatever the editor theme is, so these are defined with
+// the color model instead of as design tokens (src/ui stays literal-free).
+
+/** Hue bar: the 0–360° spectrum. */
+export const HUE_SPECTRUM_CSS = "linear-gradient(to right, #f00 0%, #ff0 16.67%, #0f0 33.33%, #0ff 50%, #00f 66.67%, #f0f 83.33%, #f00 100%)";
+
+/** SV area over a pure hue: value (black, bottom) and saturation (white,
+ * left) overlays, then the hue itself. */
+export function svAreaCss(pureHue: string): string {
+  return `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), ${pureHue}`;
+}

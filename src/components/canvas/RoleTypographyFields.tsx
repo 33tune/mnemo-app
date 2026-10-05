@@ -2,6 +2,12 @@
 import type { TextFont, TextGradientEffect, TextShimmerEffect, TextLetterAnimationEffect } from "@/types";
 import { MenuSection, MenuRow, MenuNote, ColorRow, FontSelect, SliderRow, Collapsible, Toggle, Divider, GradientStops } from "@/ui";
 import { CANVAS_FONTS } from "@/lib/fontList";
+import { EFFECT_ON_DEFAULTS } from "@/lib/effectEditorDefaults";
+
+// Menu redesign Phase 1: the values a switch writes when turned on live in
+// effectEditorDefaults.ts (EFFECT_ON_DEFAULTS) — fresh copies, never shared.
+const ON = EFFECT_ON_DEFAULTS;
+const newGradient = (): TextGradientEffect => ({ colors: [...ON.textGradient.colors], angle: ON.textGradient.angle });
 
 interface Props {
   label:  string;
@@ -106,14 +112,14 @@ export default function RoleTypographyFields({
         <MenuRow label="Activar">
           <Toggle
             value={gradientOn}
-            onChange={v => onGradientChange(v ? { colors: ["#ffffff", "#8a8a96"], angle: 90 } : undefined)}
+            onChange={v => onGradientChange(v ? newGradient() : undefined)}
           />
         </MenuRow>
         {gradient && (
           <>
             <GradientStops colors={gradient.colors ?? [gradient.from, gradient.to].filter((c): c is string => !!c)}
               onChange={colors => onGradientChange({ ...gradient, colors })} />
-            <SliderRow label="Ángulo" min={0} max={360} step={5} value={gradient.angle ?? 90}
+            <SliderRow label="Ángulo" min={0} max={360} step={5} value={gradient.angle ?? ON.textGradient.angle}
               onChange={v => onGradientChange({ ...gradient, angle: v })} fmt={v => `${v}°`} />
           </>
         )}
@@ -123,7 +129,7 @@ export default function RoleTypographyFields({
         <MenuRow label="Shimmer">
           <Toggle
             value={!!shimmer}
-            onChange={v => onShimmerChange(v ? { intensity: 0.45, speed: 1 } : undefined)}
+            onChange={v => onShimmerChange(v ? { ...ON.textShimmer } : undefined)}
           />
         </MenuRow>
         {shimmer && (
@@ -134,10 +140,10 @@ export default function RoleTypographyFields({
                 band — "Intensidad" (highlight opacity) has nothing to control
                 in that mode, so it only shows for the flat-color sweep. */}
             {!gradientOn && (
-              <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={shimmer.intensity ?? 0.45}
+              <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={shimmer.intensity ?? ON.textShimmer.intensity}
                 onChange={v => onShimmerChange({ ...shimmer, intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
             )}
-            <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={shimmer.speed ?? 1}
+            <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={shimmer.speed ?? ON.textShimmer.speed}
               onChange={v => onShimmerChange({ ...shimmer, speed: v })} fmt={v => `${v.toFixed(1)}x`} />
           </>
         )}
@@ -148,16 +154,16 @@ export default function RoleTypographyFields({
           <MenuRow label="Animar por letra">
             <Toggle
               value={!!letterAnimation}
-              onChange={v => onLetterAnimationChange(v ? { amplitude: 4, speed: 1, stagger: 0.05 } : undefined)}
+              onChange={v => onLetterAnimationChange(v ? { ...ON.letterAnimation } : undefined)}
             />
           </MenuRow>
           {letterAnimation && (
             <>
-              <SliderRow label="Amplitud" min={1} max={12} step={1} value={letterAnimation.amplitude ?? 4}
+              <SliderRow label="Amplitud" min={1} max={12} step={1} value={letterAnimation.amplitude ?? ON.letterAnimation.amplitude}
                 onChange={v => onLetterAnimationChange({ ...letterAnimation, amplitude: v })} unit="px" />
-              <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={letterAnimation.speed ?? 1}
+              <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={letterAnimation.speed ?? ON.letterAnimation.speed}
                 onChange={v => onLetterAnimationChange({ ...letterAnimation, speed: v })} fmt={v => `${v.toFixed(1)}x`} />
-              <SliderRow label="Escalonado" min={0} max={0.2} step={0.01} value={letterAnimation.stagger ?? 0.05}
+              <SliderRow label="Escalonado" min={0} max={0.2} step={0.01} value={letterAnimation.stagger ?? ON.letterAnimation.stagger}
                 onChange={v => onLetterAnimationChange({ ...letterAnimation, stagger: v })} fmt={v => `${Math.round(v * 1000)}ms`} />
             </>
           )}

@@ -1,13 +1,14 @@
 "use client";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
-import { withNeutralGlowOnCreate } from "@/lib/neutralGlow";
 import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
-import type { ProfileCardData, TextFont, TextShadowEffect, TextGlowEffect, TextStrokeEffect, TextEffects, TextRole, RoleTextEffect } from "@/types";
+import { setEffectEnabled } from "@/lib/effectBinding";
+import type { ProfileCardData, TextShadowEffect, TextGlowEffect, TextStrokeEffect, TextEffects, TextRole, RoleTextEffect } from "@/types";
 import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveCardColors } from "@/lib/cardColors";
-import { pauseEffect, resumeEffect, toggleEffect, resumeWithIntensity, mergePatch, type EffectPath } from "@/lib/effectPause";
+import { pauseEffect, resumeEffect, mergePatch, type EffectPath } from "@/lib/effectPause";
 import {
   nameFontSizeDefault, TEXT_SHADOW_DEFAULTS, textShadowOpacity, TEXT_GLOW_DEFAULT_COLOR, textGlowRadius, TEXT_STROKE_DEFAULT_COLOR,
+  NAME_FONT_DEFAULT, MONO_ROLE_FONT_DEFAULT, MONO_LINE_HEIGHT_NORMAL, ROLE_TYPOGRAPHY_RANGES as R, ROLE_WEIGHT_FALLBACK,
 } from "@/lib/effectEditorDefaults";
 import { T, SliderRow, ColorSwatch, MenuSection, MenuRow, Tabs, Collapsible, Divider, Toggle, OffsetRow, ActionButton } from "@/ui";
 import RoleTypographyFields from "./RoleTypographyFields";
@@ -16,15 +17,8 @@ type TextAlign = NonNullable<ProfileCardData["textAlign"]>;
 const ALIGN_TABS: { id: TextAlign; label: string }[] = [
   { id: "left", label: "Izq" }, { id: "center", label: "Centro" }, { id: "right", label: "Der" },
 ];
-const MONO_DEFAULT_FONT: TextFont = "Space Mono";
-// Slider position shown while monoLineHeight is unset. Verified: with the
-// field absent these four lines get NO line-height anywhere up the tree —
-// globals.css has `@tailwind base` but Tailwind isn't installed (no
-// preflight emitted in the build CSS), and no ancestor sets one — so they
-// render with CSS `normal`, which depends on the font: ~1.48 for the
-// default Space Mono (ascent 1.12 + descent 0.36 em). Shown as "normal",
-// slider parked at the nearest step; never written until the user edits.
-const MONO_LINE_HEIGHT_NORMAL = 1.5;
+// Role defaults (fonts, ranges, the "normal" mono line-height) live in
+// effectEditorDefaults.ts — menu redesign Phase 1.
 
 type TypographyPatch = Partial<ProfileCardData>;
 
@@ -80,12 +74,12 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
   function patchTextFx(p: Partial<TextEffects>) {
     onChange({ effects: { ...effects, text: { ...textFx, ...p } } });
   }
-  // "Apagar no borra" (Block 1): text shadow/glow/stroke toggles pause the
-  // config into effects.paused instead of deleting it — see effectPause.ts.
-  // (Glow uses resumeWithIntensity instead — a paused glow at intensity 0
-  // would otherwise come back invisible.)
-  function toggleTextFx(path: "text.shadow" | "text.stroke", on: boolean, fallback: object) {
-    onChange({ effects: toggleEffect(effects, path, on, { fallback }) });
+  // "Apagar no borra" (Block 1): text shadow/glow/stroke switches pause the
+  // config into effects.paused instead of deleting it. The rules (glow
+  // revives an intensity of 0 and gets the O3 neutral color when new) live
+  // in effectBinding.ts — menu redesign Phase 1.
+  function toggleTextFx(path: "text.shadow" | "text.glow" | "text.stroke", on: boolean) {
+    onChange({ effects: setEffectEnabled(effects, path, on) });
   }
   function patchShadow(p: Partial<TextShadowEffect>) {
     patchTextFx({ shadow: { ...textFx?.shadow, ...p } });
@@ -144,7 +138,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
           card-wide. Absent = no CSS line-height at all (browser "normal"),
           which the label says instead of a made-up number. */}
       <MenuSection label="Interlineado de textos secundarios">
-        <SliderRow label="Handle, Descriptor, Ubicación, Views" min={0.9} max={2} step={0.05}
+        <SliderRow label="Handle, Descriptor, Ubicación, Views" min={R.monoLineHeight[0]} max={R.monoLineHeight[1]} step={0.05}
           value={card.monoLineHeight ?? MONO_LINE_HEIGHT_NORMAL}
           fmt={v => card.monoLineHeight == null ? "normal" : v.toFixed(2)}
           onChange={v => onChange({ monoLineHeight: v })} />
@@ -163,7 +157,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
       <Collapsible label="Efectos globales de texto">
         <MenuSection label="Sombra" first>
           <MenuRow label="Activar">
-            <Toggle value={!!textFx?.shadow} onChange={v => toggleTextFx("text.shadow", v, {})} />
+            <Toggle value={!!textFx?.shadow} onChange={v => toggleTextFx("text.shadow", v)} />
           </MenuRow>
           {textFx?.shadow && (
             <>
@@ -188,7 +182,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
           <MenuRow label="Activar">
             {/* Iteration 0: "on" = visible (intensity > 0, what textEffects
                 renders), not mere presence. */}
-            <Toggle value={isIntensityEffectVisible(textFx?.glow)} onChange={v => onChange({ effects: v ? withNeutralGlowOnCreate(effects, "text.glow", resumeWithIntensity(effects, "text.glow")) : pauseEffect(effects, "text.glow") })} />
+            <Toggle value={isIntensityEffectVisible(textFx?.glow)} onChange={v => toggleTextFx("text.glow", v)} />
           </MenuRow>
           {textFx?.glow && isIntensityEffectVisible(textFx.glow) && (
             <>
@@ -210,7 +204,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
 
         <MenuSection label="Stroke / contorno">
           <MenuRow label="Activar">
-            <Toggle value={!!textFx?.stroke} onChange={v => toggleTextFx("text.stroke", v, { width: 1 })} />
+            <Toggle value={!!textFx?.stroke} onChange={v => toggleTextFx("text.stroke", v)} />
           </MenuRow>
           {textFx?.stroke && (
             <>
@@ -238,11 +232,11 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         label="Nombre"
         color={colors.name} hasColorOverride={!!card.nameColor}
         onColorChange={v => onChange({ nameColor: v })} onColorClear={() => onChange({ nameColor: undefined })}
-        font={card.nameFont ?? card.font ?? "DM Sans"} onFontChange={v => onChange({ nameFont: v })}
-        fontSize={nameFontSize} fontSizeMin={10} fontSizeMax={32} onFontSizeChange={v => onChange({ nameFontSize: v })}
+        font={card.nameFont ?? card.font ?? NAME_FONT_DEFAULT} onFontChange={v => onChange({ nameFont: v })}
+        fontSize={nameFontSize} fontSizeMin={R.name.fontSize[0]} fontSizeMax={R.name.fontSize[1]} onFontSizeChange={v => onChange({ nameFontSize: v })}
         weight={typography.name.fontWeight} onWeightChange={v => onChange({ nameFontWeight: v })}
         letterSpacing={typography.name.letterSpacing} onLetterSpacingChange={v => onChange({ nameLetterSpacing: v })}
-        lineHeight={typography.name.lineHeight} lineHeightMin={0.9} lineHeightMax={2} onLineHeightChange={v => onChange({ nameLineHeight: v })}
+        lineHeight={typography.name.lineHeight} lineHeightMin={R.name.lineHeight![0]} lineHeightMax={R.name.lineHeight![1]} onLineHeightChange={v => onChange({ nameLineHeight: v })}
         {...makeGradientHandlers("name")}
         letterAnimation={nameRole?.letterAnimation}
         onLetterAnimationChange={v => setRoleTextEffect("name", "letterAnimation", v)}
@@ -252,9 +246,9 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         label="Handle"
         color={colors.handle} hasColorOverride={!!card.handleColor}
         onColorChange={v => onChange({ handleColor: v })} onColorClear={() => onChange({ handleColor: undefined })}
-        font={card.handleFont ?? MONO_DEFAULT_FONT} onFontChange={v => onChange({ handleFont: v })}
-        fontSize={typography.handle.fontSize} fontSizeMin={7} fontSizeMax={18} onFontSizeChange={v => onChange({ handleFontSize: v })}
-        weight={typography.handle.fontWeight ?? 400} onWeightChange={v => onChange({ handleFontWeight: v })}
+        font={card.handleFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ handleFont: v })}
+        fontSize={typography.handle.fontSize} fontSizeMin={R.handle.fontSize[0]} fontSizeMax={R.handle.fontSize[1]} onFontSizeChange={v => onChange({ handleFontSize: v })}
+        weight={typography.handle.fontWeight ?? ROLE_WEIGHT_FALLBACK} onWeightChange={v => onChange({ handleFontWeight: v })}
         letterSpacing={typography.handle.letterSpacing} onLetterSpacingChange={v => onChange({ handleLetterSpacing: v })}
         {...makeGradientHandlers("handle")}
       />
@@ -263,9 +257,9 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         label="Descriptor"
         color={colors.descriptor} hasColorOverride={!!card.descriptorColor}
         onColorChange={v => onChange({ descriptorColor: v })} onColorClear={() => onChange({ descriptorColor: undefined })}
-        font={card.statusFont ?? MONO_DEFAULT_FONT} onFontChange={v => onChange({ statusFont: v })}
-        fontSize={typography.descriptor.fontSize} fontSizeMin={7} fontSizeMax={18} onFontSizeChange={v => onChange({ statusFontSize: v })}
-        weight={typography.descriptor.fontWeight ?? 400} onWeightChange={v => onChange({ descriptorFontWeight: v })}
+        font={card.statusFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ statusFont: v })}
+        fontSize={typography.descriptor.fontSize} fontSizeMin={R.descriptor.fontSize[0]} fontSizeMax={R.descriptor.fontSize[1]} onFontSizeChange={v => onChange({ statusFontSize: v })}
+        weight={typography.descriptor.fontWeight ?? ROLE_WEIGHT_FALLBACK} onWeightChange={v => onChange({ descriptorFontWeight: v })}
         letterSpacing={typography.descriptor.letterSpacing} onLetterSpacingChange={v => onChange({ descriptorLetterSpacing: v })}
         {...makeGradientHandlers("descriptor")}
       />
@@ -275,9 +269,9 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         color={locationBlockColor ?? colors.location} hasColorOverride={!!card.locationColor || !!locationBlockColor}
         onColorChange={v => onChange({ locationColor: v, ...withoutBlockTextColor("location") })}
         onColorClear={() => onChange({ locationColor: undefined, ...withoutBlockTextColor("location") })}
-        font={card.locationFont ?? MONO_DEFAULT_FONT} onFontChange={v => onChange({ locationFont: v })}
-        fontSize={typography.location.fontSize} fontSizeMin={7} fontSizeMax={18} onFontSizeChange={v => onChange({ locationFontSize: v })}
-        weight={typography.location.fontWeight ?? 400} onWeightChange={v => onChange({ locationFontWeight: v })}
+        font={card.locationFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ locationFont: v })}
+        fontSize={typography.location.fontSize} fontSizeMin={R.location.fontSize[0]} fontSizeMax={R.location.fontSize[1]} onFontSizeChange={v => onChange({ locationFontSize: v })}
+        weight={typography.location.fontWeight ?? ROLE_WEIGHT_FALLBACK} onWeightChange={v => onChange({ locationFontWeight: v })}
         letterSpacing={typography.location.letterSpacing} onLetterSpacingChange={v => onChange({ locationLetterSpacing: v })}
         {...makeGradientHandlers("location")}
       />
@@ -286,10 +280,10 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         label="Bio"
         color={colors.bio} hasColorOverride={!!card.bioColor}
         onColorChange={v => onChange({ bioColor: v })} onColorClear={() => onChange({ bioColor: undefined })}
-        font={card.bioFont ?? MONO_DEFAULT_FONT} onFontChange={v => onChange({ bioFont: v })}
-        fontSize={typography.bio.fontSize} fontSizeMin={7} fontSizeMax={18} onFontSizeChange={v => onChange({ bioFontSize: v })}
-        weight={typography.bio.fontWeight ?? 400} onWeightChange={v => onChange({ bioFontWeight: v })}
-        lineHeight={typography.bio.lineHeight} lineHeightMin={1} lineHeightMax={2.4} onLineHeightChange={v => onChange({ bioLineHeight: v })}
+        font={card.bioFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ bioFont: v })}
+        fontSize={typography.bio.fontSize} fontSizeMin={R.bio.fontSize[0]} fontSizeMax={R.bio.fontSize[1]} onFontSizeChange={v => onChange({ bioFontSize: v })}
+        weight={typography.bio.fontWeight ?? ROLE_WEIGHT_FALLBACK} onWeightChange={v => onChange({ bioFontWeight: v })}
+        lineHeight={typography.bio.lineHeight} lineHeightMin={R.bio.lineHeight![0]} lineHeightMax={R.bio.lineHeight![1]} onLineHeightChange={v => onChange({ bioLineHeight: v })}
         // No letterSpacing props: bio never had that concept (see
         // cardTypography.ts) — omitting them hides the row entirely.
         {...makeGradientHandlers("bio")}
@@ -300,9 +294,9 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
         color={viewsBlockColor ?? colors.views} hasColorOverride={!!card.viewsColor || !!viewsBlockColor}
         onColorChange={v => onChange({ viewsColor: v, ...withoutBlockTextColor("views") })}
         onColorClear={() => onChange({ viewsColor: undefined, ...withoutBlockTextColor("views") })}
-        font={card.viewsFont ?? MONO_DEFAULT_FONT} onFontChange={v => onChange({ viewsFont: v })}
-        fontSize={typography.views.fontSize} fontSizeMin={7} fontSizeMax={18} onFontSizeChange={v => onChange({ viewsFontSize: v })}
-        weight={typography.views.fontWeight ?? 400} onWeightChange={v => onChange({ viewsFontWeight: v })}
+        font={card.viewsFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ viewsFont: v })}
+        fontSize={typography.views.fontSize} fontSizeMin={R.views.fontSize[0]} fontSizeMax={R.views.fontSize[1]} onFontSizeChange={v => onChange({ viewsFontSize: v })}
+        weight={typography.views.fontWeight ?? ROLE_WEIGHT_FALLBACK} onWeightChange={v => onChange({ viewsFontWeight: v })}
         letterSpacing={typography.views.letterSpacing} onLetterSpacingChange={v => onChange({ viewsLetterSpacing: v })}
         {...makeGradientHandlers("views")}
       />

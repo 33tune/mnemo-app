@@ -1,6 +1,6 @@
 "use client";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
-import { withNeutralGlowOnCreate } from "@/lib/neutralGlow";
+import { setEffectEnabled } from "@/lib/effectBinding";
 import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
 import { useRef, useState } from "react";
 import type { ProfileCardData } from "@/types";
@@ -8,9 +8,9 @@ import { uploadToStorage } from "@/lib/storage";
 import { T, MenuSection, MenuRow, SliderRow, ActionButton, ColorRow, Toggle, Collapsible, refocusFieldControl } from "@/ui";
 import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
 import BlockStyleFields from "./BlockStyleFields";
-import { getPaused, pauseEffect, removeEffect, resumeWithIntensity, mergePatch } from "@/lib/effectPause";
+import { mergePatch } from "@/lib/effectPause";
 import {
-  pfpBorderDisplay, pfpShadowOn, pfpVariantShadowOn, pfpShadowColor, PFP_GLOW_DEFAULT_COLOR, pfpGlowRadius,
+  pfpBorderDisplay, pfpShadowOn, pfpShadowColor, PFP_GLOW_DEFAULT_COLOR, pfpGlowRadius,
 } from "@/lib/effectEditorDefaults";
 
 type IdentityPatch = Partial<ProfileCardData>;
@@ -85,22 +85,13 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
   const variant = card.variant;
   const pfpBorder = pfpBorderDisplay(variant, baseColor, pfpFx?.border);
   const shadowOn = pfpShadowOn(variant, pfpFx?.shadow);
-  // "Apagar no borra" (effectPause.ts). The PFP shadow needs one extra
-  // rule: on guns/poster, ABSENCE renders the variant's default shadow, so
-  // "off" must leave an explicit {intensity: 0} sentinel; and "on" with
-  // nothing paused simply drops the sentinel, bringing the variant default
-  // back exactly as it was.
+  // "Apagar no borra" (effectPause.ts). The PFP shadow's extra rule (on
+  // guns/poster ABSENCE renders the variant default, so off leaves an
+  // explicit {intensity: 0} sentinel and on with nothing paused just drops
+  // it) lives in effectBinding.ts with the rest of the switch semantics —
+  // menu redesign Phase 1.
   function setPfpShadowOn(on: boolean) {
-    const effects = card.effects;
-    const variantDefault = pfpVariantShadowOn(variant);
-    if (!on) {
-      onChange({ effects: pauseEffect(effects, "pfp.shadow", variantDefault ? { intensity: 0 } : undefined) });
-      return;
-    }
-    const hasPaused = getPaused(effects, "pfp.shadow") !== undefined;
-    if (!hasPaused && variantDefault) { onChange({ effects: removeEffect(effects, "pfp.shadow") }); return; }
-    // resumeWithIntensity: a stashed/legacy intensity 0 would render nothing.
-    onChange({ effects: resumeWithIntensity(effects, "pfp.shadow") });
+    onChange({ effects: setEffectEnabled(card.effects, "pfp.shadow", on, variant) });
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -180,7 +171,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
               {/* Iteration 0: "on" = visible (intensity > 0, what the avatar
                   renders), not mere presence — a stored glow at intensity 0
                   used to read "on" while drawing nothing. */}
-              <Toggle value={isIntensityEffectVisible(pfpFx?.glow)} onChange={v => onChange({ effects: v ? withNeutralGlowOnCreate(card.effects, "pfp.glow", resumeWithIntensity(card.effects, "pfp.glow")) : pauseEffect(card.effects, "pfp.glow") })} />
+              <Toggle value={isIntensityEffectVisible(pfpFx?.glow)} onChange={v => onChange({ effects: setEffectEnabled(card.effects, "pfp.glow", v) })} />
             </MenuRow>
             {pfpFx?.glow && isIntensityEffectVisible(pfpFx.glow) && (
               <>
