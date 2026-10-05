@@ -1,15 +1,7 @@
 "use client";
 import type { ProfileCardData } from "@/types";
-import { T, MenuSection, MenuRow, Toggle } from "@/ui";
+import { T, MenuSection, MenuRow, Toggle, TextInput, TextArea } from "@/ui";
 import BlockStyleFields from "./BlockStyleFields";
-
-const fieldInputStyle: React.CSSProperties = {
-  display: "block", width: "100%",
-  background: T.surface.input, border: `1px solid ${T.border.default}`,
-  borderRadius: T.radius.sm, padding: "6px 8px", color: T.text.secondary,
-  fontFamily: T.font.sans, fontSize: T.size.sm, outline: "none",
-  boxSizing: "border-box",
-};
 
 type MetadataPatch = Partial<ProfileCardData>;
 
@@ -31,22 +23,22 @@ export default function ProfileMetadataMenu({ card, onChange }: ProfileMetadataM
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
       <MenuSection label="Descriptor" first>
-        <input value={status ?? ""} onChange={e => onChange({ status: e.target.value })}
-          onMouseDown={e => e.stopPropagation()} placeholder="diseñador multimedia, just for fun..." maxLength={60}
-          style={fieldInputStyle} />
+        {/* Iteration 0: shared TextInput — named by the visible section
+            heading (was placeholder-only) and with the editor focus ring
+            (was outline:none). */}
+        <TextInput value={status ?? ""} onChange={v => onChange({ status: v })}
+          placeholder="diseñador multimedia, just for fun..." maxLength={60} />
       </MenuSection>
 
       <MenuSection label="Ubicación">
-        <input value={location ?? ""} onChange={e => onChange({ location: e.target.value })}
-          onMouseDown={e => e.stopPropagation()} placeholder="la plata, buenos aires" maxLength={60}
-          style={fieldInputStyle} />
+        <TextInput value={location ?? ""} onChange={v => onChange({ location: v })}
+          placeholder="la plata, buenos aires" maxLength={60} />
         <BlockStyleFields card={card} blockKey="location" onChange={onChange} />
       </MenuSection>
 
       <MenuSection label="Bio">
-        <textarea value={bio ?? ""} onChange={e => onChange({ bio: e.target.value })}
-          onMouseDown={e => e.stopPropagation()} placeholder="short bio..." maxLength={120} rows={2}
-          style={{ ...fieldInputStyle, resize: "none", lineHeight: 1.5 }} />
+        <TextArea value={bio ?? ""} onChange={v => onChange({ bio: v })}
+          placeholder="una bio corta…" maxLength={120} rows={2} />
       </MenuSection>
 
       <MenuSection label="Views">

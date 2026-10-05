@@ -11,6 +11,8 @@ import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
 import { isEventFromNode } from "@/lib/editorGuards";
+import { resolveOpenerSpot } from "@/lib/openerPlacement";
+import { CanvasChromeButton } from "./CanvasChromeButton";
 import CardLayers from "./CardLayers";
 import { MenuPanel } from "@/ui";
 import ProfileConfigMenu from "./ProfileConfigMenu";
@@ -243,6 +245,11 @@ function ProfileCard({
 
   const [menuOpen,     setMenuOpen]     = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const editBtnRef = useRef<HTMLButtonElement>(null);
+  const panelId = `mnemo-profile-editor-${card.id}`;
+  // Review r2: same resolver as every canvas chrome control (on-canvas, not
+  // under the topbar, clear of the resize handles; below-left before inside).
+  const openerPos = resolveOpenerSpot(card, { w: viewportW ?? Number.POSITIVE_INFINITY, h: viewportH ?? Number.POSITIVE_INFINITY, topOffset: CANVAS_TOP_OFFSET });
 
   // Layout mode
   const layout = (card.layout ?? "vertical") as "vertical" | "horizontal" | "free";
@@ -1411,13 +1418,21 @@ function ProfileCard({
           </div>
         </CardLayers>
 
-        {/* ── Gear handle ── */}
+        {/* ── "Editar" opener (Iteration 0) ── A real <button> (was a 20px
+            div at the nw corner that covered the nw resize handle and left
+            focus on <body>, so Esc + Backspace deleted the card). Placed by
+            resolveOpenerSpot: clear of the nw handle's 24px target and
+            of the fixed topbar. Focus returns here when the panel closes. */}
         {isSel && canInteract && (
-          <div
-            data-canvas-hot=""
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => {
-              e.stopPropagation();
+          <CanvasChromeButton
+            ref={editBtnRef}
+            icon="pencil"
+            label="Editar card de presentación"
+            expanded={menuOpen}
+            controls={panelId}
+            style={{ top: openerPos.top, left: openerPos.left }}
+            onEscape={() => setMenuOpen(false)}
+            onActivate={() => {
               const next = !menuOpen;
               if (next && cardRef.current) {
                 const r = cardRef.current.getBoundingClientRect();
@@ -1427,23 +1442,7 @@ function ProfileCard({
               } else setPortalPos(null);
               setMenuOpen(next);
             }}
-            style={{
-              position: "absolute", top: -10, left: -10, width: 20, height: 20, borderRadius: "50%",
-              background: menuOpen ? "rgba(255,255,255,0.12)" : "rgba(12,12,14,0.96)",
-              border: menuOpen ? "1px solid rgba(255,255,255,0.18)" : "1px solid rgba(255,255,255,0.10)",
-              cursor: "pointer", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.4)", transition: `all 0.12s ${EASE}`,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.12)"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-          >
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
-              stroke={menuOpen ? "rgba(255,255,255,0.90)" : "rgba(255,255,255,0.55)"}
-              strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </div>
+          />
         )}
 
         {/* ── Resize handles ── */}
@@ -1453,8 +1452,11 @@ function ProfileCard({
 
         {/* ── Config menu ── */}
         {menuOpen && canInteract && portalPos && createPortal(
-          <MenuPanel pos={portalPos} width={288} label="Editor de ProfileCard" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
-            <ProfileConfigMenu card={card} linksFits={linksFits} baseColor={baseColor} onChange={patch => updateProfile(card.id, patch)} />
+          <MenuPanel pos={portalPos} width={288} label="Editor de la card de presentación" id={panelId}
+            returnFocusTo={() => editBtnRef.current}
+            onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); setMenuOpen(false); } }}>
+            <ProfileConfigMenu card={card} linksFits={linksFits} baseColor={baseColor} onChange={patch => updateProfile(card.id, patch)}
+              canvas={viewportW != null && viewportH != null ? { w: viewportW, h: viewportH, topOffset: CANVAS_TOP_OFFSET } : undefined} />
           </MenuPanel>
         , document.body)}
       </div>

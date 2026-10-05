@@ -1,8 +1,11 @@
 "use client";
+import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
+import { withNeutralGlowOnCreate } from "@/lib/neutralGlow";
+import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
 import { useRef, useState } from "react";
 import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { T, MenuSection, MenuRow, SliderRow, ActionButton, ColorRow, Toggle, Collapsible } from "@/ui";
+import { T, MenuSection, MenuRow, SliderRow, ActionButton, ColorRow, Toggle, Collapsible, refocusFieldControl } from "@/ui";
 import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
 import BlockStyleFields from "./BlockStyleFields";
 import { getPaused, pauseEffect, removeEffect, resumeWithIntensity, mergePatch } from "@/lib/effectPause";
@@ -118,7 +121,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
             border: `1px solid ${T.border.default}`, background: T.surface.raised,
           }}>
             {photo
-              ? <img src={photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ? <img src={photo} alt="Foto de perfil actual" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.text.muted} strokeWidth="1.5" strokeLinecap="round">
                     <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
@@ -127,7 +130,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <ActionButton onClick={() => photoRef.current?.click()}>subir</ActionButton>
-            {photo && <ActionButton variant="danger" onClick={() => onChange({ photo: "" })}>quitar</ActionButton>}
+            {photo && <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; onChange({ photo: "" }); refocusFieldControl(el); }}>quitar</ActionButton>}
           </div>
         </div>
         <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
@@ -166,7 +169,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
                     explicit shadow from then on. */}
                 <ColorRow label="Color" value={pfpShadowColor(baseColor, pfpFx?.shadow)} onChange={v => patchPfpShadow({ color: v })}
                   clearable={!!pfpFx?.shadow?.color} onClear={() => patchPfpShadow({ color: undefined })} />
-                <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={pfpFx?.shadow?.intensity ?? 0.5}
+                <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={pfpFx?.shadow?.intensity ?? 0.5}
                   onChange={v => patchPfpShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
               </>
             )}
@@ -174,12 +177,15 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
 
           <MenuSection label="Glow">
             <MenuRow label="Activar">
-              <Toggle value={!!pfpFx?.glow} onChange={v => onChange({ effects: v ? resumeWithIntensity(card.effects, "pfp.glow") : pauseEffect(card.effects, "pfp.glow") })} />
+              {/* Iteration 0: "on" = visible (intensity > 0, what the avatar
+                  renders), not mere presence — a stored glow at intensity 0
+                  used to read "on" while drawing nothing. */}
+              <Toggle value={isIntensityEffectVisible(pfpFx?.glow)} onChange={v => onChange({ effects: v ? withNeutralGlowOnCreate(card.effects, "pfp.glow", resumeWithIntensity(card.effects, "pfp.glow")) : pauseEffect(card.effects, "pfp.glow") })} />
             </MenuRow>
-            {pfpFx?.glow && (
+            {pfpFx?.glow && isIntensityEffectVisible(pfpFx.glow) && (
               <>
                 <ColorRow label="Color" value={pfpFx.glow.color ?? PFP_GLOW_DEFAULT_COLOR} onChange={v => patchPfpGlow({ color: v })} />
-                <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={pfpFx.glow.intensity ?? 0}
+                <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={pfpFx.glow.intensity ?? 0}
                   onChange={v => patchPfpGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
                 <SliderRow label="Radio" min={0} max={40} step={1} value={pfpGlowRadius(pfpFx.glow)}
                   onChange={v => patchPfpGlow({ radius: v })} unit="px" />

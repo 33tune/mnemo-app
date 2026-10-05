@@ -1,11 +1,13 @@
 "use client";
+import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
+import { neutralGlowPatch } from "@/lib/neutralGlow";
 import type { CardEffects } from "@/types";
 import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, Divider, OffsetRow } from "@/ui";
 import { pauseEffect, toggleEffect, resumeWithIntensity, mergePatch } from "@/lib/effectPause";
 import {
   CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_RADIUS_FALLBACK,
   CARD_SPOTLIGHT_DEFAULT_SIZE, CARD_SPOTLIGHT_DEFAULT_COLOR, PROFILE_TILT_DEFAULT, CARD_EFFECT_ON_INTENSITY,
-  cardShadowDisplay, cardGlowRadius,
+  cardShadowDisplay, cardGlowRadius, isCardGlowFlagVisible, glowFlagPatch,
 } from "@/lib/effectEditorDefaults";
 
 interface Props {
@@ -80,12 +82,24 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
   }
   // A glow flag turned on over intensity 0 renders nothing (CardLayers
   // requires intensity > 0) — same class of bug as the shadow above.
+  // Iteration 0 (O3): turning a glow on with no color anywhere writes the
+  // explicit neutral (neutralGlow.ts) — never recolors a visible glow.
   function setGlowFlag(flag: "outer" | "inner", on: boolean) {
-    const needsIntensity = on && !((glow?.intensity ?? 0) > 0);
-    patchGlow({ [flag]: on, ...(needsIntensity ? { intensity: CARD_EFFECT_ON_INTENSITY } : {}) });
+    patchGlow({ ...glowFlagPatch(glow, flag, on), ...(on ? neutralGlowPatch(effective) : {}) });
+  }
+  function setHoverGlow(on: boolean) {
+    const colorPatch = on ? neutralGlowPatch(effective) : {};
+    onChange({
+      ...raw,
+      interactions: mergePatch(raw?.interactions, { hoverGlow: on }),
+      ...(colorPatch.color ? { glow: mergePatch(raw?.glow, colorPatch) } : {}),
+    });
   }
 
-  const anyGlow    = !!(glow?.outer || glow?.inner);
+  // Iteration 0: switches show what renders (flag AND intensity > 0).
+  const outerOn    = isCardGlowFlagVisible(glow, "outer");
+  const innerOn    = isCardGlowFlagVisible(glow, "inner");
+  const anyGlow    = outerOn || innerOn;
   const shadowOn   = !!sh?.intensity && sh.intensity > 0;
   const shadowFx   = cardShadowDisplay(sh);
   const glowInt    = glow?.intensity ?? 0;
@@ -140,7 +154,7 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
         {!shadowOn && <MenuNote>Apagada: queda la sombra base sutil de la card.</MenuNote>}
         {shadowOn && (
           <>
-            <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={sh!.intensity ?? 0}
+            <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={sh!.intensity ?? 0}
               onChange={v => patchShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
             <ColorRow label="Color" value={shadowFx.color} onChange={v => patchShadow({ color: v })} />
             <Collapsible label="Avanzado">
@@ -159,15 +173,15 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
 
       <Collapsible label="Glow">
         <MenuRow label="Exterior">
-          <Toggle value={!!glow?.outer} onChange={v => setGlowFlag("outer", v)} />
+          <Toggle value={outerOn} onChange={v => setGlowFlag("outer", v)} />
         </MenuRow>
         <MenuRow label="Interior">
-          <Toggle value={!!glow?.inner} onChange={v => setGlowFlag("inner", v)} />
+          <Toggle value={innerOn} onChange={v => setGlowFlag("inner", v)} />
         </MenuRow>
         {anyGlow && (
           <>
             <ColorRow label="Color" value={glow?.color ?? CARD_GLOW_DEFAULT_COLOR} onChange={v => patchGlow({ color: v })} />
-            <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={glowInt}
+            <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={glowInt}
               onChange={v => patchGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
             <Collapsible label="Avanzado">
               <SliderRow label="Radio" min={0} max={60} step={1} value={cardGlowRadius(glow)}
@@ -186,7 +200,7 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
             <>
               <SliderRow label="Amplitud" min={2} max={24} step={1} value={anim?.floatHeight ?? 8}
                 onChange={v => patchAnimations({ floatHeight: v })} unit="px" />
-              <SliderRow label="Velocidad" min={1} max={8} step={0.5} value={anim?.floatSpeed ?? 3}
+              <SliderRow label="Duración del ciclo" min={1} max={8} step={0.5} value={anim?.floatSpeed ?? 3}
                 onChange={v => patchAnimations({ floatSpeed: v })} fmt={v => `${v}s`} />
             </>
           )}
@@ -218,7 +232,7 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
             simultaneously. See useCardInteractions.ts's header. */}
         <MenuSection label="Hover">
           <MenuRow label="Glow al pasar">
-            <Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} />
+            <Toggle value={!!inter?.hoverGlow} onChange={setHoverGlow} />
           </MenuRow>
           <MenuRow label="Escala al pasar">
             <Toggle

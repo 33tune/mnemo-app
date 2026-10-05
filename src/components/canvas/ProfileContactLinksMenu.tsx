@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { ContactLink, ProfileCardData } from "@/types";
-import { T, MenuSection, MenuNote, SliderRow, TextInput, IconButton } from "@/ui";
+import { T, MenuSection, MenuNote, SliderRow, TextInput, IconButton, refocusFieldControl } from "@/ui";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
 import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
 import BlockStyleFields from "./BlockStyleFields";
@@ -76,7 +76,7 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
       {links.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: T.space[2] }}>
           {links.map(link => (
-            <div key={link.id} style={{
+            <div key={link.id} data-mn-item="" style={{
               display: "flex", alignItems: "center", gap: 6,
               background: T.ui.surface.group, boxShadow: `inset 0 0 0 0.5px ${T.ui.line.group}`,
               borderRadius: T.ui.radius.control, padding: "2px 2px 2px 10px", minHeight: T.ui.size.row,
@@ -96,7 +96,7 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
                   label="Editar URL del link"
                   type="url"
                   mono
-                  style={{ flex: 1, height: T.ui.size.control }}
+                  style={{ flex: 1, minWidth: 0, height: T.ui.size.control }}
                 />
               ) : (
                 <span style={{
@@ -111,7 +111,7 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
               ) : (
                 <IconButton icon="pencil" aria-label={`Editar link de ${PLATFORM_LABELS[detectPlatform(link.url)]}`} title="Editar" onClick={() => startEdit(link)} />
               )}
-              <IconButton icon="close" tone="danger" aria-label={`Eliminar link de ${PLATFORM_LABELS[detectPlatform(link.url)]}`} title="Eliminar" onClick={() => removeLink(link.id)} />
+              <IconButton icon="close" tone="danger" aria-label={`Eliminar link de ${PLATFORM_LABELS[detectPlatform(link.url)]}`} title="Eliminar" onClick={e => { const el = e.currentTarget as HTMLElement; removeLink(link.id); refocusFieldControl(el); }} />
             </div>
           ))}
         </div>

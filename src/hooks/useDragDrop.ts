@@ -3,8 +3,9 @@ import { useState, useRef } from "react";
 import type { CanvasElement, CardFormat } from "@/types";
 import { getFreeformCardBounds, clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
 import { applyGroupDragDelta, filterTrashDeletion } from "@/lib/canvasSelectionGuards";
+import { computeResize, resizeMinimums, type ResizeHandle } from "@/lib/resizeMath";
 
-export type ResizeHandle = "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w";
+export type { ResizeHandle };
 
 type WidgetType = "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links"|"stats";
 
@@ -36,49 +37,6 @@ interface Options {
 
 function angleBetween(cx: number, cy: number, px: number, py: number): number {
   return Math.atan2(py - cy, px - cx) * (180 / Math.PI);
-}
-
-// Per-handle resize delta computation — returns new position and size
-function computeResize(
-  handle: ResizeHandle,
-  dx: number, dy: number,
-  startW: number, startH: number,
-  startX: number, startY: number,
-  ratio: number,   // h/w aspect ratio for images (0 = ignore)
-  isImage: boolean,
-  minW: number, minH: number,
-): { nx: number; ny: number; nw: number; nh: number } {
-  let nw = startW, nh = startH, nx = startX, ny = startY;
-
-  if (isImage && ratio > 0) {
-    // All image handles maintain aspect ratio so objectFit:contain fills the container
-    // with no invisible empty space. Anchor = opposite side/corner from handle.
-    switch (handle) {
-      // Corners: driven by width, height follows ratio
-      case "se": { nw = Math.max(minW, startW + dx); nh = Math.max(minH, Math.round(nw * ratio)); break; }
-      case "ne": { nw = Math.max(minW, startW + dx); nh = Math.max(minH, Math.round(nw * ratio)); ny = startY + (startH - nh); break; }
-      case "sw": { nw = Math.max(minW, startW - dx); nh = Math.max(minH, Math.round(nw * ratio)); nx = startX + (startW - nw); break; }
-      case "nw": { nw = Math.max(minW, startW - dx); nh = Math.max(minH, Math.round(nw * ratio)); nx = startX + (startW - nw); ny = startY + (startH - nh); break; }
-      // Horizontal sides: driven by width, height follows ratio, top anchored
-      case "e":  { nw = Math.max(minW, startW + dx); nh = Math.max(minH, Math.round(nw * ratio)); break; }
-      case "w":  { nw = Math.max(minW, startW - dx); nh = Math.max(minH, Math.round(nw * ratio)); nx = startX + (startW - nw); break; }
-      // Vertical sides: driven by height, width follows ratio, left anchored
-      case "s":  { nh = Math.max(minH, startH + dy); nw = Math.max(minW, Math.round(nh / ratio)); break; }
-      case "n":  { nh = Math.max(minH, startH - dy); nw = Math.max(minW, Math.round(nh / ratio)); ny = startY + (startH - nh); break; }
-    }
-  } else {
-    switch (handle) {
-      case "se": { nw = Math.max(minW, startW + dx); nh = Math.max(minH, startH + dy); break; }
-      case "e":  { nw = Math.max(minW, startW + dx); break; }
-      case "s":  { nh = Math.max(minH, startH + dy); break; }
-      case "sw": { nw = Math.max(minW, startW - dx); nh = Math.max(minH, startH + dy); nx = startX + (startW - nw); break; }
-      case "n":  { nh = Math.max(minH, startH - dy); ny = startY + (startH - nh); break; }
-      case "ne": { nw = Math.max(minW, startW + dx); nh = Math.max(minH, startH - dy); ny = startY + (startH - nh); break; }
-      case "nw": { nw = Math.max(minW, startW - dx); nh = Math.max(minH, startH - dy); nx = startX + (startW - nw); ny = startY + (startH - nh); break; }
-      case "w":  { nw = Math.max(minW, startW - dx); nx = startX + (startW - nw); break; }
-    }
-  }
-  return { nx, ny, nw, nh };
 }
 
 export function useDragDrop({
@@ -270,9 +228,7 @@ export function useDragDrop({
       }
 
       // Minimums per element type
-      const isModule = resizing.type==="social"||resizing.type==="music"||resizing.type==="links"||resizing.type==="stats";
-      const minW = resizing.type==="image"?40 : resizing.type==="card"?80 : resizing.type==="gallery"?160 : resizing.type==="media"?200 : resizing.type==="guestbook"?200 : isModule?48 : 160;
-      const minH = resizing.type==="image"?1  : resizing.type==="card"?60  : resizing.type==="gallery"?120 : resizing.type==="media"?60  : resizing.type==="guestbook"?260 : isModule?20 : 120;
+      const { minW, minH } = resizeMinimums(resizing.type);
 
       const { nx, ny, nw, nh } = computeResize(handle, dx, dy, w, h, ex, ey, ratio, resizing.type === "image", minW, minH);
 

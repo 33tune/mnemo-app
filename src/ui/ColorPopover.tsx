@@ -3,7 +3,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { T } from "./tokens";
 import { EDITOR_ATTR } from "@/lib/editorGuards";
-import { formatColor, hsvToRgb, parseColor, parseHexInput, rgbToHex, rgbToHsv, toHsva, type HSVA } from "@/lib/colorModel";
+import { formatColor, hsvToRgb, parseColor, rgbToHex, toHsva, resolveHexCommit, resolveAlphaCommit, resolveFieldEscape, type HSVA } from "@/lib/colorModel";
 
 interface ColorPopoverProps {
   anchor:   HTMLElement | null;
@@ -189,30 +189,36 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
   const hex = rgbToHex(rgb);
   const alphaPct = Math.round(hsva.a * 100);
 
+  // Iteration 0: commit decisions are pure (colorModel.ts, tested).
   function commitHex() {
     if (hexDraft === null) return;
-    const unchanged = hexDraft.trim().toUpperCase() === (hexInitial.current ?? "").toUpperCase();
-    const parsed = parseHexInput(hexDraft);
+    const next = resolveHexCommit(hexDraft, hexInitial.current, hsva);
     setHexDraft(null);
-    if (unchanged || !parsed) return;
-    // 3/6 digits: alpha untouched (keeps the current alpha — the old
-    // keepAlpha behavior, now general); 4/8 digits: alpha explicit.
-    const next = rgbToHsv({ r: parsed.r, g: parsed.g, b: parsed.b, a: parsed.a ?? hsva.a });
-    // Keep the hue on greys so the SV area doesn't jump to red.
-    emit(next.s === 0 ? { ...next, h: hsva.h } : next);
+    if (next) emit(next);
   }
   function commitAlpha() {
     if (alphaDraft === null) return;
-    const unchanged = alphaDraft.trim() === (alphaInitial.current ?? "");
-    const n = Number(alphaDraft.replace("%", "").replace(",", ".").trim());
+    const next = resolveAlphaCommit(alphaDraft, alphaInitial.current, hsva);
     setAlphaDraft(null);
-    if (unchanged || !Number.isFinite(n)) return;
-    emit({ ...hsva, a: +clamp01(n / 100).toFixed(3) });
+    if (next) emit(next);
   }
-  function fieldKeys(commit: () => void, cancel: () => void) {
+  // Esc in a field: first Esc reverts an edited draft (focus stays, and the
+  // field shows the committed value again, re-armed as "unchanged"); Esc
+  // with nothing edited closes the picker and returns focus to the well.
+  function fieldKeys(commit: () => void, draft: string | null, initial: React.MutableRefObject<string | null>, setDraft: (v: string | null) => void) {
     return (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") { e.preventDefault(); commit(); }
-      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); }
+      else if (e.key === "Escape") {
+        e.preventDefault(); e.stopPropagation();
+        if (resolveFieldEscape(draft, initial.current) === "revert") {
+          setDraft(initial.current);
+          const el = e.currentTarget;
+          requestAnimationFrame(() => el.select());
+        } else {
+          setDraft(null);
+          closeAndRefocus();
+        }
+      }
     };
   }
 
@@ -280,7 +286,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
           // inline box-shadow would hide the :focus-visible ring.
         }}
       >
-        <span style={{ ...handle, left: `${hsva.s * 100}%`, top: `${(1 - hsva.v) * 100}%`, background: opaque }} />
+        <span className="mn-picker__handle" style={{ ...handle, left: `${hsva.s * 100}%`, top: `${(1 - hsva.v) * 100}%`, background: opaque }} />
       </div>
 
       <div
@@ -294,7 +300,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
         onKeyDown={onHueKey}
         style={{ ...bar, background: "linear-gradient(to right, #f00 0%, #ff0 16.67%, #0f0 33.33%, #0ff 50%, #00f 66.67%, #f0f 83.33%, #f00 100%)" }}
       >
-        <span style={{ ...handle, left: `${(hsva.h / 360) * 100}%`, top: "50%", background: pureHue }} />
+        <span className="mn-picker__handle" style={{ ...handle, left: `${(hsva.h / 360) * 100}%`, top: "50%", background: pureHue }} />
       </div>
 
       {alpha && (
@@ -309,7 +315,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
           onKeyDown={onAlphaKey}
           style={{ ...bar, background: `linear-gradient(to right, rgba(${rgb.r},${rgb.g},${rgb.b},0), ${opaque}), ${CHECKER}` }}
         >
-          <span style={{ ...handle, left: `${hsva.a * 100}%`, top: "50%", background: `rgba(${rgb.r},${rgb.g},${rgb.b},${hsva.a})` }} />
+          <span className="mn-picker__handle" style={{ ...handle, left: `${hsva.a * 100}%`, top: "50%", background: `rgba(${rgb.r},${rgb.g},${rgb.b},${hsva.a})` }} />
         </div>
       )}
 
@@ -325,7 +331,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
             onChange={e => setHexDraft(e.target.value)}
             onBlur={commitHex}
             onMouseDown={e => e.stopPropagation()}
-            onKeyDown={fieldKeys(commitHex, () => setHexDraft(null))}
+            onKeyDown={fieldKeys(commitHex, hexDraft, hexInitial, setHexDraft)}
             style={fieldStyle}
           />
         </label>
@@ -341,7 +347,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
               onChange={e => setAlphaDraft(e.target.value)}
               onBlur={commitAlpha}
               onMouseDown={e => e.stopPropagation()}
-              onKeyDown={fieldKeys(commitAlpha, () => setAlphaDraft(null))}
+              onKeyDown={fieldKeys(commitAlpha, alphaDraft, alphaInitial, setAlphaDraft)}
               style={{ ...fieldStyle, textAlign: "right" }}
             />
           </label>

@@ -76,3 +76,66 @@ test("Block 2 review: [data-mnemo-ui] (MyLand / + menu) is editor territory for 
   // isEditorOpen keeps looking for panel roots only.
   assert.equal(isEditorOpen({ querySelector: (s: string) => (s === `[${EDITOR_UI_ATTR}]` ? {} : null) }), false);
 });
+
+// ── Iteration 0: positive canvas guard ──────────────────────────────────────
+import { canvasShortcutAllowed, shouldFocusCanvasOnMouseDown, isInsideCanvas, isCanvasRoot, CANVAS_ATTR } from "./editorGuards";
+
+function node(tagName: string, where: { root?: boolean; canvas?: boolean; editor?: boolean; ui?: boolean; editable?: boolean } = {}): GuardElement {
+  return {
+    tagName,
+    isContentEditable: !!where.editable,
+    hasAttribute: (n: string) => !!where.root && n === CANVAS_ATTR,
+    closest: (sel: string) => {
+      const parts = sel.split(",").map(x => x.trim());
+      if ((where.canvas || where.root) && parts.includes(`[${CANVAS_ATTR}]`)) return {};
+      if (where.editor && parts.includes(`[${EDITOR_ATTR}]`)) return {};
+      if (where.ui && parts.includes(`[${EDITOR_UI_ATTR}]`)) return {};
+      return null;
+    },
+  };
+}
+
+test("canvasShortcutAllowed: focus on the canvas wrapper itself allows", () => {
+  const wrapper = node("DIV", { root: true });
+  assert.equal(canvasShortcutAllowed(wrapper, wrapper), true);
+  assert.equal(isCanvasRoot(wrapper), true);
+  assert.equal(isInsideCanvas(wrapper), true);
+});
+
+test("canvasShortcutAllowed (review r2): a focused interactive CHILD of the canvas keeps its keys", () => {
+  const link = node("A", { canvas: true });
+  assert.equal(canvasShortcutAllowed(link, link), false, "Enter on a Contact Link must open it, not select the card");
+  const play = node("BUTTON", { canvas: true });
+  assert.equal(canvasShortcutAllowed(play, play), false, "Space/Enter on Music play, Backspace must not delete");
+  const editBtn = node("BUTTON", { canvas: true, ui: true });
+  assert.equal(canvasShortcutAllowed(editBtn, editBtn), false, "Esc -> focus on Editar -> Backspace must not delete the card");
+});
+
+test("canvasShortcutAllowed: <body> NEVER allows (closed panel / self-unmounting button / fresh page)", () => {
+  const body = node("BODY");
+  const wrapper = node("DIV", { root: true });
+  assert.equal(canvasShortcutAllowed(body, body), false);
+  assert.equal(canvasShortcutAllowed(null, null), false);
+  assert.equal(canvasShortcutAllowed(body, wrapper), false, "target on body");
+  assert.equal(canvasShortcutAllowed(wrapper, null), false, "nothing focused");
+});
+
+test("canvasShortcutAllowed: editor panels, [data-mnemo-ui] (+ / MyLand) and text fields block", () => {
+  const panelBtn = node("BUTTON", { editor: true });
+  assert.equal(canvasShortcutAllowed(panelBtn, panelBtn), false);
+  const myland = node("DIV", { ui: true });
+  assert.equal(canvasShortcutAllowed(myland, myland), false);
+  const editingText = node("DIV", { canvas: true, editable: true });
+  assert.equal(canvasShortcutAllowed(editingText, editingText), false);
+  const input = node("INPUT", { canvas: true });
+  assert.equal(canvasShortcutAllowed(input, input), false);
+});
+
+test("shouldFocusCanvasOnMouseDown: skips text entry and editor/ui surfaces", () => {
+  assert.equal(shouldFocusCanvasOnMouseDown(node("DIV", { canvas: true })), true);
+  assert.equal(shouldFocusCanvasOnMouseDown(node("IMG", { canvas: true })), true);
+  assert.equal(shouldFocusCanvasOnMouseDown(node("DIV", { canvas: true, editable: true })), false);
+  assert.equal(shouldFocusCanvasOnMouseDown(node("BUTTON", { canvas: true, ui: true })), false);
+  assert.equal(shouldFocusCanvasOnMouseDown(node("DIV", { editor: true })), false);
+  assert.equal(shouldFocusCanvasOnMouseDown(null), false);
+});

@@ -3,9 +3,10 @@ import { useRef } from "react";
 import type { CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
-import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, ActionButton, Divider, Collapsible } from "@/ui";
+import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, ActionButton, Divider, Collapsible, refocusFieldControl } from "@/ui";
 import { toggleEffect, mergePatch } from "@/lib/effectPause";
-import { CARD_BG_DEFAULT_COLOR } from "@/lib/effectEditorDefaults";
+import { CARD_BG_DEFAULT_COLOR, GRADIENT_DEFAULT
+} from "@/lib/effectEditorDefaults";
 
 interface Props {
   /** getProfileCardEffects(card) — what the card renders. Display only. */
@@ -16,7 +17,7 @@ interface Props {
   onChange: (patch: CardEffects) => void;
 }
 
-const GRADIENT_DEFAULT: NonNullable<CardEffects["gradient"]> = { from: "#0f0f0f", to: "#1a1a2e", angle: 135, opacity: 0.6 };
+// Iteration 0: shared with Music (effectEditorDefaults.ts).
 
 // Stage FASE 2 (Personalization UI/UX): the BACKGROUND tab — extracted
 // verbatim from PersonalizePanel's old "fondo" tab (same fields, same
@@ -75,7 +76,7 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
           {/* Shown for the EFFECTIVE image (a legacy card.bgImage too). "" (not
               undefined) so the raw override actually masks a legacy image —
               getProfileCardEffects spreads effects.bg over the legacy field. */}
-          {bg?.image && <ActionButton variant="danger" onClick={() => patchBg({ image: "" })}>quitar</ActionButton>}
+          {bg?.image && <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; patchBg({ image: "" }); refocusFieldControl(el); }}>quitar</ActionButton>}
         </div>
         <input ref={bgImgRef} type="file" accept="image/*,image/gif" style={{ display: "none" }} onChange={handleBgImgUpload} />
       </MenuSection>
@@ -98,7 +99,7 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
             <>
               <ColorRow label="Color A" value={grad.from} onChange={v => patchGradient({ from: v })} />
               <ColorRow label="Color B" value={grad.to} onChange={v => patchGradient({ to: v })} />
-              <SliderRow label="Angulo" min={0} max={360} step={5} value={grad.angle}
+              <SliderRow label="Ángulo" min={0} max={360} step={5} value={grad.angle}
                 onChange={v => patchGradient({ angle: v })} fmt={v => `${v}°`} />
               <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={grad.opacity}
                 onChange={v => patchGradient({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />

@@ -1,15 +1,16 @@
 export { T }              from "./tokens";
 export { MenuPanel }      from "./MenuPanel";
 export { MenuSection }    from "./MenuSection";
-export { MenuRow, FieldResetMark, InheritedChip, useFieldLabelId, FieldLabelProvider, labelStyle }
+export { MenuRow, FieldResetMark, InheritedChip, useFieldLabelId, FieldLabelProvider, labelStyle, refocusFieldControl }
                           from "./MenuRow";
 export type { FieldState, FieldStateProps } from "./MenuRow";
 export { SliderRow }      from "./SliderRow";
+export { NumberField }    from "./NumberField";
 export { Toggle }         from "./Toggle";
 export { Tabs }           from "./Tabs";
 export { ColorSwatch }    from "./ColorSwatch";
 export { ColorPopover }   from "./ColorPopover";
-export { TextInput }      from "./TextInput";
+export { TextInput, TextArea } from "./TextInput";
 export { ActionButton }   from "./ActionButton";
 export { Divider }        from "./Divider";
 export { Collapsible }    from "./Collapsible";

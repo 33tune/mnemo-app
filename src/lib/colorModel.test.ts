@@ -69,3 +69,39 @@ test("toHsva: unparseable falls back to opaque white", () => {
   const w = toHsva("not-a-color");
   assert.deepEqual([w.s, w.v, w.a], [0, 1, 1]);
 });
+
+// ── Iteration 0: ColorPopover field decisions ───────────────────────────────
+import { resolveHexCommit, resolveAlphaCommit, resolveFieldEscape } from "./colorModel";
+
+test("resolveHexCommit: unchanged text (tabbing through) never writes", () => {
+  const cur = toHsva("rgba(255,255,255,0.45)");
+  assert.equal(resolveHexCommit("#FFFFFF", "#FFFFFF", cur), null);
+  assert.equal(resolveHexCommit(" #ffffff ", "#FFFFFF", cur), null, "case/whitespace-insensitive");
+  assert.equal(resolveHexCommit("zzz", "#FFFFFF", cur), null, "unparseable");
+});
+
+test("resolveHexCommit: 3/6 digits keep alpha, 8 digits set it, greys keep hue", () => {
+  const cur = { h: 210, s: 0.5, v: 0.5, a: 0.4 };
+  const six = resolveHexCommit("#ff0000", "#3F5F80", cur)!;
+  assert.equal(six.a, 0.4);
+  const eight = resolveHexCommit("#ff000080", "#3F5F80", cur)!;
+  assert.ok(Math.abs(eight.a - 128 / 255) < 0.01);
+  const grey = resolveHexCommit("#808080", "#3F5F80", cur)!;
+  assert.equal(grey.h, 210);
+});
+
+test("resolveAlphaCommit: unchanged / NaN -> null; percent text -> alpha, clamped", () => {
+  const cur = { h: 0, s: 1, v: 1, a: 0.5 };
+  assert.equal(resolveAlphaCommit("50", "50", cur), null);
+  assert.equal(resolveAlphaCommit("abc", "50", cur), null);
+  assert.equal(resolveAlphaCommit("25%", "50", cur)!.a, 0.25);
+  assert.equal(resolveAlphaCommit("150", "50", cur)!.a, 1);
+  assert.equal(resolveAlphaCommit("12,5", "50", cur)!.a, 0.125);
+});
+
+test("resolveFieldEscape: first Esc reverts an edited draft, Esc with nothing edited closes", () => {
+  assert.equal(resolveFieldEscape("#FF0000", "#FFFFFF"), "revert");
+  assert.equal(resolveFieldEscape("#FFFFFF", "#FFFFFF"), "close");
+  assert.equal(resolveFieldEscape(null, "#FFFFFF"), "close");
+  assert.equal(resolveFieldEscape(" #ffffff", "#FFFFFF"), "close");
+});

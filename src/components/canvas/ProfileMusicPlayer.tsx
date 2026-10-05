@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { MusicBlockData } from "@/types";
-import { clampVolume, effectiveVolume, formatDuration } from "@/lib/musicPlayerFormat";
+import { clampVolume, effectiveVolume, formatDuration, resolveMusicPlayerText } from "@/lib/musicPlayerFormat";
 
 const SANS = "'DM Sans', sans-serif";
 const MONO = "'Space Mono', monospace";
@@ -11,6 +11,11 @@ interface Props {
   textColor:      string;
   secondaryColor: string;
   mutedColor:     string;
+  /** Iteration 0 (O2): the Music element's "Tamaño" (8 = today's sizes)
+   * and resolved "Fuente" CSS family. Both optional — absent = exactly the
+   * previous render. See resolveMusicPlayerText. */
+  textSize?:      number;
+  fontFamily?:    string;
 }
 
 // Stage 4.2-C.2.2: minimalist redesign — content + controls, not a card
@@ -44,7 +49,8 @@ interface Props {
 // in ProfileCard.tsx that starts the block-level drag (startMusicDrag) —
 // mousedown on the plain background of the player (not on a control) still
 // bubbles up and drags the whole block, same as every other composed block.
-function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Props) {
+function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor, textSize, fontFamily }: Props) {
+  const txt = resolveMusicPlayerText(textSize, fontFamily);
   const audioRef = useRef<HTMLAudioElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -124,7 +130,10 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
       ref={rootRef}
       style={{
         width: "100%", height: "100%", display: "flex", flexDirection: "column",
-        justifyContent: "center", gap: 4, padding: "6px 8px", boxSizing: "border-box",
+        // Review r2 (Visual-5): with a larger Tamaño the content can exceed
+        // the block; "safe center" keeps the title visible (only the seek
+        // row clips at the bottom). Unset/8 keeps the exact previous value.
+        justifyContent: txt.titleSize > 10 ? "safe center" : "center", gap: 4, padding: "6px 8px", boxSizing: "border-box",
         position: "relative",
       }}
     >
@@ -148,7 +157,8 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
           onMouseDown={stop}
           onClick={togglePlay}
           disabled={!hasAudio || error}
-          title={playing ? "Pause" : "Play"}
+          title={playing ? "Pausar" : "Reproducir"}
+          aria-label={playing ? "Pausar" : "Reproducir"}
           style={{
             width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -163,14 +173,14 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
         {hasText && (
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
-              fontFamily: SANS, fontSize: 10, fontWeight: 600, color: textColor,
+              fontFamily: txt.titleFont, fontSize: txt.titleSize, fontWeight: 600, color: textColor,
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
-              {music.title || "Untitled"}
+              {music.title || "Sin título"}
             </div>
             {music.artist && (
               <div style={{
-                fontFamily: MONO, fontSize: 8, color: secondaryColor,
+                fontFamily: txt.artistFont, fontSize: txt.artistSize, color: secondaryColor,
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
               }}>
                 {music.artist}
@@ -183,6 +193,8 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
           onMouseDown={stop}
           onClick={toggleVolumePanel}
           title="Volumen"
+          aria-label="Volumen"
+          aria-expanded={volumeOpen}
           style={{
             background: "transparent", border: "none", cursor: "pointer",
             display: "flex", padding: 0, flexShrink: 0, marginLeft: hasText ? 0 : "auto",
@@ -201,7 +213,7 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
               borderRadius: 6, backdropFilter: "blur(8px)",
             }}
           >
-            <button onMouseDown={stop} onClick={toggleMute} title={muted ? "Unmute" : "Mute"}
+            <button onMouseDown={stop} onClick={toggleMute} title={muted ? "Activar sonido" : "Silenciar"} aria-label={muted ? "Activar sonido" : "Silenciar"}
               style={{ background: "transparent", border: "none", cursor: "pointer", display: "flex", padding: 0 }}>
               <VolumeIcon size={11} color={mutedColor} muted={muted} />
             </button>
@@ -218,7 +230,7 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
 
       {/* Row 2: seek */}
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontFamily: MONO, fontSize: 8, color: mutedColor, flexShrink: 0, minWidth: 20 }}>
+        <span style={{ fontFamily: txt.timeFont, fontSize: txt.timeSize, color: mutedColor, flexShrink: 0, minWidth: 20 }}>
           {formatDuration(currentTime)}
         </span>
         <input
@@ -232,14 +244,14 @@ function ProfileMusicPlayer({ music, textColor, secondaryColor, mutedColor }: Pr
           disabled={!hasAudio || error}
           style={{ flex: 1, accentColor: textColor, height: 4, minWidth: 0 }}
         />
-        <span style={{ fontFamily: MONO, fontSize: 8, color: mutedColor, flexShrink: 0, minWidth: 20, textAlign: "right" }}>
+        <span style={{ fontFamily: txt.timeFont, fontSize: txt.timeSize, color: mutedColor, flexShrink: 0, minWidth: 20, textAlign: "right" }}>
           {formatDuration(duration)}
         </span>
       </div>
 
       {error && (
-        <span style={{ fontFamily: MONO, fontSize: 7, color: "rgba(255,100,80,0.75)" }}>
-          couldn't load audio
+        <span style={{ fontFamily: txt.timeFont, fontSize: txt.errorSize, color: "rgba(255,100,80,0.75)" }}>
+          No se pudo cargar el audio
         </span>
       )}
     </div>

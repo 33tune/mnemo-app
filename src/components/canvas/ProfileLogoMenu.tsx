@@ -2,7 +2,7 @@
 import { useRef } from "react";
 import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { MenuSection, SliderRow, ActionButton, MenuNote } from "@/ui";
+import { MenuSection, SliderRow, ActionButton, MenuNote, refocusFieldControl } from "@/ui";
 
 type LogoPatch = Partial<Pick<ProfileCardData, "logo">>;
 
@@ -50,7 +50,7 @@ export default function ProfileLogoMenu({ logo, onChange }: Props) {
         <>
           <div style={{ display: "flex", gap: 6 }}>
             <ActionButton onClick={() => fileRef.current?.click()}>reemplazar imagen</ActionButton>
-            <ActionButton variant="danger" onClick={() => onChange({ logo: undefined })}>quitar</ActionButton>
+            <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; onChange({ logo: undefined }); refocusFieldControl(el); }}>quitar</ActionButton>
           </div>
 
           <SliderRow label="Ancho" min={16} max={200} step={1} value={logo.w} unit="px" onChange={v => patchLogo({ w: v })} />

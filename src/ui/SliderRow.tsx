@@ -2,7 +2,7 @@
 import React, { useId, useRef, useState } from "react";
 import { T } from "./tokens";
 import { FieldResetMark, InheritedChip, labelStyle, type FieldStateProps } from "./MenuRow";
-import { inferDisplayScale, parseNumericInput, formatEditValue } from "@/lib/uiNumeric";
+import { inferDisplayScale, formatEditValue, commitSliderDraft, resolveSliderDoubleClick } from "@/lib/uiNumeric";
 
 interface SliderRowProps extends FieldStateProps {
   label:    string;
@@ -59,15 +59,15 @@ export function SliderRow({
   }
   function commit() {
     if (draft === null) return;
-    const unchanged = draft.trim() === initialDraft.current;
-    // The offset shifts the editable number; clamp/snap still happen on the
-    // stored range (min/max/step), so parse in the shifted space.
-    const parsed = parseNumericInput(draft, { min: +(min + offset).toFixed(10), max: +(max + offset).toFixed(10), step, scale });
+    // Iteration 0: shared, tested commit (uiNumeric.commitSliderDraft).
+    const next = commitSliderDraft(draft, initialDraft.current, { min, max, step, scale, offset }, value);
     setDraft(null);
-    if (unchanged || parsed === null) return;
-    const next = +(parsed - offset).toFixed(10);
-    if (next !== value) onChange(next);
+    if (next !== null) onChange(next);
   }
+  // Iteration 0: double-click = the same reset as the modified dot (delete
+  // the raw key) when there is one; else the plain defaultValue.
+  const dbl = resolveSliderDoubleClick({ state, hasReset: !!onReset, defaultValue });
+  const onTrackDoubleClick = dbl === "reset" ? () => onReset?.() : dbl === "default" ? () => onChange(defaultValue as number) : undefined;
   // A11Y-2: Enter/Esc unmount the input — give focus back to the value
   // button that replaces it (after the re-render).
   function endEditByKey() {
@@ -135,7 +135,7 @@ export function SliderRow({
         aria-describedby={state === "inherited" ? chipId : undefined}
         onChange={e => onChange(Number(e.target.value))}
         onMouseDown={e => e.stopPropagation()}
-        onDoubleClick={defaultValue !== undefined ? () => onChange(defaultValue) : undefined}
+        onDoubleClick={onTrackDoubleClick}
         style={{ ["--ui-pct" as string]: `${pct}%` } as React.CSSProperties}
       />
     </div>

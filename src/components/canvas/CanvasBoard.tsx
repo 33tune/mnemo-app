@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -22,10 +22,12 @@ import Topbar from "./Topbar";
 import CardMenu from "./CardMenu";
 import GalleryWidget from "./GalleryWidget";
 import ProfileCard from "./ProfileCard";
+import { CanvasChromeButton } from "./CanvasChromeButton";
+import { resolveSideSpot, resolveToolbarTop, resolveLinkChipTop, type ChromeBox, type ChromeCanvas } from "@/lib/openerPlacement";
 import { renderContent, textColor, isLight } from "./CardContent";
 import { useParallax } from "@/hooks/useParallax";
 import { useDragDrop } from "@/hooks/useDragDrop";
-import type { ResizeHandle } from "@/hooks/useDragDrop";
+import type { ResizeHandle, DragUpResult } from "@/hooks/useDragDrop";
 import { uploadToStorage } from "@/lib/storage";
 import { queueOrphanedAssets } from "@/lib/storage/queueOrphanedAssets";
 import { bgImageStyle, detectBgModeFromFile } from "@/lib/bgStyle";
@@ -46,7 +48,8 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { analytics } from "@/lib/analytics";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
-import { shouldSkipCanvasShortcut, isEditorOpen, type GuardElement } from "@/lib/editorGuards";
+import { shouldSkipCanvasShortcut, canvasShortcutAllowed, shouldFocusCanvasOnMouseDown, isEventFromNode, CANVAS_ATTR, CHROME_ATTR, type GuardElement } from "@/lib/editorGuards";
+import { resolveNudgeKey, nudgeMove, nudgeResize, cycleSelection, isMacPlatform } from "@/lib/canvasNudge";
 import { T as UIT, Icon, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote } from "@/ui";
 
 const MONO = "'Space Mono', monospace";
@@ -66,6 +69,8 @@ function isEditingInput(e?: Event): boolean {
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB per image
 const LAYER_NAMES = ["Back", "Mid", "Front"] as const;
+// Iteration 0: Spanish layer names for the canvas toolbars (FO/ME/FR).
+const LAYER_LABELS_ES = ["Fondo", "Medio", "Frente"] as const;
 
 const CANVAS_H = 3000;
 const MOBILE_CANVAS_W = 390;
@@ -495,6 +500,7 @@ export default function CanvasBoard({
   // ── Keyboard / clipboard / drag ──────────────────────────────────────────────
   const internalClipboard = useRef<CanvasElement[]>([]);
   const undoStackRef      = useRef<Array<() => void>>([]);
+  const pushUndoRef       = useRef<((fn: () => void) => void) | null>(null);
   const lastMousePosRef   = useRef({ x: 0, y: 0 });
   const dragCounterRef    = useRef(0);
   // Live refs updated each render so [] effects always see current values
@@ -772,6 +778,251 @@ export default function CanvasBoard({
   const visMusicCards  = useMemo(() => inSpace ? musicCards.filter(c => c.isPublic)         : musicCards,   [inSpace, musicCards]);
   const visLinksCards  = useMemo(() => inSpace ? linksCards.filter(c => c.isPublic)         : linksCards,   [inSpace, linksCards]);
   const visStatsCards  = useMemo(() => inSpace ? statsCards.filter(c => c.isPublic)         : statsCards,   [inSpace, statsCards]);
+
+  // Iteration 0: "+" menu / MyLand focus targets (Esc and item activation
+  // return focus to their opener instead of <body>).
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+  const mylandBtnRef = useRef<HTMLButtonElement>(null);
+  function closeAddMenu() {
+    setMenuOpen(false);
+    setWallpaperMenuOpen(false);
+    requestAnimationFrame(() => addBtnRef.current?.focus({ preventScroll: true }));
+  }
+
+  // ── Iteration 0: canvas keyboard (O1) + status announcements ─────────────────
+  // Live region text for keyboard actions on the canvas (selection, move,
+  // resize, delete). Always mounted while editing; polite; debounced 250ms;
+  // cleared then set so an identical message is announced again. Only
+  // keyboard paths call announce() — mouse drags never do.
+  const [canvasStatus, setCanvasStatus] = useState("");
+  // Platform modifier for the visible/ARIA shortcut help — resolved after
+  // mount so server and client render the same markup.
+  const [isMacUi, setIsMacUi] = useState(false);
+  useEffect(() => { setIsMacUi(isMacPlatform()); }, []);
+  const announceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const announceRef = useRef<((text: string) => void) | null>(null);
+  announceRef.current = (text: string) => {
+    if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
+    announceTimerRef.current = setTimeout(() => {
+      setCanvasStatus("");
+      requestAnimationFrame(() => setCanvasStatus(text));
+    }, 250);
+  };
+  useEffect(() => () => { if (announceTimerRef.current) clearTimeout(announceTimerRef.current); }, []);
+
+  // A keyboard move/resize in progress (keydown applied locally, not yet
+  // persisted). Flushed on keyup / window blur / selection change.
+  const pendingNudgeRef = useRef<
+    | { kind: "move"; start: Record<string, { x: number; y: number; type: string }> }
+    | { kind: "resize"; id: string; type: string; dims: { w?: number; h?: number; x?: number; y?: number; size?: number } }
+    | null
+  >(null);
+  const flushNudgeRef = useRef<(() => void) | null>(null);
+  flushNudgeRef.current = () => {
+    const p = pendingNudgeRef.current;
+    if (!p) return;
+    pendingNudgeRef.current = null;
+    if (p.kind === "move") {
+      const moved: DragUpResult["moved"] = [];
+      for (const [id, st] of Object.entries(p.start)) {
+        const el = elementsRef.current.find(e => e.id === id);
+        if (!el || (el.x === st.x && el.y === st.y)) continue;
+        moved.push({ id, type: st.type as DragUpResult["moved"][number]["type"], x: el.x, y: el.y, startX: st.x, startY: st.y });
+      }
+      if (moved.length) persistDragResult({ wasDeleted: false, moved, rotated: null, resized: null }, []);
+    } else {
+      persistDragResult({ wasDeleted: false, moved: [], rotated: null, resized: { id: p.id, type: p.type as NonNullable<DragUpResult["resized"]>["type"], ...p.dims } }, []);
+    }
+  };
+  useEffect(() => { flushNudgeRef.current?.(); }, [selectedIds]);
+
+  function canvasElementLabel(el: CanvasElement): string {
+    switch (el.elementType) {
+      case "profile": return "Card de presentación";
+      case "music":   return "Music";
+      case "image":   return "Imagen";
+      case "text":    return "Texto";
+      case "gallery": return "Galería";
+      case "media":   return "Media";
+      case "card":    return "Card";
+      case "social":  return "Social";
+      case "links":   return "Links";
+      case "stats":   return "Stats";
+      case "guestbook": return "Guestbook";
+      default:        return "Elemento";
+    }
+  }
+
+  // Selectable elements in paint order (bottom → top), for `[` / `]`.
+  function keyboardSelectionOrder(): CanvasElement[] {
+    const ids = new Set<string>([
+      ...visProfiles, ...visMusicCards, ...visImages, ...visTexts, ...visCards, ...visGalleries,
+      ...visMedias, ...visGuestbooks, ...visSocialCards, ...visLinksCards, ...visStatsCards,
+    ].map(e => e.id));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const z = (e: CanvasElement) => ((e as any).zIndex ?? 0) + ((e as any).layer ?? 0) * 100;
+    return elementsRef.current.filter(e => ids.has(e.id)).sort((a, b) => z(a) - z(b));
+  }
+
+  // Handles arrows / Ctrl(⌘)+arrows / [ / ] / Enter for the canvas. Called
+  // by the window keydown handler AFTER the positive guard passed (focus is
+  // on the canvas). Returns true when it consumed the key.
+  const canvasKeyRef = useRef<((e: KeyboardEvent) => boolean) | null>(null);
+  canvasKeyRef.current = (e: KeyboardEvent) => {
+    if (view !== "canvas" || canvasMode === "space_mobile") return false;
+    if (dragging || resizing || rotating) return false;
+
+    // Minimal keyboard selection (full object navigation: Iteration 1).
+    // AltGr (= Ctrl+Alt on Windows) produces "[" / "]" on Spanish/LatAm
+    // layouts — allowed; plain Ctrl or ⌘ combos are not ours.
+    if ((e.key === "]" || e.key === "[") && !e.metaKey && (!e.ctrlKey || e.altKey)) {
+      const order = keyboardSelectionOrder();
+      const cur = selIdsRef.current.size === 1 ? [...selIdsRef.current][0] : null;
+      const nextId = cycleSelection(order.map(o => o.id), cur, e.key === "]" ? 1 : -1);
+      if (!nextId) return false;
+      e.preventDefault();
+      setSelectedIds(new Set([nextId]));
+      const idx = order.findIndex(o => o.id === nextId);
+      announceRef.current?.(`Seleccionado: ${canvasElementLabel(order[idx])}, ${idx + 1} de ${order.length}`);
+      return true;
+    }
+    if (e.key === "Enter" && selIdsRef.current.size === 0 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const prof = visProfiles[0];
+      if (!prof) return false;
+      e.preventDefault();
+      setSelectedIds(new Set([prof.id]));
+      announceRef.current?.("Seleccionado: Card de presentación. Tab para ir a Editar");
+      return true;
+    }
+
+    const isMac = isMacPlatform();
+    const action = resolveNudgeKey(e, isMac);
+    if (!action) return false;
+    const ids = selIdsRef.current;
+    // No selection: let the arrow scroll the canvas container as usual.
+    if (!ids.size) return false;
+    const bounds = { w: effectiveW, h: effectiveH, topOffset: 44 };
+    const els = elementsRef.current;
+
+    if (action.kind === "move") {
+      const sel = els.filter(el => ids.has(el.id));
+      if (sel.length === 1 && sel[0].elementType === "profile") {
+        e.preventDefault();
+        announceRef.current?.(`La card de presentación está siempre centrada. ${isMac ? "⌘" : "Ctrl"} + flechas cambia su tamaño`);
+        return true;
+      }
+      const next = nudgeMove(els, ids, action.dx, action.dy, bounds);
+      e.preventDefault();
+      if (next === els) { announceRef.current?.("Elemento bloqueado"); return true; }
+      const p = pendingNudgeRef.current;
+      if (!p || p.kind !== "move") {
+        flushNudgeRef.current?.();
+        const start: Record<string, { x: number; y: number; type: string }> = {};
+        els.forEach(el => { if (ids.has(el.id) && el.elementType !== "profile" && !(el as { locked?: boolean }).locked) start[el.id] = { x: el.x, y: el.y, type: el.elementType }; });
+        pendingNudgeRef.current = { kind: "move", start };
+      }
+      elementsRef.current = next;
+      setElements(next);
+      const moved = next.filter(el => ids.has(el.id) && el.elementType !== "profile");
+      if (moved.length === 1) announceRef.current?.(`${canvasElementLabel(moved[0])}: x ${Math.round(moved[0].x)}, y ${Math.round(moved[0].y)}`);
+      else announceRef.current?.(`${moved.length} elementos movidos`);
+      return true;
+    }
+
+    // resize — single selection only
+    e.preventDefault();
+    if (ids.size !== 1) { announceRef.current?.("Para cambiar el tamaño seleccioná un solo elemento"); return true; }
+    const el = els.find(x => ids.has(x.id));
+    if (!el) return true;
+    const r = nudgeResize(el as Parameters<typeof nudgeResize>[0], action.dx, action.dy, bounds);
+    if (!r) { announceRef.current?.("Elemento bloqueado"); return true; }
+    const p = pendingNudgeRef.current;
+    if (!p || p.kind !== "resize" || p.id !== el.id) flushNudgeRef.current?.();
+    const dims = r.kind === "text" ? { size: r.size } : { w: r.w, h: r.h, x: r.x, y: r.y };
+    pendingNudgeRef.current = { kind: "resize", id: el.id, type: el.elementType, dims };
+    const next = els.map(x => x.id === el.id ? ({ ...x, ...dims } as CanvasElement) : x);
+    elementsRef.current = next;
+    setElements(next);
+    announceRef.current?.(r.kind === "text"
+      ? `${canvasElementLabel(el)}: tamaño ${r.size} px`
+      : `${canvasElementLabel(el)}: ${Math.round(r.w)} × ${Math.round(r.h)} px`);
+    return true;
+  };
+
+  // Iteration 0 (O1 "Medidas"): numeric X/Y/W/H for a free-position element
+  // (Music today), written through the same functions + persistence as the
+  // keyboard nudge and the mouse drag (nudgeMove/nudgeResize →
+  // persistDragResult). Rotation goes through the same op the rotate drag
+  // persists.
+  function setElementGeometry(id: string, target: { x?: number; y?: number; w?: number; h?: number; rotation?: number }) {
+    const el = elementsRef.current.find(e => e.id === id);
+    if (!el || !canInteract) return;
+    if ((el as { locked?: boolean }).locked) return;
+    const bounds = { w: effectiveW, h: effectiveH, topOffset: 44 };
+    if (target.rotation !== undefined && el.elementType === "music") {
+      enqueueOp({ type: "update_music", id, patch: { rotation: target.rotation } });
+      return;
+    }
+    if (target.x !== undefined || target.y !== undefined) {
+      const dx = (target.x ?? el.x) - el.x, dy = (target.y ?? el.y) - el.y;
+      const next = nudgeMove(elementsRef.current, new Set([id]), dx, dy, bounds);
+      const moved = next.find(e => e.id === id);
+      if (!moved || (moved.x === el.x && moved.y === el.y)) return;
+      elementsRef.current = next;
+      setElements(next);
+      persistDragResult({ wasDeleted: false, moved: [{ id, type: el.elementType as DragUpResult["moved"][number]["type"], x: moved.x, y: moved.y, startX: el.x, startY: el.y }], rotated: null, resized: null }, []);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cur = el as any;
+    const dw = target.w !== undefined ? target.w - (cur.w ?? 0) : 0;
+    const dh = target.h !== undefined ? target.h - (cur.h ?? 0) : 0;
+    if (!dw && !dh) return;
+    const r = dw ? nudgeResize(cur, dw, 0, bounds) : nudgeResize(cur, 0, dh, bounds);
+    if (!r || r.kind !== "box") return;
+    const dims = { w: r.w, h: r.h, x: r.x, y: r.y };
+    const next = elementsRef.current.map(x => x.id === id ? ({ ...x, ...dims } as CanvasElement) : x);
+    elementsRef.current = next;
+    setElements(next);
+    persistDragResult({ wasDeleted: false, moved: [], rotated: null, resized: { id, type: el.elementType as NonNullable<DragUpResult["resized"]>["type"], ...dims } }, []);
+  }
+
+  // Review r2: canvas bounds for the chrome placement resolvers
+  // (openerPlacement.ts) — the same bounds the drag clamps to.
+  const chromeCanvas: ChromeCanvas = { w: effectiveW, h: effectiveH, topOffset: 44 };
+  // Free text has no stored w/h: its box comes from the last rendered size.
+  function textChromeBox(txt: CanvasText): ChromeBox {
+    const el = textElRefs.current[txt.id];
+    return { x: txt.x, y: txt.y, w: el?.offsetWidth || 100, h: el?.offsetHeight || Math.round((txt.size ?? 16) * 1.2) };
+  }
+
+  // Clicking the canvas focuses it (Iteration 0): every mousedown handler
+  // inside preventDefault()s, so focus used to stay on <body> (or on the
+  // last focused menu control) — indistinguishable from "a panel just
+  // closed". Capture phase, so it runs before those handlers; focus() does
+  // not affect the mouse events, so drag/resize/selection are unchanged.
+  function onCanvasMouseDownCapture(e: React.MouseEvent) {
+    if (!canInteract || !canEdit) return;
+    const wrapper = canvasWrapperRef.current;
+    // React propagates capture events from portaled panels through the
+    // card's fiber tree — only real DOM descendants count.
+    if (!wrapper || !isEventFromNode(wrapper, e.target)) return;
+    const t = e.target as HTMLElement;
+    // Review r2 (Critic-2): a pointer press on canvas chrome (layers,
+    // corners, lock, LINK...) must not leave focus on that UI button —
+    // Delete/arrows/Ctrl+Z would silently stop working. preventDefault keeps
+    // the button from taking focus (its click still fires) and focus goes to
+    // the canvas. Keyboard activation never passes here.
+    if (t.closest?.(`[${CHROME_ATTR}]`)) {
+      e.preventDefault();
+      if (document.activeElement !== wrapper) wrapper.focus({ preventScroll: true });
+      return;
+    }
+    if (!shouldFocusCanvasOnMouseDown(t as unknown as GuardElement)) return;
+    // The free text being edited keeps its caret.
+    if (t.closest?.("[data-mnemo-text-editing]")) return;
+    if (document.activeElement !== wrapper) wrapper.focus({ preventScroll: true });
+  }
 
   // ── Persistencia ─────────────────────────────────────────────────────────────
 
@@ -1060,6 +1311,9 @@ export default function CanvasBoard({
       undoStackRef.current.push(fn);
       if (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift();
     }
+    // Iteration 0: menu actions outside this effect ("Eliminar Music") push
+    // onto the same undo stack.
+    pushUndoRef.current = pushUndo;
 
     // Paste items centered on mousePos (or +24px offset).
     // Pushes an undo entry that deletes the newly created elements.
@@ -1114,13 +1368,32 @@ export default function CanvasBoard({
 
     function handler(e: KeyboardEvent) {
       if (!canInteractRef.current) return;
-      if (isEditingInput(e)) return;
+
+      // Escape — clear selection. Non-destructive, so it keeps the old
+      // NEGATIVE guard (anything but text fields / editor surfaces), which
+      // also covers focus on <body>.
+      if (e.key === "Escape") {
+        if (isEditingInput(e)) return;
+        if (selIdsRef.current.size) announceRef.current?.("Selección vacía");
+        setSelectedIds(new Set());
+        return;
+      }
+
+      // Iteration 0: every other shortcut edits/destroys the selection, so
+      // it runs ONLY with focus really on the canvas (positive guard — see
+      // canvasShortcutAllowed in editorGuards.ts). Focus on <body> (after a
+      // panel/popover closed or a button unmounted itself) never counts.
+      // This replaces Block 1's isEditorOpen() gate, which depended on what
+      // was MOUNTED and would block everything once the inspector is
+      // always mounted (Iteration 1).
+      if (!canvasShortcutAllowed(e.target as GuardElement | null, document.activeElement as GuardElement | null)) return;
+
+      // O1 + keyboard selection (arrows, Ctrl/⌘+arrows, [ ] and Enter) —
+      // lives in render scope (needs the current elements/bounds/mode).
+      if (canvasKeyRef.current?.(e)) return;
 
       // DELETE / BACKSPACE — same path as trash: enqueueOp handles storage + DB cleanup
       if (e.key === "Delete" || e.key === "Backspace") {
-        // Block 1: never while a config menu is open, even with focus on
-        // <body> (gear click, tabbing out) — see isEditorOpen.
-        if (isEditorOpen(document)) return;
         const rawIds = selIdsRef.current;
         if (!rawIds.size) return;
         // A deliberate solo selection can still delete the Presentation Card
@@ -1138,7 +1411,17 @@ export default function CanvasBoard({
           else if (el.elementType === "gallery") enqueueOpRef.current({ type: "delete_gallery", id: el.id });
           else if (el.elementType === "profile") enqueueOpRef.current({ type: "delete_profile", id: el.id });
           else if (el.elementType === "media")   enqueueOpRef.current({ type: "delete_media",   id: el.id });
+          // Iteration 0: these were silently skipped (the key cleared the
+          // selection and pushed an empty undo) — a selectable element that
+          // the same key doesn't delete was a lie of the UI.
+          else if (el.elementType === "music")     enqueueOpRef.current({ type: "delete_music",     id: el.id });
+          else if (el.elementType === "social")    enqueueOpRef.current({ type: "delete_social",    id: el.id });
+          else if (el.elementType === "links")     enqueueOpRef.current({ type: "delete_links",     id: el.id });
+          else if (el.elementType === "stats")     enqueueOpRef.current({ type: "delete_stats",     id: el.id });
+          else if (el.elementType === "guestbook") enqueueOpRef.current({ type: "delete_guestbook", id: el.id });
         });
+        const undoKey = isMacPlatform() ? "⌘Z" : "Ctrl+Z";
+        announceRef.current?.(snapshot.length === 1 ? `Elemento eliminado. ${undoKey} para deshacer` : `${snapshot.length} elementos eliminados. ${undoKey} para deshacer`);
         setSelectedIds(new Set());
         // Undo: re-add everything that was deleted
         pushUndo(() => {
@@ -1149,6 +1432,11 @@ export default function CanvasBoard({
             else if (el.elementType === "gallery") enqueueOpRef.current({ type: "add_gallery", gallery: el as CanvasGallery });
             else if (el.elementType === "profile") enqueueOpRef.current({ type: "add_profile", profile: el as ProfileCardData });
             else if (el.elementType === "media")   enqueueOpRef.current({ type: "add_media",   media:   el as CanvasMedia });
+            else if (el.elementType === "music")     enqueueOpRef.current({ type: "add_music",     music:     el as MusicCardData });
+            else if (el.elementType === "social")    enqueueOpRef.current({ type: "add_social",    social:    el as SocialCardData });
+            else if (el.elementType === "links")     enqueueOpRef.current({ type: "add_links",     links:     el as LinksCardData });
+            else if (el.elementType === "stats")     enqueueOpRef.current({ type: "add_stats",     stats:     el as StatsCardData });
+            else if (el.elementType === "guestbook") enqueueOpRef.current({ type: "add_guestbook", guestbook: el as GuestbookCardData });
           });
           setSelectedIds(new Set(snapshot.map(e => e.id)));
         });
@@ -1191,20 +1479,29 @@ export default function CanvasBoard({
 
       // Ctrl+Z — undo last tracked action
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        if (isEditorOpen(document)) return;
         e.preventDefault();
         undoStackRef.current.pop()?.();
         return;
       }
 
-      // Escape — clear selection
-      if (e.key === "Escape") {
-        setSelectedIds(new Set());
-      }
     }
 
+    // O1: a held arrow updates local state on keydown (like mousemove);
+    // releasing it persists (like mouseup). Also flushed on window blur
+    // (alt-tab mid-press) — see flushNudgeRef.
+    function upHandler(e: KeyboardEvent) {
+      if (e.key.startsWith("Arrow")) flushNudgeRef.current?.();
+    }
+    function blurHandler() { flushNudgeRef.current?.(); }
+
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keyup", upHandler);
+    window.addEventListener("blur", blurHandler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("keyup", upHandler);
+      window.removeEventListener("blur", blurHandler);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2298,6 +2595,14 @@ export default function CanvasBoard({
 
     if (dragging && overTrash) setSelectedIds(new Set());
     const result = handleDragUp(selectedIds);
+    persistDragResult(result, toDelete);
+  }
+
+  // Iteration 0: extracted VERBATIM from onGlobalMouseUp (same ops, same
+  // order, same snap-to-stack magnetism) so the keyboard nudge/resize (O1)
+  // persists through exactly the path the mouse drag uses on mouseup.
+  type PendingDelete = { id: string; type: "image"|"card"|"text"|"gallery"|"profile"|"media"|"guestbook"|"social"|"music"|"links"|"stats" };
+  function persistDragResult(result: DragUpResult, toDelete: PendingDelete[]) {
 
     if (canEdit) {
       if (result.wasDeleted) {
@@ -2573,7 +2878,33 @@ export default function CanvasBoard({
         flexShrink: 0,
         overflow: "visible",
       } : { display: "contents" }}>
-      <div ref={canvasWrapperRef} suppressHydrationWarning style={{
+      {canEdit && (
+        <>
+          {/* Iteration 0: canvas keyboard help (aria-describedby of the
+              canvas) and the polite status region for keyboard actions. */}
+          <div id="mnemo-canvas-help" className="mn-sr-only">
+            {isMacUi
+              ? "Corchetes para recorrer los elementos, Enter selecciona la card de presentación, flechas mueven (Mayús ×10), ⌘ más flechas cambian el tamaño, Suprimir elimina, Escape deselecciona."
+              : "Corchetes para recorrer los elementos, Enter selecciona la card de presentación, flechas mueven (Mayús ×10), Ctrl más flechas cambian el tamaño, Suprimir elimina, Escape deselecciona."}
+          </div>
+          <div role="status" aria-live="polite" aria-atomic="true" className="mn-sr-only">{canvasStatus}</div>
+        </>
+      )}
+      <div ref={canvasWrapperRef} suppressHydrationWarning
+        {...(canEdit ? {
+          [CANVAS_ATTR]: "",
+          tabIndex: 0,
+          role: "group",
+          "aria-roledescription": "lienzo",
+          "aria-label": "Lienzo",
+          "aria-describedby": "mnemo-canvas-help",
+          "aria-keyshortcuts": isMacUi
+            ? "ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight Meta+ArrowUp Meta+ArrowDown Meta+ArrowLeft Meta+ArrowRight Meta+Shift+ArrowUp Meta+Shift+ArrowDown Meta+Shift+ArrowLeft Meta+Shift+ArrowRight [ ] Enter Delete Backspace Escape"
+            : "ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight Control+ArrowUp Control+ArrowDown Control+ArrowLeft Control+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown Control+Shift+ArrowLeft Control+Shift+ArrowRight [ ] Enter Delete Backspace Escape",
+          className: "mn-canvas",
+          onMouseDownCapture: onCanvasMouseDownCapture,
+        } : {})}
+        style={{
         position: !canEdit ? "absolute" : "relative",
         top: 0, left: 0,
         width: !canEdit ? viewerW : effectiveW,
@@ -2687,31 +3018,43 @@ export default function CanvasBoard({
 
             onDoubleClick={e=>{e.stopPropagation();zCounter.current++;setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,zIndex:zCounter.current}:e));}}>
             <img src={img.src} draggable={false} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:img.borderRadius??( img.isTransparent?0:8),outline:isSel?"1px solid rgba(255,255,255,0.3)":"none",filter:isSel?"drop-shadow(0 0 8px rgba(255,255,255,0.12))":"none"}} />
-            {isSel&&canInteract&&(<div style={{position:"absolute",top:-22,left:"50%",transform:"translateX(-50%)",display:"flex",alignItems:"center",gap:4,padding:4,background:"rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,backdropFilter:"blur(6px)"}} onMouseDown={e=>e.stopPropagation()}>
-              {([0,1,2] as const).map(l=>{const hk=`img_${img.id}_${l}`;return(<div key={l} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,layer:l}:e));}} onMouseDown={e=>e.stopPropagation()} onMouseEnter={()=>setHovLayerKey(hk)} onMouseLeave={()=>setHovLayerKey(null)} style={{padding:"4px 8px",borderRadius:4,fontFamily:MONO,fontSize:11,letterSpacing:"1px",cursor:"pointer",transition:"all 0.12s ease",background:img.layer===l?"white":"transparent",color:img.layer===l?"black":"rgba(255,255,255,0.4)",opacity:hovLayerKey===hk?1:undefined,transform:hovLayerKey===hk?"scale(1.05)":undefined}}>{LAYER_NAMES[l].slice(0,2).toUpperCase()}</div>);})}
-              <div style={{width:1,height:12,background:"rgba(255,255,255,0.18)",margin:"0 2px",flexShrink:0}} />
-              {([0,8,20,999] as const).map(r=>{const cur=img.borderRadius??(img.isTransparent?0:8);const active=r===999?cur>=50:cur===r;const vr=r===0?"2px":r===8?"4px":r===20?"7px":"50%";return(<div key={r} title={r===0?"Square":r===8?"Slight":r===20?"Rounded":"Circle"} onClick={e=>{e.stopPropagation();setElements(p=>p.map(el=>el.elementType==="image"&&el.id===img.id?{...el,borderRadius:r}:el));enqueueOp({type:"update_image",id:img.id,patch:{borderRadius:r}});}} onMouseDown={e=>e.stopPropagation()} style={{width:14,height:14,borderRadius:vr,border:`1px solid ${active?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.3)"}`,background:active?"rgba(255,255,255,0.2)":"transparent",cursor:"pointer",flexShrink:0}} />);})}
+            {/* Iteration 0: real <button>s (were 14px divs with English
+                tooltips), >=24px targets, Spanish names; [data-mnemo-ui] so
+                the canvas keyboard guard treats a focused one as UI. Moved
+                up to clear the n/nw/ne handles' 24px target circles. */}
+            {isSel&&canInteract&&(<div data-mnemo-ui="" role="group" aria-label="Opciones de imagen" tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();canvasWrapperRef.current?.focus({preventScroll:true});}}} style={{outline:"none",position:"absolute",top:resolveToolbarTop(img,chromeCanvas).top,left:"50%",transform:"translateX(-50%)",display:"flex",alignItems:"center",gap:2,padding:3,background:"rgba(0,0,0,0.72)",border:"1px solid rgba(255,255,255,0.14)",borderRadius:8,backdropFilter:"blur(6px)",zIndex:20}} onMouseDown={e=>e.stopPropagation()}>
+              {([0,1,2] as const).map(l=>(<button key={l} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--rect mn-canvas-btn--flat" aria-pressed={img.layer===l} aria-label={`Capa: ${LAYER_LABELS_ES[l]}`} title={`Capa: ${LAYER_LABELS_ES[l]}`} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,layer:l}:e));}} onMouseDown={e=>e.stopPropagation()}>{LAYER_LABELS_ES[l].slice(0,2).toUpperCase()}</button>))}
+              <div aria-hidden style={{width:1,height:14,background:"rgba(255,255,255,0.22)",margin:"0 2px",flexShrink:0}} />
+              {([0,8,20,999] as const).map(r=>{const cur=img.borderRadius??(img.isTransparent?0:8);const active=r===999?cur>=50:cur===r;const vr=r===0?"2px":r===8?"4px":r===20?"7px":"50%";const nm=r===0?"Esquinas rectas":r===8?"Esquinas suaves":r===20?"Esquinas redondeadas":"Círculo";return(<button key={r} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--flat" aria-pressed={active} aria-label={nm} title={nm} onClick={e=>{e.stopPropagation();setElements(p=>p.map(el=>el.elementType==="image"&&el.id===img.id?{...el,borderRadius:r}:el));enqueueOp({type:"update_image",id:img.id,patch:{borderRadius:r}});}} onMouseDown={e=>e.stopPropagation()}><span aria-hidden className="mn-canvas-btn__shape" style={{borderRadius:vr}} /></button>);})}
             </div>)}
-            {isSel&&canInteract&&!multiSel&&(<LockBtn locked={!!img.locked} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,locked:!e.locked}:e));}} />)}
+            {isSel&&canInteract&&!multiSel&&(<LockBtn name="imagen" box={img} canvas={chromeCanvas} locked={!!img.locked} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,locked:!e.locked}:e));}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<ResizeHandles onResizeMD={(h,e)=>startSingleResize(img.id,"image",h,e)} />)}
-            {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle onMouseDown={e=>{e.stopPropagation();startRotate(img.id,"image",e);}} />)}
+            {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle name="imagen" box={img} canvas={chromeCanvas} onMouseDown={e=>{e.stopPropagation();startRotate(img.id,"image",e);}} onKeyRotate={()=>enqueueOp({type:"update_image",id:img.id,patch:{rotation:Math.round(((img.rotation??0)+15)%360)}})} />)}
             {isSel&&canInteract&&!multiSel&&(<>
               {/* Link toggle button */}
-              <div
+              {/* Review r2: placed by resolveLinkChipTop (below, clear of the
+                  s handle's 24px target; inside when there's no room). */}
+              <span data-mnemo-ui="" style={{position:"absolute",top:resolveLinkChipTop(img,chromeCanvas).top,left:"50%",transform:"translateX(-50%)",zIndex:20,display:"inline-flex"}}>
+              <button type="button" id={`mnemo-img-link-${img.id}`} data-mnemo-chrome="" data-canvas-hot="" className="mn-canvas-btn--chip"
+                onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setLinkEditId(null);canvasWrapperRef.current?.focus({preventScroll:true});}}}
                 onMouseDown={e=>e.stopPropagation()}
                 onClick={e=>{e.stopPropagation();setLinkEditId(id=>id===img.id?null:img.id);}}
-                title={img.linkUrl?"Edit link":"Add link"}
-                style={{position:"absolute",bottom:-22,left:"50%",transform:"translateX(-50%)",display:"flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,cursor:"pointer",zIndex:20,background:linkEditId===img.id?"rgba(212,240,196,0.1)":"rgba(10,10,12,0.94)",border:`1px solid ${linkEditId===img.id?"rgba(212,240,196,0.3)":img.linkUrl?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.1)"}`,backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)"}}
+                aria-label={img.linkUrl?"Editar link de la imagen":"Agregar link a la imagen"}
+                aria-expanded={linkEditId===img.id}
+                title={img.linkUrl?"Editar link":"Agregar link"}
+                style={{position:"relative",minHeight:24,font:"inherit",color:"inherit",display:"flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,cursor:"pointer",zIndex:20,background:linkEditId===img.id?"rgba(212,240,196,0.1)":"rgba(10,10,12,0.94)",border:`1px solid ${linkEditId===img.id?"rgba(212,240,196,0.3)":img.linkUrl?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.1)"}`,backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)"}}
               >
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={img.linkUrl||linkEditId===img.id?"rgba(212,240,196,0.8)":"rgba(255,255,255,0.35)"} strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                <span style={{fontFamily:MONO,fontSize:8,letterSpacing:1.5,color:img.linkUrl||linkEditId===img.id?"rgba(212,240,196,0.8)":"rgba(255,255,255,0.35)",textTransform:"uppercase" as const}}>LINK</span>
-              </div>
+                <span style={{fontFamily:MONO,fontSize:10,letterSpacing:1.5,color:img.linkUrl||linkEditId===img.id?"rgba(212,240,196,0.9)":"rgba(255,255,255,0.72)",textTransform:"uppercase" as const}}>Link</span>
+              </button>
+              </span>
               {linkEditId===img.id&&(
                 <ImageLinkPortal
                   imgEl={imgElRefs.current.get(img.id)??null}
                   linkUrl={img.linkUrl}
                   onChange={v=>enqueueOp({type:"update_image",id:img.id,patch:{linkUrl:v||undefined}})}
                   onClose={()=>setLinkEditId(null)}
+                  openerId={`mnemo-img-link-${img.id}`}
                 />
               )}
             </>)}
@@ -2730,6 +3073,7 @@ export default function CanvasBoard({
         const _fd=!canEdit?Math.min(i*22,200):0;
         return (
           <div key={txt.id} ref={el=>{textElRefs.current[txt.id]=el;}}
+            data-mnemo-text-editing={isEdit ? "" : undefined}
             style={{position:"absolute",left:txt.x,top:txt.y,zIndex:txt.zIndex+txt.layer*100+(isSel?SELECTION_Z_BOOST:0),transform:`${ps.transform} rotate(${txt.rotation}deg)`,willChange:"transform",userSelect:isEdit?"text":"none",pointerEvents:!canInteract?"none":undefined,cursor:txt.locked?"default":dragging?.id===txt.id?"grabbing":isEdit?"text":"grab",display:"inline-block",maxWidth:Math.max(80,viewerW-txt.x-8),...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}
             onMouseDown={e=>{if(txt.locked){e.stopPropagation();return;}if(!isEdit)onElementMouseDown(txt.id,"text",txt.x,txt.y,e);}}
             onClick={e=>handleElementClick(txt.id,e)}
@@ -2746,39 +3090,39 @@ export default function CanvasBoard({
               dangerouslySetInnerHTML={isEdit ? undefined : { __html: txt.content }}
               ref={el=>{if(el&&isEdit&&el.innerText!==txt.content){el.innerText=txt.content;}}}
             />
-            {isSel&&canInteract&&!isEdit&&(<div style={{position:"absolute",top:-22,left:0,display:"flex",gap:4,padding:4,background:"rgba(0,0,0,0.5)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,backdropFilter:"blur(6px)"}} onMouseDown={e=>e.stopPropagation()}>
-              {([0,1,2] as const).map(l=>{const hk=`txt_${txt.id}_${l}`;return(<div key={l} onClick={e=>{e.stopPropagation();updateText(txt.id,{layer:l});}} onMouseEnter={()=>setHovLayerKey(hk)} onMouseLeave={()=>setHovLayerKey(null)} style={{padding:"4px 8px",borderRadius:4,fontFamily:MONO,fontSize:11,letterSpacing:"1px",cursor:"pointer",transition:"all 0.12s ease",background:txt.layer===l?"white":"transparent",color:txt.layer===l?"black":"rgba(255,255,255,0.4)",opacity:hovLayerKey===hk?1:undefined,transform:hovLayerKey===hk?"scale(1.05)":undefined}}>{LAYER_NAMES[l].slice(0,2).toUpperCase()}</div>);})}
+            {isSel&&canInteract&&!isEdit&&(<div data-mnemo-ui="" role="group" aria-label="Capa del texto" tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();canvasWrapperRef.current?.focus({preventScroll:true});}}} style={{outline:"none",position:"absolute",top:resolveToolbarTop(textChromeBox(txt),chromeCanvas).top,left:0,display:"flex",gap:2,padding:3,background:"rgba(0,0,0,0.72)",border:"1px solid rgba(255,255,255,0.14)",borderRadius:8,backdropFilter:"blur(6px)",zIndex:20}} onMouseDown={e=>e.stopPropagation()}>
+              {([0,1,2] as const).map(l=>(<button key={l} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--rect mn-canvas-btn--flat" aria-pressed={txt.layer===l} aria-label={`Capa: ${LAYER_LABELS_ES[l]}`} title={`Capa: ${LAYER_LABELS_ES[l]}`} onClick={e=>{e.stopPropagation();updateText(txt.id,{layer:l});}} onMouseDown={e=>e.stopPropagation()}>{LAYER_LABELS_ES[l].slice(0,2).toUpperCase()}</button>))}
             </div>)}
-            {isSel&&canInteract&&!isEdit&&(<LockBtn locked={!!txt.locked} onClick={e=>{e.stopPropagation();updateText(txt.id,{locked:!txt.locked});}} />)}
-            {isSel&&canInteract&&!isEdit&&!txt.locked&&(<RotateHandle onMouseDown={e=>onRotateText(txt.id,e)} />)}
+            {isSel&&canInteract&&!isEdit&&(<LockBtn name="texto" box={textChromeBox(txt)} canvas={chromeCanvas} locked={!!txt.locked} onClick={e=>{e.stopPropagation();updateText(txt.id,{locked:!txt.locked});}} />)}
+            {isSel&&canInteract&&!isEdit&&!txt.locked&&(<RotateHandle name="texto" box={textChromeBox(txt)} canvas={chromeCanvas} onMouseDown={e=>onRotateText(txt.id,e)} onKeyRotate={()=>updateText(txt.id,{rotation:Math.round(((txt.rotation??0)+15)%360)})} />)}
             {isSel&&canInteract&&!isEdit&&!txt.locked&&(<div onMouseDown={e=>{e.stopPropagation();startSingleResize(txt.id,"text","se",e);}} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.65)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
             {isSel&&canInteract&&!isEdit&&(
-              <div onMouseDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}
+              <div data-mnemo-ui="" role="group" aria-label="Formato del texto" tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();canvasWrapperRef.current?.focus({preventScroll:true});}}} onMouseDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}
                 style={{position:"absolute",top:"calc(100% + 14px)",left:"50%",transform:"translateX(-50%)",background:"rgba(10,10,12,0.97)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"10px 12px",backdropFilter:"blur(40px)",WebkitBackdropFilter:"blur(40px)",zIndex:500,boxShadow:"0 12px 40px rgba(0,0,0,0.7)",display:"flex",flexDirection:"column",gap:10,whiteSpace:"nowrap",minWidth:220}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <select value={txt.font} onChange={e=>updateText(txt.id,{font:e.target.value as TextFont})} onMouseDown={e=>e.stopPropagation()} style={{flex:1,padding:"4px 8px",borderRadius:7,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.8)",fontSize:12,fontFamily:getFontStyle(txt.font),cursor:"pointer",outline:"none"}}>
+                  <select aria-label="Fuente del texto" value={txt.font} onChange={e=>updateText(txt.id,{font:e.target.value as TextFont})} onMouseDown={e=>e.stopPropagation()} style={{flex:1,padding:"4px 8px",borderRadius:7,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.8)",fontSize:12,fontFamily:getFontStyle(txt.font),cursor:"pointer",outline:"none"}}>
                     {TEXT_FONTS.map(f=>(<option key={f.key} value={f.key} style={{fontFamily:f.style,background:"#0a0a0c"}}>{f.label}</option>))}
                   </select>
-                  <button onClick={()=>updateText(txt.id,{uppercase:!txt.uppercase})} style={{padding:"4px 9px",borderRadius:7,border:"none",cursor:"pointer",background:txt.uppercase?"rgba(212,240,196,0.12)":"rgba(255,255,255,0.05)",color:txt.uppercase?"rgba(212,240,196,0.85)":"rgba(255,255,255,0.3)",fontFamily:MONO,fontSize:9,letterSpacing:1,outline:txt.uppercase?"1px solid rgba(212,240,196,0.2)":"none",flexShrink:0}}>AA</button>
+                  <button type="button" aria-label="Mayúsculas" aria-pressed={!!txt.uppercase} title="Mayúsculas" onClick={()=>updateText(txt.id,{uppercase:!txt.uppercase})} style={{padding:"4px 9px",borderRadius:7,border:"none",cursor:"pointer",background:txt.uppercase?"rgba(212,240,196,0.12)":"rgba(255,255,255,0.05)",color:txt.uppercase?"rgba(212,240,196,0.85)":"rgba(255,255,255,0.3)",fontFamily:MONO,fontSize:9,letterSpacing:1,outline:txt.uppercase?"1px solid rgba(212,240,196,0.2)":"none",flexShrink:0}}>AA</button>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
-                    <button onClick={()=>updateText(txt.id,{size:Math.max(10,txt.size-8)})} style={{width:20,height:20,borderRadius:5,border:"none",background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                    <button type="button" aria-label="Achicar texto" title="Achicar texto" onClick={()=>updateText(txt.id,{size:Math.max(10,txt.size-8)})} style={{width:20,height:20,borderRadius:5,border:"none",background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
                     <span style={{fontFamily:MONO,fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:32,textAlign:"center"}}>{txt.size}px</span>
-                    <button onClick={()=>updateText(txt.id,{size:Math.min(300,txt.size+8)})} style={{width:20,height:20,borderRadius:5,border:"none",background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                    <button type="button" aria-label="Agrandar texto" title="Agrandar texto" onClick={()=>updateText(txt.id,{size:Math.min(300,txt.size+8)})} style={{width:20,height:20,borderRadius:5,border:"none",background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                   </div>
                   <div style={{width:1,height:16,background:"rgba(255,255,255,0.08)",flexShrink:0}} />
                   <div style={{width:24,height:24,borderRadius:7,overflow:"hidden",border:"1px solid rgba(255,255,255,0.12)",flexShrink:0}}>
-                    <input type="color" value={txt.color.startsWith("#")?txt.color:"#ffffff"} onChange={e=>updateText(txt.id,{color:e.target.value})} style={{width:"100%",height:"100%",border:"none",cursor:"pointer",padding:2}} />
+                    <input type="color" aria-label="Color del texto" value={txt.color.startsWith("#")?txt.color:"#ffffff"} onChange={e=>updateText(txt.id,{color:e.target.value})} style={{width:"100%",height:"100%",border:"none",cursor:"pointer",padding:2}} />
                   </div>
                   <div style={{width:1,height:16,background:"rgba(255,255,255,0.08)",flexShrink:0}} />
                   <div style={{display:"flex",alignItems:"center",gap:5,flex:1}}>
                     <span style={{fontFamily:MONO,fontSize:9,color:"rgba(255,255,255,0.25)",flexShrink:0}}>OP</span>
-                    <input type="range" min={5} max={100} value={Math.round(txt.opacity*100)} onChange={e=>updateText(txt.id,{opacity:Number(e.target.value)/100})} style={{flex:1,accentColor:"rgba(212,240,196,0.7)"}} />
+                    <input type="range" aria-label="Opacidad del texto" aria-valuetext={`${Math.round(txt.opacity*100)}%`} min={5} max={100} value={Math.round(txt.opacity*100)} onChange={e=>updateText(txt.id,{opacity:Number(e.target.value)/100})} style={{flex:1,accentColor:"rgba(212,240,196,0.7)"}} />
                     <span style={{fontFamily:MONO,fontSize:9,color:"rgba(255,255,255,0.35)",minWidth:24,textAlign:"right"}}>{Math.round(txt.opacity*100)}</span>
                   </div>
                 </div>
-                <div style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.12)",letterSpacing:1,textAlign:"center"}}>double-click to edit · corner to resize</div>
+                <div style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.12)",letterSpacing:1,textAlign:"center"}}>doble click para editar · esquina para cambiar el tamaño</div>
               </div>
             )}
           </div>
@@ -2912,9 +3256,21 @@ export default function CanvasBoard({
               onResizeMD={mc.locked ? (_h: ResizeHandle, e: React.MouseEvent) => e.stopPropagation() : (h, e) => startSingleResize(mc.id, "music", h, e)}
               onRotateMD={mc.locked ? e => e.stopPropagation() : e => startRotate(mc.id, "music", e, mc.x + mc.w / 2, mc.y + mc.h / 2)}
               updateCard={updateMusicCard}
+              onGeometry={canvasMode === "space_mobile" ? undefined : g => setElementGeometry(mc.id, g)}
+              canvasBounds={chromeCanvas}
               onToggleLock={() => setElements(p => p.map(e => e.elementType === "music" && e.id === mc.id ? { ...e, locked: !e.locked } : e))}
               canInteract={canInteract}
-              onDelete={id => enqueueOp({ type: "delete_music", id })}
+              onDelete={id => {
+                // Iteration 0: same undo snapshot as Backspace/Delete.
+                const snap = elementsRef.current.find(e => e.id === id && e.elementType === "music");
+                enqueueOp({ type: "delete_music", id });
+                setSelectedIds(new Set());
+                if (snap) {
+                  const copy = structuredClone(snap) as MusicCardData;
+                  pushUndoRef.current?.(() => { enqueueOpRef.current({ type: "add_music", music: copy }); setSelectedIds(new Set([id])); });
+                  announceRef.current?.(`Music eliminado. ${isMacUi ? "⌘Z" : "Ctrl+Z"} para deshacer`);
+                }
+              }}
             />
           </WidgetBoundary>
         );
@@ -3010,8 +3366,8 @@ export default function CanvasBoard({
             {isSel&&canInteract&&!multiSel&&(card.type==="text"||card.type==="list"||card.type==="links")&&!isEdit&&(<div onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();setEditingId(card.id);}} style={{position:"absolute",bottom:-12,left:"50%",transform:"translateX(-50%)",padding:"3px 10px",borderRadius:20,cursor:"pointer",zIndex:20,background:"rgba(10,10,12,0.94)",border:"1px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",gap:5,backdropFilter:"blur(8px)"}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span style={{fontFamily:MONO,fontSize:8,letterSpacing:1.5,color:"rgba(255,255,255,0.35)",textTransform:"uppercase"}}>edit</span></div>)}
             {isEdit&&canInteract&&(<div onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();setEditingId(null);}} style={{position:"absolute",bottom:-12,left:"50%",transform:"translateX(-50%)",padding:"3px 10px",borderRadius:20,cursor:"pointer",zIndex:20,background:"rgba(212,240,196,0.12)",border:"1px solid rgba(212,240,196,0.25)",fontFamily:MONO,fontSize:8,letterSpacing:1.5,color:"rgba(212,240,196,0.8)",textTransform:"uppercase"}}>done ✓</div>)}
             {isSel&&canInteract&&!multiSel&&!isEdit&&(<div onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();if(showMenu){setCardMenuId(null);setCardMenuRect(null);}else{const el=cardDivRefs.current[card.id];if(el)setCardMenuRect(el.getBoundingClientRect());setCardMenuId(card.id);setCardMenuTab("type");};}} style={{position:"absolute",top:-10,left:-10,width:20,height:20,borderRadius:"50%",background:"rgba(12,12,14,0.96)",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",zIndex:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.4)"}}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>)}
-            {isSel&&canInteract&&!multiSel&&(<LockBtn locked={!!card.locked} onClick={e=>{e.stopPropagation();updateCard(card.id,{locked:!card.locked});}} />)}
-            {isSel&&canInteract&&!multiSel&&!isEdit&&!card.locked&&(<RotateHandle onMouseDown={e=>{e.stopPropagation();const el=e.currentTarget.parentElement;if(el){const r=el.getBoundingClientRect();startRotate(card.id,"card",e,r.left+r.width/2,r.top+r.height/2);}else{startRotate(card.id,"card",e,card.x+card.w/2,card.y+card.h/2);}}} />)}
+            {isSel&&canInteract&&!multiSel&&(<LockBtn box={card} canvas={chromeCanvas} locked={!!card.locked} onClick={e=>{e.stopPropagation();updateCard(card.id,{locked:!card.locked});}} />)}
+            {isSel&&canInteract&&!multiSel&&!isEdit&&!card.locked&&(<RotateHandle box={card} canvas={chromeCanvas} onMouseDown={e=>{e.stopPropagation();const el=e.currentTarget.parentElement;if(el){const r=el.getBoundingClientRect();startRotate(card.id,"card",e,r.left+r.width/2,r.top+r.height/2);}else{startRotate(card.id,"card",e,card.x+card.w/2,card.y+card.h/2);}}} />)}
             {isSel&&canInteract&&!multiSel&&!card.locked&&(<ResizeHandles onResizeMD={(h,e)=>startSingleResize(card.id,"card",h,e)} light={light} />)}
           </div>
         );
@@ -3203,7 +3559,7 @@ export default function CanvasBoard({
             </svg>
           </div>
         ):(
-          <button onClick={e=>{e.stopPropagation();setMenuOpen(m=>{if(m)setWallpaperMenuOpen(false);return!m;});}}
+          <button ref={addBtnRef} onClick={e=>{e.stopPropagation();setMenuOpen(m=>{if(m)setWallpaperMenuOpen(false);return!m;});}}
             aria-label="Agregar elemento" aria-expanded={menuOpen} aria-controls="mnemo-add-menu"
             style={{width:38,height:38,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.08)",background:menuOpen?"rgba(255,255,255,0.10)":"rgba(10,10,12,0.9)",color:menuOpen?UIT.ui.text.primary:"rgba(255,255,255,0.5)",cursor:"pointer",backdropFilter:"blur(12px)",display:"flex",alignItems:"center",justifyContent:"center",transition:`background-color ${UIT.motion.fast}ms ${UIT.motion.ease}, color ${UIT.motion.fast}ms ${UIT.motion.ease}`}}>
             {/* Block 2: SVG icon instead of the "+"/"×" text glyphs. */}
@@ -3217,7 +3573,12 @@ export default function CanvasBoard({
         // Block 2: restyled with the editor system (data-mnemo-ui = editor.css
         // styling scope only — NOT an editor root for editorGuards). Same
         // items, same handlers; Block 4 moves/reworks this chrome.
-        <div data-mnemo-ui="" id="mnemo-add-menu" role="group" aria-label="Agregar elemento" onClick={e=>e.stopPropagation()} style={mylandMenuSurface({position:"fixed",bottom:66,right:20,padding:4,zIndex:1000,width:180,boxSizing:"border-box"})}>
+        // Iteration 0: tabIndex=-1 — a click on a dead spot of the menu
+        // focuses the menu (UI) instead of dropping focus to <body>; Esc
+        // closes it and returns focus to "+".
+        <div data-mnemo-ui="" id="mnemo-add-menu" role="group" aria-label="Agregar elemento" tabIndex={-1}
+          onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();closeAddMenu();}}}
+          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface({position:"fixed",bottom:66,right:20,padding:4,zIndex:1000,width:180,boxSizing:"border-box"})}}>
           {[
             // Stage 4.2-C.2.1: "New Card" (generic standalone CanvasCard),
             // "Links", "Media" and "Guestbook" were removed from here —
@@ -3231,17 +3592,21 @@ export default function CanvasBoard({
             // Block 1: "Gallery" removed too — Gallery is out of the roadmap
             // (see CLAUDE.md). Same Phase-A-only approach: addGallery() and
             // the gallery render/replay paths stay for pre-existing data.
-            {label:"Free Text",     fn:()=>{setAddingText(true);      setMenuOpen(false);}},
-            {label:"Image / GIF",   fn:()=>{imageRef.current?.click();setMenuOpen(false);}},
-            {label:"Music",         fn:()=>{addMusicCard();           setMenuOpen(false);}},
-            {label:"Profile",       fn:()=>{addProfile();             setMenuOpen(false);}},
+            // Iteration 0: Spanish labels; activating an item closes the menu
+            // and returns focus to "+" (it used to drop to <body>). "Card de
+            // presentación" is hidden once the singleton exists (addProfile
+            // was a silent no-op then).
+            {label:"Texto libre",   fn:()=>{setAddingText(true);      closeAddMenu();}},
+            {label:"Imagen / GIF",  fn:()=>{imageRef.current?.click();closeAddMenu();}},
+            {label:"Music",         fn:()=>{addMusicCard();           closeAddMenu();}},
+            ...(profiles.length === 0 ? [{label:"Card de presentación", fn:()=>{addProfile(); closeAddMenu();}}] : []),
           ].map(item=>(
             <button key={item.label} type="button" className="mn-menuitem" onClick={item.fn}>
               {item.label}
             </button>
           ))}
           <div aria-hidden style={{height:1,background:UIT.ui.line.group,margin:"4px 6px"}} />
-          <button type="button" className="mn-menuitem" aria-expanded={wallpaperMenuOpen} aria-controls="mnemo-myland-settings"
+          <button ref={mylandBtnRef} type="button" className="mn-menuitem" aria-expanded={wallpaperMenuOpen} aria-controls="mnemo-myland-settings"
             onClick={e=>{e.stopPropagation();setWallpaperMenuOpen(o=>!o);}}>
             <span>Ajustes de MyLand</span>
             <Icon name={wallpaperMenuOpen?"chevron-left":"chevron-right"} size={16} style={{opacity:0.62}} />
@@ -3254,7 +3619,9 @@ export default function CanvasBoard({
           scale, same place, same operations (every enqueueOp below is the
           one the old 7-9px mono menu sent). Block 4 moves this to "Espacio". */}
       {!isReadOnly && view === "canvas" && menuOpen && wallpaperMenuOpen && (
-        <div data-mnemo-ui="" id="mnemo-myland-settings" role="region" aria-label="Ajustes de MyLand" onClick={e=>e.stopPropagation()} style={mylandMenuSurface({position:"fixed",bottom:66,right:206,padding:16,zIndex:1000,width:256,boxSizing:"border-box",maxHeight:"calc(100vh - 140px)",overflowY:"auto",display:"flex",flexDirection:"column",fontFamily:SANS})}>
+        <div data-mnemo-ui="" id="mnemo-myland-settings" role="region" aria-label="Ajustes de MyLand" tabIndex={-1}
+          onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setWallpaperMenuOpen(false);requestAnimationFrame(()=>mylandBtnRef.current?.focus({preventScroll:true}));}}}
+          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface({position:"fixed",bottom:66,right:206,padding:16,zIndex:1000,width:256,boxSizing:"border-box",maxHeight:"calc(100vh - 140px)",overflowY:"auto",display:"flex",flexDirection:"column",fontFamily:SANS})}}>
           <MenuSection label="Fondo" first>
             {/* Block 1: picking a color no longer also clears the wallpaper
                 (it used to enqueue set_wallpaper:"" on every input tick). The
@@ -3453,47 +3820,44 @@ function TBtn({children,onClick,active,title}:{children:React.ReactNode;onClick:
   );
 }
 
-function LockBtn({ locked, onClick }: { locked: boolean; onClick: (e: React.MouseEvent) => void }) {
+// Iteration 0: real 24px <button>s (were 16/20px divs — not focusable, no
+// name, the rotate dot sat on the ne resize handle). Outside the right edge,
+// clear of the ne/e handles' 24px target circles. See CanvasChromeButton.
+// Review r2: placed by resolveSideSpot (right of the element → left →
+// below/inside) so they are never clipped by the canvas' overflow:hidden —
+// a locked element at the right edge could not be unlocked with right:-40.
+// Fixed slots (rotate 0, lock 1): the lock no longer jumps when toggled.
+function sideStyle(box: ChromeBox | undefined, canvas: ChromeCanvas | undefined, slot: 0 | 1): React.CSSProperties {
+  if (!box || !canvas) return { top: slot * 30, right: -40 };
+  const s = resolveSideSpot(box, canvas, slot);
+  return { top: s.top, left: s.left };
+}
+
+function LockBtn({ locked, onClick, name = "elemento", box, canvas }: { locked: boolean; onClick: (e: React.MouseEvent) => void; name?: string; box?: ChromeBox; canvas?: ChromeCanvas }) {
   return (
-    <div
-      onMouseDown={e => e.stopPropagation()}
-      onClick={onClick}
-      style={{
-        position: "absolute", top: -22, right: 0,
-        width: 16, height: 16, borderRadius: 4, cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: locked ? "rgba(255,180,60,0.15)" : "rgba(255,255,255,0.06)",
-        border: locked ? "1px solid rgba(255,180,60,0.3)" : "1px solid rgba(255,255,255,0.07)",
-        color: locked ? "rgba(255,180,60,0.9)" : "rgba(255,255,255,0.32)",
-        transition: "all 0.12s",
-        zIndex: 10,
-      }}
-      title={locked ? "destrabar" : "trabar"}
-    >
-      {locked ? (
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-          <rect x="3" y="11" width="18" height="11" rx="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
-      ) : (
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-          <rect x="3" y="11" width="18" height="11" rx="2"/>
-          <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
-        </svg>
-      )}
-    </div>
+    <CanvasChromeButton
+      icon={locked ? "lock" : "unlock"}
+      label={locked ? `Desbloquear ${name}` : `Bloquear ${name}`}
+      pressed={locked}
+      style={sideStyle(box, canvas, 1)}
+      onActivate={e => onClick(e)}
+    />
   );
 }
 
-function RotateHandle({onMouseDown}:{onMouseDown:(e:React.MouseEvent)=>void}) {
+// Known 2.5.7 gap (Iteration 0, documented): rotation by pointer is still a
+// drag only — a mouse CLICK on this button does nothing (keyboard Enter
+// rotates 15°); image and free text have no single-pointer move/resize
+// alternative yet (Medidas for them arrives with the inspector, Iteration 2).
+function RotateHandle({ onMouseDown, onKeyRotate, name = "elemento", box, canvas }: { onMouseDown: (e: React.MouseEvent) => void; onKeyRotate?: () => void; name?: string; box?: ChromeBox; canvas?: ChromeCanvas }) {
   return (
-    <div onMouseDown={onMouseDown} style={{position:"absolute",top:-10,right:-10,width:20,height:20,borderRadius:"50%",background:"rgba(12,12,14,0.96)",border:"1px solid rgba(255,255,255,0.1)",cursor:"crosshair",zIndex:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.4)",transition:"border-color 0.15s, background 0.15s"}}
-      onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(212,240,196,0.4)";e.currentTarget.style.background="rgba(212,240,196,0.08)";}}
-      onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.1)";e.currentTarget.style.background="rgba(12,12,14,0.96)";}}>
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/>
-      </svg>
-    </div>
+    <CanvasChromeButton
+      icon="rotate"
+      label={onKeyRotate ? `Rotar ${name} (arrastrar; Enter gira 15°)` : `Rotar ${name} (arrastrar)`}
+      style={sideStyle(box, canvas, 0)}
+      onMouseDown={onMouseDown}
+      onActivate={e => { if (e.detail === 0) onKeyRotate?.(); }}
+    />
   );
 }
 
@@ -3501,13 +3865,16 @@ function RotateHandle({onMouseDown}:{onMouseDown:(e:React.MouseEvent)=>void}) {
 // Portals the image link editor to document.body so it escapes the canvas
 // overflow:hidden wrapper and the canvas transform stacking context.
 function ImageLinkPortal({
-  imgEl, linkUrl, onChange, onClose,
+  imgEl, linkUrl, onChange, onClose, openerId,
 }: {
   imgEl: HTMLDivElement | null;
   linkUrl: string | undefined;
   onChange: (v: string) => void;
   onClose?: () => void;
+  /** Iteration 0: the "LINK" button — focus returns there on Esc. */
+  openerId?: string;
 }) {
+  const inputId = useId();
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const MONO_L = "'Space Mono', monospace";
 
@@ -3533,9 +3900,22 @@ function ImageLinkPortal({
 
   return createPortal(
     <div
+      data-mnemo-ui=""
+      role="dialog"
+      aria-label="Link de la imagen"
+      tabIndex={-1}
+      onKeyDown={e => {
+        // Review r2 (A11y-8): Esc anywhere in the dialog closes it and
+        // returns focus to the "Link" chip that opened it.
+        if (e.key !== "Escape") return;
+        e.preventDefault(); e.stopPropagation();
+        onClose?.();
+        if (openerId) requestAnimationFrame(() => document.getElementById(openerId)?.focus({ preventScroll: true }));
+      }}
       onMouseDown={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
       style={{
+        outline:       "none",
         position:      "fixed",
         top:           pos.top,
         left:          pos.left,
@@ -3553,16 +3933,24 @@ function ImageLinkPortal({
         boxShadow:     "0 8px 32px rgba(0,0,0,0.65)",
       }}
     >
-      <span style={{fontFamily:MONO_L,fontSize:7,letterSpacing:2.5,color:"rgba(255,255,255,0.22)",textTransform:"uppercase" as const}}>LINK</span>
+      <label htmlFor={inputId} style={{fontFamily:MONO_L,fontSize:10,letterSpacing:1.5,color:"rgba(255,255,255,0.62)",textTransform:"uppercase" as const}}>Link de la imagen</label>
       <input
+        id={inputId}
+        className="mn-input"
         type="url"
         value={linkUrl ?? ""}
         placeholder="https://example.com"
         onChange={e => onChange(e.target.value)}
         onMouseDown={e => e.stopPropagation()}
-        onKeyDown={e => { e.stopPropagation(); if (e.key === "Escape") onClose?.(); }}
+        onKeyDown={e => {
+          e.stopPropagation();
+          if (e.key === "Escape") {
+            onClose?.();
+            if (openerId) requestAnimationFrame(() => document.getElementById(openerId)?.focus({ preventScroll: true }));
+          }
+        }}
         autoFocus
-        style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,padding:"5px 8px",fontFamily:MONO_L,fontSize:9,letterSpacing:0.5,color:"rgba(255,255,255,0.75)",outline:"none",width:"100%",boxSizing:"border-box" as const,caretColor:"rgba(255,255,255,0.8)"}}
+        style={{height:28,padding:"0 8px",fontFamily:MONO_L,fontSize:11,letterSpacing:0.5,width:"100%",boxSizing:"border-box" as const}}
       />
     </div>,
     document.body

@@ -65,3 +65,55 @@ test("Block 2 review (UX-5): offset display mapping used by SliderRow displayOff
   const big = parseNumericInput("80", { min: 1.01 + offset, max: 1.15 + offset, step: 0.01, scale: 100 });
   assert.equal(+((big as number) - offset).toFixed(10), 1.15);
 });
+
+// ── Iteration 0: shared commit (SliderRow + NumberField) ────────────────────
+import { commitSliderDraft, resolveSliderDoubleClick, wasClamped, EFFECT_INTENSITY_MIN } from "./uiNumeric";
+
+test("commitSliderDraft: hover scale typed '8' commits 1.08 through the REAL path (offset -1, scale 100)", () => {
+  const spec = { min: 1.01, max: 1.15, step: 0.01, scale: 100, offset: -1 };
+  assert.equal(commitSliderDraft("8", "5", spec, 1.05), 1.08);
+  assert.equal(commitSliderDraft("80", "5", spec, 1.05), 1.15, "clamped to max");
+});
+
+test("commitSliderDraft: unchanged text, unparseable, or same value -> null (never writes)", () => {
+  const spec = { min: 0, max: 1, step: 0.01, scale: 100 };
+  assert.equal(commitSliderDraft("45", "45", spec, 0.45), null);
+  assert.equal(commitSliderDraft(" 45 ", "45", spec, 0.45), null);
+  assert.equal(commitSliderDraft("abc", "45", spec, 0.45), null);
+  assert.equal(commitSliderDraft("45.0", "45", spec, 0.45), null, "parses to the current value");
+  assert.equal(commitSliderDraft("50", "45", spec, 0.45), 0.5);
+});
+
+test("resolveSliderDoubleClick: modified + reset deletes the raw key, else defaultValue, else nothing", () => {
+  assert.equal(resolveSliderDoubleClick({ state: "modified", hasReset: true, defaultValue: 3 }), "reset");
+  assert.equal(resolveSliderDoubleClick({ state: "modified", hasReset: false, defaultValue: 3 }), "default");
+  assert.equal(resolveSliderDoubleClick({ hasReset: true, defaultValue: 0 }), "default");
+  assert.equal(resolveSliderDoubleClick({ state: "inherited", hasReset: true }), null);
+  assert.equal(resolveSliderDoubleClick({ hasReset: false }), null);
+});
+
+test("wasClamped: only when the typed number differs AND the result is a bound", () => {
+  const spec = { min: 240, max: 1200, step: 1, scale: 1 };
+  assert.equal(wasClamped("100", 240, spec), true);
+  assert.equal(wasClamped("5000", 1200, spec), true);
+  assert.equal(wasClamped("300", 300, spec), false);
+});
+
+test("EFFECT_INTENSITY_MIN keeps switch-gated effects visible (> 0)", () => {
+  assert.ok(EFFECT_INTENSITY_MIN > 0 && EFFECT_INTENSITY_MIN <= 0.01);
+});
+
+// ── Review r2 (Critic-3): NumberField moving baseline ───────────────────────
+import { numberFieldCommit } from "./uiNumeric";
+
+test("numberFieldCommit: 300 -> 350 + Enter -> 300 + Enter (same focus) applies both times", () => {
+  const spec = { min: 240, max: 1200, step: 1, scale: 1 };
+  const first = numberFieldCommit("350", "300", spec, 300);
+  assert.equal(first.value, 350);
+  assert.equal(first.baseline, "350");
+  const second = numberFieldCommit("300", first.baseline, spec, 350);
+  assert.equal(second.value, 300, "typing the original value back must apply");
+  const noop = numberFieldCommit("300", second.baseline, spec, 300);
+  assert.equal(noop.value, null, "unchanged since the last commit never writes");
+  assert.equal(noop.baseline, "300");
+});

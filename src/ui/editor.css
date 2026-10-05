@@ -21,7 +21,10 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) {
   --ui-text-1: rgba(255,255,255,0.94);
   --ui-text-2: rgba(255,255,255,0.62);
-  --ui-text-3: rgba(255,255,255,0.46);
+  /* Iteration 0: .46 -> .50 (inherited value/hex measured 4.47:1 on the
+     control fill; .50 clears 4.5:1). Parity with T.ui.text.tertiary is
+     tested (uiTokens.test.ts). */
+  --ui-text-3: rgba(255,255,255,0.50);
   --ui-text-dis: rgba(255,255,255,0.28);
   --ui-group: rgba(255,255,255,0.05);
   --ui-group-hover: rgba(255,255,255,0.08);
@@ -181,6 +184,12 @@
   font-family: 'Space Mono', monospace; font-size: 11px; font-variant-numeric: tabular-nums;
   outline: none; box-shadow: var(--ui-ring);
 }
+/* Iteration 0: NumberField — the same value input, always visible: a
+   hairline at rest, the shared ring only on focus. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input.mn-value-input--field {
+  height: 24px; margin: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.32);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input.mn-value-input--field:focus-visible { box-shadow: var(--ui-ring); }
 
 /* ── Field state (modified dot -> reset, inherited chip) ────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field { position: relative; }
@@ -192,7 +201,9 @@
   color: var(--ui-text-2);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark::before {
-  content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ui-fill);
+  /* Iteration 0: drawn with a border in currentColor (not a background), so
+     the "modified" dot survives forced colors (backgrounds are dropped). */
+  content: ""; width: 0; height: 0; border: 2.5px solid currentColor; border-radius: 50%; color: var(--ui-fill);
   transition: opacity var(--ui-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark svg {
@@ -410,4 +421,93 @@
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-well, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop { border: 1px solid ButtonText; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop[aria-checked="true"] { border: 2px solid Highlight; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled { border: 1px solid ButtonText; }
+  /* Iteration 0: where the color IS the information, keep it — wells, the
+     picker's SV area / hue / alpha bars (gradients are dropped otherwise:
+     an empty picker), the gradient bar and its stops. forced-color-adjust
+     is inherited, so the picker handles keep their own colors too; they
+     get a CanvasText border to stay findable. */
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-well__fill,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gbar,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop { forced-color-adjust: none; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__area,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__bar,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gbar { outline: 1px solid CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-picker__handle { border-color: CanvasText !important; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop { border: 1px solid CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop[aria-checked="true"] { border: 2px solid Highlight; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark::before { color: CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-chip { border: 1px solid CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-panel,
+  :where([data-mnemo-editor], [data-mnemo-ui]).mn-panel,
+  .mn-panel, .mn-popover { background: Canvas !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 }
+
+/* ── Iteration 0: canvas focus + screen-reader-only text ──────────────────
+   Global (not scoped to editor roots): the canvas wrapper is focusable so
+   canvas shortcuts can require focus ON the canvas (editorGuards.ts). Mouse
+   clicks focus it programmatically, which does not match :focus-visible —
+   the inset ring only shows for keyboard focus (Tab). */
+.mn-sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+[data-mnemo-canvas]:focus { outline: none; }
+/* Review r2 (Visual-4): two-tone ring drawn by an overlay pseudo-element —
+   it paints ABOVE the canvas layers (an inset box-shadow painted under the
+   wallpaper) and starts below the fixed 44px topbar. Dark halo + light ring
+   so it reads on both light and dark wallpapers. Keyboard focus only. */
+[data-mnemo-canvas]:focus-visible::after {
+  content: ""; position: absolute; inset: 48px 4px 4px 4px; pointer-events: none;
+  border-radius: 6px; z-index: 2147483000;
+  box-shadow: 0 0 0 2px rgba(20,20,23,0.85), inset 0 0 0 2px rgba(255,255,255,0.75);
+}
+@media (forced-colors: active) {
+  [data-mnemo-canvas]:focus-visible::after { box-shadow: none; outline: 2px solid Highlight; outline-offset: -2px; }
+}
+
+/* ── Iteration 0: canvas chrome buttons ("Editar", lock, rotate) ─────────
+   Real <button>s (were 16-20px divs) inside a [data-mnemo-ui] wrapper, so
+   the positive keyboard guard treats them as UI, never as the canvas. */
+:where([data-mnemo-ui]) .mn-canvas-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; margin: 0; border-radius: 50%;
+  background: rgba(12,12,14,0.96); border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.78); cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  transition: background-color var(--ui-fast) ease, color var(--ui-fast) ease;
+}
+:where([data-mnemo-ui]) .mn-canvas-btn:hover { background: rgba(40,40,44,0.98); color: var(--ui-text-1); }
+/* Review r2 (Visual-2): the pressed/expanded tint is OVERLAID on the opaque
+   base — a translucent fill read white-on-white over light wallpapers. */
+:where([data-mnemo-ui]) .mn-canvas-btn[aria-expanded="true"],
+:where([data-mnemo-ui]) .mn-canvas-btn[aria-pressed="true"] {
+  background: linear-gradient(rgba(255,255,255,0.16), rgba(255,255,255,0.16)), rgba(12,12,14,0.96);
+  color: var(--ui-text-1); border-color: rgba(255,255,255,0.32);
+}
+:where([data-mnemo-ui]) .mn-canvas-btn:focus-visible { box-shadow: var(--ui-ring); }
+:where([data-mnemo-ui]) .mn-canvas-btn--rect { border-radius: 6px; width: auto; min-width: 24px; padding: 0 6px; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.04em; }
+/* Review r2 (A11y-1 / Visual-1): flat variant for buttons INSIDE a canvas
+   toolbar (layers, corners). Its look lives here, not inline, so the focus
+   ring, hover and forced-colors borders keep working. */
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat { background: transparent; border: 1px solid transparent; box-shadow: none; color: rgba(255,255,255,0.78); }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:hover { background: rgba(255,255,255,0.10); color: var(--ui-text-1); }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat[aria-pressed="true"] { background: rgba(255,255,255,0.92); color: #0a0a0c; border-color: transparent; }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:focus-visible { box-shadow: var(--ui-ring); }
+/* Corner-shape glyph inside a flat button. */
+:where([data-mnemo-ui]) .mn-canvas-btn__shape { display: block; width: 14px; height: 14px; border: 1px solid rgba(255,255,255,0.55); }
+:where([data-mnemo-ui]) .mn-canvas-btn[aria-pressed="true"] .mn-canvas-btn__shape { border-color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.25); }
+:where([data-mnemo-ui]) .mn-canvas-btn--flat[aria-pressed="true"] .mn-canvas-btn__shape { border-color: #0a0a0c; background: rgba(10,10,12,0.25); }
+@media (forced-colors: active) {
+  :where([data-mnemo-ui]) .mn-canvas-btn { border: 1px solid ButtonText; }
+  :where([data-mnemo-ui]) .mn-canvas-btn[aria-expanded="true"],
+  :where([data-mnemo-ui]) .mn-canvas-btn[aria-pressed="true"] { border: 2px solid Highlight; }
+  :where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat { border: 1px solid ButtonText; }
+  :where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat[aria-pressed="true"] { border: 2px solid Highlight; }
+  :where([data-mnemo-ui]) .mn-canvas-btn__shape { border-color: ButtonText; }
+  :where([data-mnemo-ui]) .mn-canvas-btn--chip { border: 1px solid ButtonText; }
+}
+/* Review r2: the image "Link" chip keeps its own look inline (lime when
+   linked); focus ring from here. */
+:where([data-mnemo-ui]) .mn-canvas-btn--chip:focus-visible { box-shadow: var(--ui-ring); outline: none; }

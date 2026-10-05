@@ -16,24 +16,24 @@ como próximo paso, manda esta sección.
 ### Estado actual
 
 - **Proyecto:** MNEMO / MyLand. **Branch principal:** `main`.
-- **Último commit estable: `ae8d8ea`** (Block 2), pusheado a `origin/main`.
-  Verificado el 2026-10-02 contra el remoto:
-  `main -> ae8d8ea -> origin/main`.
-- **Block 2 está TERMINADO.**
-- **Verificación sobre `ae8d8ea`, corrida el 2026-10-02:**
-  - `npm test`: 358/358.
+- **Último commit estable:** el commit `fix(editor): Menu Design
+  Refinement — Iteration 0` (2026-10-05), pusheado a `origin/main`. Su
+  padre es `72c26d8` (checkpoint docs), que a su vez va sobre `ae8d8ea`
+  (Block 2). Con `git log --oneline -3` se confirma.
+- **Block 2 y la Iteración 0 del Menu Design Refinement están TERMINADOS.**
+- **Verificación al cerrar la Iteración 0 (2026-10-05):**
+  - `npm test`: 415/415.
   - `npx tsc --noEmit --incremental false`: limpio.
   - `npx next build`: limpio.
-- **Working tree:** solo hay dos cambios sin commitear, ambos conocidos.
-  - `CLAUDE.md`: esta sección de checkpoint. Hay que preservarla.
-  - `.claude/settings.local.json`: permisos locales.
-  - Ningún cambio de código sin commitear.
+- **Working tree esperado:** solo `.claude/settings.local.json`, con
+  permisos locales.
   - `next-env.d.ts` puede aparecer modificado de forma transitoria al
     correr `next dev`/`next build`, porque Next lo regenera. No es trabajo
     del equipo.
-- **Etapa actual:** Menu Design Refinement. La propuesta está aprobada y
-  las decisiones del usuario (O1–O4) ya están tomadas. **La Iteración 0
-  todavía NO empezó.** Ver "Orden de implementación".
+- **Etapa actual:** Menu Design Refinement.
+  - La Iteración 0 está cerrada y revisada.
+  - **La Iteración 1 NO empezó:** arranca solo con el OK explícito del
+    usuario. Ver "Orden de implementación".
 - **`.claude/settings.local.json` NO entra nunca en commits.** Commitear
   siempre con `git add -A -- . ':!.claude/settings.local.json'` o agregando
   rutas explícitas.
@@ -312,8 +312,12 @@ comparten una gramática, y cada uno tiene su propio vocabulario.
 - **O1, Accesibilidad: "Teclado + medidas ocultas".**
   - El drag sigue siendo la interacción principal.
   - Con un elemento seleccionado, las flechas lo mueven y Shift multiplica
-    el paso (×10). Alt + flechas cambia el tamaño. Los cambios se anuncian
-    vía `role=status`.
+    el paso (×10).
+  - **Ctrl + flechas (Windows/Linux) o ⌘ + flechas (Mac) cambian el
+    tamaño.** Esto reemplaza al "Alt + flechas" original por decisión del
+    usuario del 2026-10-05: Alt+← es "Atrás" en Windows y Option+flechas
+    edita texto en Mac. Alt no se usa.
+  - Los cambios se anuncian vía `role=status`.
   - Se agrega la fila "Medidas", cerrada por defecto dentro de "Más
     ajustes", con campos numéricos de ancho/alto y X/Y. Es una alternativa
     secundaria de precisión y accesibilidad.
@@ -333,8 +337,10 @@ comparten una gramática, y cada uno tiene su propio vocabulario.
   - NO se migran destructivamente los perfiles que ya tienen violeta.
 - **O4, Music defaults: "Mismos editores, defaults propios".**
   - Music usa los mismos editores e infraestructura que ProfileCard.
-  - Conserva sus defaults (radio 10, glow `outer:true`, tilt 15, spotlight
+  - Conserva sus defaults (radio 10, glow `outer:true`, tilt 5, spotlight
     65) vía `caps`, con un test de paridad.
+  - Corrección del 2026-10-05: el tilt por defecto real de Music es 5; 15
+    es solo el máximo del slider.
   - No modificar el aspecto de los Music existentes.
 
 ### Orden de implementación (próximo trabajo)
@@ -349,9 +355,21 @@ comparten una gramática, y cada uno tiene su propio vocabulario.
 **La Iteración 0 tiene que quedar completamente cerrada y validada antes
 de empezar la Iteración 1.**
 
-**ITERACIÓN 0: correcciones y regresiones (NO empezada).** Son problemas
-que el equipo encontró leyendo el código; hay que verificarlos al
-corregirlos.
+**ITERACIÓN 0: CERRADA (2026-10-05).**
+
+**Proceso:**
+- El ingeniero verificó cada ítem contra el código y escribió un plan.
+- Interaction, A11y y Design Systems revisaron el plan.
+- Se implementó.
+- UX Critic, A11y y Visual revisaron la implementación real.
+- Hubo una ronda de correcciones, con verificación de cierre de los tres.
+  Los tres dieron APPROVE.
+
+La lista de abajo era el alcance; lo implementado se resume en "Qué quedó
+implementado en la Iteración 0".
+
+**Alcance original.** Son problemas que el equipo encontró leyendo el
+código; se verificaron al corregirlos.
 
 **Teclado y borrado**
 - **Backspace/Delete puede borrar elementos indebidamente.** En el submenú
@@ -437,24 +455,149 @@ corregirlos.
 - Copiar ajustes entre roles: no es un preset.
 - Sin reintroducir features descartadas.
 
-### QA de Block 2: estado
+### Qué quedó implementado en la Iteración 0
 
-Verificado solo leyendo el código; **sigue sin QA en navegador.**
-- **OK:**
-  - el picker toma el foco al abrir;
-  - Esc cierra solo el picker cuando el foco está en el área o en las
-    barras;
-  - Tab y Shift+Tab salen del picker;
-  - recorrer Hex/Alfa no escribe;
-  - Hover Scale: tipear `8` da `1.08`;
-  - el trazo de los íconos a 12/14px;
-  - las filas de Links/Social no desbordan.
-- **Bugs (van en la Iteración 0):**
-  - Backspace en MyLand;
-  - Esc dentro de Hex/Alfa;
-  - forced colors.
-- **Pendiente en navegador:** todo lo anterior, más la navegación completa
-  por teclado.
+**Teclado y foco**
+- **Guard positivo de teclado** (`canvasShortcutAllowed` en
+  `src/lib/editorGuards.ts`).
+  - Los atajos del canvas (Delete/Backspace, Ctrl/⌘+Z/C/V/D, flechas,
+    `[` `]`, Enter) solo actúan si el foco Y el target son el propio
+    wrapper del canvas (`data-mnemo-canvas`).
+  - Nunca actúan con el foco en `<body>`, ni sobre un link, botón o input
+    enfocado dentro del canvas.
+  - Escape conserva el guard negativo.
+  - Ya no depende de `isEditorOpen`, así que es compatible con un inspector
+    siempre montado.
+- **Canvas enfocable.**
+  - Atributos: `tabIndex=0`, `role="group"`, `aria-roledescription=
+    "lienzo"`, ayuda en `aria-describedby` y `aria-keyshortcuts`.
+  - Anillo bicolor solo en `:focus-visible`, dibujado con `::after` debajo
+    de la topbar.
+  - El mousedown-capture lo enfoca, salvo sobre campos editables, el texto
+    en edición y las superficies editor/ui.
+- **Selección mínima por teclado:** `]`/`[` recorren en orden z, Enter
+  selecciona la card y Esc deselecciona. Se anuncia "Seleccionado: X, n de
+  m" en una región `role=status` siempre montada.
+- **Esc por capas:** panel → "Editar" → canvas → deselecciona.
+
+**Chrome del canvas**
+- **Botones reales** (`CanvasChromeButton.tsx`), con `data-mnemo-ui` y
+  `data-mnemo-chrome`:
+  - Editar, candado, rotar, toolbars de imagen/texto y el chip Link;
+  - con un click de puntero el foco vuelve al canvas.
+- **Ubicación con fallbacks** (`src/lib/openerPlacement.ts`, con tests):
+  siempre dentro del canvas, nunca bajo la topbar y a más de 12px de los
+  handles de resize.
+- **`MenuPanel`:** suma `returnFocusTo` + `id`.
+- **`+` y MyLand:** son enfocables, Esc los cierra y devuelve el foco. "Card
+  de presentación" se oculta del `+` si ya existe.
+
+**Mover y redimensionar (O1)**
+- Lógica en `src/lib/canvasNudge.ts`. `src/lib/resizeMath.ts` es una
+  extracción pura de `useDragDrop`, igual que `persistDragResult`.
+- Usa los mismos escritores que el drag y persiste en keyup/blur.
+- Para la ProfileCard solo aplica el tamaño, porque la posición siempre se
+  recentra.
+- **No hace falta un piso de alto:** el efecto de growth tiene
+  `extraBlocks=[]` y nunca escribe `h`, así que la carrera de C.2.5 no
+  puede ocurrir. Si un bloque estructural vuelve a usar growth, hay que
+  reintroducir el piso (ver el comentario en `nudgeResize`).
+- **"Medidas"** (`src/ui/NumberField.tsx`):
+  - es un Collapsible cerrado;
+  - ProfileCard: al final de Contenido, con Ancho/Alto;
+  - Music: antes de Eliminar, con X/Y/Ancho/Alto/Rotación, rangos reales,
+    anuncio de ajuste y deshabilitado si está bloqueado;
+  - en la Iteración 1 pasa a "Más ajustes".
+
+**Accesibilidad**
+- `TextArea` nuevo, con contador. Descriptor/Ubicación/Bio, Título/Artista
+  de Music y el link de imagen tienen label.
+- `alt` en el avatar. El well usa `aria-labelledby` con su valor.
+- El color sólido bajo un gradiente queda `inert` y con una nota.
+- `refocusFieldControl` + `src/lib/focusRecovery.ts`: el foco nunca cae a
+  `<body>` después de quitar o eliminar algo.
+- **Forced colors:** wells, picker, gradiente, el punto de modificado
+  (dibujado con borde) y la chrome del canvas.
+- El terciario a .50, con test de paridad entre tokens y CSS.
+- Esc en dos tiempos en Hex/Alfa.
+
+**Efectos y estado**
+- El doble click del slider borra la key cruda.
+- Las intensidades con switch arrancan en 0.01, así nunca quedan
+  "encendidas a 0".
+
+**Music (O2/O4)**
+- `getMusicCardEffects()` en `profileCardEffects.ts`, con test de paridad.
+- El menú lee el valor efectivo y escribe el crudo. El gradiente y la
+  sombra se pausan en vez de borrarse.
+- Los clears borran la key. Delete y "Eliminar Music" tienen undo.
+- "Tamaño del texto" (en %, donde 8 = 100%) y "Fuente" afectan de verdad el
+  player.
+  - Sin valor guardado, el render es idéntico (test).
+  - **Los Music que ya tenían `textSize`/`font` guardados por los controles
+    que antes no hacían nada ahora cambian de aspecto.** Es la consecuencia
+    directa de O2.
+
+**Glow (O3)**
+- `src/lib/neutralGlow.ts`, con `GLOW_NEUTRAL_COLOR="#ffffff"`.
+- Al crear un glow sin color guardado escribe blanco. Nunca recolorea un
+  glow visible.
+- Nota de QA: un glow blanco inner sobre una card clara, u outer sobre un
+  wallpaper claro, casi no se ve. No es un bug.
+
+**Vocabulario**
+- "Card de presentación" (h2), "Fondo", "Texto libre", "Eliminar Music",
+  "Ángulo", "Duración del ciclo", "Sin título", "No se pudo cargar el
+  audio", "Link"; toolbars en español.
+
+### Huecos conocidos después de la Iteración 0 (documentados, no bugs)
+
+- **WCAG 2.5.7:**
+  - Imagen y texto libre no tienen alternativa de un solo puntero para
+    mover y redimensionar, ni Medidas. Se resuelve en la Iteración 2,
+    cuando pasan al inspector.
+  - Rotar con un click de puntero no hace nada; con teclado, Enter gira
+    15°.
+- **Navegación por teclado:** la navegación completa entre objetos es de la
+  Iteración 1. Hoy existen `[`, `]` y Enter.
+- **Atajos con foco en un hijo:** si el foco queda en un hijo enfocable del
+  canvas (un link de Contact Links, el play de Music), los atajos del canvas
+  no actúan hasta volver a clickear el canvas. Es intencional.
+- **Esc, Esc, Backspace** borra la card. Es el diseño acordado y tiene undo.
+- **Mobile:** `MobilePublicCanvas`/`space_mobile` no recibieron O2, nudge
+  ni Medidas (regla de mobile legacy).
+- **Cards legacy:** su toolbar de capas sigue con `div`s (P4B).
+
+### QA en navegador pendiente (Block 2 + Iteración 0)
+
+**Todo se verificó solo leyendo código y con tests.** Hay que probar en
+navegador:
+
+1. **Atajos:**
+   - Ctrl/⌘ + flechas no disparan atajos del navegador. Alt+← sigue
+     siendo "Atrás" y no toca el canvas.
+   - `[`/`]` funcionan con AltGr en un teclado LatAm.
+2. **Anillo del canvas:** visible con Tab sobre wallpaper claro y oscuro, e
+   invisible con un click.
+3. **Hijos enfocables:** con el foco en un link de Contact Links, Enter
+   abre el link; en el play de Music, Space/Enter reproduce y Backspace no
+   borra.
+4. **Click en chrome:** después de un click en la chrome, Delete y las
+   flechas actúan.
+5. **Elementos contra los bordes y esquinas:** toda la chrome sigue visible
+   y el candado no salta.
+6. **Esc por capas:** también en las toolbars y en el diálogo de Link, y
+   en el picker (dos tiempos en Hex/Alfa).
+7. **NumberField:** 350 → 300 aplica las dos veces, y se anuncia el ajuste.
+8. **Music:**
+   - con 150% en un bloque de 64px el título se sigue viendo;
+   - sin valores guardados se ve idéntico;
+   - uno legacy con glow muestra el switch encendido.
+9. **Glow nuevo:** sale blanco y los violetas existentes no cambian.
+10. **Windows High Contrast.**
+11. **Sin regresiones** en drag, resize (incluido el vertical de la card),
+    rotate, marquee, papelera, hit-stack (imagen sobre la card) ni edición
+    de texto libre.
 
 ### Recuperación ante corte de luz o pérdida de sesión
 
@@ -465,11 +608,12 @@ Si la sesión se pierde, **NO comenzar desde cero**. Primero verificar:
 3. `git remote -v`
 4. `git branch`
 5. `git ls-remote origin main`
-6. que `ae8d8ea` exista (`git cat-file -t ae8d8ea`)
+6. que existan `ae8d8ea` y el commit de la Iteración 0
+   (`git log --oneline -3`)
 7. el estado de `CLAUDE.md` (esta sección)
 
-Estado esperado: `main -> ae8d8ea -> origin/main` (o un commit posterior
-documentado acá).
+Estado esperado: `main` y `origin/main` en el mismo commit, que es el de la
+Iteración 0 (o uno posterior documentado acá).
 
 Después:
 - Recuperar el contexto desde este archivo y revisar el código real antes de
@@ -478,13 +622,10 @@ Después:
   respaldarlos antes de tocarlos. No resetear ni limpiar.
 - No asumir que hace falta una conversación anterior para reconstruir el
   proyecto.
-- **Próximo paso:** empezar la **ITERACIÓN 0** (ver "Orden de
-  implementación"), solo con el OK explícito del usuario. Antes, confirmar
-  que el working tree solo tiene `CLAUDE.md` y `settings.local.json`
-  modificados.
-- Si `CLAUDE.md` aparece commiteado o pusheado más adelante, el estado
-  esperado es un commit posterior a `ae8d8ea` que solo agrega este
-  checkpoint.
+- **Próximo paso:** la QA en navegador pendiente y después la
+  **ITERACIÓN 1** (ver "Orden de implementación"), **solo con el OK
+  explícito del usuario**. Antes, confirmar que el working tree solo tiene
+  `settings.local.json` modificado.
 
 ### Agentes y flujo de trabajo
 

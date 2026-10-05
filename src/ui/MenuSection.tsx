@@ -1,11 +1,20 @@
 "use client";
-import React, { useId } from "react";
+import React, { createContext, useContext, useId } from "react";
 import { T } from "./tokens";
 
 interface MenuSectionProps {
   label:    string;
   children: React.ReactNode;
   first?:   boolean;
+}
+
+/** Iteration 0: id of the enclosing section's visible heading — the
+ * fallback accessible name (aria-labelledby) for a text field that sits
+ * directly in a section without its own row label (Descriptor, Ubicación,
+ * Bio), instead of the placeholder. */
+const SectionHeadingContext = createContext<string | undefined>(undefined);
+export function useSectionHeadingId(): string | undefined {
+  return useContext(SectionHeadingContext);
 }
 
 // Block 2: section header in the editor's "section" type (Space Mono 10,
@@ -24,7 +33,9 @@ export function MenuSection({ label, children, first }: MenuSectionProps) {
       }}>
         {label}
       </div>
-      {children}
+      <SectionHeadingContext.Provider value={headingId}>
+        {children}
+      </SectionHeadingContext.Provider>
     </div>
   );
 }

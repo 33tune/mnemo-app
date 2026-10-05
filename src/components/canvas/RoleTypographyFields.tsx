@@ -1,6 +1,6 @@
 "use client";
 import type { TextFont, TextGradientEffect, TextShimmerEffect, TextLetterAnimationEffect } from "@/types";
-import { MenuSection, MenuRow, ColorRow, FontSelect, SliderRow, Collapsible, Toggle, Divider, GradientStops } from "@/ui";
+import { MenuSection, MenuRow, MenuNote, ColorRow, FontSelect, SliderRow, Collapsible, Toggle, Divider, GradientStops } from "@/ui";
 import { CANVAS_FONTS } from "@/lib/fontList";
 
 interface Props {
@@ -80,10 +80,15 @@ export default function RoleTypographyFields({
   const gradientOn = !!gradient;
   return (
     <MenuSection label={label} first={first}>
-      <div style={{ opacity: gradientOn ? 0.4 : 1, pointerEvents: gradientOn ? "none" : undefined }}>
+      {/* Iteration 0: truly disabled while a gradient replaces the solid
+          color — `inert` removes it from Tab order and the a11y tree (it
+          used to be only dimmed + pointer-events:none, still operable by
+          keyboard); a visible note says why. */}
+      <div style={{ opacity: gradientOn ? 0.4 : 1 }} inert={gradientOn}>
         <ColorRow label="Color" value={color} onChange={onColorChange} clearable={hasColorOverride} onClear={onColorClear}
           state={hasColorOverride ? "modified" : "inherited"} onReset={onColorClear} />
       </div>
+      {gradientOn && <MenuNote>Color: lo reemplaza el gradiente.</MenuNote>}
       <FontSelect value={font} onChange={v => onFontChange(v as TextFont)} fonts={CANVAS_FONTS} label={`Fuente: ${label}`} />
       <SliderRow label="Tamaño" min={fontSizeMin} max={fontSizeMax} step={1} value={fontSize} unit="px" onChange={onFontSizeChange} />
 

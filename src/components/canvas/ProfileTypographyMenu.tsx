@@ -1,4 +1,7 @@
 "use client";
+import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
+import { withNeutralGlowOnCreate } from "@/lib/neutralGlow";
+import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
 import type { ProfileCardData, TextFont, TextShadowEffect, TextGlowEffect, TextStrokeEffect, TextEffects, TextRole, RoleTextEffect } from "@/types";
 import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveCardColors } from "@/lib/cardColors";
@@ -183,9 +186,11 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
 
         <MenuSection label="Glow">
           <MenuRow label="Activar">
-            <Toggle value={!!textFx?.glow} onChange={v => onChange({ effects: v ? resumeWithIntensity(effects, "text.glow") : pauseEffect(effects, "text.glow") })} />
+            {/* Iteration 0: "on" = visible (intensity > 0, what textEffects
+                renders), not mere presence. */}
+            <Toggle value={isIntensityEffectVisible(textFx?.glow)} onChange={v => onChange({ effects: v ? withNeutralGlowOnCreate(effects, "text.glow", resumeWithIntensity(effects, "text.glow")) : pauseEffect(effects, "text.glow") })} />
           </MenuRow>
-          {textFx?.glow && (
+          {textFx?.glow && isIntensityEffectVisible(textFx.glow) && (
             <>
               <MenuRow label="Color">
                 <ColorSwatch value={textFx.glow.color ?? TEXT_GLOW_DEFAULT_COLOR} onChange={v => patchGlow({ color: v })} />
@@ -193,7 +198,7 @@ export default function ProfileTypographyMenu({ card, baseColor, onChange }: Pro
               {/* Block 1: absent intensity renders as 0 (no glow) — shown as 0,
                   not the old 0.5 placeholder. Radius default is
                   round(intensity * 16) at render, not a fixed 16. */}
-              <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={textFx.glow.intensity ?? 0}
+              <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={textFx.glow.intensity ?? 0}
                 fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchGlow({ intensity: v })} />
               <SliderRow label="Radio" min={0} max={40} step={1} value={textGlowRadius(textFx.glow.radius, textFx.glow.intensity)} unit="px"
                 onChange={v => patchGlow({ radius: v })} />

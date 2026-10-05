@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useId } from "react";
 import { T } from "./tokens";
 import { Icon } from "./icons";
+import { pickRefocusTarget } from "@/lib/focusRecovery";
 
 /** Block 2: per-field value provenance.
  * - "modified": the stored (raw) value exists — a 5px dot left of the
@@ -29,13 +30,31 @@ export function useFieldDescId(): string | undefined {
 
 /** Review round (A11Y-2): after an action removes the focused button
  * (reset dot, clear x, trash), move focus to the field's main control
- * instead of letting it drop to <body>. Runs after React re-renders. */
+ * instead of letting it drop to <body>. Runs after React re-renders.
+ *
+ * Iteration 0: extended with the full fallback chain for removals that
+ * take the whole field/row away ("quitar" photo/logo/background/MP3, a
+ * deleted link, a deleted module): next list item ([data-mn-item]) →
+ * previous item → enclosing group → panel root → canvas. Never <body>.
+ * The decision is pure (focusRecovery.ts, tested). */
+const FOCUSABLE = 'input:not([type="hidden"]):not([disabled]), select, textarea, [role="switch"], .mn-well, [role="slider"], button:not(.mn-field__mark):not([disabled]), [tabindex="0"]';
 export function refocusFieldControl(from: HTMLElement | null) {
-  const field = from?.closest(".mn-field");
+  const field = from?.closest<HTMLElement>(".mn-field") ?? null;
+  const item = from?.closest<HTMLElement>("[data-mn-item]") ?? null;
+  const next = item?.nextElementSibling as HTMLElement | null;
+  const prev = item?.previousElementSibling as HTMLElement | null;
+  const group = (item ?? from)?.parentElement?.closest<HTMLElement>('[role="group"]') ?? null;
+  const panel = from?.closest<HTMLElement>("[data-mnemo-editor], [data-mnemo-ui]") ?? null;
   requestAnimationFrame(() => {
-    const target = field?.querySelector<HTMLElement>(
-      'input:not([type="hidden"]), select, [role="switch"], .mn-well, [role="slider"], button:not(.mn-field__mark)',
-    );
+    const first = (el: HTMLElement | null) => el?.querySelector<HTMLElement>(FOCUSABLE) ?? null;
+    const target = pickRefocusTarget([
+      field && { connected: field.isConnected, target: first(field) },
+      next && { connected: next.isConnected, target: first(next) },
+      prev && { connected: prev.isConnected, target: first(prev) },
+      group && { connected: group.isConnected, target: first(group) },
+      panel && { connected: panel.isConnected, target: panel.tabIndex >= -1 && panel.hasAttribute("tabindex") ? panel : first(panel) },
+      { connected: true, target: document.querySelector<HTMLElement>("[data-mnemo-canvas]") },
+    ]);
     target?.focus({ preventScroll: true });
   });
 }

@@ -10,9 +10,25 @@ import ProfileMusicPlayer from "./ProfileMusicPlayer";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
-import { CANVAS_FONTS } from "@/lib/fontList";
-import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, TextInput, ActionButton, Divider, Collapsible } from "@/ui";
+import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
+import { T, MenuPanel, MenuSection, MenuRow, SliderRow, Toggle, ColorSwatch, ColorRow, TextInput, ActionButton, Divider, Collapsible, MenuNote, NumberField, labelStyle, refocusFieldControl } from "@/ui";
+import { getMusicCardEffects, MUSIC_DEFAULT_RADIUS } from "@/lib/profileCardEffects";
+import { EFFECT_DISPLAY_DEFAULTS, GRADIENT_DEFAULT, cardShadowDisplay, glowFlagPatch, isCardGlowFlagVisible, isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
+import { mergePatch, pauseEffect, resumeWithIntensity, toggleEffect } from "@/lib/effectPause";
+import { neutralGlowPatch } from "@/lib/neutralGlow";
+import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
+import { MUSIC_TEXT_SIZE_DEFAULT } from "@/lib/musicPlayerFormat";
+import { resizeMinimums } from "@/lib/resizeMath";
+
+const MUSIC_MIN = resizeMinimums("music");
+/** Display rotation in -180..180 (the rotate drag can accumulate any angle). */
+function normalizeRotation(deg: number): number {
+  const r = ((deg % 360) + 360) % 360;
+  return r > 180 ? r - 360 : r;
+}
 import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
+import { resolveOpenerSpot, resolveSideSpot } from "@/lib/openerPlacement";
+import { CanvasChromeButton } from "./CanvasChromeButton";
 
 const FONTS = CANVAS_FONTS;
 
@@ -27,6 +43,12 @@ interface Props {
   onRotateMD:        (e: React.MouseEvent) => void;
   updateCard:        (id: string, patch: Partial<MusicCardData>) => void;
   onDelete?:         (id: string) => void;
+  /** Iteration 0 (O1 Medidas): numeric X/Y/W/H/rotation — CanvasBoard
+   * writes them through the drag's own functions. Absent = no Medidas. */
+  onGeometry?:       (g: { x?: number; y?: number; w?: number; h?: number; rotation?: number }) => void;
+  /** Review r2: the canvas (same bounds the drag clamps to) — chrome
+   * placement and the real X/Y ranges in Medidas. */
+  canvasBounds?:     { w: number; h: number; topOffset: number };
   locked?:           boolean;
   onToggleLock?:     () => void;
   canInteract?:      boolean;
@@ -36,24 +58,34 @@ interface Props {
 function MusicCardWidget({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, onRotateMD,
-  updateCard, onDelete, locked, onToggleLock, canInteract,
+  updateCard, onDelete, onGeometry, canvasBounds, locked, onToggleLock, canInteract,
   entryAnimStyle = {},
 }: Props) {
   const [menuOpen,  setMenuOpen]  = useState(false);
   const [portalPos, setPortalPos] = useState<{ left: number; top: number } | null>(null);
   const cardRef  = useRef<HTMLDivElement>(null);
+  const editBtnRef = useRef<HTMLButtonElement>(null);
+  const panelId = `mnemo-music-editor-${card.id}`;
+  // Review r2: chrome placement on the real canvas (never clipped, never
+  // under the topbar, clear of the resize handles).
+  const chromeCanvas = canvasBounds ?? { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY, topOffset: 44 };
+  const openerPos = resolveOpenerSpot(card, chromeCanvas);
+  const rotateSpot = resolveSideSpot(card, chromeCanvas, 0);
+  const lockSpot = resolveSideSpot(card, chromeCanvas, 1);
   const bgImgRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLInputElement>(null);
 
-  const effectiveEffects: CardEffects = {
-    ...card.effects,
-    bg:     { color: card.bgColor, image: card.bgImage, imageMode: card.bgMode, ...card.effects?.bg },
-    border: { color: card.borderColor, width: card.borderWidth, radius: card.borderRadius ?? 10, ...card.effects?.border },
-    glow:   { color: card.glowColor, intensity: card.glowIntensity, outer: true, ...card.effects?.glow },
-    opacity: card.effects?.opacity ?? card.opacity,
-  };
+  // Iteration 0 (O4): the exact object this file used to build inline,
+  // now shared (getMusicCardEffects = getModuleCardEffects(card, 10), the
+  // same call MobilePublicCanvas makes) — parity-tested. The MENU reads
+  // this (effective) and writes card.effects (raw) — Block 1's rule, which
+  // Music didn't follow: its Glow switch read the raw flag and showed "off"
+  // while a legacy glow rendered.
+  const effectiveEffects: CardEffects = getMusicCardEffects(card);
+  const raw = card.effects;
+  const D = EFFECT_DISPLAY_DEFAULTS.music;
 
-  const borderRadius = effectiveEffects.border?.radius ?? 10;
+  const borderRadius = effectiveEffects.border?.radius ?? MUSIC_DEFAULT_RADIUS;
   // "Product closeout": card.textColor used to color the old link-preview
   // label directly — now the base ProfileMusicPlayer derives its 3 role
   // colors from, same withOpacity derivation ProfileCard.tsx already uses.
@@ -81,27 +113,49 @@ function MusicCardWidget({
 
   useEffect(() => { if (!isSel) setMenuOpen(false); }, [isSel]);
 
+  // Iteration 0: every patch is built on the RAW effects with mergePatch —
+  // a cleared field DELETES the key (it used to store `undefined`, which
+  // JSON drops, so a legacy value reappeared after reload).
+  function setEffects(next: CardEffects) {
+    updateCard(card.id, { effects: next });
+  }
   function patchBg(patch: Partial<NonNullable<CardEffects["bg"]>>) {
-    updateCard(card.id, { effects: { ...card.effects, bg: { ...card.effects?.bg, ...patch } } });
+    setEffects({ ...raw, bg: mergePatch(raw?.bg, patch) });
   }
   function patchBorder(patch: Partial<NonNullable<CardEffects["border"]>>) {
-    updateCard(card.id, { effects: { ...card.effects, border: { ...card.effects?.border, ...patch } } });
+    setEffects({ ...raw, border: mergePatch(raw?.border, patch) });
   }
   function patchGlow(patch: Partial<NonNullable<CardEffects["glow"]>>) {
-    updateCard(card.id, { effects: { ...card.effects, glow: { ...card.effects?.glow, ...patch } } });
+    setEffects({ ...raw, glow: mergePatch(raw?.glow, patch) });
   }
   function patchShadow(patch: Partial<NonNullable<CardEffects["shadow"]>>) {
-    updateCard(card.id, { effects: { ...card.effects, shadow: { ...card.effects?.shadow, ...patch } } });
+    setEffects({ ...raw, shadow: mergePatch(raw?.shadow, patch) });
   }
   function patchGradient(patch: Partial<NonNullable<CardEffects["gradient"]>>) {
-    const base = card.effects?.gradient ?? { from: "#0f0f0f", to: "#1a1a2e", angle: 135, opacity: 0.6 };
-    updateCard(card.id, { effects: { ...card.effects, gradient: { ...base, ...patch } } });
+    const base = raw?.gradient ?? GRADIENT_DEFAULT;
+    setEffects({ ...raw, gradient: { ...base, ...patch } });
   }
   function patchInteractions(patch: Partial<NonNullable<CardEffects["interactions"]>>) {
-    updateCard(card.id, { effects: { ...card.effects, interactions: { ...card.effects?.interactions, ...patch } } });
+    setEffects({ ...raw, interactions: mergePatch(raw?.interactions, patch) });
   }
   function patchAnimations(patch: Partial<NonNullable<CardEffects["animations"]>>) {
-    updateCard(card.id, { effects: { ...card.effects, animations: { ...card.effects?.animations, ...patch } } });
+    setEffects({ ...raw, animations: mergePatch(raw?.animations, patch) });
+  }
+  // Same switch semantics as ProfileCard (ProfileEffectsMenu.tsx): glow
+  // flags via glowFlagPatch (+ the O3 neutral color), shadow pause/resume.
+  function setGlowFlag(flag: "outer" | "inner", on: boolean) {
+    patchGlow({ ...glowFlagPatch(effectiveEffects.glow, flag, on), ...(on ? neutralGlowPatch(effectiveEffects) : {}) });
+  }
+  function setHoverGlow(on: boolean) {
+    const colorPatch = on ? neutralGlowPatch(effectiveEffects) : {};
+    setEffects({
+      ...raw,
+      interactions: mergePatch(raw?.interactions, { hoverGlow: on }),
+      ...(colorPatch.color ? { glow: mergePatch(raw?.glow, colorPatch) } : {}),
+    });
+  }
+  function setShadowOn(on: boolean) {
+    setEffects(on ? resumeWithIntensity(raw, "shadow") : pauseEffect(raw, "shadow"));
   }
   async function handleBgUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return;
@@ -143,38 +197,51 @@ function MusicCardWidget({
             <ProfileMusicPlayer
               music={{ sourceType: "upload", audioUrl: card.audioUrl ?? "", title: card.title, artist: card.artist, volume: card.volume }}
               textColor={textColor} secondaryColor={secondaryColor} mutedColor={mutedColor}
+              textSize={card.textSize} fontFamily={card.font ? getFontStyle(card.font) : undefined}
             />
           </div>
         </CardLayers>
 
-        {/* Gear */}
+        {/* Iteration 0: "Editar" / lock / rotate are real 24px <button>s
+            (were 16-20px divs; the gear covered the nw resize handle and the
+            rotate dot the ne one). Placed by resolveOpenerSpot / resolveSideSpot;
+            lock + rotate sit outside the right edge, clear of the ne/e
+            handles' 24px target circles. */}
         {isSel && canInteract && (
-          <div onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); const next = !menuOpen; if (next && cardRef.current) { const r = cardRef.current.getBoundingClientRect(); const left = r.right + 10 + T.comp.panelWidth > window.innerWidth ? Math.max(4, r.left - T.comp.panelWidth - 10) : r.right + 10; setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) }); } else setPortalPos(null); setMenuOpen(next); }}
-            style={{ position: "absolute", top: -10, left: -10, width: 20, height: 20, borderRadius: "50%", background: menuOpen ? T.surface.overlay : "rgba(12,12,14,0.96)", border: `1px solid ${menuOpen ? T.border.strong : T.border.default}`, cursor: "pointer", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: T.shadow.sm }}>
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={menuOpen ? T.text.primary : T.text.secondary} strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </div>
+          <CanvasChromeButton
+            ref={editBtnRef}
+            icon="pencil"
+            label="Editar Music"
+            expanded={menuOpen}
+            controls={panelId}
+            style={{ top: openerPos.top, left: openerPos.left }}
+            onEscape={() => setMenuOpen(false)}
+            onActivate={() => {
+              const next = !menuOpen;
+              if (next && cardRef.current) { const r = cardRef.current.getBoundingClientRect(); const left = r.right + 10 + T.comp.panelWidth > window.innerWidth ? Math.max(4, r.left - T.comp.panelWidth - 10) : r.right + 10; setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) }); } else setPortalPos(null);
+              setMenuOpen(next);
+            }}
+          />
         )}
 
-        {/* Lock */}
-        {isSel && canInteract && onToggleLock && (
-          <div onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onToggleLock(); }}
-            style={{ position: "absolute", top: -22, right: 0, width: 16, height: 16, borderRadius: 4, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: locked ? "rgba(255,180,60,0.15)" : "rgba(255,255,255,0.06)", border: locked ? "1px solid rgba(255,180,60,0.3)" : "1px solid rgba(255,255,255,0.07)", color: locked ? "rgba(255,180,60,0.9)" : "rgba(255,255,255,0.32)", zIndex: 20 }}>
-            {locked ? <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    : <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>}
-          </div>
-        )}
-
-        {/* Rotate */}
         {isSel && canInteract && !locked && (
-          <div onMouseDown={e => { e.stopPropagation(); onRotateMD(e); }}
-            style={{ position: "absolute", top: -10, right: -10, width: 20, height: 20, borderRadius: "50%", background: "rgba(12,12,14,0.96)", border: `1px solid ${T.border.default}`, cursor: "crosshair", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: T.shadow.sm }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={T.text.secondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.5 2v6h-6" /><path d="M21.34 15.57a10 10 0 1 1-.57-8.38" />
-            </svg>
-          </div>
+          <CanvasChromeButton
+            icon="rotate"
+            label="Rotar Music (arrastrar; Enter gira 15°)"
+            style={{ top: rotateSpot.top, left: rotateSpot.left }}
+            onMouseDown={e => onRotateMD(e)}
+            onActivate={e => { if (e.detail === 0) updateCard(card.id, { rotation: Math.round(((card.rotation ?? 0) + 15) % 360) }); }}
+          />
+        )}
+
+        {isSel && canInteract && onToggleLock && (
+          <CanvasChromeButton
+            icon={locked ? "lock" : "unlock"}
+            label={locked ? "Desbloquear Music" : "Bloquear Music"}
+            pressed={!!locked}
+            style={{ top: lockSpot.top, left: lockSpot.left }}
+            onActivate={() => onToggleLock()}
+          />
         )}
 
         {isSel && canInteract && !locked && <ResizeHandles onResizeMD={onResizeMD} />}
@@ -182,9 +249,11 @@ function MusicCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <MenuPanel pos={portalPos} label="Editor de Music" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
+        <MenuPanel pos={portalPos} label="Editor de Music" id={panelId}
+          returnFocusTo={() => editBtnRef.current}
+          onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); setMenuOpen(false); } }}>
 
-          <div style={{ ...T.type.title, color: T.ui.text.primary, marginBottom: T.space[4] }}>
+          <div role="heading" aria-level={2} style={{ ...T.type.title, color: T.ui.text.primary, marginBottom: T.space[4] }}>
             Music
           </div>
 
@@ -197,31 +266,36 @@ function MusicCardWidget({
                 {card.audioUrl ? "reemplazar MP3" : "subir MP3"}
               </ActionButton>
               {card.audioUrl && (
-                <ActionButton variant="danger" onClick={() => updateCard(card.id, { audioUrl: "" })}>quitar</ActionButton>
+                <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; updateCard(card.id, { audioUrl: "" }); refocusFieldControl(el); }}>quitar</ActionButton>
               )}
             </div>
             <input ref={audioRef} type="file" accept="audio/mpeg,audio/mp3,.mp3" style={{ display: "none" }} onChange={handleAudioUpload} />
-            <TextInput value={card.title ?? ""} onChange={v => updateCard(card.id, { title: v })} placeholder="Título" />
-            <TextInput value={card.artist ?? ""} onChange={v => updateCard(card.id, { artist: v })} placeholder="Artista" />
+            {/* Iteration 0: visible labels (were placeholder-only names that
+                vanished while typing). */}
+            <label id={`${panelId}-title`} style={{ ...labelStyle }}>Título</label>
+            <TextInput value={card.title ?? ""} onChange={v => updateCard(card.id, { title: v })} labelledBy={`${panelId}-title`} />
+            <label id={`${panelId}-artist`} style={{ ...labelStyle }}>Artista</label>
+            <TextInput value={card.artist ?? ""} onChange={v => updateCard(card.id, { artist: v })} labelledBy={`${panelId}-artist`} />
             <SliderRow label="Volumen inicial" min={0} max={1} step={0.01} value={card.volume ?? 1}
               fmt={v => `${Math.round(v * 100)}%`} onChange={v => updateCard(card.id, { volume: v })} />
           </MenuSection>
 
           <Divider />
 
-          {/* FONDO */}
+          {/* FONDO — Iteration 0: effective values (legacy bgColor included),
+              raw writes; the gradient switch PAUSES instead of erasing. */}
           {(() => {
-            const bg   = card.effects?.bg;
-            const grad = card.effects?.gradient;
+            const bg   = effectiveEffects.bg;
+            const grad = effectiveEffects.gradient;
             return (
               <MenuSection label="Fondo">
-                <MenuRow label="Color">
-                  <ColorSwatch value={bg?.color ?? "#141416"} onChange={v => patchBg({ color: v })}
-                    clearable={!!bg?.color} onClear={() => patchBg({ color: undefined })} />
-                </MenuRow>
+                <ColorRow label="Color" value={bg?.color ?? D.bgColor} onChange={v => patchBg({ color: v })} keepAlpha
+                  clearable={!!raw?.bg?.color} onClear={() => patchBg({ color: undefined })}
+                  state={raw?.bg?.color ? "modified" : undefined} onReset={() => patchBg({ color: undefined })} />
                 <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bg?.opacity ?? 1}
-                  onChange={v => patchBg({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
-                <SliderRow label="Blur" min={0} max={24} step={1} value={bg?.blur ?? 0}
+                  onChange={v => patchBg({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`}
+                  state={raw?.bg?.opacity !== undefined ? "modified" : undefined} onReset={() => patchBg({ opacity: undefined })} />
+                <SliderRow label="Desenfoque" min={0} max={24} step={1} value={bg?.blur ?? 0}
                   onChange={v => patchBg({ blur: v || undefined })} unit="px" />
                 <MenuRow label="Glass">
                   <Toggle value={!!bg?.glass} onChange={v => patchBg({ glass: v })} />
@@ -229,14 +303,11 @@ function MusicCardWidget({
 
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
                   <MenuRow label="Gradiente">
-                    <Toggle value={!!grad} onChange={v => {
-                      if (v) updateCard(card.id, { effects: { ...card.effects, gradient: { from: "#0f0f0f", to: "#1a1a2e", angle: 135, opacity: 0.6 } } });
-                      else updateCard(card.id, { effects: { ...card.effects, gradient: undefined } });
-                    }} />
+                    <Toggle value={!!grad} onChange={v => setEffects(toggleEffect(raw, "gradient", v, { fallback: GRADIENT_DEFAULT }))} />
                   </MenuRow>
                   {grad && (<>
-                    <MenuRow label="Color A"><ColorSwatch value={grad.from} onChange={v => patchGradient({ from: v })} /></MenuRow>
-                    <MenuRow label="Color B"><ColorSwatch value={grad.to} onChange={v => patchGradient({ to: v })} /></MenuRow>
+                    <ColorRow label="Color A" value={grad.from} onChange={v => patchGradient({ from: v })} />
+                    <ColorRow label="Color B" value={grad.to} onChange={v => patchGradient({ to: v })} />
                     <SliderRow label="Ángulo" min={0} max={360} step={5} value={grad.angle} onChange={v => patchGradient({ angle: v })} fmt={v => `${v}°`} />
                     <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={grad.opacity} onChange={v => patchGradient({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
                   </>)}
@@ -247,7 +318,7 @@ function MusicCardWidget({
                     <ActionButton onClick={() => bgImgRef.current?.click()} fullWidth>
                       {bg?.image ? "Cambiar imagen" : "Imagen de fondo"}
                     </ActionButton>
-                    {bg?.image && <ActionButton variant="danger" onClick={() => updateCard(card.id, { bgImage: "", effects: { ...card.effects, bg: { ...card.effects?.bg, image: undefined } } })} fullWidth>Quitar</ActionButton>}
+                    {bg?.image && <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; updateCard(card.id, { bgImage: "", effects: { ...raw, bg: mergePatch(raw?.bg, { image: undefined }) } }); refocusFieldControl(el); }} fullWidth>Quitar</ActionButton>}
                   </div>
                 </div>
               </MenuSection>
@@ -256,59 +327,84 @@ function MusicCardWidget({
 
           <Divider />
 
-          {/* TEXTO */}
+          {/* TEXTO — Iteration 0 (O2): Tamaño and Fuente now really drive
+              ProfileMusicPlayer. 8px = today's exact sizes (title 10, artist
+              and times 8); no font = today's DM Sans / Space Mono. */}
           <MenuSection label="Texto">
             <MenuRow label="Color">
               <ColorSwatch value={card.textColor?.startsWith("#") ? card.textColor : "#ffffff"}
                 onChange={v => updateCard(card.id, { textColor: v })} />
             </MenuRow>
-            <SliderRow label="Tamaño" min={7} max={18} step={1} value={card.textSize ?? 8}
-              onChange={v => updateCard(card.id, { textSize: v })} unit="px" />
+            {/* Review r2 (Visual-5): stored value is the old "px" number, but
+                it is a SCALE of the whole player text (8 = 100% = today's
+                10/8px) — shown truthfully as a percentage. */}
+            <SliderRow label="Tamaño del texto" min={7} max={18} step={1} value={card.textSize ?? MUSIC_TEXT_SIZE_DEFAULT}
+              onChange={v => updateCard(card.id, { textSize: v })}
+              fmt={v => `${Math.round((v / MUSIC_TEXT_SIZE_DEFAULT) * 100)}%`} displayScale={100 / MUSIC_TEXT_SIZE_DEFAULT}
+              state={card.textSize !== undefined ? "modified" : undefined} onReset={() => updateCard(card.id, { textSize: undefined })} />
+            {(card.textSize ?? MUSIC_TEXT_SIZE_DEFAULT) > MUSIC_TEXT_SIZE_DEFAULT && (
+              <MenuNote>Agrandá el bloque si el texto no entra.</MenuNote>
+            )}
             <div style={{ marginTop: T.space[2] }}>
-              <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>
+              <div id={`${panelId}-font`} role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>
                 Fuente
               </div>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, maxHeight: 120, overflowY: "auto" }}>
-                {FONTS.map(f => (
-                  <button key={f.key} type="button" aria-pressed={card.font === f.key} onMouseDown={e => e.stopPropagation()} onClick={() => updateCard(card.id, { font: f.key })}
-                    style={{ height: 24, padding: "0 8px", borderRadius: T.ui.radius.chip, cursor: "pointer", border: `0.5px solid ${card.font === f.key ? T.ui.line.strong : T.ui.line.group}`, background: card.font === f.key ? T.ui.surface.thumb : T.ui.surface.group, color: card.font === f.key ? T.ui.text.primary : T.ui.text.secondary, fontFamily: f.style, fontSize: 12, lineHeight: "16px" }}>
-                    {f.label}
-                  </button>
-                ))}
+              <div role="group" aria-labelledby={`${panelId}-font`} style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, maxHeight: 120, overflowY: "auto" }}>
+                {[{ key: undefined as string | undefined, label: "Predeterminada", style: T.font.sans }, ...FONTS].map(f => {
+                  const on = f.key === undefined ? !card.font : card.font === f.key;
+                  return (
+                    <button key={f.key ?? "default"} type="button" aria-pressed={on} onMouseDown={e => e.stopPropagation()} onClick={() => updateCard(card.id, { font: f.key as MusicCardData["font"] })}
+                      style={{ height: 24, padding: "0 8px", borderRadius: T.ui.radius.chip, cursor: "pointer", border: `0.5px solid ${on ? T.ui.line.strong : T.ui.line.group}`, background: on ? T.ui.surface.thumb : T.ui.surface.group, color: on ? T.ui.text.primary : T.ui.text.secondary, fontFamily: f.style, fontSize: 12, lineHeight: "16px" }}>
+                      {f.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </MenuSection>
 
           <Divider />
 
-          {/* EFECTOS */}
+          {/* EFECTOS — Iteration 0 (O4): effective values (Music's own legacy
+              defaults: radius 10, glow outer:true), switches show what
+              renders (flag AND intensity > 0), shadow gets the same
+              pause/resume switch as ProfileCard. */}
           {(() => {
-            const glow = card.effects?.glow;
-            const sh   = card.effects?.shadow;
-            const bord = card.effects?.border;
-            const anyGlow = !!(glow?.outer || glow?.inner);
+            const glow = effectiveEffects.glow;
+            const sh   = effectiveEffects.shadow;
+            const bord = effectiveEffects.border;
+            const outerOn = isCardGlowFlagVisible(glow, "outer");
+            const innerOn = isCardGlowFlagVisible(glow, "inner");
+            const anyGlow = outerOn || innerOn;
+            const shadowOn = isIntensityEffectVisible(sh);
+            const shadowFx = cardShadowDisplay(sh);
             return (
               <MenuSection label="Efectos">
                 <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Glow</div>
-                <MenuRow label="Exterior"><Toggle value={!!glow?.outer} onChange={v => patchGlow({ outer: v })} /></MenuRow>
-                <MenuRow label="Interior"><Toggle value={!!glow?.inner} onChange={v => patchGlow({ inner: v })} /></MenuRow>
+                <MenuRow label="Exterior"><Toggle value={outerOn} onChange={v => setGlowFlag("outer", v)} /></MenuRow>
+                <MenuRow label="Interior"><Toggle value={innerOn} onChange={v => setGlowFlag("inner", v)} /></MenuRow>
                 {anyGlow && (<>
-                  <MenuRow label="Color"><ColorSwatch value={glow?.color ?? "#a855f7"} onChange={v => patchGlow({ color: v })} /></MenuRow>
-                  <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={glow?.intensity ?? 0} onChange={v => patchGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+                  <ColorRow label="Color" value={glow?.color ?? D.glowColor} onChange={v => patchGlow({ color: v })} />
+                  <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={glow?.intensity ?? 0} onChange={v => patchGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
                 </>)}
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
                   <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Sombra</div>
-                  <MenuRow label="Color"><ColorSwatch value={sh?.color ?? "#000000"} onChange={v => patchShadow({ color: v })} /></MenuRow>
-                  <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={sh?.intensity ?? 0} onChange={v => patchShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+                  <MenuRow label="Activar sombra"><Toggle value={shadowOn} onChange={setShadowOn} /></MenuRow>
+                  {!shadowOn && <MenuNote>Apagada: queda la sombra base sutil.</MenuNote>}
+                  {shadowOn && (<>
+                    <ColorRow label="Color" value={shadowFx.color} onChange={v => patchShadow({ color: v })} />
+                    <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={sh?.intensity ?? 0} onChange={v => patchShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+                  </>)}
                 </div>
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
                   <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Borde</div>
-                  <MenuRow label="Color">
-                    <ColorSwatch value={bord?.color ?? "#ffffff"} onChange={v => patchBorder({ color: v })}
-                      clearable={!!bord?.color} onClear={() => patchBorder({ color: undefined })} />
-                  </MenuRow>
-                  <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? 1} onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`} />
-                  <SliderRow label="Radio" min={0} max={60} step={1} value={bord?.radius ?? 10} onChange={v => patchBorder({ radius: v })} unit="px" />
+                  <ColorRow label="Color" value={bord?.color ?? D.borderColor} onChange={v => patchBorder({ color: v })} keepAlpha
+                    clearable={!!raw?.border?.color} onClear={() => patchBorder({ color: undefined })}
+                    state={raw?.border?.color ? "modified" : undefined} onReset={() => patchBorder({ color: undefined })} />
+                  <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? D.borderWidth} onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`}
+                    state={raw?.border?.width !== undefined ? "modified" : undefined} onReset={() => patchBorder({ width: undefined })} />
+                  <SliderRow label="Radio" min={0} max={60} step={1} value={bord?.radius ?? D.radius} onChange={v => patchBorder({ radius: v })} unit="px"
+                    state={raw?.border?.radius !== undefined ? "modified" : undefined} onReset={() => patchBorder({ radius: undefined })} />
                 </div>
               </MenuSection>
             );
@@ -317,42 +413,69 @@ function MusicCardWidget({
           {/* ANIMAR */}
           <Collapsible label="Animar">
             {(() => {
-              const inter = card.effects?.interactions;
-              const anim  = card.effects?.animations;
+              const inter = effectiveEffects.interactions;
+              const anim  = effectiveEffects.animations;
               return (<>
                 <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Flotación</div>
                 <MenuRow label="Activar"><Toggle label="Activar flotación" value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} /></MenuRow>
                 {anim?.floating && (<>
-                  <SliderRow label="Altura" min={2} max={24} step={1} value={anim?.floatHeight ?? 8} onChange={v => patchAnimations({ floatHeight: v })} unit="px" />
-                  <SliderRow label="Velocidad" min={1} max={8} step={0.5} value={anim?.floatSpeed ?? 3} onChange={v => patchAnimations({ floatSpeed: v })} fmt={v => `${v}s`} />
+                  <SliderRow label="Altura" min={2} max={24} step={1} value={anim?.floatHeight ?? D.floatHeight} onChange={v => patchAnimations({ floatHeight: v })} unit="px" />
+                  <SliderRow label="Duración del ciclo" min={1} max={8} step={0.5} value={anim?.floatSpeed ?? D.floatSpeed} onChange={v => patchAnimations({ floatSpeed: v })} fmt={v => `${v}s`} />
                 </>)}
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
                   <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Inclinación 3D</div>
                   <MenuRow label="Activar"><Toggle label="Activar inclinación 3D" value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} /></MenuRow>
-                  {inter?.tilt3d && <SliderRow label="Intensidad" min={1} max={15} step={0.5} value={inter?.tiltIntensity ?? 6} onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${v}°`} />}
+                  {inter?.tilt3d && <SliderRow label="Intensidad" min={1} max={15} step={0.5} value={inter?.tiltIntensity ?? D.tilt} onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${v}°`}
+                    state={raw?.interactions?.tiltIntensity !== undefined ? "modified" : undefined} onReset={() => patchInteractions({ tiltIntensity: undefined })} />}
                 </div>
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
                   <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Spotlight</div>
                   <MenuRow label="Activar"><Toggle label="Activar spotlight" value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} /></MenuRow>
                   {inter?.spotlight && (<>
-                    <MenuRow label="Color">
-                      <ColorSwatch value={inter?.spotlightColor?.startsWith("#") ? inter.spotlightColor : "#ffffff"} onChange={v => patchInteractions({ spotlightColor: v })} />
-                    </MenuRow>
-                    <SliderRow label="Radio" min={20} max={100} step={1} value={inter?.spotlightSize ?? 65} onChange={v => patchInteractions({ spotlightSize: v })} unit="%" />
+                    <ColorRow label="Color" value={inter?.spotlightColor ?? D.spotlightColor} onChange={v => patchInteractions({ spotlightColor: v })} keepAlpha
+                      state={raw?.interactions?.spotlightColor ? "modified" : undefined} onReset={() => patchInteractions({ spotlightColor: undefined })} />
+                    <SliderRow label="Radio" min={20} max={100} step={1} value={inter?.spotlightSize ?? D.spotlightSize} onChange={v => patchInteractions({ spotlightSize: v })} unit="%"
+                      state={raw?.interactions?.spotlightSize !== undefined ? "modified" : undefined} onReset={() => patchInteractions({ spotlightSize: undefined })} />
                   </>)}
                 </div>
                 <div style={{ marginTop: T.space[3], paddingTop: T.space[3], borderTop: `1px solid ${T.border.subtle}` }}>
                   <div role="heading" aria-level={4} style={{ ...T.type.section, color: T.ui.text.section, marginBottom: T.space[1] }}>Hover</div>
-                  <MenuRow label="Glow al pasar"><Toggle value={!!inter?.hoverGlow} onChange={v => patchInteractions({ hoverGlow: v })} /></MenuRow>
+                  <MenuRow label="Glow al pasar"><Toggle value={!!inter?.hoverGlow} onChange={setHoverGlow} /></MenuRow>
                 </div>
               </>);
             })()}
           </Collapsible>
 
+          {/* MEDIDAS (Iteration 0, O1): closed by default; secondary
+              precision / keyboard alternative to dragging (WCAG 2.5.7).
+              Iteration 1 moves it to "Más ajustes". */}
+          {onGeometry && (() => {
+            // Review r2 (A11y-4): the REAL ranges (the canvas the drag clamps
+            // to), so a clamp is announced by NumberField instead of being
+            // silent; disabled with the reason while locked.
+            const cb = chromeCanvas;
+            const finite = Number.isFinite(cb.w) && Number.isFinite(cb.h);
+            const maxX = finite ? Math.max(0, Math.round(cb.w - card.w)) : 100000;
+            const minY = cb.topOffset;
+            const maxY = finite ? Math.max(minY, Math.round(cb.h - card.h)) : 100000;
+            const maxW = finite ? Math.round(cb.w) : 2000;
+            const maxH = finite ? Math.round(cb.h - cb.topOffset) : 2000;
+            return (
+              <Collapsible label="Medidas">
+                {locked && <MenuNote>Bloqueado: desbloquealo (botón del candado junto al elemento) para cambiar sus medidas.</MenuNote>}
+                <NumberField label="X (px)" min={0} max={maxX} value={Math.round(card.x)} disabled={!!locked} onChange={v => onGeometry({ x: v })} />
+                <NumberField label="Y (px)" min={minY} max={maxY} value={Math.round(card.y)} disabled={!!locked} onChange={v => onGeometry({ y: v })} />
+                <NumberField label="Ancho (px)" min={MUSIC_MIN.minW} max={maxW} value={Math.round(card.w)} disabled={!!locked} onChange={v => onGeometry({ w: v })} />
+                <NumberField label="Alto (px)" min={MUSIC_MIN.minH} max={maxH} value={Math.round(card.h)} disabled={!!locked} onChange={v => onGeometry({ h: v })} />
+                <NumberField label="Rotación (°)" min={-180} max={180} value={Math.round(normalizeRotation(card.rotation ?? 0))} disabled={!!locked} onChange={v => onGeometry({ rotation: v })} />
+              </Collapsible>
+            );
+          })()}
+
           {onDelete && (
             <div style={{ marginTop: T.space[4], paddingTop: T.space[4], borderTop: `1px solid ${T.border.subtle}` }}>
               <ActionButton variant="danger" fullWidth onClick={() => { onDelete(card.id); setMenuOpen(false); }}>
-                Eliminar modulo
+                Eliminar Music
               </ActionButton>
             </div>
           )}

@@ -94,3 +94,17 @@ export function getProfileCardEffects(card: ProfileCardEffectsSource): CardEffec
     },
   };
 }
+
+/**
+ * Iteration 0 — O4: Music's effective CardEffects (what CardLayers renders
+ * for a Music element), including its own legacy defaults: radius 10 and
+ * glow `outer: true` (from the legacy bg/border/glow fields). This IS the
+ * object MusicCardWidget.tsx used to build inline — and the same call
+ * MobilePublicCanvas.tsx already makes for Music — so the menu can read
+ * the effective value (Block 1 rule: read effective, write raw). Parity is
+ * tested in profileCardEffects.test.ts.
+ */
+export const MUSIC_DEFAULT_RADIUS = 10;
+export function getMusicCardEffects(card: ModuleCardEffectsSource): CardEffects {
+  return getModuleCardEffects(card, MUSIC_DEFAULT_RADIUS);
+}

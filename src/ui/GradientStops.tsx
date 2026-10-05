@@ -69,7 +69,7 @@ export function GradientStops({ colors, onChange, min = DEFAULT_MIN, max = DEFAU
   return (
     <div role="group" aria-label="Editor de gradiente" style={{ display: "flex", flexDirection: "column", gap: T.space[2] }}>
       <div style={{ padding: "0 7px" }}>
-        <div ref={barRef} role="radiogroup" aria-label="Colores del gradiente" style={{
+        <div ref={barRef} className="mn-gbar" role="radiogroup" aria-label="Colores del gradiente" style={{
           position: "relative", height: 20, borderRadius: 6,
           background: n > 1 ? `linear-gradient(to right, ${colors.join(", ")})` : colors[0],
           boxShadow: `inset 0 0 0 0.5px ${T.ui.line.control}`,

@@ -56,7 +56,7 @@ export const T = {
       primary:   "rgba(255,255,255,0.94)",
       secondary: "rgba(255,255,255,0.62)",
       /** Only at >= 12px. */
-      tertiary:  "rgba(255,255,255,0.46)",
+      tertiary:  "rgba(255,255,255,0.50)",
       disabled:  "rgba(255,255,255,0.28)",
       /** Mono section headers — never below 0.5 alpha. */
       section:   "rgba(255,255,255,0.52)",

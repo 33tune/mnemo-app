@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useId, useRef, useState } from "react";
 import { T } from "./tokens";
 import { IconButton } from "./IconButton";
 import { ColorPopover, wellHex, wellAlpha } from "./ColorPopover";
@@ -44,6 +44,11 @@ export function ColorSwatch({ value, onChange, size, clearable, onClear, alpha =
   const close = useCallback(() => setOpen(false), []);
   const hex = wellHex(value);
   const a = wellAlpha(value);
+  // Iteration 0: the value is part of the NAME via aria-labelledby (label +
+  // hex) — aria-description (ARIA 1.3) was unevenly supported. A hidden
+  // element can still be referenced by aria-labelledby.
+  const valueId = useId();
+  const valueText = empty ? "sin color propio" : `${hex}${a < 1 ? ` ${Math.round(a * 100)}%` : ""}`;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: T.space[2] }}>
@@ -59,15 +64,15 @@ export function ColorSwatch({ value, onChange, size, clearable, onClear, alpha =
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={label ? `${label}: ${empty ? "sin color propio" : hex}` : undefined}
-        aria-labelledby={label ? undefined : labelledBy}
+        aria-labelledby={label ? undefined : labelledBy ? `${labelledBy} ${valueId}` : valueId}
         aria-describedby={describedBy}
-        aria-description={label ? undefined : (empty ? "sin color propio" : hex)}
         onMouseDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
         style={{ width: sz, height: sz }}
       >
-        <span aria-hidden style={{ position: "absolute", inset: 0, borderRadius: "50%", background: value || "transparent" }} />
+        <span aria-hidden className="mn-well__fill" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: value || "transparent" }} />
       </button>
+      <span id={valueId} style={{ display: "none" }}>{valueText}</span>
       {clearable && value && onClear && (
         <IconButton icon="close" aria-label="Quitar color" size={24} iconSize={14}
           onClick={() => { onClear(); requestAnimationFrame(() => btnRef.current?.focus({ preventScroll: true })); }} />

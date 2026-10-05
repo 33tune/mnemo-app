@@ -108,3 +108,36 @@ export function formatColor(c: RGBA, allowAlpha = true): string {
 export function toHsva(value: string | undefined | null): HSVA {
   return rgbToHsv(parseColor(value) ?? { r: 255, g: 255, b: 255, a: 1 });
 }
+
+// ── Iteration 0: ColorPopover field commit/escape decisions (pure) ──────────
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/** Hex field commit. `null` = emit nothing: the text is unchanged since the
+ * field got focus (tabbing through never writes) or it doesn't parse.
+ * 3/6 digits keep the current alpha; 4/8 digits set it. Greys keep the
+ * current hue so the SV area doesn't jump to red. */
+export function resolveHexCommit(draft: string, initial: string | null, current: HSVA): HSVA | null {
+  const unchanged = draft.trim().toUpperCase() === (initial ?? "").toUpperCase();
+  const parsed = parseHexInput(draft);
+  if (unchanged || !parsed) return null;
+  const next = rgbToHsv({ r: parsed.r, g: parsed.g, b: parsed.b, a: parsed.a ?? current.a });
+  return next.s === 0 ? { ...next, h: current.h } : next;
+}
+
+/** Alpha field commit (percent text). `null` = emit nothing (unchanged
+ * since focus, or not a number). */
+export function resolveAlphaCommit(draft: string, initial: string | null, current: HSVA): HSVA | null {
+  const unchanged = draft.trim() === (initial ?? "");
+  const n = Number(draft.replace("%", "").replace(",", ".").trim());
+  if (unchanged || !Number.isFinite(n)) return null;
+  return { ...current, a: +clamp01(n / 100).toFixed(3) };
+}
+
+/** Esc inside the Hex/Alfa field: the first Esc reverts an edited draft
+ * (focus stays in the field); Esc with nothing edited closes the picker
+ * (focus back to the well). */
+export function resolveFieldEscape(draft: string | null, initial: string | null): "revert" | "close" {
+  if (draft === null) return "close";
+  return draft.trim().toUpperCase() === (initial ?? "").trim().toUpperCase() ? "close" : "revert";
+}

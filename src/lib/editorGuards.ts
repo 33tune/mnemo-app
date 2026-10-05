@@ -35,6 +35,7 @@ export interface GuardElement {
   tagName?: string;
   isContentEditable?: boolean;
   closest?: (selector: string) => unknown;
+  hasAttribute?: (name: string) => boolean;
 }
 
 /** Text-entry elements, where single-key shortcuts must never fire. */
@@ -94,4 +95,59 @@ export function isEventFromNode(
 export function isEditorOpen(root: { querySelector: (selector: string) => unknown } | null | undefined): boolean {
   if (!root) return false;
   return root.querySelector(`[${EDITOR_ATTR}]`) != null;
+}
+
+// ── Iteration 0 (menu design refinement): POSITIVE canvas guard ─────────────
+
+/** Attribute on the editor canvas wrapper (CanvasBoard.tsx). Clicking the
+ * canvas focuses it (mousedown capture), so "focus is on the canvas" is a
+ * real, observable state instead of an ambiguous <body>. */
+export const CANVAS_ATTR = "data-mnemo-canvas";
+/** Review r2: canvas chrome buttons ("Editar", lock, rotate, toolbar
+ * buttons, LINK). A POINTER press on one returns focus to the canvas
+ * wrapper (so Delete/arrows/Ctrl+Z keep working after clicking "FR" or the
+ * lock); keyboard activation keeps focus on the button. */
+export const CHROME_ATTR = "data-mnemo-chrome";
+
+/** True when `el` is the canvas wrapper or sits inside it. */
+export function isInsideCanvas(el: GuardElement | null | undefined): boolean {
+  if (!el || typeof el.closest !== "function") return false;
+  return el.closest(`[${CANVAS_ATTR}]`) != null;
+}
+
+/**
+ * May a canvas shortcut that edits/destroys the selection (Delete/Backspace,
+ * Ctrl/⌘+Z/C/V/D, arrow nudge/resize, `[`/`]`/Enter selection keys) run?
+ *
+ * POSITIVE guard: only when focus is ON THE CANVAS WRAPPER ITSELF (the
+ * element carrying data-mnemo-canvas) and the event targets it. Review r2
+ * (A11y-2 / Critic-5): a focused interactive child of the canvas — a
+ * Contact Link <a>, the Music play/mute buttons, an "Editar"/lock button —
+ * keeps its own keys (Enter activates the link, Space plays, arrows are
+ * native); the canvas never steals them. Focus on <body> NEVER allows: it
+ * is what's left after a panel/popover closes or a focused button unmounts
+ * itself. Unlike isEditorOpen(), this does not depend on what is MOUNTED —
+ * an always-mounted docked inspector (Iteration 1) doesn't change the
+ * answer; only where focus is does.
+ */
+export function isCanvasRoot(el: GuardElement | null | undefined): boolean {
+  return !!el && typeof el.hasAttribute === "function" && el.hasAttribute(CANVAS_ATTR);
+}
+
+export function canvasShortcutAllowed(
+  target: GuardElement | null | undefined,
+  active: GuardElement | null | undefined,
+): boolean {
+  if (!target || !active) return false;
+  return isCanvasRoot(active) && isCanvasRoot(target);
+}
+
+/** Should a mousedown at `target` move focus to the canvas wrapper? No for
+ * text-entry targets (the free text being edited keeps its caret) and for
+ * editor / editor-UI surfaces (an opener button keeps its own focus). The
+ * caller also checks DOM containment (isEventFromNode) — React propagates
+ * capture events from portaled panels through the card's fiber tree. */
+export function shouldFocusCanvasOnMouseDown(target: GuardElement | null | undefined): boolean {
+  if (!target) return false;
+  return !isEditableElement(target) && !isInsideEditor(target);
 }

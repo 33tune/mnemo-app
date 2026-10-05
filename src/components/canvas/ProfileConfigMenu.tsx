@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import type { ProfileCardData, CardEffects } from "@/types";
-import { T, Tabs } from "@/ui";
-import { getCardPadding } from "@/lib/cardGeometry";
+import { T, Tabs, Collapsible, NumberField, MenuNote } from "@/ui";
+import { getCardPadding, getFreeformCardBounds, clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import ProfileIdentityMenu from "./ProfileIdentityMenu";
 import ProfileMetadataMenu from "./ProfileMetadataMenu";
@@ -44,9 +44,13 @@ interface ProfileConfigMenuProps {
    * to TEXT so every role's ColorRow shows the REAL current color. */
   baseColor: string;
   onChange: (patch: Partial<ProfileCardData>) => void;
+  /** Iteration 0 (O1 "Medidas"): the canvas the card is centered in — the
+   * same bounds/topOffset the resize drag uses. Absent (space_mobile) =
+   * no Medidas. */
+  canvas?: { w: number; h: number; topOffset: number };
 }
 
-export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange }: ProfileConfigMenuProps) {
+export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange, canvas }: ProfileConfigMenuProps) {
   const [view, setView] = useState<View>("content");
 
   function patchEffects(effects: CardEffects) {
@@ -80,6 +84,7 @@ export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange
           <ProfileMetadataMenu card={card} onChange={onChange} />
           <ProfileContactLinksMenu card={card} fitsInCard={linksFits} onChange={onChange} />
           <ProfileLogoMenu logo={card.logo} onChange={onChange} />
+          {canvas && <ProfileMeasures card={card} canvas={canvas} onChange={onChange} />}
         </div>
       )}
 
@@ -98,6 +103,31 @@ export default function ProfileConfigMenu({ card, linksFits, baseColor, onChange
   );
 }
 
+// ── Medidas (Iteration 0, O1) ───────────────────────────────────────────────
+// A secondary precision / keyboard alternative to the resize handles
+// (WCAG 2.5.7, 2.1.1) — closed by default; Iteration 1 moves it to "Más
+// ajustes". Width/height only: the card's position is always derived
+// (centerCardPosition), never edited. Writes through exactly what the
+// resize drag writes: clampFreeformCardSize + centerCardPosition, one patch.
+function ProfileMeasures({ card, canvas, onChange }: {
+  card: ProfileCardData; canvas: { w: number; h: number; topOffset: number };
+  onChange: (patch: Partial<ProfileCardData>) => void;
+}) {
+  const b = getFreeformCardBounds();
+  function setSize(w: number, h: number) {
+    const c = clampFreeformCardSize(w, h);
+    const { x, y } = centerCardPosition(canvas.w, canvas.h, c.w, c.h, canvas.topOffset);
+    onChange({ w: c.w, h: c.h, x, y });
+  }
+  return (
+    <Collapsible label="Medidas">
+      <NumberField label="Ancho (px)" min={b.minW} max={b.maxW} step={1} unit="px" value={Math.round(card.w)} onChange={v => setSize(v, card.h)} />
+      <NumberField label="Alto (px)" min={b.minH} max={b.maxH} step={1} unit="px" value={Math.round(card.h)} onChange={v => setSize(card.w, v)} />
+      <MenuNote>La card de presentación siempre queda centrada.</MenuNote>
+    </Collapsible>
+  );
+}
+
 // ── Header ───────────────────────────────────────────────────────────────────
 
 function Header() {
@@ -107,11 +137,11 @@ function Header() {
       paddingBottom: T.space[3], marginBottom: T.space[4],
       borderBottom: `1px solid ${T.border.subtle}`,
     }}>
-      <span style={{
+      <span role="heading" aria-level={2} style={{
         fontFamily: T.font.mono, fontSize: T.size.label, letterSpacing: "0.1em",
         textTransform: "uppercase", color: T.text.primary,
       }}>
-        presentation card
+        Card de presentación
       </span>
     </div>
   );

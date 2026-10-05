@@ -67,12 +67,12 @@ export default function BlockStyleFields({ card, blockKey, showTextColor, showIc
         <Toggle value={active} onChange={setActive} />
       </MenuRow>
       <MenuNote>
-        {active ? "Estilo personalizado para este bloque." : "Hereda el estilo de la ProfileCard."}
+        {active ? "Estilo personalizado para este bloque." : "Hereda el estilo de la card de presentación."}
       </MenuNote>
       {active && (
         <>
           <ColorRow
-            label="Background" value={raw?.bg} onChange={v => patch({ bg: v })}
+            label="Fondo" value={raw?.bg} onChange={v => patch({ bg: v })}
             clearable={!!raw?.bg} onClear={() => reset("bg")}
             state={fieldState("bg")} onReset={() => reset("bg")}
           />

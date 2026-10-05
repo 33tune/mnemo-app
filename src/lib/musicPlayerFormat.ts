@@ -37,3 +37,37 @@ export function formatDuration(totalSeconds: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
 }
+
+// ── Iteration 0 — O2: "Tamaño" and "Fuente" of the Music element ──────────
+
+/** The menu's "Tamaño" value that reproduces today's exact player text
+ * (title 10px, artist/times 8px, error 7px). Also what an unset value means. */
+export const MUSIC_TEXT_SIZE_DEFAULT = 8;
+export const MUSIC_DEFAULT_TITLE_FONT = "'DM Sans', sans-serif";
+export const MUSIC_DEFAULT_META_FONT = "'Space Mono', monospace";
+
+export interface MusicPlayerText {
+  titleSize: number; artistSize: number; timeSize: number; errorSize: number;
+  titleFont: string; artistFont: string; timeFont: string;
+}
+
+/**
+ * Player text sizes/fonts from the element's stored `textSize`/`font`.
+ * - Size: one scale k = textSize/8 applied to the whole hierarchy (title
+ *   10·k, artist and times 8·k, error 7·k, rounded to 0.5px). No stored
+ *   value (or 8) → exactly today's px, so no existing Music changes.
+ * - Font (a resolved CSS font-family, or undefined): applies to title and
+ *   artist. Times and the error stay Space Mono (tabular numbers). No font
+ *   → today's DM Sans (title) / Space Mono (artist).
+ */
+export function resolveMusicPlayerText(textSize: number | undefined, fontFamily: string | undefined): MusicPlayerText {
+  const size = textSize != null && Number.isFinite(textSize) && textSize > 0 ? textSize : MUSIC_TEXT_SIZE_DEFAULT;
+  const k = size / MUSIC_TEXT_SIZE_DEFAULT;
+  const r = (n: number) => Math.round(n * k * 2) / 2;
+  return {
+    titleSize: r(10), artistSize: r(8), timeSize: r(8), errorSize: r(7),
+    titleFont: fontFamily ?? MUSIC_DEFAULT_TITLE_FONT,
+    artistFont: fontFamily ?? MUSIC_DEFAULT_META_FONT,
+    timeFont: MUSIC_DEFAULT_META_FONT,
+  };
+}

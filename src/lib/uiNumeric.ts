@@ -80,3 +80,70 @@ export function formatEditValue(value: number, step = 1, scale = 1): string {
   const decimals = Math.max(0, stepDecimals(step) - Math.round(Math.log10(scale || 1)));
   return String(Number((value * scale).toFixed(decimals)));
 }
+
+// ── Iteration 0: shared numeric commit (SliderRow + NumberField) ────────────
+
+export interface NumericFieldSpec {
+  min: number; max: number; step?: number;
+  /** displayed = (stored + offset) * scale (see SliderRow's displayScale). */
+  scale: number; offset?: number;
+}
+
+/**
+ * The click-to-edit commit of SliderRow (and NumberField): `null` = emit
+ * nothing — the text is unchanged since the field opened (blur/Enter
+ * without typing never snaps or writes), it doesn't parse, or the parsed
+ * value equals the current one. Otherwise the stored value, clamped and
+ * snapped to min/max/step in the (offset-)shifted space.
+ */
+export function commitSliderDraft(draft: string, initial: string | null, spec: NumericFieldSpec, current: number): number | null {
+  if (draft.trim() === initial) return null;
+  const offset = spec.offset ?? 0;
+  const step = spec.step ?? 1;
+  const parsed = parseNumericInput(draft, { min: +(spec.min + offset).toFixed(10), max: +(spec.max + offset).toFixed(10), step, scale: spec.scale });
+  if (parsed === null) return null;
+  const next = +(parsed - offset).toFixed(10);
+  return next === current ? null : next;
+}
+
+/**
+ * Double-click on a slider track. Same semantics as the modified-dot reset:
+ * when the field has a stored (raw) value with a reset, the raw key is
+ * deleted ("reset"); otherwise, a plain `defaultValue` is written
+ * ("default"); otherwise nothing.
+ */
+export function resolveSliderDoubleClick(opts: { state?: "modified" | "inherited"; hasReset: boolean; defaultValue?: number }): "reset" | "default" | null {
+  if (opts.state === "modified" && opts.hasReset) return "reset";
+  if (opts.defaultValue !== undefined) return "default";
+  return null;
+}
+
+/** Iteration 0: switch-gated effect intensities (shadow/glow of card, PFP,
+ * text, Music) never go to 0 while the effect is "on" — at 0 the effect is
+ * invisible but the switch would still read "on" (or, for the card shadow,
+ * whose on-state is derived from the intensity, the slider would unmount
+ * under the pointer). Turning it off is the switch's job. */
+export const EFFECT_INTENSITY_MIN = 0.01;
+
+/** Did the commit clamp what was typed? (NumberField announces it.) */
+export function wasClamped(draft: string, committed: number, spec: NumericFieldSpec): boolean {
+  const n = leadingNumber(draft);
+  if (n === null) return false;
+  const typed = n / (spec.scale || 1) - (spec.offset ?? 0);
+  return Math.abs(typed - committed) > 1e-9 && (committed === spec.min || committed === spec.max);
+}
+
+/**
+ * Review r2 (Critic-3): NumberField commit with a moving baseline. The
+ * "unchanged since focus" rule must be measured against the LAST COMMITTED
+ * text, not the text at focus — otherwise 300 → type 350 + Enter → type 300
+ * + Enter (without leaving the field) is ignored. Returns the value to emit
+ * (or null) and the baseline for the next edit.
+ */
+export function numberFieldCommit(
+  draft: string, baseline: string | null, spec: NumericFieldSpec, current: number,
+): { value: number | null; baseline: string | null } {
+  const value = commitSliderDraft(draft, baseline, spec, current);
+  if (value === null) return { value: null, baseline };
+  return { value, baseline: formatEditValue(value + (spec.offset ?? 0), spec.step ?? 1, spec.scale) };
+}
