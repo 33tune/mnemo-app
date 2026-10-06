@@ -25,10 +25,10 @@ const vars = uiCssVars();
 
 /** A literal color: a hex, or rgb()/rgba()/hsl() with numeric arguments
  * (`rgba(${r},…)` built from the user's own color is not a literal). */
-const COLOR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(\s*[\d.]/g;
+const COLOR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(\s*[\d.]|(?<![-\w.'"])(?:white|black|red|green|blue|yellow|orange|purple|pink|gray|grey|silver|lime|cyan|magenta)(?![-\w])/g;
 /** Legacy (pre-Block 2) color tokens — kept only because cards render with
  * them; the editor reads T.ui. */
-const LEGACY_TOKEN = /\bT\.(?:surface|text|border|accent|shadow)\b/g;
+const LEGACY_TOKEN = /\bT\.(?:surface|text|border|accent|shadow)\b|\bT\s*\[|\bT\s+as\s+\w|\{[^}]*\b(?:surface|text|border|accent|shadow)\b[^}]*\}\s*=\s*T\b/g;
 
 const count = (s: string, re: RegExp) => (s.match(re) ?? []).length;
 
@@ -75,9 +75,11 @@ test("editor.css carries no literal colors (only var(--ui-*) and system colors)"
   // The one exception: a CSS var cannot reach inside a data: URI. The select
   // chevron's stroke is pinned to T.ui.text.secondary instead.
   const DATA_URI = /url\("data:image\/svg\+xml,[^"]*"\)/g;
-  for (const uri of css.match(DATA_URI) ?? []) {
-    assert.ok(uri.includes(`stroke='${T.ui.text.secondary}'`), "select chevron stroke == T.ui.text.secondary");
-  }
+  const uris = css.match(DATA_URI) ?? [];
+  assert.equal(uris.length, 1, "only the select chevron may use a data: URI");
+  // Its ONLY color is T.ui.text.secondary (any other fill/stroke fails).
+  assert.deepEqual(uris[0].replace(`stroke='${T.ui.text.secondary}'`, "").match(COLOR_LITERAL) ?? [], []);
+  assert.ok(uris[0].includes(`stroke='${T.ui.text.secondary}'`), "select chevron stroke == T.ui.text.secondary");
   assert.deepEqual(css.replace(DATA_URI, "").match(COLOR_LITERAL) ?? [], []);
 });
 
@@ -141,4 +143,44 @@ test("inherited text (tertiary) is at least .50 alpha (4.5:1 on the control fill
 test("placeholder text is at least .52 alpha (A11Y-12)", () => {
   const alpha = Number(/rgba\(255,255,255,([\d.]+)\)/.exec(T.ui.text.placeholder)?.[1]);
   assert.ok(alpha >= 0.52, `placeholder alpha ${alpha}`);
+});
+
+// ── Review round (Phase 1): scope, contract rules, render isolation ────────
+
+test("every T.ui group is emitted as variables", () => {
+  for (const g of Object.keys(T.ui)) {
+    const prefix = `--ui-${g.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}-`;
+    assert.ok(Object.keys(vars).some(k => k.startsWith(prefix)), `group ${g} not emitted`);
+  }
+});
+
+test("variables are defined on every editor root AND the canvas (its focus ring reads them)", () => {
+  for (const attr of ["[data-mnemo-editor]", "[data-mnemo-ui]", "[data-mnemo-canvas]"]) {
+    assert.ok(UI_VARS_SCOPE.includes(attr), `${attr} missing from UI_VARS_SCOPE`);
+  }
+  assert.match(css, /\[data-mnemo-canvas\]:focus-visible::after\s*\{[^}]*var\(--ui-shadow-canvas-ring\)/);
+});
+
+test("contrast-carrying rules still use their contract tokens (Iteration 0 fixes)", () => {
+  const rule = (sel: string) => {
+    const i = css.indexOf(sel);
+    assert.ok(i >= 0, `missing rule ${sel}`);
+    return css.slice(i, css.indexOf("}", i));
+  };
+  assert.match(rule(".mn-field[data-inherited] .mn-value"), /color:\s*var\(--ui-text-tertiary\)/);
+  assert.match(rule(".mn-field[data-inherited] .mn-hex"), /color:\s*var\(--ui-text-tertiary\)/);
+  assert.match(rule(".mn-input::placeholder"), /color:\s*var\(--ui-text-placeholder\)/);
+  assert.ok((css.match(/@media \(forced-colors: active\)/g) ?? []).length >= 2, "forced-colors blocks");
+  assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"), "reduced-motion block");
+  assert.ok(css.includes("@media (prefers-reduced-transparency: reduce)"), "reduced-transparency block");
+});
+
+test("card render never reads editor variables (they only exist inside the editor)", () => {
+  for (const f of [
+    "src/components/canvas/ProfileCard.tsx", "src/components/canvas/CardLayers.tsx",
+    "src/components/canvas/ProfileMusicPlayer.tsx", "src/components/canvas/MusicCardWidget.tsx",
+    "src/components/canvas/MobilePublicCanvas.tsx",
+  ]) {
+    assert.ok(!stripComments(read(f)).includes("--ui-"), `${f} reads --ui-* (undefined on the public page)`);
+  }
 });

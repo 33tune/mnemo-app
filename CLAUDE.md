@@ -27,7 +27,8 @@ como próximo paso, manda esta sección.
     (docs de la dirección UX), en la branch de sesión
     `claude/zealous-goldberg-xlerxx` (pusheada; pendiente de merge a
     `main`). Detalle en "Qué quedó implementado en la Fase 1".
-  - Verificación: `npm test` 447/447, `tsc` y `next build` limpios. Sin
+  - Verificación: `npm test` 452/452 (tras la revisión de cierre), `tsc` y
+    `next build` limpios. Sin
     cambios visibles: el CSS resuelto es idéntico (comparación mecánica y
     206 estilos computados en Chromium, 0 diferencias).
 - **Verificación al cerrar la Iteración 0 (2026-10-05):**
@@ -634,6 +635,32 @@ Separación: **estado de edición** (`effectBinding.ts`) · **capacidades**
   glow.radius/animation, sombra avanzada, hoverScale, retro) son los gaps
   de paridad que cierra la Fase 4.
 - `src/lib/sourceScan.ts`: helper de los tests que leen código real.
+- **Revisión de cierre (2026-10-06):** Visual, UX Critic y Accesibilidad
+  revisaron `2e76d1a..d617ea2` y los tres dieron APPROVE WITH NOTES, sin
+  regresiones (A11y: 0 diferencias de estilo computado y screenshots
+  idénticos en 6 modos, incluidos forced colors y reduced motion/
+  transparency). Se corrigió lo introducido por la fase:
+  - matriz: evidencia ambigua de Flicker; `textColor`, `opacity` legacy
+    (card/Music) y `blockStyle.identity.textColor` pasan a `retired` (no
+    tienen UI ni render que los reemplace); test nuevo de evidencia única;
+  - `rule()` de `effectBinding` exhaustivo (`never`);
+  - guardia de tokens: grupos de `T.ui` emitidos automáticamente, scope del
+    anillo del canvas, reglas de contraste atadas a sus tokens, bloques de
+    forced colors/reduced motion/transparency, colores con nombre, alias
+    de `T`, data-URI exacto, y el render de cards no puede leer `--ui-*`.
+- **Notas para fases siguientes (de la revisión):**
+  - **Pregunta de producto abierta:** `card.textColor` (color base de
+    todos los textos) perdió su control en FASE 2 (`41f7ea3`), no en este
+    rediseño. Decidir si vuelve como "color de todos los textos".
+  - Los switches por rol (gradiente/shimmer/animación por letra) todavía
+    pasan por `setRoleTextEffect` en ProfileTypographyMenu; migrarlos a
+    `setEffectEnabled` en la Fase 3/4. `effectState` aún no lo usan todos
+    los toggles. `modified:false` = heredado (la Fase 4 puede necesitar
+    distinguir "valor legacy" de "ausente").
+  - Los literales de `CanvasBoard.tsx` (toolbars, `+`, MyLand) son previos
+    y fuera del guard; sumarlos a `MENU_FILES` cuando la Fase 2/7 mueva esas
+    superficies. Considerar renombrar `T.ui.chrome` → `canvasChrome` antes
+    de que la Fase 2 agregue tokens del vidrio del inspector.
 
 ### Huecos conocidos después de la Iteración 0 (documentados, no bugs)
 

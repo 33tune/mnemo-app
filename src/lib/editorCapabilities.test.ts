@@ -91,3 +91,17 @@ test("the inspector never owns ProfileCard's position (centerCardPosition)", () 
 test("capabilityAt resolves every row (lookup used by superseded links)", () => {
   for (const { owner, path, cap } of rows) assert.equal(capabilityAt(owner, path), cap, `${owner}:${path}`);
 });
+
+test("evidence is specific: each text identifies one control (no shared substring that survives its deletion)", () => {
+  const ambiguous: string[] = [];
+  for (const { owner, path, cap } of rows) {
+    if (cap.kind !== "route") continue;
+    for (const [file, text] of cap.evidence) {
+      const src = source(file);
+      const needle = squash(text);
+      const hits = src.split(needle).length - 1;
+      if (hits !== 1) ambiguous.push(`${owner}:${path} → \`${text}\` appears ${hits}× in ${file}`);
+    }
+  }
+  assert.deepEqual(ambiguous, [], ambiguous.join("\n"));
+});

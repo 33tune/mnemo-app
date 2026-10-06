@@ -28,7 +28,7 @@
  *   update_profile for the card, setEffects / update_music for Music) — the
  *   seam Phase 6's style undo snapshots around.
  */
-import type { CardEffects, ProfileCardVariant } from "@/types";
+import type { CardEffects, ProfileCardVariant, RoleTextEffect, TextRole } from "@/types";
 import {
   getActive, getPaused, pauseEffect, removeEffect, resumeEffect, resumeWithIntensity, mergePatch,
   type EffectPath,
@@ -127,11 +127,22 @@ function rule(path: EffectPath): SwitchRule {
         onDefault: () => EFFECT_ON_DEFAULTS.hoverScale,
       };
   }
-  const key = path.split(".")[2];
-  if (key === "gradient") return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.textGradient) };
-  if (key === "shimmer") return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.textShimmer) };
-  return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.letterAnimation) };
+  // Per-role paths (textRoles.<role>.<key>). Exhaustive: a new EffectPath
+  // that reaches here without its own rule fails tsc (the `never` below)
+  // instead of silently inheriting another effect's "on" default.
+  const rolePath: `textRoles.${TextRole}.${keyof RoleTextEffect}` = path;
+  const key = rolePath.split(".")[2] as keyof RoleTextEffect;
+  switch (key) {
+    case "gradient": return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.textGradient) };
+    case "shimmer": return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.textShimmer) };
+    case "letterAnimation": return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.letterAnimation) };
+    default: {
+      const unhandled: never = key;
+      throw new Error(`effectBinding: no switch rule for ${String(unhandled)}`);
+    }
+  }
 }
+
 
 /** State of a switchable effect. `effective` decides on/off (what renders);
  * `raw` decides paused/modified (what is stored). */

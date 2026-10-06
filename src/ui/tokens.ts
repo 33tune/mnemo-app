@@ -192,9 +192,9 @@ const kebab = (k: string) => k.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
 /** Every editor custom property, name -> CSS value. */
 export function uiCssVars(): Record<string, string> {
   const out: Record<string, string> = {};
-  const groups = ["text", "surface", "line", "accent", "opacity", "radius", "size", "shadow", "picker", "chrome"] as const;
-  for (const g of groups) {
-    for (const [k, v] of Object.entries(T.ui[g])) {
+  // Every T.ui group, so a group added later is emitted too (review P2-2).
+  for (const g of Object.keys(T.ui) as Array<keyof typeof T.ui>) {
+    for (const [k, v] of Object.entries(T.ui[g] as Record<string, string | number>)) {
       const px = g === "radius" || g === "size";
       out[`--ui-${kebab(g)}-${kebab(k)}`] = typeof v === "number" ? (px ? `${v}px` : String(v)) : v;
     }

@@ -146,7 +146,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   statusFont: type(`${TEXTO} › Descriptor › Fuente`, "onChange({ statusFont: v })"),
   statusFontSize: type(`${TEXTO} › Descriptor › Tamaño`, "onChange({ statusFontSize: v })"),
   locationFontSize: type(`${TEXTO} › Ubicación › Tamaño`, "onChange({ locationFontSize: v })"),
-  textColor: by("nameColor", "base the role colors derive their defaults from; every role has its own color (FASE 1)"),
+  textColor: retired("base color every role color, the PFP border/shadow and the drag outlines derive from; its control was removed in FASE 2 (41f7ea3) — each role now has its own color. Open product question: a one-step \"recolor all text\" was lost there, not in the menu redesign"),
   nameLetterSpacing: type(`${TEXTO} › Nombre › Avanzado › Espaciado`, "onChange({ nameLetterSpacing: v })"),
   nameLineHeight: type(`${TEXTO} › Nombre › Avanzado › Interlineado`, "onChange({ nameLineHeight: v })"),
   nameFontWeight: type(`${TEXTO} › Nombre › Avanzado › Peso`, "onChange({ nameFontWeight: v })"),
@@ -262,11 +262,11 @@ export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "retro.noise.enabled": fxMenu(`${RETRO} › Ruido VHS`, "patchRetro({ noise: { enabled: v"),
   "retro.noise.intensity": fxMenu(`${RETRO} › Ruido VHS › Intensidad`, "patchRetro({ noise: { enabled: true, intensity: v } })"),
   "retro.flicker.enabled": fxMenu(`${RETRO} › Flicker`, "patchRetro({ flicker: { enabled: v"),
-  "retro.flicker.intensity": fxMenu(`${RETRO} › Flicker › Intensidad`, "enabled: true, intensity: v } })"),
-  "retro.flicker.speed": fxMenu(`${RETRO} › Flicker › Velocidad`, "enabled: true, speed: v } })"),
+  "retro.flicker.intensity": fxMenu(`${RETRO} › Flicker › Intensidad`, "patchRetro({ flicker: { ...retro.flicker!, enabled: true, intensity: v } })"),
+  "retro.flicker.speed": fxMenu(`${RETRO} › Flicker › Velocidad`, "patchRetro({ flicker: { ...retro.flicker!, enabled: true, speed: v } })"),
   "retro.chromaticAberration.enabled": fxMenu(`${RETRO} › Aberración cromática`, "patchRetro({ chromaticAberration: { enabled: v"),
   "retro.chromaticAberration.intensity": fxMenu(`${RETRO} › Aberración cromática › Intensidad`, "patchRetro({ chromaticAberration: { enabled: true, intensity: v } })"),
-  opacity: by("effects.bg.opacity", "product rule: opacity affects only the background, never the content"),
+  opacity: retired("legacy whole-card opacity: CardLayers never reads effects.opacity (only bg.opacity — product rule: opacity affects only the background)"),
   padding: retired("never exposed: it would change the box computeBlockLayout measures"),
 };
 
@@ -316,7 +316,9 @@ function blockCaps(block: BlockStyleKey): Record<keyof BlockStyleOverride, Capab
     radius: field("Radio", "patch({ radius: v })"),
     textColor: block === "links"
       ? unsupported("Contact Links has no text")
-      : by(block === "identity" ? "nameColor" : `${block}Color`, ROLE_COLOR),
+      : block === "identity"
+        ? retired("never wired in render (blockStyle.ts: Identity has its own per-role colors); the role colors in Texto own it")
+        : by(`${block}Color`, ROLE_COLOR),
     iconColor: block === "links"
       ? route(`${ui} › Estilo › Color de ícono`, ev(file, 'blockKey="links" showIconColor'), ev("BlockStyleFields.tsx", "patch({ iconColor: v })"))
       : unsupported("no icons in this block"),
@@ -351,7 +353,7 @@ export const MUSIC_CARD_CAPS: Record<MusicFieldPath, Capability> = {
   bgImage: music(`${M} › Fondo › Imagen`, "bgImage: publicUrl, bgMode"),
   bgMode: music(`${M} › Fondo › Imagen (detectado al subir)`, "bgImage: publicUrl, bgMode"),
   borderRadius: by("effects.border.radius", "legacy field merged by getMusicCardEffects"),
-  opacity: by("effects.bg.opacity", "product rule: opacity affects only the background"),
+  opacity: retired("legacy: getMusicCardEffects folds it into effects.opacity, which CardLayers never renders (only bg.opacity)"),
   variant: retired("legacy look selector — re-exposing it would be a visual preset"),
   borderColor: by("effects.border.color", "legacy field merged by getMusicCardEffects"),
   borderWidth: by("effects.border.width", "legacy field merged by getMusicCardEffects"),
@@ -421,8 +423,8 @@ export const MUSIC_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "retro.flicker.enabled": unsupported(MUSIC_GAP), "retro.flicker.intensity": unsupported(MUSIC_GAP),
   "retro.flicker.speed": unsupported(MUSIC_GAP),
   "retro.chromaticAberration.enabled": unsupported(MUSIC_GAP), "retro.chromaticAberration.intensity": unsupported(MUSIC_GAP),
-  opacity: by("effects.bg.opacity", "product rule: opacity affects only the background, never the content"),
-  padding: retired("never exposed"),
+  opacity: retired("legacy whole-card opacity: CardLayers never reads effects.opacity (only bg.opacity — product rule: opacity affects only the background)"),
+  padding: retired("never exposed: it would change the box the layout measures"),
 };
 
 // ── Lookup ──────────────────────────────────────────────────────────────────
