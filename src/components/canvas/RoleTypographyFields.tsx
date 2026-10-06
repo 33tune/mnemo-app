@@ -7,10 +7,18 @@ import { EFFECT_ON_DEFAULTS } from "@/lib/effectEditorDefaults";
 // Menu redesign Phase 1: the values a switch writes when turned on live in
 // effectEditorDefaults.ts (EFFECT_ON_DEFAULTS) — fresh copies, never shared.
 const ON = EFFECT_ON_DEFAULTS;
+/** Phase 2: a role color without its own override derives from "Color de
+ * todos los textos" (card.textColor / cardBaseColor) — the inherited chip
+ * says where it comes from. */
+export const ROLE_COLOR_INHERITED = "Todos los textos";
 const newGradient = (): TextGradientEffect => ({ colors: [...ON.textGradient.colors], angle: ON.textGradient.angle });
 
 interface Props {
+  /** The role's name ("Nombre", "@usuario"…) — names the font select. */
   label:  string;
+  /** Section heading (Phase 2: the inspector's h2 already names the object,
+   * so the section says what it holds). Defaults to `label`. */
+  heading?: string;
   first?: boolean;
 
   color: string;
@@ -73,7 +81,7 @@ interface Props {
 // fix). "Animación" (letter bounce) only renders when the caller passes
 // letterAnimation handlers — i.e. only for Name.
 export default function RoleTypographyFields({
-  label, first,
+  label, heading, first,
   color, hasColorOverride, onColorChange, onColorClear,
   font, onFontChange,
   fontSize, fontSizeMin, fontSizeMax, onFontSizeChange,
@@ -85,14 +93,14 @@ export default function RoleTypographyFields({
 }: Props) {
   const gradientOn = !!gradient;
   return (
-    <MenuSection label={label} first={first}>
+    <MenuSection label={heading ?? label} first={first}>
       {/* Iteration 0: truly disabled while a gradient replaces the solid
           color — `inert` removes it from Tab order and the a11y tree (it
           used to be only dimmed + pointer-events:none, still operable by
           keyboard); a visible note says why. */}
       <div style={{ opacity: gradientOn ? 0.4 : 1 }} inert={gradientOn}>
         <ColorRow label="Color" value={color} onChange={onColorChange} clearable={hasColorOverride} onClear={onColorClear}
-          state={hasColorOverride ? "modified" : "inherited"} onReset={onColorClear} />
+          state={hasColorOverride ? "modified" : "inherited"} inheritedLabel={ROLE_COLOR_INHERITED} onReset={onColorClear} />
       </div>
       {gradientOn && <MenuNote>Color: lo reemplaza el gradiente.</MenuNote>}
       <FontSelect value={font} onChange={v => onFontChange(v as TextFont)} fonts={CANVAS_FONTS} label={`Fuente: ${label}`} />

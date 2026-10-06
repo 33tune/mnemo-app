@@ -5,7 +5,7 @@ import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
 import { useRef, useState } from "react";
 import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { T, MenuSection, MenuRow, SliderRow, ActionButton, ColorRow, Toggle, Collapsible, refocusFieldControl } from "@/ui";
+import { T, MenuSection, MenuRow, MenuNote, SliderRow, ActionButton, ColorRow, Toggle, Collapsible, refocusFieldControl } from "@/ui";
 import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
 import BlockStyleFields from "./BlockStyleFields";
 import { mergePatch } from "@/lib/effectPause";
@@ -24,7 +24,15 @@ interface ProfileIdentityMenuProps {
    * shadow colors derive from it, so the menu can show the real ones. */
   baseColor: string;
   onChange: (patch: IdentityPatch) => void;
+  /** Menu redesign Phase 2: which object's part to render — the inspector
+   * mounts each one under its own object (ProfileConfigMenu.tsx's
+   * OBJECT_SECTIONS): "photo" (Foto), "name" (Nombre's text field),
+   * "handle" (@usuario, read-only) and "identityBlock" (the identity
+   * block's style, shared by Nombre/@usuario/Frase/Bio). */
+  only: IdentityPart;
 }
+
+export type IdentityPart = "photo" | "name" | "handle" | "identityBlock";
 
 // CONTENT: quién sos. Foto, nombre y handle (de cuenta, solo lectura) —
 // tamaño/color/tipografía globales viven en TEXT (ver [[ProfileTypographyMenu]]).
@@ -36,7 +44,7 @@ interface ProfileIdentityMenuProps {
 // bloque Identity vivven acá también — mismo principio que Contact
 // Links/Music: el estilo de "esta cosa" vive junto al resto de sus
 // controles, no en una pestaña aparte.
-export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor, onChange }: ProfileIdentityMenuProps) {
+export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor, onChange, only }: ProfileIdentityMenuProps) {
   const { photo, name, handle, photoSize, pfpSizePx, pfpRadius } = card;
   const [editingName, setEditingName] = useState(false);
   // Review round (A11Y-2): Enter commits / Esc cancels (restores the name
@@ -104,7 +112,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
-      <MenuSection label="Foto" first>
+      {only === "photo" && <MenuSection label="Imagen" first>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div onClick={() => photoRef.current?.click()} style={{
             width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
@@ -197,9 +205,9 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
             )}
           </MenuSection>
         </Collapsible>
-      </MenuSection>
+      </MenuSection>}
 
-      <MenuSection label="Nombre">
+      {only === "name" && <MenuSection label="Texto" first>
         {editingName ? (
           <input autoFocus
             value={name}
@@ -224,20 +232,24 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
             {name || "nombre"}
           </div>
         )}
-      </MenuSection>
+      </MenuSection>}
 
-      <MenuSection label="Handle">
+      {only === "handle" && <MenuSection label="Usuario de la cuenta" first>
         <MenuRow>
           <span style={{ ...T.type.help, color: T.ui.text.secondary }}>@{handle}</span>
         </MenuRow>
-      </MenuSection>
+        <MenuNote>Es el @ de tu cuenta: no se edita acá.</MenuNote>
+      </MenuSection>}
 
       {/* Identity block = name+handle+descriptor+bio grouped as one draggable
           block (see cardComposition.ts's IDENTITY_ROLES) — its blockStyle
           override lives here since Name is its primary content control. No
           textColor/iconColor: those already exist per-role in TEXT (see
           blockStyle.ts's header for why). */}
-      <BlockStyleFields card={card} blockKey="identity" onChange={onChange} />
+      {only === "identityBlock" && (
+        <BlockStyleFields card={card} blockKey="identity" onChange={onChange}
+          scope="afecta Nombre, @usuario, Frase y Bio" />
+      )}
     </div>
   );
 }

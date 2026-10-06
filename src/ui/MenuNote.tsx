@@ -3,6 +3,8 @@ import { T } from "./tokens";
 
 interface MenuNoteProps {
   children: ReactNode;
+  /** Phase 2 r2: lets a control reference the note (aria-describedby). */
+  id?: string;
 }
 
 // Aviso discreto dentro de un MenuSection — monocromático (solo grises de T,
@@ -11,9 +13,9 @@ interface MenuNoteProps {
 // este es el único lugar donde puede enterarse de por qué.
 // Block 2: "help" type (DM Sans 12/16, secondary) on an L2 group surface —
 // Space Mono is reserved for section headers and numeric values.
-export function MenuNote({ children }: MenuNoteProps) {
+export function MenuNote({ children, id }: MenuNoteProps) {
   return (
-    <div role="note" style={{
+    <div role="note" id={id} style={{
       ...T.type.help,
       color: T.ui.text.secondary,
       background: T.ui.surface.group,

@@ -77,16 +77,23 @@ const fxMenu   = at("ProfileEffectsMenu.tsx");
 const card     = at("ProfileCard.tsx");
 const music    = at("MusicCardWidget.tsx");
 
-const P = "Card de presentación";
-const CONTENIDO = `${P} › Contenido`;
-const TEXTO = `${P} › Texto`;
-const FONDO = `${P} › Fondo`;
-const EFECTOS = `${P} › Efectos`;
-const LIENZO = "Lienzo (arrastrar)";
+// Menu redesign Phase 2: routes are OBJECT paths — "Card de presentación ›
+// <object caption> › <section> › <control>" (the object captions of
+// inspectorObjects.ts; the matrix test checks that each route's evidence
+// lives in a file that object mounts — OBJECT_FILES).
+export const P = "Card de presentación";
+const obj = (caption: string) => `${P} › ${caption}`;
+const NOMBRE = obj("Nombre"), USUARIO = obj("@usuario"), FRASE = obj("Frase"), UBICACION = obj("Ubicación");
+const BIO = obj("Bio"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS = obj("Links"), LOGO = obj("Logo");
+const FONDO = obj("Fondo de la card");
+const EFECTOS = obj("Efectos de la card");
+const TODOS = obj("Todos los textos");
+const ESTILO_TEXTO = "Estilo del texto";
+export const LIENZO = "Lienzo (arrastrar)";
 
 const LEGACY_POS = "pre-composition position/scale (Stage 3 replaced it with block anchors); kept for old data";
 const BLOCK_DRAG = (block: string) => card(`${LIENZO} › bloque ${block}`, `${block}: ["${block}AnchorX", "${block}AnchorY"]`, "[fx]: latest.x");
-const ROLE_COLOR = "text color is owned by each role in Texto (Block 1: una propiedad, un dueño)";
+const ROLE_COLOR = "text color is owned by each role (its object › Estilo del texto › Color — Block 1: una propiedad, un dueño)";
 
 // ── ProfileCard fields ──────────────────────────────────────────────────────
 
@@ -94,41 +101,41 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   id: system("record identity, assigned on creation"), userId: system("owner account, assigned on creation"),
   x: system("centerCardPosition(): ProfileCard is always centered; the inspector never writes x/y"),
   y: system("centerCardPosition(): ProfileCard is always centered; the inspector never writes x/y"),
-  w: config(`${CONTENIDO} › Medidas › Ancho · handles de resize`, "onChange({ w: c.w, h: c.h"),
-  h: config(`${CONTENIDO} › Medidas › Alto · handles de resize`, "onChange({ w: c.w, h: c.h"),
+  w: config(`${FONDO} › Medidas › Ancho · handles de resize`, "onChange({ w: c.w, h: c.h"),
+  h: config(`${FONDO} › Medidas › Alto · handles de resize`, "onChange({ w: c.w, h: c.h"),
   zIndex: system("canvas stacking order"), layer: system("canvas stacking layer"), depth: system("parallax depth of the element"),
   rotation: unsupported("ProfileCard is fixed and centered (no rotation)"),
   format: retired("only a soft FORMAT_BIAS tie-break since C.2.2; no longer chosen in the UI"),
   sizeScale: retired("legacy scale, replaced by free width/height"),
   pfpAnchorX: card(`${LIENZO} › foto`, "pfpAnchorX: latest.x"),
   pfpAnchorY: card(`${LIENZO} › foto`, "pfpAnchorY: latest.y"),
-  pfpSizePx: content(`${CONTENIDO} › Foto › Tamaño`, "onChange({ pfpSizePx: v })"),
-  pfpRadius: content(`${CONTENIDO} › Foto › Forma`, "onChange({ pfpRadius: v })"),
-  textAlign: type(`${TEXTO} › Alineación`, "onChange({ textAlign: v"),
+  pfpSizePx: content(`${FOTO_OBJ} › Imagen › Tamaño`, "onChange({ pfpSizePx: v })"),
+  pfpRadius: content(`${FOTO_OBJ} › Imagen › Forma`, "onChange({ pfpRadius: v })"),
+  textAlign: type(`${TODOS} › Alineación`, "onChange({ textAlign: v"),
   identityAnchorX: BLOCK_DRAG("identity"), identityAnchorY: BLOCK_DRAG("identity"),
   locationAnchorX: BLOCK_DRAG("location"), locationAnchorY: BLOCK_DRAG("location"),
   viewsAnchorX: BLOCK_DRAG("views"), viewsAnchorY: BLOCK_DRAG("views"),
   linksAnchorX: BLOCK_DRAG("links"), linksAnchorY: BLOCK_DRAG("links"),
-  contactLinks: links(`${CONTENIDO} › Contact Links`, "onChange({ contactLinks: [...links,", "onChange({ contactLinks: links.filter("),
-  linksIconSize: links(`${CONTENIDO} › Contact Links › Tamaño`, "onChange({ linksIconSize: v })"),
+  contactLinks: links(`${LINKS}`, "onChange({ contactLinks: [...links,", "onChange({ contactLinks: links.filter("),
+  linksIconSize: links(`${LINKS} › Tamaño de ícono`, "onChange({ linksIconSize: v })"),
   musicAnchorX: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   musicAnchorY: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   music: retired("Music is an independent canvas element now (MusicCardData)"),
   musicWidth: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
-  "logo.url": logo(`${CONTENIDO} › Logo › Subir`, "patchLogo({ url: publicUrl })"),
+  "logo.url": logo(`${LOGO} › Subir`, "patchLogo({ url: publicUrl })"),
   "logo.anchorX": card(`${LIENZO} › logo`, "anchorX: latest.x"),
   "logo.anchorY": card(`${LIENZO} › logo`, "anchorY: latest.y"),
-  "logo.w": logo(`${CONTENIDO} › Logo › Ancho`, "patchLogo({ w: v })"),
-  "logo.h": logo(`${CONTENIDO} › Logo › Alto`, "patchLogo({ h: v })"),
-  "logo.opacity": logo(`${CONTENIDO} › Logo › Opacidad`, "patchLogo({ opacity: v })"),
-  "logo.rotation": logo(`${CONTENIDO} › Logo › Rotación`, "patchLogo({ rotation: v })"),
-  "logo.zIndex": logo(`${CONTENIDO} › Logo › Profundidad`, "patchLogo({ zIndex: v })"),
-  photo: content(`${CONTENIDO} › Foto`, "onChange({ photo: publicUrl })"),
-  name: content(`${CONTENIDO} › Nombre`, "onChange({ name: e.target.value })"),
+  "logo.w": logo(`${LOGO} › Ancho`, "patchLogo({ w: v })"),
+  "logo.h": logo(`${LOGO} › Alto`, "patchLogo({ h: v })"),
+  "logo.opacity": logo(`${LOGO} › Opacidad`, "patchLogo({ opacity: v })"),
+  "logo.rotation": logo(`${LOGO} › Rotación`, "patchLogo({ rotation: v })"),
+  "logo.zIndex": logo(`${LOGO} › Profundidad`, "patchLogo({ zIndex: v })"),
+  photo: content(`${FOTO_OBJ} › Imagen › Subir`, "onChange({ photo: publicUrl })"),
+  name: content(`${NOMBRE} › Texto`, "onChange({ name: e.target.value })"),
   handle: system("the account @handle — read-only in the editor"),
-  status: meta(`${CONTENIDO} › Descriptor`, "onChange({ status: v })"),
-  location: meta(`${CONTENIDO} › Ubicación`, "onChange({ location: v })"),
-  bio: meta(`${CONTENIDO} › Bio`, "onChange({ bio: v })"),
+  status: meta(`${FRASE} › Texto`, "onChange({ status: v })"),
+  location: meta(`${UBICACION} › Texto`, "onChange({ location: v })"),
+  bio: meta(`${BIO} › Texto`, "onChange({ bio: v })"),
   photoX: retired(LEGACY_POS), photoY: retired(LEGACY_POS), photoScale: retired(LEGACY_POS),
   photoSize: by("pfpSizePx", "legacy size preset, read as the fallback of the PFP size slider"),
   textX: retired(LEGACY_POS), textY: retired(LEGACY_POS), textScale: retired(LEGACY_POS),
@@ -137,42 +144,46 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   statusX: retired(LEGACY_POS), statusY: retired(LEGACY_POS), statusScale: retired(LEGACY_POS),
   locationX: retired(LEGACY_POS), locationY: retired(LEGACY_POS), locationScale: retired(LEGACY_POS),
   bioX: retired(LEGACY_POS), bioY: retired(LEGACY_POS), bioScale: retired(LEGACY_POS),
-  showViews: meta(`${CONTENIDO} › Views › Mostrar cantidad`, "onChange({ showViews: v })"),
+  showViews: meta(`${VISITAS} › Contador › Mostrar cantidad`, "onChange({ showViews: v })"),
   viewsX: retired(LEGACY_POS), viewsY: retired(LEGACY_POS), viewsScale: retired(LEGACY_POS),
   font: by("nameFont", "card.font only ever reached the Name — Block 1 removed \"Fuente general\"; shown as the Name font fallback"),
-  nameFont: type(`${TEXTO} › Nombre › Fuente`, "onChange({ nameFont: v })"),
-  nameFontSize: type(`${TEXTO} › Nombre › Tamaño`, "onChange({ nameFontSize: v })"),
-  bioFontSize: type(`${TEXTO} › Bio › Tamaño`, "onChange({ bioFontSize: v })"),
-  statusFont: type(`${TEXTO} › Descriptor › Fuente`, "onChange({ statusFont: v })"),
-  statusFontSize: type(`${TEXTO} › Descriptor › Tamaño`, "onChange({ statusFontSize: v })"),
-  locationFontSize: type(`${TEXTO} › Ubicación › Tamaño`, "onChange({ locationFontSize: v })"),
-  textColor: retired("base color every role color, the PFP border/shadow and the drag outlines derive from; its control was removed in FASE 2 (41f7ea3) — each role now has its own color. Open product question: a one-step \"recolor all text\" was lost there, not in the menu redesign"),
-  nameLetterSpacing: type(`${TEXTO} › Nombre › Avanzado › Espaciado`, "onChange({ nameLetterSpacing: v })"),
-  nameLineHeight: type(`${TEXTO} › Nombre › Avanzado › Interlineado`, "onChange({ nameLineHeight: v })"),
-  nameFontWeight: type(`${TEXTO} › Nombre › Avanzado › Peso`, "onChange({ nameFontWeight: v })"),
-  handleFontSize: type(`${TEXTO} › Handle › Tamaño`, "onChange({ handleFontSize: v })"),
-  handleLetterSpacing: type(`${TEXTO} › Handle › Avanzado › Espaciado`, "onChange({ handleLetterSpacing: v })"),
-  descriptorLetterSpacing: type(`${TEXTO} › Descriptor › Avanzado › Espaciado`, "onChange({ descriptorLetterSpacing: v })"),
-  locationLetterSpacing: type(`${TEXTO} › Ubicación › Avanzado › Espaciado`, "onChange({ locationLetterSpacing: v })"),
-  bioLineHeight: type(`${TEXTO} › Bio › Avanzado › Interlineado`, "onChange({ bioLineHeight: v })"),
-  viewsFontSize: type(`${TEXTO} › Views › Tamaño`, "onChange({ viewsFontSize: v })"),
-  viewsLetterSpacing: type(`${TEXTO} › Views › Avanzado › Espaciado`, "onChange({ viewsLetterSpacing: v })"),
-  monoLineHeight: type(`${TEXTO} › Interlineado de textos secundarios`, "onChange({ monoLineHeight: v })"),
-  handleFont: type(`${TEXTO} › Handle › Fuente`, "onChange({ handleFont: v })"),
-  locationFont: type(`${TEXTO} › Ubicación › Fuente`, "onChange({ locationFont: v })"),
-  bioFont: type(`${TEXTO} › Bio › Fuente`, "onChange({ bioFont: v })"),
-  viewsFont: type(`${TEXTO} › Views › Fuente`, "onChange({ viewsFont: v })"),
-  handleFontWeight: type(`${TEXTO} › Handle › Avanzado › Peso`, "onChange({ handleFontWeight: v })"),
-  descriptorFontWeight: type(`${TEXTO} › Descriptor › Avanzado › Peso`, "onChange({ descriptorFontWeight: v })"),
-  locationFontWeight: type(`${TEXTO} › Ubicación › Avanzado › Peso`, "onChange({ locationFontWeight: v })"),
-  bioFontWeight: type(`${TEXTO} › Bio › Avanzado › Peso`, "onChange({ bioFontWeight: v })"),
-  viewsFontWeight: type(`${TEXTO} › Views › Avanzado › Peso`, "onChange({ viewsFontWeight: v })"),
-  nameColor: type(`${TEXTO} › Nombre › Color`, "onChange({ nameColor: v })"),
-  handleColor: type(`${TEXTO} › Handle › Color`, "onChange({ handleColor: v })"),
-  descriptorColor: type(`${TEXTO} › Descriptor › Color`, "onChange({ descriptorColor: v })"),
-  locationColor: type(`${TEXTO} › Ubicación › Color`, "onChange({ locationColor: v"),
-  bioColor: type(`${TEXTO} › Bio › Color`, "onChange({ bioColor: v })"),
-  viewsColor: type(`${TEXTO} › Views › Color`, "onChange({ viewsColor: v"),
+  nameFont: type(`${NOMBRE} › ${ESTILO_TEXTO} › Fuente`, "onChange({ nameFont: v })"),
+  nameFontSize: type(`${NOMBRE} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ nameFontSize: v })"),
+  bioFontSize: type(`${BIO} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ bioFontSize: v })"),
+  statusFont: type(`${FRASE} › ${ESTILO_TEXTO} › Fuente`, "onChange({ statusFont: v })"),
+  statusFontSize: type(`${FRASE} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ statusFontSize: v })"),
+  locationFontSize: type(`${UBICACION} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ locationFontSize: v })"),
+  // Phase 2: back as "Color de todos los textos" (lost in FASE 2, 41f7ea3).
+  // Side effects (documented in the UI hint): it is the base every role color
+  // without an override derives from, AND the default of the Links icon
+  // color, the PFP border/shadow and the drag outlines.
+  textColor: type(`${TODOS} › Color › Color de todos los textos (también: íconos de Links, borde/sombra de la foto y contornos de arrastre sin color propio)`, "onChange({ textColor: v })"),
+  nameLetterSpacing: type(`${NOMBRE} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ nameLetterSpacing: v })"),
+  nameLineHeight: type(`${NOMBRE} › ${ESTILO_TEXTO} › Avanzado › Interlineado`, "onChange({ nameLineHeight: v })"),
+  nameFontWeight: type(`${NOMBRE} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ nameFontWeight: v })"),
+  handleFontSize: type(`${USUARIO} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ handleFontSize: v })"),
+  handleLetterSpacing: type(`${USUARIO} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ handleLetterSpacing: v })"),
+  descriptorLetterSpacing: type(`${FRASE} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ descriptorLetterSpacing: v })"),
+  locationLetterSpacing: type(`${UBICACION} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ locationLetterSpacing: v })"),
+  bioLineHeight: type(`${BIO} › ${ESTILO_TEXTO} › Avanzado › Interlineado`, "onChange({ bioLineHeight: v })"),
+  viewsFontSize: type(`${VISITAS} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ viewsFontSize: v })"),
+  viewsLetterSpacing: type(`${VISITAS} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ viewsLetterSpacing: v })"),
+  monoLineHeight: type(`${TODOS} › Interlineado de textos secundarios`, "onChange({ monoLineHeight: v })"),
+  handleFont: type(`${USUARIO} › ${ESTILO_TEXTO} › Fuente`, "onChange({ handleFont: v })"),
+  locationFont: type(`${UBICACION} › ${ESTILO_TEXTO} › Fuente`, "onChange({ locationFont: v })"),
+  bioFont: type(`${BIO} › ${ESTILO_TEXTO} › Fuente`, "onChange({ bioFont: v })"),
+  viewsFont: type(`${VISITAS} › ${ESTILO_TEXTO} › Fuente`, "onChange({ viewsFont: v })"),
+  handleFontWeight: type(`${USUARIO} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ handleFontWeight: v })"),
+  descriptorFontWeight: type(`${FRASE} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ descriptorFontWeight: v })"),
+  locationFontWeight: type(`${UBICACION} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ locationFontWeight: v })"),
+  bioFontWeight: type(`${BIO} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ bioFontWeight: v })"),
+  viewsFontWeight: type(`${VISITAS} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ viewsFontWeight: v })"),
+  nameColor: type(`${NOMBRE} › ${ESTILO_TEXTO} › Color`, "onChange({ nameColor: v })"),
+  handleColor: type(`${USUARIO} › ${ESTILO_TEXTO} › Color`, "onChange({ handleColor: v })"),
+  descriptorColor: type(`${FRASE} › ${ESTILO_TEXTO} › Color`, "onChange({ descriptorColor: v })"),
+  locationColor: type(`${UBICACION} › ${ESTILO_TEXTO} › Color`, "onChange({ locationColor: v"),
+  bioColor: type(`${BIO} › ${ESTILO_TEXTO} › Color`, "onChange({ bioColor: v })"),
+  viewsColor: type(`${VISITAS} › ${ESTILO_TEXTO} › Color`, "onChange({ viewsColor: v"),
   linksIconColor: by("blockStyle.links.iconColor", "the icon color lives with Contact Links (FASE 2), via its block style"),
   bgColor: by("effects.bg.color", "legacy field merged by getProfileCardEffects (read effective, write raw)"),
   bgImage: by("effects.bg.image", "legacy field merged by getProfileCardEffects"),
@@ -195,7 +206,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
 // ── ProfileCard effects ─────────────────────────────────────────────────────
 
 const pfp = at("ProfileIdentityMenu.tsx");
-const FOTO = `${CONTENIDO} › Foto › Estilo de foto`;
+const FOTO = `${FOTO_OBJ} › Imagen › Estilo de foto`;
 const RETRO = `${EFECTOS} › Retro`;
 
 export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
@@ -207,32 +218,32 @@ export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "bg.glass": bgMenu(`${FONDO} › Avanzado › Glass`, "patchBg({ glass: v })"),
   "border.color": fxMenu(`${EFECTOS} › Borde › Color`, "patchBorder({ color: v })"),
   "border.width": fxMenu(`${EFECTOS} › Borde › Grosor`, "patchBorder({ width: v })"),
-  "border.radius": fxMenu(`${EFECTOS} › Borde › Radio`, "patchBorder({ radius: v })"),
+  "border.radius": fxMenu(`${FONDO} › Esquinas › Radio de las esquinas`, "patchBorder({ radius: v })"),
   "border.opacity": fxMenu(`${EFECTOS} › Borde › Opacidad`, "patchBorder({ opacity: v })"),
   "glow.color": fxMenu(`${EFECTOS} › Glow › Color`, "patchGlow({ color: v })"),
   "glow.intensity": fxMenu(`${EFECTOS} › Glow › Intensidad`, "patchGlow({ intensity: v })"),
   "glow.inner": fxMenu(`${EFECTOS} › Glow › Interior`, 'setGlowFlag("inner", v)'),
   "glow.outer": fxMenu(`${EFECTOS} › Glow › Exterior`, 'setGlowFlag("outer", v)'),
   "glow.radius": fxMenu(`${EFECTOS} › Glow › Avanzado › Radio`, "patchGlow({ radius: v })"),
-  "glow.animation.enabled": fxMenu(`${EFECTOS} › Borde › Animación (glow pulsante)`, "patchGlowAnimation({ enabled: v })"),
-  "glow.animation.speed": fxMenu(`${EFECTOS} › Borde › Animación › Velocidad`, "patchGlowAnimation({ speed: v })"),
+  "glow.animation.enabled": fxMenu(`${EFECTOS} › Glow › Pulso`, "patchGlowAnimation({ enabled: v })"),
+  "glow.animation.speed": fxMenu(`${EFECTOS} › Glow › Pulso › Velocidad del pulso`, "patchGlowAnimation({ speed: v })"),
   "shadow.color": fxMenu(`${EFECTOS} › Sombra › Color`, "patchShadow({ color: v })"),
   "shadow.intensity": fxMenu(`${EFECTOS} › Sombra › Activar · Intensidad`, 'fx.setEnabled("shadow", on)', "patchShadow({ intensity: v })"),
   "shadow.blur": fxMenu(`${EFECTOS} › Sombra › Avanzado › Blur`, "patchShadow({ blur: v })"),
   "shadow.offsetX": fxMenu(`${EFECTOS} › Sombra › Avanzado › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
   "shadow.offsetY": fxMenu(`${EFECTOS} › Sombra › Avanzado › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
   "shadow.opacity": fxMenu(`${EFECTOS} › Sombra › Avanzado › Opacidad`, "patchShadow({ opacity: v })"),
-  "text.shadow.color": type(`${TEXTO} › Efectos globales de texto › Sombra › Color`, 'toggleTextFx("text.shadow", v)', "patchShadow({ color: v })"),
-  "text.shadow.opacity": type(`${TEXTO} › Efectos globales de texto › Sombra › Opacidad`, "patchShadow({ opacity: v })"),
-  "text.shadow.blur": type(`${TEXTO} › Efectos globales de texto › Sombra › Blur`, "patchShadow({ blur: v })"),
-  "text.shadow.offsetX": type(`${TEXTO} › Efectos globales de texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
-  "text.shadow.offsetY": type(`${TEXTO} › Efectos globales de texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
-  "text.glow.color": type(`${TEXTO} › Efectos globales de texto › Glow › Color`, "patchGlow({ color: v })"),
-  "text.glow.intensity": type(`${TEXTO} › Efectos globales de texto › Glow › Activar · Intensidad`, 'toggleTextFx("text.glow", v)', "patchGlow({ intensity: v })"),
-  "text.glow.radius": type(`${TEXTO} › Efectos globales de texto › Glow › Radio`, "patchGlow({ radius: v })"),
-  "text.stroke.color": type(`${TEXTO} › Efectos globales de texto › Stroke › Color`, 'toggleTextFx("text.stroke", v)', "patchStroke({ color: v })"),
-  "text.stroke.width": type(`${TEXTO} › Efectos globales de texto › Stroke › Grosor`, "patchStroke({ width: v })"),
-  "text.blur": type(`${TEXTO} › Efectos globales de texto › Blur`, "patchTextFx({ blur: v"),
+  "text.shadow.color": type(`${TODOS} › Efectos globales de texto › Sombra › Color`, 'toggleTextFx("text.shadow", v)', "patchShadow({ color: v })"),
+  "text.shadow.opacity": type(`${TODOS} › Efectos globales de texto › Sombra › Opacidad`, "patchShadow({ opacity: v })"),
+  "text.shadow.blur": type(`${TODOS} › Efectos globales de texto › Sombra › Blur`, "patchShadow({ blur: v })"),
+  "text.shadow.offsetX": type(`${TODOS} › Efectos globales de texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
+  "text.shadow.offsetY": type(`${TODOS} › Efectos globales de texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
+  "text.glow.color": type(`${TODOS} › Efectos globales de texto › Glow › Color`, "patchGlow({ color: v })"),
+  "text.glow.intensity": type(`${TODOS} › Efectos globales de texto › Glow › Activar · Intensidad`, 'toggleTextFx("text.glow", v)', "patchGlow({ intensity: v })"),
+  "text.glow.radius": type(`${TODOS} › Efectos globales de texto › Glow › Radio`, "patchGlow({ radius: v })"),
+  "text.stroke.color": type(`${TODOS} › Efectos globales de texto › Stroke › Color`, 'toggleTextFx("text.stroke", v)', "patchStroke({ color: v })"),
+  "text.stroke.width": type(`${TODOS} › Efectos globales de texto › Stroke › Grosor`, "patchStroke({ width: v })"),
+  "text.blur": type(`${TODOS} › Efectos globales de texto › Blur`, "patchTextFx({ blur: v"),
   "pfp.border.color": pfp(`${FOTO} › Borde › Color`, "patchPfpBorder({ color: v })"),
   "pfp.border.width": pfp(`${FOTO} › Borde › Grosor`, "patchPfpBorder({ width: v })"),
   "pfp.border.opacity": pfp(`${FOTO} › Borde › Opacidad`, "patchPfpBorder({ opacity: v })"),
@@ -273,11 +284,11 @@ export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
 // ── Per-role text effects (card.effects.textRoles.<role>) ──────────────────
 
 const ROLE_LABEL: Record<TextRole, string> = {
-  name: "Nombre", handle: "Handle", descriptor: "Descriptor", location: "Ubicación", bio: "Bio", views: "Views",
+  name: "Nombre", handle: "@usuario", descriptor: "Frase", location: "Ubicación", bio: "Bio", views: "Visitas",
 };
 const ROLE_FIELDS = "RoleTypographyFields.tsx";
 function roleCaps(role: TextRole): Record<RoleEffectLeaf, Capability> {
-  const ui = `${TEXTO} › ${ROLE_LABEL[role]}`;
+  const ui = `${obj(ROLE_LABEL[role])} › ${ESTILO_TEXTO}`;
   const host = ev("ProfileTypographyMenu.tsx", `{...makeGradientHandlers("${role}")}`);
   const letter = role === "name"
     ? (field: string) => route(`${ui} › Animación › ${field}`, ev("ProfileTypographyMenu.tsx", 'setRoleTextEffect("name", "letterAnimation", v)'), ev(ROLE_FIELDS, `onLetterAnimationChange({ ...letterAnimation, ${field}: v })`))
@@ -302,25 +313,26 @@ export const ROLE_EFFECT_CAPS: Record<TextRole, Record<RoleEffectLeaf, Capabilit
 // ── Block styles (card.blockStyle.<block>) ─────────────────────────────────
 
 const BLOCK_HOST: Record<BlockStyleKey, [file: string, ui: string]> = {
-  identity: ["ProfileIdentityMenu.tsx", `${CONTENIDO} › Nombre`],
-  location: ["ProfileMetadataMenu.tsx", `${CONTENIDO} › Ubicación`],
-  views:    ["ProfileMetadataMenu.tsx", `${CONTENIDO} › Views`],
-  links:    ["ProfileContactLinksMenu.tsx", `${CONTENIDO} › Contact Links`],
+  // One "Bloque de identidad" section, mounted under Nombre, @usuario, Frase and Bio.
+  identity: ["ProfileIdentityMenu.tsx", `${NOMBRE} › Estilo del bloque · afecta Nombre, @usuario, Frase y Bio (también bajo esos objetos)`],
+  location: ["ProfileMetadataMenu.tsx", `${UBICACION} › Texto › Estilo del bloque`],
+  views:    ["ProfileMetadataMenu.tsx", `${VISITAS} › Contador › Estilo del bloque`],
+  links:    ["ProfileContactLinksMenu.tsx", `${LINKS} › Estilo del bloque`],
 };
 function blockCaps(block: BlockStyleKey): Record<keyof BlockStyleOverride, Capability> {
   const [file, ui] = BLOCK_HOST[block];
   const host = ev(file, `blockKey="${block}"`);
-  const field = (label: string, text: string) => route(`${ui} › Estilo › ${label}`, host, ev("BlockStyleFields.tsx", text));
+  const field = (label: string, text: string) => route(`${ui} › ${label}`, host, ev("BlockStyleFields.tsx", text));
   return {
     bg: field("Fondo", "patch({ bg: v })"),
     radius: field("Radio", "patch({ radius: v })"),
     textColor: block === "links"
       ? unsupported("Contact Links has no text")
       : block === "identity"
-        ? retired("never wired in render (blockStyle.ts: Identity has its own per-role colors); the role colors in Texto own it")
+        ? retired("never wired in render (blockStyle.ts: Identity has its own per-role colors); each role's Estilo del texto › Color owns it")
         : by(`${block}Color`, ROLE_COLOR),
     iconColor: block === "links"
-      ? route(`${ui} › Estilo › Color de ícono`, ev(file, 'blockKey="links" showIconColor'), ev("BlockStyleFields.tsx", "patch({ iconColor: v })"))
+      ? route(`${ui} › Color de ícono`, ev(file, 'blockKey="links" showIconColor'), ev("BlockStyleFields.tsx", "patch({ iconColor: v })"))
       : unsupported("no icons in this block"),
   };
 }

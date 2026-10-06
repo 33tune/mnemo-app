@@ -42,6 +42,94 @@
 .mn-panel[data-mnemo-editor]::-webkit-scrollbar { width: 6px; }
 .mn-panel[data-mnemo-editor]::-webkit-scrollbar-thumb { background: var(--ui-surface-scrollbar); border-radius: 3px; }
 
+/* Menu redesign Phase 2: the docked inspector (InspectorShell) — the SAME
+   L1 surface, docked to the right edge: left hairline only, no radius, no
+   outer shadow. In overlay mode (narrow viewport) it floats over the canvas,
+   so it gets the panel shadow back for separation. */
+.mn-panel.mn-panel--docked[data-mnemo-editor] {
+  border: 0 solid var(--ui-line-panel);
+  border-left-width: 0.5px;
+  border-radius: 0;
+  box-shadow: none;
+}
+@media (max-resolution: 1dppx) {
+  .mn-panel.mn-panel--docked[data-mnemo-editor] { border-left-width: 1px; }
+}
+.mn-panel.mn-panel--docked.mn-panel--overlay[data-mnemo-editor] { box-shadow: var(--ui-shadow-panel); }
+:where([data-mnemo-editor]) .mn-inspector__title { outline: none; border-radius: var(--ui-radius-segment); }
+:where([data-mnemo-editor]) .mn-inspector__title:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor]) .mn-inspector__tab {
+  flex: 1; width: 100%; margin: 0; padding: 12px 0; border: none; background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; overflow: hidden;
+  color: var(--ui-text-secondary);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; line-height: 16px; font-weight: 500;
+}
+/* r2: read bottom-to-top like standard side tabs. */
+:where([data-mnemo-editor]) .mn-inspector__tab-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 100%; }
+:where([data-mnemo-editor]) .mn-inspector__tab:hover { color: var(--ui-text-primary); background: var(--ui-surface-control); }
+:where([data-mnemo-editor]) .mn-inspector__tab:focus-visible { box-shadow: inset 0 0 0 2px var(--ui-accent-focus); }
+
+/* Object list (ObjectList.tsx): chips 32px high, fully rounded
+   (design-direction.md §E). Monochrome chrome; the user's colors appear only
+   in the swatch / "Aa" sample / thumbnail. Selected = 2px border (shape, not
+   only color) + aria-selected. */
+:where([data-mnemo-editor]) .mn-objlist { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+:where([data-mnemo-editor]) .mn-objlist__group { display: flex; flex-wrap: wrap; gap: 6px; }
+:where([data-mnemo-editor]) .mn-objchip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  height: var(--ui-size-obj-chip); padding: 0 10px; box-sizing: border-box;
+  border-radius: var(--ui-radius-chip); border: 1px solid var(--ui-line-control);
+  background: var(--ui-surface-control); color: var(--ui-text-secondary); cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; line-height: 16px; font-weight: 400;
+  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, border-color var(--ui-motion-fast) ease;
+}
+:where([data-mnemo-editor]) .mn-objchip:hover { background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-editor]) .mn-objchip[aria-selected="true"] {
+  border: 2px solid var(--ui-text-primary); padding: 0 9px; color: var(--ui-text-primary); background: var(--ui-surface-control-active);
+}
+:where([data-mnemo-editor]) .mn-objchip:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor]) .mn-objchip__text { min-width: 0; max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where([data-mnemo-editor]) .mn-objchip__text[data-placeholder] { color: var(--ui-text-tertiary); }
+:where([data-mnemo-editor]) .mn-objchip__thumb { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: var(--ui-shadow-well); }
+:where([data-mnemo-editor]) .mn-objchip__icons { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+:where([data-mnemo-editor]) .mn-objchip__more { font-size: 11px; color: var(--ui-text-secondary); }
+:where([data-mnemo-editor]) .mn-objchip__thumb--empty { box-shadow: none; border: 1px dashed var(--ui-line-strong); box-sizing: border-box; }
+/* r2: swatch and "Aa" sit on the same checker as the color well, so a
+   transparent / image / gradient background never vanishes on the panel. */
+:where([data-mnemo-editor]) .mn-objchip__swatch,
+:where([data-mnemo-editor]) .mn-objchip__sample {
+  position: relative; overflow: hidden; flex-shrink: 0; border-radius: 4px;
+  background-color: var(--ui-picker-well-base); background-image: var(--ui-picker-checker); background-size: 8px 8px;
+  box-shadow: var(--ui-shadow-well);
+}
+:where([data-mnemo-editor]) .mn-objchip__swatch { width: 16px; height: 16px; }
+:where([data-mnemo-editor]) .mn-objchip__sample {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 18px; padding: 0 3px; box-sizing: border-box;
+  font-size: 11px; line-height: 1; font-weight: 500;
+}
+:where([data-mnemo-editor]) .mn-objchip__layers { position: absolute; inset: 0; }
+:where([data-mnemo-editor]) .mn-objchip__sample-text { position: relative; }
+/* r2: in-section links to the object that owns a related control
+   ("Sombra, brillo y contorno: en Todos los textos"). */
+:where([data-mnemo-editor]) .mn-objlink {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; min-height: 24px;
+  margin: 0; padding: 2px 4px; border: none; border-radius: var(--ui-radius-segment); background: transparent; cursor: pointer;
+  color: var(--ui-text-secondary); font-family: 'DM Sans', sans-serif; font-size: 12px; line-height: 16px; text-align: left;
+  text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--ui-line-strong);
+}
+:where([data-mnemo-editor]) .mn-objlink:hover { color: var(--ui-text-primary); }
+:where([data-mnemo-editor]) .mn-objlink:focus-visible { box-shadow: var(--ui-shadow-ring); }
+
+/* Phase 2: the canvas wrapper's view offset (CanvasBoard.tsx) animates —
+   never during a pointer gesture (it is frozen then); instant with reduced
+   motion (below). */
+.mn-canvas[data-mnemo-canvas] { transition: transform var(--ui-motion-base) var(--ui-motion-ease); }
+/* Review r2: a pointer gesture settles a running offset transition at once
+   (CanvasBoard sets data-view-gesture on pointerdown), so pointer→canvas
+   conversions never read a rect that is still sliding. */
+.mn-canvas[data-mnemo-canvas][data-view-gesture] { transition: none; }
+
 /* ── Popover (L3) — the only blurred surface ────────────────────────────── */
 .mn-popover[data-mnemo-editor] {
   background: var(--ui-surface-popover-solid);
@@ -361,7 +449,8 @@
 @media (prefers-reduced-motion: reduce) {
   :where([data-mnemo-editor], [data-mnemo-ui]),
   :where([data-mnemo-editor], [data-mnemo-ui]) *,
-  :where([data-mnemo-editor], [data-mnemo-ui]) *::before {
+  :where([data-mnemo-editor], [data-mnemo-ui]) *::before,
+  :where([data-mnemo-editor], [data-mnemo-ui]) *::after {
     transition-property: opacity, color, background-color !important;
     transition-duration: 100ms !important;
     animation: none !important;
@@ -371,6 +460,7 @@
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-thumb { transition: none !important; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-thumb { transition: none !important; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__body { transition: none !important; }
+  .mn-canvas[data-mnemo-canvas] { transition: none !important; }
 }
 
 /* ── Review round: pressed (fill +0.08 already via :active) + scale .98 ── */
@@ -417,6 +507,15 @@
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop[aria-checked="true"] { border: 2px solid Highlight; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark::before { color: CanvasText; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-chip { border: 1px solid CanvasText; }
+  :where([data-mnemo-editor]) .mn-objchip { border: 1px solid CanvasText; }
+  :where([data-mnemo-editor]) .mn-objchip[aria-selected="true"] { border: 2px solid Highlight; }
+  :where([data-mnemo-editor]) .mn-objchip__swatch,
+  :where([data-mnemo-editor]) .mn-objchip__sample,
+  :where([data-mnemo-editor]) .mn-objchip__thumb { forced-color-adjust: none; border: 1px solid CanvasText; }
+  .mn-panel.mn-panel--docked[data-mnemo-editor] { border-left: 1px solid CanvasText; }
+  :where([data-mnemo-editor]) .mn-inspector__tab { border: 1px solid ButtonText; }
+  :where([data-mnemo-editor]) .mn-objchip__thumb--empty { border: 1px dashed CanvasText; }
+  :where([data-mnemo-editor]) .mn-objlink { color: LinkText; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-panel,
   :where([data-mnemo-editor], [data-mnemo-ui]).mn-panel,
   .mn-panel, .mn-popover { background: Canvas !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }

@@ -25,9 +25,9 @@ interface ColorRowProps extends FieldStateProps {
 // Personalization UI/UX) collapsed into one primitive so every "pick a color
 // for X" row looks and behaves identically everywhere. Block 2: carries the
 // field state (modified -> reset dot, inherited -> "Card" chip).
-export function ColorRow({ label, value, onChange, clearable, onClear, keepAlpha, alpha, state, onReset, inheritedLabel }: ColorRowProps) {
+export function ColorRow({ label, value, onChange, clearable, onClear, keepAlpha, alpha, state, onReset, inheritedLabel, hintId }: ColorRowProps) {
   return (
-    <MenuRow label={label} state={state} onReset={onReset} inheritedLabel={inheritedLabel}>
+    <MenuRow label={label} state={state} onReset={onReset} inheritedLabel={inheritedLabel} hintId={hintId}>
       {/* The modified dot (-> reset) IS the clear affordance once a call
           site wires field state — no second "x" next to the well. */}
       <ColorSwatch value={value ?? ""} onChange={onChange} alpha={alpha ?? !!keepAlpha}

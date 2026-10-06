@@ -7,9 +7,9 @@ planeado acá hasta confirmarlo.
 
 ## MNEMO — CURRENT PROJECT CHECKPOINT
 
-**Checkpoint actualizado el 2026-10-05, al cerrar la Fase 1 (Cimientos)
-del rediseño de menús** (antes: 2026-10-02, propuesta de Menu Design
-Refinement). Esta sección es la fuente de verdad vigente sobre el
+**Checkpoint actualizado el 2026-10-06, al cerrar la Fase 2 (Inspector
+acoplado + lista de objetos) del rediseño de menús** (antes: 2026-10-05,
+Fase 1). Esta sección es la fuente de verdad vigente sobre el
 estado del proyecto. Donde contradiga secciones más viejas de este archivo,
 en particular "La próxima sesión" al final, que todavía apunta a Responsive
 como próximo paso, manda esta sección.
@@ -31,6 +31,19 @@ como próximo paso, manda esta sección.
     `next build` limpios. Sin
     cambios visibles: el CSS resuelto es idéntico (comparación mecánica y
     206 estilos computados en Chromium, 0 diferencias).
+- **Fase 2 (Inspector acoplado + lista de objetos): TERMINADA (2026-10-06).**
+  - Commit `feat: implement menu editor inspector phase 2`, sobre `06a1cc9`,
+    en la misma branch `claude/zealous-goldberg-xlerxx` (pendiente de
+    merge a `main`). Detalle en "Qué quedó implementado en la Fase 2".
+  - Verificación: `npm test` 504/504, `tsc` y `next build` limpios
+    (13/13 páginas).
+  - Revisión:
+    - El plan lo revisaron Interaction, A11y y Design Systems.
+    - La implementación la revisaron Visual, UX Critic, A11y y
+      Capacidades/Regresiones.
+    - Hubo una ronda de 17 correcciones y verificación de cierre: los
+      cuatro dieron APPROVE.
+  - **Sin QA en navegador todavía** (ver la lista de QA de la Fase 2).
 - **Verificación al cerrar la Iteración 0 (2026-10-05):**
   - `npm test`: 415/415.
   - `npx tsc --noEmit --incremental false`: limpio.
@@ -51,9 +64,11 @@ como próximo paso, manda esta sección.
     Hay que leerlos ANTES de implementar. Superan a la "Dirección UX/UI
     aprobada" de abajo (facetas como entrada, filas resumen en texto) y a
     las propuestas anteriores donde se contradigan.
-  - **Fase 1 cerrada. La próxima es la Fase 2 (Shell: InspectorShell
-    acoplado + offset de vista + ObjectList)** de `implementation-plan.md`,
-    solo con el OK explícito del usuario.
+  - **Fases 1 y 2 cerradas.**
+  - **Próximo paso:** QA manual en navegador de la Fase 2.
+  - **Después:** la **Fase 3 (Texto: placa espécimen por rol, pickers
+    visuales, "Más ajustes")** de `implementation-plan.md`, solo con el OK
+    explícito del usuario.
 - **`.claude/settings.local.json` NO entra nunca en commits.** Commitear
   siempre con `git add -A -- . ':!.claude/settings.local.json'` o agregando
   rutas explícitas.
@@ -661,6 +676,152 @@ Separación: **estado de edición** (`effectBinding.ts`) · **capacidades**
     y fuera del guard; sumarlos a `MENU_FILES` cuando la Fase 2/7 mueva esas
     superficies. Considerar renombrar `T.ui.chrome` → `canvasChrome` antes
     de que la Fase 2 agregue tokens del vidrio del inspector.
+
+### Qué quedó implementado en la Fase 2 (Inspector acoplado + lista de objetos)
+
+**Shell (`src/ui/InspectorShell.tsx`)**
+- `<aside aria-label="Inspector">` fijo a la derecha, debajo de la topbar.
+  No es un dialog.
+- Ancho `T.ui.size.inspectorW = 320`; z-index `T.z.inspector = menu − 1`.
+- Superficie `.mn-panel--docked`. El header (h2 del objeto activo + Cerrar)
+  es sticky y el cuerpo scrollea aparte.
+- `usePanelFocus` se extrajo de `MenuPanel` y lo comparten los dos.
+- **Overlay por debajo de 992px** (`T.ui.breakpoint.inspectorOverlay`).
+  - El valor sale de un test: `320 + maxW 640 + 32`. Con 960 la card más
+    ancha quedaba tapada.
+  - Es no modal y sin scrim. Si tapa la card y el foco entra al canvas, se
+    colapsa a una pestaña con chevron.
+
+**Offset de vista (`src/lib/inspectorViewOffset.ts`, función pura)**
+- Es un `translate` sobre `canvasWrapperRef` de CanvasBoard que centra la
+  card en el área visible. Para la ProfileCard, que siempre está centrada,
+  da un dx constante de `inspectorW/2` = 160.
+- En overlay se aplica solo si alcanza para destapar la card.
+- **Se congela durante todo gesto de puntero** mientras el inspector está
+  abierto. `data-view-gesture` pone `transition:none`.
+- **Nunca escribe `card.x/y`.** Todas las conversiones puntero→canvas ya
+  usaban el rect del wrapper. El marquee pasó a coordenadas de canvas.
+- Mientras se edita, lo que esté en `x < dx` queda fuera de vista. Es así
+  por diseño.
+
+**Lista de objetos**
+- Archivos: `src/components/canvas/ObjectList.tsx` y
+  `src/lib/inspectorObjects.ts`.
+- Es un tablist APG, con roving tabindex y Home/End, y el tabpanel toma su
+  nombre del h2.
+- 12 objetos en 3 grupos de orden fijo:
+  - Textos: Nombre, @usuario, Frase, Ubicación, Bio, Visitas.
+  - Bloques: Foto, Links, Logo.
+  - Card: Fondo, Efectos, Todos los textos.
+- Los chips muestran el contenido real. El nombre accesible contiene el
+  texto visible (2.5.3). Los vacíos se ven con placeholder punteado. Visitas
+  muestra el conteo.
+- Los ids de rol coinciden con `TextRole` (base para `data-role` en la
+  Fase 5). `chip()` devuelve datos, no JSX.
+- La sesión recuerda, por card, el objeto activo y el scroll
+  (`inspectorSession.ts`).
+
+**Secciones por objeto**
+- `OBJECT_SECTIONS: Record<ObjectId, Section[]>` en ProfileConfigMenu
+  (ProfileInspector).
+- Typography y Effects se recompusieron con hooks
+  (`useTypographyActions`, `useCardEffectActions`) y secciones
+  (`RoleTextSection`, `GlobalTextSection`, `CardCornersSection`,
+  `CardEffectsSection`). Identity y Metadata usan `only`. Las tabs de
+  faceta se eliminaron.
+- Movimientos:
+  - el radio de la card pasó a Fondo › Esquinas;
+  - el pulso del glow, a Efectos › Glow › Pulso;
+  - los efectos de la foto, a Foto.
+- "Estilo del bloque" es el término único. El de identidad se monta en
+  Nombre, @usuario, Frase y Bio con el alcance en el label.
+- Enlaces cruzados:
+  - desde cada rol hacia "Sombra, brillo y contorno: en Todos los textos";
+  - entre Esquinas y el borde.
+
+**Color de todos los textos**
+- Escribe `card.textColor`; el reset borra la key.
+- `cardBaseColor()` se movió a `cardColors.ts` y la usan el render y el
+  menú.
+- Cuando no tiene valor propio muestra "Automático". La nota "también tiñe
+  los íconos de Links y el borde de la foto" va por `aria-describedby`.
+- Los colores de cada rol sin valor propio muestran "Todos los textos".
+- En la matriz, la capacidad pasó de `retired` a ruta.
+
+**Teclado y foco**
+- "Editar" abre el inspector, o lleva el foco al h2 si ya está abierto.
+  Nunca lo cierra.
+- Esc por capas: borrador → popover → inspector (vuelve a Editar) →
+  Editar (al canvas) → canvas. En el canvas, el primer Esc cierra el
+  inspector y el segundo deselecciona.
+- F6 alterna canvas ⇄ inspector.
+- El foco nunca cae a `<body>`. El guard sigue basado en el foco.
+
+**Capacidades**
+- Ninguna se perdió. El reviewer comparó control por control contra
+  `06a1cc9`.
+- Rutas con la forma "Card de presentación › <Objeto> › …".
+- El test cruza la evidencia de cada ruta con el archivo **y la sección**
+  que monta ese objeto, e incluye un test negativo.
+
+**Lo que no cambió en esta fase**
+- Music y los widgets legacy siguen con su `MenuPanel` flotante (Fase 4/7 y
+  P4B).
+- El lightbox de Gallery sale por portal a `<body>`.
+- `space_mobile` abre el inspector sin offset; nada más cambió ahí.
+- No se tocaron render, composición, geometría, resize, hit-testing,
+  `useDragDrop` ni `useCardInteractions`.
+
+**Notas de los reviewers para la Fase 3** (no son bugs)
+- La lista ocupa unos 230px con contenido real. Con la placa espécimen
+  conviene compactarla, o pasarla a una fila con scroll horizontal mientras
+  se edita.
+- Agregar un encabezado mínimo por grupo.
+- Que el chip seleccionado tome la familia tipográfica del rol.
+
+### QA en navegador pendiente de la Fase 2
+
+1. **Offset de vista**
+   - Al abrir, la card queda centrada en el área visible.
+   - Con resize horizontal o vertical, incluso con dx=0 al empezar, el
+     canvas no se mueve durante el gesto.
+   - Un click durante la animación del offset no corre el marquee.
+   - Al cambiar la selección, el canvas vuelve en 180ms, o al instante con
+     reduced motion.
+   - Siguen funcionando drop, pegar, rotar y el hit-stack (imagen sobre la
+     card).
+   - `card.x/y` no cambian al abrir ni al cerrar.
+   - Lo que queda fuera de vista en `x < 160`.
+2. **Overlay**
+   - A 900px con una card de 240, el offset se aplica.
+   - A 700px con una card de 500, el offset queda en 0.
+   - Al tabular hacia el canvas, el overlay colapsa a la pestaña.
+   - La pestaña, F6 y "Editar" lo vuelven a abrir.
+3. **Teclado**
+   - Recorrido con Tab: header → chips → secciones.
+   - Flechas y Home/End en los chips.
+   - Esc por capas y F6 en los dos sentidos.
+   - Backspace y Ctrl+Z dentro del aside no tocan el canvas.
+   - Delete y las flechas funcionan con el foco en el canvas y el inspector
+     abierto.
+4. **Chips**
+   - Grupos con 2 o más chips por fila.
+   - Foto y Logo vacíos.
+   - Fondo transparente, con imagen o con gradiente sobre el damero.
+   - NVDA y control por voz ("clic Efectos 3 activos").
+   - Windows High Contrast.
+5. **Navegación entre objetos**
+   - Los enlaces llevan al objeto correcto con el foco en su h2.
+   - Color de todos los textos: heredado, modificado y reset que borra la
+     key.
+   - Los roles muestran "Todos los textos" cuando heredan.
+   - Guardar y recargar.
+6. **Sin controles perdidos**
+   - Recorrer los 12 objetos, incluidos Medidas, Esquinas, Pulso y el
+     Estilo del bloque.
+   - Music sigue con su panel flotante.
+   - `space_mobile`.
+   - Lightbox de Gallery con el inspector abierto.
 
 ### Huecos conocidos después de la Iteración 0 (documentados, no bugs)
 

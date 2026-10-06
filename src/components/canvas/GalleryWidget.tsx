@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, memo, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { trackRender } from "@/lib/perfDebug";
 import type { CanvasGallery, GalleryImage } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
@@ -340,8 +341,13 @@ function GalleryWidget({
         )}
       </div>
 
-      {/* ── Lightbox ── */}
-      {lightbox && (
+      {/* ── Lightbox ── Menu redesign Phase 2 (r2): portaled to <body>. It is
+          position:fixed and the gallery renders inside the canvas wrapper,
+          which can carry a transform (the inspector's view offset in the
+          editor, the viewer scale on the public page) — a fixed box under a
+          transformed ancestor is re-anchored and clipped by it. React events
+          still bubble through the same component tree as before. */}
+      {lightbox && createPortal(
         <div
           onClick={() => setLightbox(null)}
           style={{
@@ -390,7 +396,7 @@ function GalleryWidget({
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }}
         onChange={async e => { await addImages(e.target.files); if (fileRef.current) fileRef.current.value = ""; }} />

@@ -139,3 +139,26 @@ test("shouldFocusCanvasOnMouseDown: skips text entry and editor/ui surfaces", ()
   assert.equal(shouldFocusCanvasOnMouseDown(node("DIV", { editor: true })), false);
   assert.equal(shouldFocusCanvasOnMouseDown(null), false);
 });
+
+// ── Menu redesign Phase 2: the always-mounted docked inspector ─────────────
+
+test("Phase 2: Backspace / Ctrl+Z inside the inspector aside or the ColorPopover never reach the canvas", () => {
+  // Both are [data-mnemo-editor] roots (InspectorShell / ColorPopover), outside the canvas DOM.
+  for (const tag of ["BUTTON", "DIV", "H2", "ASIDE"]) {
+    const inAside = node(tag, { editor: true });
+    assert.equal(canvasShortcutAllowed(inAside, inAside), false, `${tag} in the aside`);
+    assert.equal(shouldSkipCanvasShortcut(inAside, inAside), true, `${tag} in the aside (negative guard: Esc)`);
+  }
+  // Focus in the aside, event dispatched at <body> (or the reverse): still blocked.
+  const body = node("BODY");
+  const aside = node("ASIDE", { editor: true });
+  assert.equal(canvasShortcutAllowed(body, aside), false);
+  assert.equal(canvasShortcutAllowed(aside, body), false);
+});
+
+test("Phase 2: an open inspector never blocks the canvas — the guard depends on focus, not on what is mounted", () => {
+  const wrapper = node("DIV", { root: true });
+  // Same answer whatever is mounted elsewhere: canvasShortcutAllowed takes no DOM root.
+  assert.equal(canvasShortcutAllowed.length, 2);
+  assert.equal(canvasShortcutAllowed(wrapper, wrapper), true, "inspector open, focus on the canvas: Delete/arrows work");
+});

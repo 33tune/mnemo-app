@@ -10,6 +10,8 @@
  * derived default; nothing here talks to computeComposition()/
  * computeBlockLayout() — colors never affect layout/measurement.
  */
+import type { CardEffects, ProfileCardData } from "@/types";
+import { getProfileCardEffects } from "./profileCardEffects";
 
 export function luminance(hex: string): number {
   if (!hex?.startsWith("#") || hex.length < 7) return 0;
@@ -23,6 +25,35 @@ export function withOpacity(hex: string, alpha: number): string {
   const n = parseInt(hex.slice(1), 16);
   const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ── Base color (menu redesign Phase 2) ───────────────────────────────────
+// `card.textColor` is the color every role color (and the PFP border/shadow
+// defaults, the Links icon default and the drag outlines) derives from. The
+// fallback depends on the EFFECTIVE background: dark ink on a light card,
+// white otherwise. Moved verbatim from ProfileCard.tsx so the render and the
+// editor's "Color de todos los textos" row show the same value.
+export const CARD_BASE_COLOR_ON_LIGHT = "#0f0f0f";
+export const CARD_BASE_COLOR_ON_DARK = "#ffffff";
+
+type BaseColorCard = Pick<ProfileCardData, "textColor" | "bgColor"> & Parameters<typeof getProfileCardEffects>[0];
+
+/** Is the card's effective background light? (ProfileCard.tsx's `isLight`.) */
+export function cardIsLight(card: BaseColorCard, effective: CardEffects = getProfileCardEffects(card)): boolean {
+  return luminance((effective.bg?.color ?? card.bgColor) as string) > 0.5;
+}
+
+/** The effective base text color: `card.textColor`, else the background-
+ * derived default. */
+export function cardBaseColor(card: BaseColorCard, effective: CardEffects = getProfileCardEffects(card)): string {
+  return card.textColor ?? (cardIsLight(card, effective) ? CARD_BASE_COLOR_ON_LIGHT : CARD_BASE_COLOR_ON_DARK);
+}
+
+/** Field state of a color that inherits from the base color when unset:
+ * a stored override is "modified" (reset deletes the key), absence is
+ * "inherited" (shown with the inherited chip). */
+export function inheritableColorState(override: string | undefined | null): "modified" | "inherited" {
+  return override ? "modified" : "inherited";
 }
 
 // Opacity applied to `baseColor` for each text role, absent an explicit

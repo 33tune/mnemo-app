@@ -1,4 +1,5 @@
 "use client";
+import type React from "react";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import type { CardEffects } from "@/types";
 import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, Divider, OffsetRow } from "@/ui";
@@ -40,7 +41,13 @@ type Shadow = NonNullable<CardEffects["shadow"]>;
 // Shadow and hover-scale toggles pause instead of deleting ("apagar no
 // borra", effectPause.ts); Glow's Exterior/Interior flags were already
 // non-destructive (color/intensity live next to the flags, untouched).
-export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) {
+// Menu redesign Phase 2: split by OBJECT. One hook owns every handler;
+// CardCornersSection ("Esquinas" — the card's border radius) is mounted by
+// "Fondo de la card", CardEffectsSection (border color/width/opacity,
+// shadow, glow + its pulse, motion, hover, spotlight, retro) by "Efectos de
+// la card". Phase 4 replaces CardEffectsSection with effect tiles without
+// touching the routing (ProfileConfigMenu.tsx's OBJECT_SECTIONS).
+export function useCardEffectActions({ effective, raw, onChange }: Props) {
   const bord  = effective.border;
   const glow  = effective.glow;
   const inter = effective.interactions;
@@ -85,6 +92,36 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
   const hoverScaleOn = effectState(raw, effective, "interactions.hoverScale").status === "on";
   const retro = effective.retro;
 
+  return {
+    bord, glow, inter, anim, sh, fx, patchBorder, patchGlow, patchGlowAnimation, patchShadow, patchInteractions,
+    patchAnimations, patchRetro, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
+    shadowFx, glowInt, hoverScaleOn, retro,
+  };
+}
+
+/** "Esquinas" — the card's border radius (border.radius), a property of the
+ * card's shape: mounted by "Fondo de la card". */
+export function CardCornersSection(props: Props) {
+  const { bord, patchBorder } = useCardEffectActions(props);
+  const { raw } = props;
+  return (
+    <MenuSection label="Esquinas" first>
+      <SliderRow label="Radio de las esquinas" min={0} max={60} step={1} value={bord?.radius ?? CARD_RADIUS_FALLBACK}
+        onChange={v => patchBorder({ radius: v })} unit="px"
+        state={raw?.border?.radius !== undefined ? "modified" : undefined} onReset={() => patchBorder({ radius: undefined })} />
+    </MenuSection>
+  );
+}
+
+/** Every card-level effect — mounted by "Efectos de la card".
+ * `borderFooter` (r2): the link to "Esquinas" under Fondo de la card. */
+export function CardEffectsSection({ borderFooter, ...props }: Props & { borderFooter?: React.ReactNode }) {
+  const { raw } = props;
+  const {
+    bord, glow, inter, anim, sh, fx, patchBorder, patchGlow, patchGlowAnimation, patchShadow, patchInteractions,
+    patchAnimations, patchRetro, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
+    shadowFx, glowInt, hoverScaleOn, retro,
+  } = useCardEffectActions(props);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
       <MenuSection label="Borde" first>
@@ -96,31 +133,12 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
         <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? CARD_BORDER_DEFAULT_WIDTH}
           onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`}
           state={raw?.border?.width !== undefined ? "modified" : undefined} onReset={() => patchBorder({ width: undefined })} />
-        <SliderRow label="Radio" min={0} max={60} step={1} value={bord?.radius ?? CARD_RADIUS_FALLBACK}
-          onChange={v => patchBorder({ radius: v })} unit="px"
-          state={raw?.border?.radius !== undefined ? "modified" : undefined} onReset={() => patchBorder({ radius: undefined })} />
         {/* FASE 1: this no longer also fades shadow/glow — see CardLayers.tsx's
             Layer 0c split. */}
         <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bord?.opacity ?? 1}
           onChange={v => patchBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`}
           state={raw?.border?.opacity !== undefined ? "modified" : undefined} onReset={() => patchBorder({ opacity: undefined })} />
-
-        {/* Stage FASE 3: "border animation" pulses the card's own Glow
-            (reuses that system rather than inventing a second one — see
-            CardEffects.glow.animation's header) — a border with no glow
-            configured just won't show much, which is expected, not a bug. */}
-        <MenuRow label="Animación (glow pulsante)">
-          <Toggle value={!!glow?.animation?.enabled} onChange={v => patchGlowAnimation({ enabled: v })} />
-        </MenuRow>
-        {glow?.animation?.enabled && (
-          <>
-            {!anyGlow && (
-              <MenuNote>Activá Glow más abajo para ver el pulso — por ahora no hay glow visible que animar.</MenuNote>
-            )}
-            <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={glow?.animation?.speed ?? 1}
-              onChange={v => patchGlowAnimation({ speed: v })} fmt={v => `${v.toFixed(1)}x`} />
-          </>
-        )}
+        {borderFooter}
       </MenuSection>
 
       <Collapsible label="Sombra">
@@ -166,6 +184,19 @@ export default function ProfileEffectsMenu({ effective, raw, onChange }: Props) 
                 unit="px" onChange={v => patchGlow({ radius: v })} />
             </Collapsible>
           </>
+        )}
+        {/* Stage FASE 3: the "border animation" pulses the card's own Glow
+            (CardEffects.glow.animation). Phase 2: it lives next to Glow,
+            named "Pulso" — it animates the glow, not the border. */}
+        <MenuRow label="Pulso">
+          <Toggle value={!!glow?.animation?.enabled} onChange={v => patchGlowAnimation({ enabled: v })} />
+        </MenuRow>
+        {glow?.animation?.enabled && (
+          <SliderRow label="Velocidad del pulso" min={0.3} max={3} step={0.1} value={glow?.animation?.speed ?? 1}
+            onChange={v => patchGlowAnimation({ speed: v })} fmt={v => `${v.toFixed(1)}x`} />
+        )}
+        {!anyGlow && glow?.animation?.enabled && (
+          <MenuNote>El pulso está activado, pero no hay glow visible que animar: activá Exterior o Interior.</MenuNote>
         )}
       </Collapsible>
 

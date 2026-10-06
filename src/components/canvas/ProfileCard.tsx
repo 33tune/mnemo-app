@@ -14,8 +14,8 @@ import { isEventFromNode } from "@/lib/editorGuards";
 import { resolveOpenerSpot } from "@/lib/openerPlacement";
 import { CanvasChromeButton } from "./CanvasChromeButton";
 import CardLayers from "./CardLayers";
-import { MenuPanel } from "@/ui";
-import ProfileConfigMenu from "./ProfileConfigMenu";
+import { INSPECTOR_TITLE_ID } from "@/ui/InspectorShell";
+import ProfileInspector from "./ProfileInspector";
 import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides, type LinksBlockInput } from "@/lib/cardComposition";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
@@ -26,7 +26,7 @@ import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
 import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
-import { withOpacity, luminance, resolveCardColors } from "@/lib/cardColors";
+import { withOpacity, resolveCardColors, cardIsLight, cardBaseColor } from "@/lib/cardColors";
 import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveTextEffectStyle, resolveLetterEffectStyle } from "@/lib/textEffects";
 import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
@@ -215,6 +215,15 @@ interface Props {
    * false so any caller that doesn't pass it keeps growth active, same
    * as before this prop existed. */
   isResizing?:       boolean;
+  /** Menu redesign Phase 2: the docked inspector is open for THIS card.
+   * Its open state lives in CanvasBoard.tsx (the view offset and the FAB
+   * shift depend on it); this card only renders it (portal to <body>). */
+  inspectorOpen?:    boolean;
+  /** Inspector geometry decided by CanvasBoard (inspectorViewOffset.ts):
+   * width, narrow-viewport overlay, collapsed-to-a-tab (2.4.11). */
+  inspectorView?:    { width: number; overlay: boolean; collapsed: boolean };
+  onInspectorChange?: (cardId: string, open: boolean) => void;
+  onInspectorExpand?: () => void;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -240,10 +249,12 @@ function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
+  inspectorOpen = false, inspectorView, onInspectorChange, onInspectorExpand,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
-  const [menuOpen,     setMenuOpen]     = useState(false);
+  // Menu redesign Phase 2: "menu open" = this card's inspector is open.
+  const menuOpen = inspectorOpen && !!canInteract;
   const cardRef = useRef<HTMLDivElement>(null);
   const editBtnRef = useRef<HTMLButtonElement>(null);
   const panelId = `mnemo-profile-editor-${card.id}`;
@@ -374,28 +385,9 @@ function ProfileCard({
     onInteractLeave();
   };
 
-  // ── Portal position ──
-  const [portalPos, setPortalPos] = useState<{ left: number; top: number } | null>(null);
-  useEffect(() => {
-    if (!menuOpen) { setPortalPos(null); return; }
-    const compute = () => {
-      if (!cardRef.current) return;
-      const r = cardRef.current.getBoundingClientRect();
-      const MENU_W = 288, GAP = 10;
-      const left = r.right + GAP + MENU_W > window.innerWidth
-        ? Math.max(4, r.left - MENU_W - GAP)
-        : r.right + GAP;
-      setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
-    };
-    compute();
-    window.addEventListener("scroll", compute, true);
-    window.addEventListener("resize", compute);
-    return () => { window.removeEventListener("scroll", compute, true); window.removeEventListener("resize", compute); };
-  }, [menuOpen, card.x, card.y, card.w, card.h]);
-
-  useEffect(() => {
-    if (!isSel) { setMenuOpen(false); }
-  }, [isSel]);
+  // Menu redesign Phase 2: no floating-panel anchoring formula here any
+  // more (it was duplicated in this effect and in "Editar") — the inspector
+  // is docked (InspectorShell) and CanvasBoard closes it on deselection.
 
 
   // ── Visual values ──
@@ -473,8 +465,10 @@ function ProfileCard({
   // MONO regardless of `card.font`, unchanged (see cardTypography.ts's file
   // header — font family per mono role was never part of this stage's ask).
   const font           = card.nameFont ?? card.font ?? "DM Sans";
-  const isLight        = luminance(effectiveEffects.bg?.color ?? card.bgColor) > 0.5;
-  const baseColor      = card.textColor ?? (isLight ? "#0f0f0f" : "#ffffff");
+  // Menu redesign Phase 2: one formula for render AND the editor's "Color de
+  // todos los textos" row (cardColors.ts — moved verbatim from here).
+  const isLight        = cardIsLight(card, effectiveEffects);
+  const baseColor      = cardBaseColor(card, effectiveEffects);
   const primaryColor   = withOpacity(baseColor, 0.95);
   const secondaryColor = withOpacity(baseColor, 0.72);
   const faintColor     = withOpacity(baseColor, 0.45);
@@ -1431,16 +1425,13 @@ function ProfileCard({
             expanded={menuOpen}
             controls={panelId}
             style={{ top: openerPos.top, left: openerPos.left }}
-            onEscape={() => setMenuOpen(false)}
+            // Esc on "Editar" only hands focus to the canvas (CanvasChromeButton);
+            // the inspector closes from inside (Esc / Cerrar) or from the canvas.
             onActivate={() => {
-              const next = !menuOpen;
-              if (next && cardRef.current) {
-                const r = cardRef.current.getBoundingClientRect();
-                const MENU_W = 288, GAP = 10;
-                const left = r.right + GAP + MENU_W > window.innerWidth ? Math.max(4, r.left - MENU_W - GAP) : r.right + GAP;
-                setPortalPos({ left, top: Math.min(Math.max(8, r.top), window.innerHeight - 120) });
-              } else setPortalPos(null);
-              setMenuOpen(next);
+              if (!menuOpen) { onInspectorChange?.(card.id, true); return; }
+              // Already open: move focus to the inspector's h2 (never closes).
+              if (inspectorView?.collapsed) { onInspectorExpand?.(); return; }
+              document.getElementById(INSPECTOR_TITLE_ID)?.focus({ preventScroll: true });
             }}
           />
         )}
@@ -1450,14 +1441,20 @@ function ProfileCard({
             no lock/rotate affordances. Resize stays until Forma/proporciones is designed. */}
         {isSel && canInteract && <ResizeHandles onResizeMD={onResizeMD} light={isLight} />}
 
-        {/* ── Config menu ── */}
-        {menuOpen && canInteract && portalPos && createPortal(
-          <MenuPanel pos={portalPos} width={288} label="Editor de la card de presentación" id={panelId}
+        {/* ── Inspector (Phase 2) ── docked aside, portaled to <body>: never
+            inside the canvas wrapper, whose view-offset transform would
+            re-anchor a position:fixed box. */}
+        {menuOpen && inspectorView && createPortal(
+          <ProfileInspector
+            id={panelId} card={card} baseColor={baseColor} linksFits={linksFits} viewCount={viewCount}
+            canvas={viewportW != null && viewportH != null ? { w: viewportW, h: viewportH, topOffset: CANVAS_TOP_OFFSET } : undefined}
+            onChange={patch => updateProfile(card.id, patch)}
+            onClose={() => onInspectorChange?.(card.id, false)}
             returnFocusTo={() => editBtnRef.current}
-            onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); setMenuOpen(false); } }}>
-            <ProfileConfigMenu card={card} linksFits={linksFits} baseColor={baseColor} onChange={patch => updateProfile(card.id, patch)}
-              canvas={viewportW != null && viewportH != null ? { w: viewportW, h: viewportH, topOffset: CANVAS_TOP_OFFSET } : undefined} />
-          </MenuPanel>
+            top={CANVAS_TOP_OFFSET}
+            width={inspectorView.width} overlay={inspectorView.overlay} collapsed={inspectorView.collapsed}
+            onExpand={() => onInspectorExpand?.()}
+          />
         , document.body)}
       </div>
     </>
@@ -1472,7 +1469,11 @@ function areProfilePropsEqual(prev: Props, next: Props): boolean {
     prev.canInteract       === next.canInteract &&
     prev.parallaxTransform === next.parallaxTransform &&
     prev.currentUserId     === next.currentUserId &&
-    prev.ownerUserId       === next.ownerUserId
+    prev.ownerUserId       === next.ownerUserId &&
+    prev.inspectorOpen     === next.inspectorOpen &&
+    prev.inspectorView?.width     === next.inspectorView?.width &&
+    prev.inspectorView?.overlay   === next.inspectorView?.overlay &&
+    prev.inspectorView?.collapsed === next.inspectorView?.collapsed
   );
 }
 export default memo(ProfileCard, areProfilePropsEqual);

@@ -65,6 +65,9 @@ export interface FieldStateProps {
   onReset?:        () => void;
   /** Chip text for the inherited state. */
   inheritedLabel?: string;
+  /** Phase 2 r2: id of a visible note that describes this control (added
+   * to its aria-describedby, after the inherited chip). */
+  hintId?: string;
 }
 
 /** The modified-dot/reset button. Absolute in the panel's left padding
@@ -106,7 +109,7 @@ interface MenuRowProps extends FieldStateProps {
   children: React.ReactNode;
 }
 
-export function MenuRow({ label, children, state, onReset, inheritedLabel }: MenuRowProps) {
+export function MenuRow({ label, children, state, onReset, inheritedLabel, hintId }: MenuRowProps) {
   const labelId = useId();
   const chipId = useId();
   return (
@@ -131,7 +134,7 @@ export function MenuRow({ label, children, state, onReset, inheritedLabel }: Men
       <div style={{ display: "flex", alignItems: "center", gap: T.space[2], marginLeft: label ? "auto" : 0, flexShrink: 0 }}>
         {state === "inherited" && <InheritedChip id={chipId}>{inheritedLabel}</InheritedChip>}
         <FieldLabelProvider value={label ? labelId : undefined}>
-          <FieldDescContext.Provider value={state === "inherited" ? chipId : undefined}>
+          <FieldDescContext.Provider value={[state === "inherited" ? chipId : undefined, hintId].filter(Boolean).join(" ") || undefined}>
             {children}
           </FieldDescContext.Provider>
         </FieldLabelProvider>

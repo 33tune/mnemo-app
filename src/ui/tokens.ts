@@ -110,7 +110,18 @@ export const T = {
     },
     opacity: { disabled: 0.38 },
     radius: { panel: 16, group: 12, control: 8, segment: 6, chip: 999 },
-    size:   { panelPad: 16, row: 32, control: 28, swatch: 24, icon: 16 },
+    size:   {
+      panelPad: 16, row: 32, control: 28, swatch: 24, icon: 16,
+      /** Menu redesign Phase 2: the docked inspector's width (InspectorShell). */
+      inspectorW: 320,
+      /** Object-list chip height (design-direction.md §E). */
+      objChip: 32,
+    },
+    /** Menu redesign Phase 2: below this viewport width the inspector stops
+     * docking (view offset) and overlays the canvas instead. Must leave room
+     * for the widest ProfileCard next to the inspector — see uiTokens.test.ts
+     * (inspectorW + getFreeformCardBounds().maxW + 2 × 16px gutter). */
+    breakpoint: { inspectorOverlay: 992 },
     shadow: {
       panel:   "inset 0 1px 0 rgba(255,255,255,0.06), 0 24px 64px -12px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.3)",
       // Menu redesign Phase 1: was "… 0 16px 48px -8px …" here while
@@ -176,7 +187,9 @@ export const T = {
   },
 
   motion: { fast: 120, base: 180, panel: 220, segment: 240, ease: "cubic-bezier(0.32,0.72,0,1)" },
-  z:      { menu: 999999, popover: 1000000 },
+  /** inspector = menu − 1: under Music's floating menu and ColorPopover,
+   * above every canvas chrome and the topbar (uiTokens.test.ts). */
+  z:      { inspector: 999998, menu: 999999, popover: 1000000 },
 } as const;
 
 // ── Menu redesign Phase 1: ONE source for the editor's design values ──────

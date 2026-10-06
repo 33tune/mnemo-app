@@ -1,5 +1,6 @@
 export { T }              from "./tokens";
-export { MenuPanel }      from "./MenuPanel";
+export { MenuPanel, usePanelFocus } from "./MenuPanel";
+export { InspectorShell, INSPECTOR_TITLE_ID, INSPECTOR_EXPAND_ID } from "./InspectorShell";
 export { MenuSection }    from "./MenuSection";
 export { MenuRow, FieldResetMark, InheritedChip, useFieldLabelId, FieldLabelProvider, labelStyle, refocusFieldControl }
                           from "./MenuRow";

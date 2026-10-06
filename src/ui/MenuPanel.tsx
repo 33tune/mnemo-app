@@ -56,25 +56,7 @@ export function MenuPanel({ children, pos, width, onKeyDown, style, label, retur
   // inside it. preventScroll: the panel is position:fixed anyway.
   const rootRef = useRef<HTMLDivElement>(null);
   const floating = !!pos;
-  const returnFocusRef = useRef(returnFocusTo);
-  returnFocusRef.current = returnFocusTo;
-  useEffect(() => {
-    const opener = typeof document !== "undefined" ? document.activeElement as HTMLElement | null : null;
-    const root = rootRef.current;
-    if (floating) root?.focus({ preventScroll: true });
-    return () => {
-      const active = document.activeElement;
-      const focusLost = !active || active === document.body || (root?.contains(active) ?? false);
-      if (!focusLost) return;
-      const target = resolvePanelReturnFocus(
-        returnFocusRef.current?.() ?? null,
-        opener,
-        root,
-        typeof document !== "undefined" ? document.querySelector<HTMLElement>(`[${CANVAS_ATTR}]`) : null,
-      );
-      target?.focus?.({ preventScroll: true });
-    };
-  }, [floating]);
+  usePanelFocus(rootRef, { focusOnMount: floating ? () => rootRef.current : undefined, returnFocusTo });
   return (
     <div
       ref={rootRef}
@@ -112,6 +94,43 @@ export function MenuPanel({ children, pos, width, onKeyDown, style, label, retur
       {children}
     </div>
   );
+}
+
+/**
+ * Menu redesign Phase 2: the focus contract shared by MenuPanel (floating)
+ * and InspectorShell (docked) — one implementation, not two panels.
+ * - On mount: focus `focusOnMount()` if given (MenuPanel: its own root when
+ *   floating; the inspector: its h2).
+ * - On unmount: if focus was inside the panel (or dropped to <body> by its
+ *   removal), return it via resolvePanelReturnFocus — the explicit opener,
+ *   else the element focused at mount, else the canvas; never <body>.
+ */
+export function usePanelFocus(
+  rootRef: React.RefObject<HTMLElement | null>,
+  { focusOnMount, returnFocusTo }: { focusOnMount?: () => HTMLElement | null; returnFocusTo?: () => HTMLElement | null },
+): void {
+  const returnFocusRef = useRef(returnFocusTo);
+  returnFocusRef.current = returnFocusTo;
+  const focusOnMountRef = useRef(focusOnMount);
+  focusOnMountRef.current = focusOnMount;
+  const takesFocus = !!focusOnMount;
+  useEffect(() => {
+    const opener = typeof document !== "undefined" ? document.activeElement as HTMLElement | null : null;
+    const root = rootRef.current;
+    if (takesFocus) focusOnMountRef.current?.()?.focus({ preventScroll: true });
+    return () => {
+      const active = document.activeElement;
+      const focusLost = !active || active === document.body || (root?.contains(active) ?? false);
+      if (!focusLost) return;
+      const target = resolvePanelReturnFocus(
+        returnFocusRef.current?.() ?? null,
+        opener,
+        root,
+        typeof document !== "undefined" ? document.querySelector<HTMLElement>(`[${CANVAS_ATTR}]`) : null,
+      );
+      target?.focus?.({ preventScroll: true });
+    };
+  }, [takesFocus, rootRef]);
 }
 
 type FocusTarget = { isConnected?: boolean; focus?: (o?: FocusOptions) => void } | null;

@@ -14,6 +14,10 @@ interface Props {
   blockKey:       BlockStyleKey;
   showTextColor?: boolean;
   showIconColor?: boolean;
+  /** Phase 2 r2: what the block covers, appended to the ONE label every
+   * block uses ("Estilo del bloque") — the identity block is shown under
+   * four objects and says so in the label itself. */
+  scope?:         string;
   onChange:       (patch: Pick<ProfileCardData, "blockStyle" | "blockStylePaused">) => void;
 }
 
@@ -25,7 +29,9 @@ interface Props {
 // "this block has its own override" (fields shown, same note confirms it).
 // Deliberately no width/height/padding/border controls here — see
 // blockStyle.ts's header for why those stay out of scope.
-export default function BlockStyleFields({ card, blockKey, showTextColor, showIconColor, onChange }: Props) {
+export const BLOCK_STYLE_LABEL = "Estilo del bloque";
+
+export default function BlockStyleFields({ card, blockKey, showTextColor, showIconColor, scope, onChange }: Props) {
   const raw = card.blockStyle?.[blockKey];
   const active = !!raw;
   const resolved = resolveBlockStyle(card, blockKey);
@@ -62,7 +68,7 @@ export default function BlockStyleFields({ card, blockKey, showTextColor, showIc
   }
 
   return (
-    <Collapsible label="Estilo" defaultOpen={active}>
+    <Collapsible label={scope ? `${BLOCK_STYLE_LABEL} · ${scope}` : BLOCK_STYLE_LABEL} defaultOpen={active}>
       <MenuRow label="Personalizar este bloque">
         <Toggle value={active} onChange={setActive} />
       </MenuRow>

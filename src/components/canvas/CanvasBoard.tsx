@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useMemo, useEffect, useId } from "react";
+import { useState, useRef, useMemo, useEffect, useId, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -50,7 +50,9 @@ import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
 import { shouldSkipCanvasShortcut, canvasShortcutAllowed, shouldFocusCanvasOnMouseDown, isEventFromNode, CANVAS_ATTR, CHROME_ATTR, type GuardElement } from "@/lib/editorGuards";
 import { resolveNudgeKey, nudgeMove, nudgeResize, cycleSelection, isMacPlatform } from "@/lib/canvasNudge";
-import { T as UIT, Icon, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote } from "@/ui";
+import { T as UIT, Icon, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote, INSPECTOR_TITLE_ID } from "@/ui";
+import { INSPECTOR_COLLAPSED_W } from "@/ui/InspectorShell";
+import { inspectorLayout, inspectorViewOffset, freezeViewOffset, shouldFreezeOnPointerDown } from "@/lib/inspectorViewOffset";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -603,6 +605,101 @@ export default function CanvasBoard({
   function clampToViewport(x: number, y: number, w: number, h: number) {
     return clampPositionToBounds({ x, y, w, h }, { w: effectiveW, h: effectiveH, topOffset: 44 });
   }
+
+  // ── Docked inspector (menu redesign Phase 2) ──────────────────────────────
+  // Which ProfileCard's inspector is open. Lives here (not in ProfileCard)
+  // because the canvas VIEW offset and the FAB shift depend on it.
+  const [inspectorCardId, setInspectorCardId] = useState<string | null>(null);
+  const inspectorCardIdRef = useRef<string | null>(null);
+  inspectorCardIdRef.current = inspectorCardId;
+  // 2.4.11: in overlay mode an inspector that covers the card collapses to
+  // a tab when focus returns to the canvas; only "expand" reopens it.
+  const [inspectorCollapseReq, setInspectorCollapseReq] = useState(false);
+  const handleInspectorChange = useCallback((cardId: string, open: boolean) => {
+    setInspectorCollapseReq(false);
+    setInspectorCardId(open ? cardId : null);
+  }, []);
+  const focusInspectorTitle = useCallback(() => {
+    requestAnimationFrame(() => document.getElementById(INSPECTOR_TITLE_ID)?.focus({ preventScroll: true }));
+  }, []);
+  const expandInspector = useCallback(() => {
+    setInspectorCollapseReq(false);
+    focusInspectorTitle();
+  }, [focusInspectorTitle]);
+  const inspectorCollapsedRef = useRef(false);
+  const expandInspectorRef = useRef(expandInspector);
+  expandInspectorRef.current = expandInspector;
+  // Closed whenever its card stops being selected (deselect, select another
+  // element, delete). Focus then falls back to the canvas (usePanelFocus).
+  useEffect(() => {
+    if (inspectorCardId && !selectedIds.has(inspectorCardId)) setInspectorCardId(null);
+  }, [inspectorCardId, selectedIds]);
+  useEffect(() => {
+    if (!inspectorCardId) return;
+    const onFocusIn = (e: FocusEvent) => {
+      // A11y r2: focus anywhere INSIDE the canvas (wrapper, "Editar", a
+      // toolbar, a link in a card) counts — the overlay must not cover it.
+      if (canvasWrapperRef.current?.contains(e.target as Node)) setInspectorCollapseReq(true);
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, [inspectorCardId]);
+
+  const inspectorEnabled = canEdit;
+  // space_mobile edits a fixed 390px logical canvas (legacy, untouched): the
+  // inspector opens there too, but never moves that canvas.
+  const viewOffsetEnabled = canEdit && canvasMode !== "space_mobile";
+  const inspLayout = inspectorLayout({
+    viewportW, inspectorW: UIT.ui.size.inspectorW, overlayBreakpoint: UIT.ui.breakpoint.inspectorOverlay,
+  });
+  const inspectorProfile = inspectorCardId && inspectorEnabled
+    ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
+    : undefined;
+  const inspectorOffset = inspectorProfile && viewOffsetEnabled
+    ? inspectorViewOffset({ viewportW, inspectorW: inspLayout.width, box: { x: inspectorProfile.x, w: inspectorProfile.w }, overlay: inspLayout.overlay })
+    : { dx: 0, covered: false };
+  const inspectorCollapsed = !!inspectorProfile && inspLayout.overlay && inspectorOffset.covered && inspectorCollapseReq;
+  inspectorCollapsedRef.current = inspectorCollapsed;
+  const inspectorView = useMemo(
+    () => ({ width: inspLayout.width, overlay: inspLayout.overlay, collapsed: inspectorCollapsed }),
+    [inspLayout.width, inspLayout.overlay, inspectorCollapsed],
+  );
+  // The view offset is FROZEN for the whole pointer gesture (marquee, drag,
+  // resize, selecting another element): recomputed — and animated — only
+  // after the pointer is released, so the canvas never slides under a
+  // pressed pointer (shouldFreezeOnPointerDown).
+  const [viewGesture, setViewGesture] = useState(false);
+  const appliedDxRef = useRef(0);
+  const viewDx = freezeViewOffset(appliedDxRef.current, inspectorOffset.dx, viewGesture);
+  appliedDxRef.current = viewDx;
+  useEffect(() => {
+    if (!viewOffsetEnabled) return;
+    // Review r2: freeze whenever an inspector is open (also from dx = 0),
+    // and settle any running offset transition at once (data-view-gesture
+    // → transition: none, editor.css) so the wrapper's rect — what
+    // toCanvasCoords/getElementsAtPoint read — is already final when the
+    // gesture's mousedown handlers run.
+    const down = () => {
+      if (!shouldFreezeOnPointerDown(!!inspectorCardIdRef.current, appliedDxRef.current)) return;
+      canvasWrapperRef.current?.setAttribute("data-view-gesture", "");
+      setViewGesture(true);
+    };
+    const up = () => {
+      canvasWrapperRef.current?.removeAttribute("data-view-gesture");
+      setViewGesture(false);
+    };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    return () => {
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+    };
+  }, [viewOffsetEnabled]);
+  // The FAB ("+"/trash) and its menus are fixed to the bottom-right corner,
+  // under the docked inspector: they move left by its width while it's open.
+  const fabShift = inspectorProfile && canInteract ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width) : 0;
 
   const router = useRouter();
 
@@ -1372,8 +1469,26 @@ export default function CanvasBoard({
       // Escape — clear selection. Non-destructive, so it keeps the old
       // NEGATIVE guard (anything but text fields / editor surfaces), which
       // also covers focus on <body>.
+      // Phase 2: F6 moves focus between the canvas and the open inspector
+      // (both ways — it runs before the editor guard on purpose).
+      if (e.key === "F6" && inspectorCardIdRef.current) {
+        const active = document.activeElement as HTMLElement | null;
+        const inInspector = !!active?.closest?.('aside[aria-label="Inspector"]');
+        e.preventDefault();
+        if (inInspector) canvasWrapperRef.current?.focus({ preventScroll: true });
+        else if (inspectorCollapsedRef.current) expandInspectorRef.current();
+        else document.getElementById(INSPECTOR_TITLE_ID)?.focus({ preventScroll: true });
+        return;
+      }
+
       if (e.key === "Escape") {
         if (isEditingInput(e)) return;
+        // Phase 2 Esc layering, on the canvas: a first Esc closes the open
+        // inspector (focus stays on the canvas), the next one deselects.
+        if (inspectorCardIdRef.current) {
+          setInspectorCardId(null);
+          return;
+        }
         if (selIdsRef.current.size) announceRef.current?.("Selección vacía");
         setSelectedIds(new Set());
         return;
@@ -2507,7 +2622,7 @@ export default function CanvasBoard({
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
     handleMouseMoveParallax(e);
     if(creatingCard&&drawingRect){const cc=toCanvasCoords(e.clientX,e.clientY);setDrawingRect(p=>p?{...p,currentX:cc.x,currentY:cc.y}:null);return;}
-    if(selRect&&!dragging&&!resizing&&!rotating){setSelRect(p=>p?{...p,currentX:e.clientX,currentY:e.clientY}:null);return;}
+    if(selRect&&!dragging&&!resizing&&!rotating){const sc=toCanvasCoords(e.clientX,e.clientY);setSelRect(p=>p?{...p,currentX:sc.x,currentY:sc.y}:null);return;}
     handleDragMove(e);
   }
 
@@ -2899,8 +3014,8 @@ export default function CanvasBoard({
           "aria-label": "Lienzo",
           "aria-describedby": "mnemo-canvas-help",
           "aria-keyshortcuts": isMacUi
-            ? "ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight Meta+ArrowUp Meta+ArrowDown Meta+ArrowLeft Meta+ArrowRight Meta+Shift+ArrowUp Meta+Shift+ArrowDown Meta+Shift+ArrowLeft Meta+Shift+ArrowRight [ ] Enter Delete Backspace Escape"
-            : "ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight Control+ArrowUp Control+ArrowDown Control+ArrowLeft Control+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown Control+Shift+ArrowLeft Control+Shift+ArrowRight [ ] Enter Delete Backspace Escape",
+            ? "ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight Meta+ArrowUp Meta+ArrowDown Meta+ArrowLeft Meta+ArrowRight Meta+Shift+ArrowUp Meta+Shift+ArrowDown Meta+Shift+ArrowLeft Meta+Shift+ArrowRight [ ] Enter Delete Backspace Escape F6"
+            : "ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight Control+ArrowUp Control+ArrowDown Control+ArrowLeft Control+ArrowRight Control+Shift+ArrowUp Control+Shift+ArrowDown Control+Shift+ArrowLeft Control+Shift+ArrowRight [ ] Enter Delete Backspace Escape F6",
           className: "mn-canvas",
           onMouseDownCapture: onCanvasMouseDownCapture,
         } : {})}
@@ -2917,7 +3032,10 @@ export default function CanvasBoard({
         zIndex: 1,
         overflow: "hidden",
         flexShrink: 0,
-        transform: !canEdit ? `scale(${viewerScale})` : undefined,
+        // Phase 2: the docked inspector's VIEW offset (inspectorViewOffset.ts)
+        // — a pure translate of the canvas; card.x/y are never written and
+        // every pointer→canvas conversion reads this element's rect.
+        transform: !canEdit ? `scale(${viewerScale})` : viewDx ? `translate3d(${-viewDx}px,0,0)` : undefined,
         transformOrigin: "top left",
         ...(!canEdit ? { animation: "land-reveal 0.18s ease both" } : {}),
       }}
@@ -2973,7 +3091,10 @@ export default function CanvasBoard({
           e.preventDefault();
           selChangedRef.current = false;
           setSelectedIds(new Set());setMenuOpen(false);setCardMenuId(null);setCardMenuRect(null);setGbMenuId(null);setGbMenuRect(null);setEditingId(null);setEditingTextId(null);
-          setSelRect({startX:e.clientX,startY:e.clientY,currentX:e.clientX,currentY:e.clientY});
+          // Phase 2: canvas coordinates (toCanvasCoords reads the wrapper's
+          // rect) — identical to client coords without a view offset, and
+          // still correct while the inspector's offset is frozen mid-gesture.
+          {const sc=toCanvasCoords(e.clientX,e.clientY);setSelRect({startX:sc.x,startY:sc.y,currentX:sc.x,currentY:sc.y});}
         }} />
 
 
@@ -3174,7 +3295,13 @@ export default function CanvasBoard({
           // true exactly while THIS profile is being manually resized, so
           // ProfileCard.tsx's growth effect can stay out of the way for the
           // whole gesture instead of fighting the drag tick by tick.
-          isResizing={resizing?.type==="profile" && resizing.id===prof.id} />);
+          isResizing={resizing?.type==="profile" && resizing.id===prof.id}
+          // Menu redesign Phase 2: the docked inspector (state lives here —
+          // the view offset and the FAB shift depend on it).
+          inspectorOpen={inspectorEnabled && inspectorCardId===prof.id}
+          inspectorView={inspectorView}
+          onInspectorChange={handleInspectorChange}
+          onInspectorExpand={expandInspector} />);
       })}
 
 
@@ -3551,7 +3678,7 @@ export default function CanvasBoard({
 
       {/* ── Trash FAB ── */}
       {!isReadOnly && view === "canvas" && (
-      <div ref={trashRef} style={{position:"fixed",bottom:20,right:20,zIndex:1000}}>
+      <div ref={trashRef} style={{position:"fixed",bottom:20,right:20+fabShift,zIndex:1000}}>
         {isActive?(
           <div style={{width:38,height:38,borderRadius:"50%",border:overTrash?"1px solid rgba(255,80,60,0.5)":"1px solid rgba(255,255,255,0.08)",background:overTrash?"rgba(255,50,30,0.15)":"rgba(10,10,12,0.9)",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)"}}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={overTrash?"rgba(255,100,80,0.9)":"rgba(255,255,255,0.3)"} strokeWidth="1.8" strokeLinecap="round">
@@ -3578,7 +3705,7 @@ export default function CanvasBoard({
         // closes it and returns focus to "+".
         <div data-mnemo-ui="" id="mnemo-add-menu" role="group" aria-label="Agregar elemento" tabIndex={-1}
           onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();closeAddMenu();}}}
-          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface({position:"fixed",bottom:66,right:20,padding:4,zIndex:1000,width:180,boxSizing:"border-box"})}}>
+          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface({position:"fixed",bottom:66,right:20+fabShift,padding:4,zIndex:1000,width:180,boxSizing:"border-box"})}}>
           {[
             // Stage 4.2-C.2.1: "New Card" (generic standalone CanvasCard),
             // "Links", "Media" and "Guestbook" were removed from here —
@@ -3621,7 +3748,7 @@ export default function CanvasBoard({
       {!isReadOnly && view === "canvas" && menuOpen && wallpaperMenuOpen && (
         <div data-mnemo-ui="" id="mnemo-myland-settings" role="region" aria-label="Ajustes de MyLand" tabIndex={-1}
           onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setWallpaperMenuOpen(false);requestAnimationFrame(()=>mylandBtnRef.current?.focus({preventScroll:true}));}}}
-          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface({position:"fixed",bottom:66,right:206,padding:16,zIndex:1000,width:256,boxSizing:"border-box",maxHeight:"calc(100vh - 140px)",overflowY:"auto",display:"flex",flexDirection:"column",fontFamily:SANS})}}>
+          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface({position:"fixed",bottom:66,right:206+fabShift,padding:16,zIndex:1000,width:256,boxSizing:"border-box",maxHeight:"calc(100vh - 140px)",overflowY:"auto",display:"flex",flexDirection:"column",fontFamily:SANS})}}>
           <MenuSection label="Fondo" first>
             {/* Block 1: picking a color no longer also clears the wallpaper
                 (it used to enqueue set_wallpaper:"" on every input tick). The

@@ -50,6 +50,8 @@
 |---|---|---|
 | 1. Cimientos | EffectState/bindEffect (card + Music), defaults de rol, matriz capacidad→ruta, una sola fuente de tokens del editor (`editor.css` ↔ `T.ui`, hoy divergen) + test-guardia contra tokens legacy y `rgba(` literales en `src/ui` y los menús | Tests verdes, UI idéntica |
 | 2. Shell | InspectorShell acoplado + offset de vista + ObjectList, con las secciones actuales montadas por objeto | Toda capacidad alcanzable; teclado OK |
+
+> Fase 2: el breakpoint del overlay del inspector es **992 px** (no 960): `inspectorW` 320 + el ancho máximo de la card (640, `getFreeformCardBounds`) + 16 px de margen a cada lado. Con 960 la card más ancha quedaría tapada en modo acoplado (`T.ui.breakpoint.inspectorOverlay`, test en `uiTokens.test.ts`).
 | 3. Texto | StyleObjectCard por rol, "Todos los textos", pickers visuales y Más ajustes | "Nombre" y "Bio" en ≤4 clics |
 | 4. Efectos | EffectTile/TileGroup, acordeón, Activos (N), pausa visible; Foto y Music sobre los mismos tiles | Paridad de capacidades |
 | 5. Canvas ↔ inspector | `data-role`, navegación en 2 clics, resolveClickAfterDrag extendido, resaltado del objetivo y eco | Sin regresión de drag ni de 3B.4 |

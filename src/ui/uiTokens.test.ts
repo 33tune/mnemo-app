@@ -16,6 +16,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { stripComments } from "@/lib/sourceScan";
 import { T, uiCssVars, uiCssVarsStylesheet, UI_VARS_SCOPE } from "./tokens";
+import { getFreeformCardBounds } from "@/lib/cardGeometry";
 
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -115,9 +116,11 @@ const MENU_FILES = [
   "src/components/canvas/BlockStyleFields.tsx",
   "src/components/canvas/RoleTypographyFields.tsx",
   "src/components/canvas/MusicCardWidget.tsx",
+  // Phase 2: the inspector's own canvas-side pieces.
+  "src/components/canvas/ObjectList.tsx",
+  "src/components/canvas/ProfileInspector.tsx",
 ];
 const MENU_LEGACY_BASELINE: Record<string, number> = {
-  "src/components/canvas/ProfileConfigMenu.tsx": 2,
   "src/components/canvas/ProfileIdentityMenu.tsx": 5,
   "src/components/canvas/MusicCardWidget.tsx": 8,
 };
@@ -183,4 +186,29 @@ test("card render never reads editor variables (they only exist inside the edito
   ]) {
     assert.ok(!stripComments(read(f)).includes("--ui-"), `${f} reads --ui-* (undefined on the public page)`);
   }
+});
+
+// ── Phase 2: docked inspector tokens ───────────────────────────────────────
+
+test("inspector stacking: under Music's floating menu and ColorPopover, above canvas chrome/topbar", () => {
+  assert.equal(T.z.inspector, T.z.menu - 1);
+  assert.ok(T.z.inspector < T.z.popover);
+  assert.ok(T.z.inspector > 1000, "above the FAB (1000) and the topbar (800)");
+});
+
+test("overlay breakpoint leaves room for the widest card beside the docked inspector", () => {
+  // inspectorW + the widest ProfileCard + a 16px gutter on each side: above
+  // the breakpoint, the view offset can always uncover the whole card.
+  const need = T.ui.size.inspectorW + getFreeformCardBounds().maxW + 2 * 16;
+  assert.ok(T.ui.breakpoint.inspectorOverlay >= need, `${T.ui.breakpoint.inspectorOverlay} < ${need}`);
+  assert.equal(T.ui.size.inspectorW, 320);
+  assert.equal(T.ui.size.objChip, 32);
+});
+
+test("the docked inspector and the object chips are styled by editor.css (incl. forced colors / reduced motion)", () => {
+  assert.match(css, /\.mn-panel\.mn-panel--docked\[data-mnemo-editor\]\s*\{[^}]*border-radius:\s*0/);
+  assert.match(css, /\.mn-objchip\s*\{[^}]*height:\s*var\(--ui-size-obj-chip\)[^}]*border-radius:\s*var\(--ui-radius-chip\)/);
+  assert.match(css, /\.mn-objchip\[aria-selected="true"\]\s*\{[^}]*border:\s*2px solid Highlight/);
+  assert.match(css, /\*::after\s*\{\s*transition-property/, "reduced motion covers ::after");
+  assert.match(css, /\.mn-canvas\[data-mnemo-canvas\]\s*\{\s*transition:\s*none !important/, "view offset is instant with reduced motion");
 });

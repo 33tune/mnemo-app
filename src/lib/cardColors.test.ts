@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { luminance, withOpacity, resolveCardColors, interpolateMulticolor, colorForLetterIndex, toHexInputValue, keepAlphaOf, colorAlpha } from "./cardColors";
+import { luminance, withOpacity, resolveCardColors, interpolateMulticolor, colorForLetterIndex, toHexInputValue, keepAlphaOf, colorAlpha, cardBaseColor, cardIsLight, inheritableColorState, CARD_BASE_COLOR_ON_LIGHT, CARD_BASE_COLOR_ON_DARK } from "./cardColors";
 
 test("withOpacity: converts hex to rgba with given alpha", () => {
   assert.equal(withOpacity("#ffffff", 0.5), "rgba(255,255,255,0.5)");
@@ -93,4 +93,32 @@ test("keepAlphaOf: preserves a translucent previous alpha, passes opaque through
   assert.equal(keepAlphaOf("#00ff00", "#ffffff80"), "rgba(0,255,0,0.502)");
   assert.equal(colorAlpha("rgba(1,2,3,0.055)"), 0.055);
   assert.equal(colorAlpha("rgb(1,2,3)"), 1);
+});
+
+// ── Menu redesign Phase 2: base color ("Color de todos los textos") ────────
+
+test("cardBaseColor: the stored textColor wins; else dark ink on a light card, white otherwise (ProfileCard.tsx's old formula)", () => {
+  const base = { id: "p", x: 0, y: 0, w: 300, h: 300, zIndex: 0, layer: 1, depth: 0, rotation: 0 } as unknown as import("@/types").ProfileCardData;
+  assert.equal(cardBaseColor({ ...base, textColor: "#123456" }), "#123456");
+  assert.equal(cardBaseColor({ ...base, effects: { bg: { color: "#f5f5f5" } } }), CARD_BASE_COLOR_ON_LIGHT);
+  assert.equal(cardBaseColor({ ...base, effects: { bg: { color: "#111111" } } }), CARD_BASE_COLOR_ON_DARK);
+  assert.equal(cardBaseColor({ ...base, bgColor: "#ffffff" }), CARD_BASE_COLOR_ON_LIGHT, "legacy bgColor is read through getProfileCardEffects");
+  assert.equal(cardIsLight({ ...base, effects: { bg: { color: "#ffffff" } } }), true);
+  assert.equal(CARD_BASE_COLOR_ON_LIGHT, "#0f0f0f");
+  assert.equal(CARD_BASE_COLOR_ON_DARK, "#ffffff");
+});
+
+test("inheritableColorState: an override is modified (reset deletes it), absence inherits", () => {
+  assert.equal(inheritableColorState("#ff0000"), "modified");
+  assert.equal(inheritableColorState(undefined), "inherited");
+  assert.equal(inheritableColorState(""), "inherited");
+});
+
+test("role colors without an override derive from the base color (what 'hereda de Todos los textos' promises)", () => {
+  const a = resolveCardColors("#ff0000");
+  const b = resolveCardColors("#00ff00");
+  for (const role of ["name", "handle", "descriptor", "location", "bio", "views"] as const) {
+    assert.notEqual(a[role], b[role], role);
+    assert.equal(resolveCardColors("#ff0000", { [role]: "#0000ff" })[role], "#0000ff", `${role} override wins`);
+  }
 });
