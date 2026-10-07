@@ -1,5 +1,10 @@
 # Plan de implementación — Editor MNEMO
 
+> **ESTADO (2026-10-07):** las Fases 1 y 2 de este plan están terminadas y mergeadas en `main`.
+> Las Fases 3–7 quedaron **reemplazadas** por `myland-editor-v3-plan.md`, el plan para implementar el diseño
+> MYLAND Editor v3 de Claude Design. Este documento queda como histórico, con su arquitectura K y su lista L
+> de regresiones como referencia.
+
 ## K. Arquitectura de componentes
 | Pieza | Responsabilidad | Ubicación |
 |---|---|---|

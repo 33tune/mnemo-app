@@ -1,5 +1,9 @@
 # Dirección de diseño — Editor MNEMO (Menu Redesign)
 
+> **ESTADO (2026-10-07):** la dirección visual "Darkroom" y los valores visuales de este documento quedaron
+> **reemplazados** por el diseño MYLAND Editor v3 de Claude Design. Ver `myland-editor-v3-plan.md`.
+> Siguen vigentes el modelo objeto-primero, las reglas de capacidades y las alternativas rechazadas.
+
 > Decidida el 2026-10-05 por el equipo especializado, sobre el código en `b69b635`. Participaron UX/Product Lead,
 > Interaction, Visual/UI, Design Systems, UX Critic, Accessibility y Behavioral. Pasó por inspección dirigida →
 > matriz deduplicada → debate D1–D8 → borrador del UX Lead → firma con enmiendas de Interaction, Visual y DS.

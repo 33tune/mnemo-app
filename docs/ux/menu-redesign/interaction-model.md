@@ -1,5 +1,8 @@
 # Modelo de interacción — Editor MNEMO
 
+> **ESTADO (2026-10-07):** sigue vigente en flujos, foco, teclado y accesibilidad, salvo donde
+> `myland-editor-v3-plan.md` lo cambia (bottom sheet en pantallas angostas, dock de 360px, historial).
+
 ## C. Flujos
 **Abrir.**
 - Card seleccionada + "Editar" (o Enter) abre el inspector acoplado. El foco va al h2 del objeto, y Esc lo devuelve a "Editar".

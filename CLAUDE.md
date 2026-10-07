@@ -7,10 +7,34 @@ planeado acá hasta confirmarlo.
 
 ## MNEMO — CURRENT PROJECT CHECKPOINT
 
-**Checkpoint actualizado el 2026-10-06, al cerrar la Fase 2 (Inspector
+> **CHECKPOINT VIGENTE (2026-10-07): implementación del diseño "MYLAND Editor v3" de
+> Claude Design.**
+>
+> **Leer primero `docs/ux/menu-redesign/myland-editor-v3-plan.md`.** Ese documento
+> es la fuente de verdad del trabajo en curso:
+> - checkpoint (§ 1) y siguiente acción exacta;
+> - Design System de MYLAND y relación con Claude Design;
+> - fases `0 → A → B → C → D → F → E → G → H` (después `I`);
+> - sistemas protegidos;
+> - decisiones de Undo/Redo, temas, Layers y Grid;
+> - riesgos y lo que queda fuera de alcance.
+>
+> **Estado:**
+> - `main` = `origin/main` = `44f4acc`, que incluye las Fases 1 y 2.
+> - Branch de trabajo: **`feature/myland-editor-v3`**. Se mergea a `main` por fase y
+>   solo con OK explícito del usuario.
+> - Fase 0 (docs) hecha con el commit del checkpoint. **Fase A NO empezada.**
+>
+> **Siguiente acción:** fase A, con el OK del usuario.
+>
+> **Dirección visual:** "Darkroom" (monocromo), descrita más abajo, quedó **SUPERADA**
+> por el diseño de Claude Design: colores de marca y modos Light/Dark/OG solo del editor.
+>
+> **Si algo de abajo contradice el plan v3, manda el plan v3.**
+
+**Checkpoint anterior: 2026-10-06, al cerrar la Fase 2 (Inspector
 acoplado + lista de objetos) del rediseño de menús** (antes: 2026-10-05,
-Fase 1). Esta sección es la fuente de verdad vigente sobre el
-estado del proyecto. Donde contradiga secciones más viejas de este archivo,
+Fase 1). Donde contradiga secciones más viejas de este archivo,
 en particular "La próxima sesión" al final, que todavía apunta a Responsive
 como próximo paso, manda esta sección.
 
@@ -32,9 +56,10 @@ como próximo paso, manda esta sección.
     cambios visibles: el CSS resuelto es idéntico (comparación mecánica y
     206 estilos computados en Chromium, 0 diferencias).
 - **Fase 2 (Inspector acoplado + lista de objetos): TERMINADA (2026-10-06).**
-  - Commit `feat: implement menu editor inspector phase 2`, sobre `06a1cc9`,
-    en la misma branch `claude/zealous-goldberg-xlerxx` (pendiente de
-    merge a `main`). Detalle en "Qué quedó implementado en la Fase 2".
+  - Commit `feat: implement menu editor inspector phase 2` (`44f4acc`),
+    sobre `06a1cc9`. **Las Fases 1 y 2 se mergearon a `main` (fast-forward,
+    2026-10-06): `main` = `44f4acc`.** Detalle en "Qué quedó implementado en
+    la Fase 2".
   - Verificación: `npm test` 504/504, `tsc` y `next build` limpios
     (13/13 páginas).
   - Revisión:
@@ -64,11 +89,11 @@ como próximo paso, manda esta sección.
     Hay que leerlos ANTES de implementar. Superan a la "Dirección UX/UI
     aprobada" de abajo (facetas como entrada, filas resumen en texto) y a
     las propuestas anteriores donde se contradigan.
-  - **Fases 1 y 2 cerradas.**
-  - **Próximo paso:** QA manual en navegador de la Fase 2.
-  - **Después:** la **Fase 3 (Texto: placa espécimen por rol, pickers
-    visuales, "Más ajustes")** de `implementation-plan.md`, solo con el OK
-    explícito del usuario.
+  - **Fases 1 y 2 cerradas y en `main`.**
+  - **Las Fases 3–7 de `implementation-plan.md` quedaron reemplazadas** por
+    el plan MYLAND Editor v3 (`docs/ux/menu-redesign/myland-editor-v3-plan.md`).
+  - **Próximo paso:** la Fase A de ese plan, con el OK explícito del usuario.
+  - **Pendiente aparte:** la QA en navegador de la Fase 2.
 - **`.claude/settings.local.json` NO entra nunca en commits.** Commitear
   siempre con `git add -A -- . ':!.claude/settings.local.json'` o agregando
   rutas explícitas.
@@ -885,9 +910,9 @@ Si la sesión se pierde, **NO comenzar desde cero**. Primero verificar:
    (`git log --oneline -3`)
 7. el estado de `CLAUDE.md` (esta sección)
 
-Estado esperado: `main` y `origin/main` en el mismo commit, que es el de la
-Iteración 0 (o uno posterior documentado acá). La Fase 1 está en la branch
-`claude/zealous-goldberg-xlerxx` hasta que se mergee a `main`.
+Estado esperado: `main` y `origin/main` en `44f4acc` (Fases 1 y 2), o en
+uno posterior documentado acá. El trabajo en curso está en
+`feature/myland-editor-v3`.
 
 Después:
 - Recuperar el contexto desde este archivo y revisar el código real antes de
@@ -896,10 +921,11 @@ Después:
   respaldarlos antes de tocarlos. No resetear ni limpiar.
 - No asumir que hace falta una conversación anterior para reconstruir el
   proyecto.
-- **Próximo paso:** seguir el rediseño de menús.
-  1. Leer `docs/ux/menu-redesign/` (los tres documentos).
-  2. La Fase 1 está cerrada. Seguir con la Fase 2 de
-     `implementation-plan.md`, **solo con el OK explícito del usuario**.
+- **Próximo paso:** seguir el plan MYLAND Editor v3.
+  1. Leer `docs/ux/menu-redesign/myland-editor-v3-plan.md`, en especial
+     § 1 Checkpoint y § 6 Fases.
+  2. `git switch feature/myland-editor-v3`.
+  3. Arrancar la Fase A, **solo con el OK explícito del usuario**.
   - La QA en navegador de la Iteración 0 ya la hizo el usuario.
   - Antes de empezar, confirmar que el working tree solo tiene
     `settings.local.json` modificado.
