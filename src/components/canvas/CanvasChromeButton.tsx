@@ -21,6 +21,8 @@ interface Props {
    * Esc: panel → "Editar" → canvas → deselect). */
   onEscape?:     () => void;
   children?:     React.ReactNode;
+  /** Stable id (Phase B: the inspector host returns focus to "Editar"). */
+  id?:           string;
 }
 
 /**
@@ -37,13 +39,14 @@ interface Props {
  * overlapping image (hitStack.ts / peekHotControlAt).
  */
 export const CanvasChromeButton = forwardRef<HTMLButtonElement, Props>(function CanvasChromeButton(
-  { icon, label, onActivate, style, expanded, controls, pressed, onMouseDown, onEscape, children },
+  { icon, label, onActivate, style, expanded, controls, pressed, onMouseDown, onEscape, children, id },
   ref,
 ) {
   return (
     <span {...{ [EDITOR_UI_ATTR]: "" }} style={{ position: "absolute", zIndex: 20, display: "inline-flex", ...style }}>
       <button
         ref={ref}
+        id={id}
         type="button"
         // Review r2 (Critic-4): the hot-control marker sits on the BUTTON —
         // hitStack's forwarded mousedown/click must reach its handlers.

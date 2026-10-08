@@ -258,7 +258,9 @@ export const T = {
     /** Editor font stacks as variables (--ui-font-sans …) for editor.css. */
     font: UI_FONT,
     opacity: { disabled: 0.38 },
-    radius: { panel: 16, group: 12, control: 8, segment: 6, chip: 999, field: 12, pill: 7, button: 10, segTrack: 10, segThumb: 8 },
+    radius: { panel: 16, group: 12, control: 8, segment: 6, chip: 999, field: 12, pill: 7, button: 10, segTrack: 10, segThumb: 8,
+      /** Editor v3 Phase B: top corners of the bottom sheet (design screen 10). */
+      sheet: 28 },
     size:   {
       panelPad: 16, row: 32, control: 28, swatch: 24, icon: 16,
       /** Menu redesign Phase 2: the docked inspector's width (InspectorShell). */
@@ -268,11 +270,13 @@ export const T = {
       /** v3 controls (plan §3): switch 40×24 / knob 20, slider thumb 18, button 34. */
       switchW: 40, switchH: 24, knob: 20, thumb: 18, button: 34,
     },
-    /** Menu redesign Phase 2: below this viewport width the inspector stops
-     * docking (view offset) and overlays the canvas instead. Must leave room
-     * for the widest ProfileCard next to the inspector — see uiTokens.test.ts
-     * (inspectorW + getFreeformCardBounds().maxW + 2 × 16px gutter). */
-    breakpoint: { inspectorOverlay: 992 },
+    /** Below this viewport width the inspector stops docking and becomes a
+     * bottom sheet (Editor v3 Phase B; Phase 2 used a right overlay here).
+     * The design says "under ~900px"; the value stays 992 because the dock
+     * must leave room for the widest ProfileCard next to it — see
+     * uiTokens.test.ts (inspectorW + getFreeformCardBounds().maxW + 2 × 16px
+     * gutter). Phase D (dock 360px) recomputes it from the same rule. */
+    breakpoint: { inspectorSheet: 992 },
     shadow: {
       panel:   th("panelShadow"),
       popover: th("popShadow"),

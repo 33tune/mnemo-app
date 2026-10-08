@@ -1,24 +1,29 @@
 // Menu redesign Phase 2 — the docked inspector's VIEW offset (pure math).
+// Editor v3 Phase B: the right overlay became a bottom sheet (below).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inspectorLayout, inspectorViewOffset, freezeViewOffset, shouldFreezeOnPointerDown, INSPECTOR_GUTTER } from "./inspectorViewOffset";
+import {
+  inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown,
+  INSPECTOR_GUTTER, SHEET_MAX_SHARE, SHEET_MIN_PX, SHEET_MIN_SHARE, SHEET_OPENER_RESERVE,
+} from "./inspectorViewOffset";
 import { centerCardPosition, getFreeformCardBounds } from "./cardGeometry";
 import { T } from "@/ui/tokens";
 
 const W = T.ui.size.inspectorW;
-const BP = T.ui.breakpoint.inspectorOverlay;
+const BP = T.ui.breakpoint.inspectorSheet;
+const TOP = 44;
 
-test("layout: docked at/above the breakpoint, overlay below it (never wider than the viewport − gutters)", () => {
-  assert.deepEqual(inspectorLayout({ viewportW: 1440, inspectorW: W, overlayBreakpoint: BP }), { overlay: false, width: W });
-  assert.deepEqual(inspectorLayout({ viewportW: BP, inspectorW: W, overlayBreakpoint: BP }), { overlay: false, width: W });
-  assert.deepEqual(inspectorLayout({ viewportW: BP - 1, inspectorW: W, overlayBreakpoint: BP }), { overlay: true, width: W });
-  assert.deepEqual(inspectorLayout({ viewportW: 300, inspectorW: W, overlayBreakpoint: BP }), { overlay: true, width: 300 - 2 * INSPECTOR_GUTTER });
+test("layout: docked at/above the breakpoint, a full-width bottom sheet below it", () => {
+  assert.deepEqual(inspectorLayout({ viewportW: 1440, inspectorW: W, sheetBreakpoint: BP }), { mode: "dock", width: W });
+  assert.deepEqual(inspectorLayout({ viewportW: BP, inspectorW: W, sheetBreakpoint: BP }), { mode: "dock", width: W });
+  assert.deepEqual(inspectorLayout({ viewportW: BP - 1, inspectorW: W, sheetBreakpoint: BP }), { mode: "sheet", width: BP - 1 });
+  assert.deepEqual(inspectorLayout({ viewportW: 390, inspectorW: W, sheetBreakpoint: BP }), { mode: "sheet", width: 390 });
 });
 
 test("the card is CENTERED in the visible area (viewport − inspector), not pushed against the inspector", () => {
   for (const [vw, w] of [[1920, 320], [1440, 600], [1200, 400], [BP, 640]] as const) {
     const { x } = centerCardPosition(vw, 1080, w, 300, 44);
-    const { dx, covered } = inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x, w }, overlay: false });
+    const { dx, covered } = inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x, w } });
     assert.equal(covered, false, `vw=${vw} w=${w}`);
     assert.equal(x + w / 2 - dx, (vw - W) / 2, "card center = visible-area center");
   }
@@ -26,7 +31,7 @@ test("the card is CENTERED in the visible area (viewport − inspector), not pus
 
 test("for the always-centered ProfileCard the offset is a constant inspectorW / 2 — resizing it does not move the view", () => {
   const vw = 1440;
-  const dxs = [240, 400, 640].map(w => inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x: centerCardPosition(vw, 900, w, 300, 44).x, w }, overlay: false }).dx);
+  const dxs = [240, 400, 640].map(w => inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x: centerCardPosition(vw, 900, w, 300, 44).x, w } }).dx);
   assert.deepEqual(dxs, [W / 2, W / 2, W / 2]);
 });
 
@@ -34,30 +39,66 @@ test("above the breakpoint the widest centered card always fits beside the inspe
   const { maxW } = getFreeformCardBounds();
   for (const vw of [BP, BP + 1, 1280, 1440, 2560]) {
     const { x } = centerCardPosition(vw, 900, maxW, 400, 44);
-    const r = inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x, w: maxW }, overlay: false });
+    const r = inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x, w: maxW } });
     assert.equal(r.covered, false, `vw=${vw}`);
     assert.ok(x - r.dx >= INSPECTOR_GUTTER, "left edge stays on screen");
   }
 });
 
 test("a box too wide to fit: the left edge never leaves the screen and `covered` says so", () => {
-  const r = inspectorViewOffset({ viewportW: 1000, inspectorW: W, box: { x: 40, w: 900 }, overlay: false });
+  const r = inspectorViewOffset({ viewportW: 1000, inspectorW: W, box: { x: 40, w: 900 } });
   assert.equal(r.dx, 40 - INSPECTOR_GUTTER);
   assert.equal(r.covered, true);
 });
 
-test("overlay (narrow viewport): offset when it uncovers the card, 0 only when it can't", () => {
-  // 900px, 240px card centered (x = 330): moving it 160px left uncovers it.
-  const fits = inspectorViewOffset({ viewportW: 900, inspectorW: W, box: { x: 330, w: 240 }, overlay: true });
-  assert.equal(fits.covered, false);
-  assert.equal(330 + 120 - fits.dx, (900 - W) / 2);
-  // 700px, 500px card: nothing uncovers it → no offset, reported covered.
-  assert.deepEqual(inspectorViewOffset({ viewportW: 700, inspectorW: W, box: { x: 100, w: 500 }, overlay: true }), { dx: 0, covered: true });
+// ── Phase B: bottom sheet (narrow viewport) ──────────────────────────────
+
+test("sheet height: the room under the element, within [max(200px, 40%), 60%] of the viewport", () => {
+  const vh = 844;
+  const max = Math.round(vh * SHEET_MAX_SHARE), min = Math.max(SHEET_MIN_PX, Math.round(vh * SHEET_MIN_SHARE));
+  assert.equal(inspectorSheetHeight({ viewportH: vh, topOffset: TOP, boxH: 300 }), Math.min(max, vh - TOP - SHEET_OPENER_RESERVE - 300 - 2 * INSPECTOR_GUTTER));
+  assert.equal(inspectorSheetHeight({ viewportH: vh, topOffset: TOP, boxH: 220 }), max, "a short card: capped at 60%");
+  assert.equal(inspectorSheetHeight({ viewportH: vh, topOffset: TOP, boxH: 700 }), min, "a tall card: never under the minimum");
+  assert.equal(inspectorSheetHeight({ viewportH: 400, topOffset: TOP, boxH: 300 }), SHEET_MIN_PX, "tiny viewport: the 200px floor (still <= 60%)");
+});
+
+test("sheet: the element sits ABOVE the sheet, centered between the topbar and the sheet — never over it when it fits", () => {
+  for (const [vh, h] of [[844, 220], [844, 360], [700, 260], [900, 300]] as const) {
+    const { y } = centerCardPosition(390, vh, 300, h, TOP);
+    const sheetH = inspectorSheetHeight({ viewportH: vh, topOffset: TOP, boxH: h });
+    const r = inspectorSheetOffset({ viewportH: vh, topOffset: TOP, sheetH, box: { y, h } });
+    assert.equal(r.covered, false, `vh=${vh} h=${h}`);
+    assert.ok(y - r.dy >= TOP + SHEET_OPENER_RESERVE + INSPECTOR_GUTTER - 0.5, "top (and its Editar opener, 38px above) never under the topbar");
+    assert.ok(y - r.dy - SHEET_OPENER_RESERVE >= TOP, "B-UX-2: Editar stays below the topbar");
+    assert.ok(y + h - r.dy <= vh - sheetH, "bottom above the sheet");
+  }
+});
+
+test("sheet: an element taller than the room is partly covered (reported) and never pushed under the topbar", () => {
+  const vh = 700, h = 520;
+  const { y } = centerCardPosition(390, vh, 300, h, TOP);
+  const sheetH = inspectorSheetHeight({ viewportH: vh, topOffset: TOP, boxH: h });
+  const r = inspectorSheetOffset({ viewportH: vh, topOffset: TOP, sheetH, box: { y, h } });
+  assert.equal(r.covered, true);
+  assert.equal(r.dy, Math.max(0, y - TOP - SHEET_OPENER_RESERVE - INSPECTOR_GUTTER));
+});
+
+test("sheet: the offset is never negative (never pushes the canvas down)", () => {
+  for (const y of [0, 44, 60]) {
+    assert.ok(inspectorSheetOffset({ viewportH: 844, topOffset: TOP, sheetH: 400, box: { y, h: 200 } }).dy >= 0);
+  }
+});
+
+test("freeze works on the whole view object (offset + sheet height)", () => {
+  const applied = { dx: 0, dy: 120, sheetH: 380, covered: false };
+  const computed = { dx: 0, dy: 90, sheetH: 420, covered: false };
+  assert.equal(freezeViewOffset(applied, computed, true), applied, "a resize mid-gesture neither slides the canvas nor resizes the sheet");
+  assert.equal(freezeViewOffset(applied, computed, false), computed);
 });
 
 test("the offset is never negative (never pushes the canvas right)", () => {
   for (const x of [-50, 0, 100, 400]) {
-    assert.ok(inspectorViewOffset({ viewportW: 1300, inspectorW: W, box: { x, w: 300 }, overlay: false }).dx >= 0);
+    assert.ok(inspectorViewOffset({ viewportW: 1300, inspectorW: W, box: { x, w: 300 } }).dx >= 0);
   }
 });
 
@@ -75,8 +116,8 @@ test("r2: a gesture freezes the view whenever an inspector is open — also when
   // dx = 0 → a resize that widens the card mid-drag: the computed offset
   // jumps, the applied one must not move until pointerup.
   const vw = 1100;
-  const before = inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x: 200, w: 100 }, overlay: false }).dx;
-  const during = inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x: 200, w: 600 }, overlay: false }).dx;
+  const before = inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x: 200, w: 100 } }).dx;
+  const during = inspectorViewOffset({ viewportW: vw, inspectorW: W, box: { x: 200, w: 600 } }).dx;
   assert.equal(before, 0, "the gesture starts with no offset applied");
   assert.notEqual(before, during);
   const frozen = shouldFreezeOnPointerDown(true, before);

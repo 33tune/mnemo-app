@@ -28,7 +28,11 @@ planeado acá hasta confirmarlo.
 >   commiteada y pusheada en `feature/myland-editor-v3`. **No mergeada a `main`.** Detalle y
 >   pendientes en el plan (§ 1 y § 6, Fase A). Sin QA en navegador todavía.
 >
-> **Siguiente acción:** QA en navegador de la Fase A; la Fase B solo con el OK del usuario.
+> - **Fase B (selección única del editor, `EditorHost` fuera de ProfileCard, bottom sheet en
+>   angosto) TERMINADA (2026-10-08)**, commiteada y pusheada en `feature/myland-editor-v3`. **No
+>   mergeada a `main`.** Detalle y pendientes en el plan (§ 1 y § 6, Fase B).
+>
+> **Siguiente acción:** QA en navegador de las Fases A y B; la Fase C solo con el OK del usuario.
 >
 > **Dirección visual:** "Darkroom" (monocromo), descrita más abajo, quedó **SUPERADA**
 > por el diseño de Claude Design: colores de marca y modos Light/Dark/OG solo del editor.

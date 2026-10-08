@@ -63,7 +63,43 @@
 @media (max-resolution: 1dppx) {
   .mn-panel.mn-panel--docked[data-mnemo-editor] { border-left-width: 1px; }
 }
-.mn-panel.mn-panel--docked.mn-panel--overlay[data-mnemo-editor] { box-shadow: var(--ui-shadow-panel); }
+/* Editor v3 Phase B: the bottom sheet (narrow viewport, InspectorShell
+   mode "sheet") — same L1 surface, top hairline + rounded top corners, the
+   panel shadow for separation from the canvas above it; a decorative
+   grabber; 44px targets (close, collapsed bar). */
+.mn-panel.mn-panel--sheet[data-mnemo-editor] {
+  border: 0 solid var(--ui-line-panel);
+  border-top-width: 0.5px;
+  border-radius: var(--ui-radius-sheet) var(--ui-radius-sheet) 0 0;
+  box-shadow: var(--ui-shadow-panel);
+  /* Review B-UX-6: clear the home indicator on notched phones. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Review B-UX-4: enters from below and follows its height changes in step
+     with the canvas offset (reduced motion: instant, below). */
+  animation: mn-sheet-in var(--ui-motion-panel) var(--ui-motion-ease);
+  transition: height var(--ui-motion-base) var(--ui-motion-ease);
+}
+@keyframes mn-sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mn-panel.mn-panel--sheet[data-mnemo-editor] { animation: none; transition: none; }
+}
+:where([data-mnemo-editor]) .mn-inspector__grab {
+  display: block; flex-shrink: 0; width: 38px; height: 5px; margin: 8px auto 0;
+  border-radius: 999px; background: var(--ui-accent-switch-off);
+}
+:where([data-mnemo-editor]) .mn-inspector__bar {
+  flex: 1; width: 100%; min-height: 44px; margin: 0; padding: 0 16px; border: none; background: transparent; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; overflow: hidden;
+  border-radius: var(--ui-radius-sheet) var(--ui-radius-sheet) 0 0;
+  color: var(--ui-text-secondary);
+  font-family: var(--ui-font-sans); font-size: 13px; line-height: 16px; font-weight: 500;
+}
+:where([data-mnemo-editor]) .mn-inspector__bar-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where([data-mnemo-editor]) .mn-inspector__bar:hover { color: var(--ui-text-primary); background: var(--ui-surface-control); }
+:where([data-mnemo-editor]) .mn-inspector__bar:focus-visible { box-shadow: inset 0 0 0 2px var(--ui-accent-focus); }
 :where([data-mnemo-editor]) .mn-inspector__title { outline: none; border-radius: var(--ui-radius-segment); }
 :where([data-mnemo-editor]) .mn-inspector__title:focus-visible { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor]) .mn-inspector__tab {
@@ -530,6 +566,10 @@
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-well, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop { border: 1px solid ButtonText; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-gstop[aria-checked="true"] { border: 2px solid Highlight; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn--filled { border: 1px solid ButtonText; }
+  /* Phase B (A11y, pending from Phase A / Iteration 0): NumberField and the
+     inline value editor have no .mn-input class, so their box-shadow outline
+     vanished in forced colors — give them a real border too. */
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input { border: 1px solid ButtonText; }
   /* Iteration 0: where the color IS the information, keep it — wells, the
      picker's SV area / hue / alpha bars (gradients are dropped otherwise:
      an empty picker), the gradient bar and its stops. forced-color-adjust
@@ -554,6 +594,11 @@
   :where([data-mnemo-editor]) .mn-objchip__sample,
   :where([data-mnemo-editor]) .mn-objchip__thumb { forced-color-adjust: none; border: 1px solid CanvasText; }
   .mn-panel.mn-panel--docked[data-mnemo-editor] { border-left: 1px solid CanvasText; }
+  .mn-panel.mn-panel--sheet[data-mnemo-editor] { border-top: 1px solid CanvasText; }
+  /* Review B-A11y-3: the bar touches the viewport edges — keep the forced-
+     colors focus outline inside it. */
+  :where([data-mnemo-editor]) .mn-inspector__bar { border: 1px solid ButtonText; outline-offset: -3px !important; }
+  :where([data-mnemo-editor]) .mn-inspector__grab { background: CanvasText; }
   :where([data-mnemo-editor]) .mn-inspector__tab { border: 1px solid ButtonText; }
   :where([data-mnemo-editor]) .mn-objchip__thumb--empty { border: 1px dashed CanvasText; }
   :where([data-mnemo-editor]) .mn-objlink { color: LinkText; }

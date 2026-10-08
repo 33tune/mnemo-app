@@ -220,11 +220,11 @@ test("inspector stacking: under Music's floating menu and ColorPopover, above ca
   assert.ok(T.z.inspector > 1000, "above the FAB (1000) and the topbar (800)");
 });
 
-test("overlay breakpoint leaves room for the widest card beside the docked inspector", () => {
+test("sheet breakpoint leaves room for the widest card beside the docked inspector", () => {
   // inspectorW + the widest ProfileCard + a 16px gutter on each side: above
   // the breakpoint, the view offset can always uncover the whole card.
   const need = T.ui.size.inspectorW + getFreeformCardBounds().maxW + 2 * 16;
-  assert.ok(T.ui.breakpoint.inspectorOverlay >= need, `${T.ui.breakpoint.inspectorOverlay} < ${need}`);
+  assert.ok(T.ui.breakpoint.inspectorSheet >= need, `${T.ui.breakpoint.inspectorSheet} < ${need}`);
   assert.equal(T.ui.size.inspectorW, 320);
   assert.equal(T.ui.size.objChip, 32);
 });
@@ -461,4 +461,9 @@ test("fields: opaque 1px edge BOTTOM line at rest (1.4.11), full edge ring on ho
   assert.ok(contrast(T.theme.light.edge, T.theme.light.panel) >= 3);
   // Geist Mono has no italic face: italic there is a synthetic oblique.
   assert.doesNotMatch(css, /\.mn-(value|hex)[^{]*\{[^}]*font-style:\s*italic/);
+});
+
+test("forced colors: NumberField / inline value editor keep a real border (their outline is a box-shadow)", () => {
+  const fc = css.slice(css.indexOf("@media (forced-colors: active)"));
+  assert.match(fc, /\.mn-value-input \{ border: 1px solid ButtonText; \}/);
 });

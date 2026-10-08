@@ -1,6 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useCallback, memo, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, memo, type CSSProperties } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects, ContactLink } from "@/types";
 import { getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
@@ -14,8 +13,8 @@ import { isEventFromNode } from "@/lib/editorGuards";
 import { resolveOpenerSpot } from "@/lib/openerPlacement";
 import { CanvasChromeButton } from "./CanvasChromeButton";
 import CardLayers from "./CardLayers";
-import { INSPECTOR_TITLE_ID } from "@/ui/InspectorShell";
-import ProfileInspector from "./ProfileInspector";
+import { profileEditButtonId, profileInspectorId } from "@/lib/editorSelection";
+import type { ProfileEditorFacts } from "./EditorHost";
 import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides, type LinksBlockInput } from "@/lib/cardComposition";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
@@ -70,7 +69,7 @@ const PFP_CENTER_POINT = [0.5] as const;
 // Minimum distance from the top of the canvas — same floor addProfile()
 // already uses in CanvasBoard.tsx (kept as a separate local constant there
 // rather than shared, see the vertical-recentering effect below for why).
-const CANVAS_TOP_OFFSET = 44;
+export const CANVAS_TOP_OFFSET = 44;
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -215,15 +214,19 @@ interface Props {
    * false so any caller that doesn't pass it keeps growth active, same
    * as before this prop existed. */
   isResizing?:       boolean;
-  /** Menu redesign Phase 2: the docked inspector is open for THIS card.
-   * Its open state lives in CanvasBoard.tsx (the view offset and the FAB
-   * shift depend on it); this card only renders it (portal to <body>). */
+  /** The inspector is open for THIS card. Editor v3 Phase B: the open
+   * state lives in the editor selection (editorSelection.ts) and the
+   * inspector is mounted by EditorHost (CanvasBoard level) — this card
+   * never mounts it; it only adapts its own render (links don't navigate,
+   * no grab cursor) and its "Editar" button. */
   inspectorOpen?:    boolean;
-  /** Inspector geometry decided by CanvasBoard (inspectorViewOffset.ts):
-   * width, narrow-viewport overlay, collapsed-to-a-tab (2.4.11). */
-  inspectorView?:    { width: number; overlay: boolean; collapsed: boolean };
-  onInspectorChange?: (cardId: string, open: boolean) => void;
-  onInspectorExpand?: () => void;
+  /** "Editar" activated: CanvasBoard opens the inspector, or focuses /
+   * expands the open one (it never closes it). */
+  onEditActivate?:   (cardId: string) => void;
+  /** Render-time facts the inspector needs (Links fit verdict, views),
+   * reported while the inspector is open — the host never recomputes the
+   * composition. */
+  onEditorFacts?:    (cardId: string, facts: ProfileEditorFacts) => void;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -249,15 +252,14 @@ function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
-  inspectorOpen = false, inspectorView, onInspectorChange, onInspectorExpand,
+  inspectorOpen = false, onEditActivate, onEditorFacts,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
   // Menu redesign Phase 2: "menu open" = this card's inspector is open.
   const menuOpen = inspectorOpen && !!canInteract;
   const cardRef = useRef<HTMLDivElement>(null);
-  const editBtnRef = useRef<HTMLButtonElement>(null);
-  const panelId = `mnemo-profile-editor-${card.id}`;
+  const panelId = profileInspectorId(card.id);
   // Review r2: same resolver as every canvas chrome control (on-canvas, not
   // under the topbar, clear of the resize handles; below-left before inside).
   const openerPos = resolveOpenerSpot(card, { w: viewportW ?? Number.POSITIVE_INFINITY, h: viewportH ?? Number.POSITIVE_INFINITY, topOffset: CANVAS_TOP_OFFSET });
@@ -1186,6 +1188,15 @@ function ProfileCard({
   // at all), which the menu treats as "say nothing" — never as "doesn't fit".
   const linksFits = composedResult ? blockFits(composedResult.boxes.links) : undefined;
 
+  // Editor v3 Phase B: the inspector lives in EditorHost (CanvasBoard
+  // level), so the render-time verdicts it shows travel up from here while
+  // it is open — the same values the inspector received as props before.
+  // Layout effect (review B-R4): reported before paint, so the host never
+  // shows a frame with missing / previous facts.
+  useLayoutEffect(() => {
+    if (menuOpen) onEditorFacts?.(card.id, { linksFits, viewCount });
+  }, [menuOpen, card.id, linksFits, viewCount, onEditorFacts]);
+
   // Logo (Product closeout) — layout-independent (renders the same whether
   // the card is composed or "free"), so it's a standalone function called
   // once from the main return below, not inside renderComposed()/renderFree().
@@ -1419,7 +1430,7 @@ function ProfileCard({
             of the fixed topbar. Focus returns here when the panel closes. */}
         {isSel && canInteract && (
           <CanvasChromeButton
-            ref={editBtnRef}
+            id={profileEditButtonId(card.id)}
             icon="pencil"
             label="Editar card de presentación"
             expanded={menuOpen}
@@ -1427,12 +1438,9 @@ function ProfileCard({
             style={{ top: openerPos.top, left: openerPos.left }}
             // Esc on "Editar" only hands focus to the canvas (CanvasChromeButton);
             // the inspector closes from inside (Esc / Cerrar) or from the canvas.
-            onActivate={() => {
-              if (!menuOpen) { onInspectorChange?.(card.id, true); return; }
-              // Already open: move focus to the inspector's h2 (never closes).
-              if (inspectorView?.collapsed) { onInspectorExpand?.(); return; }
-              document.getElementById(INSPECTOR_TITLE_ID)?.focus({ preventScroll: true });
-            }}
+            // Activation opens it, or moves focus to / expands the open one —
+            // never closes it (CanvasBoard, editor selection).
+            onActivate={() => onEditActivate?.(card.id)}
           />
         )}
 
@@ -1441,21 +1449,10 @@ function ProfileCard({
             no lock/rotate affordances. Resize stays until Forma/proporciones is designed. */}
         {isSel && canInteract && <ResizeHandles onResizeMD={onResizeMD} light={isLight} />}
 
-        {/* ── Inspector (Phase 2) ── docked aside, portaled to <body>: never
-            inside the canvas wrapper, whose view-offset transform would
-            re-anchor a position:fixed box. */}
-        {menuOpen && inspectorView && createPortal(
-          <ProfileInspector
-            id={panelId} card={card} baseColor={baseColor} linksFits={linksFits} viewCount={viewCount}
-            canvas={viewportW != null && viewportH != null ? { w: viewportW, h: viewportH, topOffset: CANVAS_TOP_OFFSET } : undefined}
-            onChange={patch => updateProfile(card.id, patch)}
-            onClose={() => onInspectorChange?.(card.id, false)}
-            returnFocusTo={() => editBtnRef.current}
-            top={CANVAS_TOP_OFFSET}
-            width={inspectorView.width} overlay={inspectorView.overlay} collapsed={inspectorView.collapsed}
-            onExpand={() => onInspectorExpand?.()}
-          />
-        , document.body)}
+        {/* Editor v3 Phase B: the inspector is NOT mounted here any more —
+            EditorHost (CanvasBoard level) mounts it from the editor
+            selection; this card only reports its render-time facts (effect
+            above, onEditorFacts). */}
       </div>
     </>
   );
@@ -1470,10 +1467,10 @@ function areProfilePropsEqual(prev: Props, next: Props): boolean {
     prev.parallaxTransform === next.parallaxTransform &&
     prev.currentUserId     === next.currentUserId &&
     prev.ownerUserId       === next.ownerUserId &&
-    prev.inspectorOpen     === next.inspectorOpen &&
-    prev.inspectorView?.width     === next.inspectorView?.width &&
-    prev.inspectorView?.overlay   === next.inspectorView?.overlay &&
-    prev.inspectorView?.collapsed === next.inspectorView?.collapsed
+    // Phase B: the inspector's geometry (width / sheet / collapsed) no
+    // longer reaches the card — only whether it is open, which changes the
+    // card's own render. onEditActivate / onEditorFacts are stable.
+    prev.inspectorOpen     === next.inspectorOpen
   );
 }
 export default memo(ProfileCard, areProfilePropsEqual);

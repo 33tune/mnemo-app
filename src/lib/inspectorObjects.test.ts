@@ -11,7 +11,7 @@ import {
   INSPECTOR_OBJECTS, OBJECT_IDS, OBJECT_FILES, DEFAULT_OBJECT, chipAccessibleName, nextTabIndex, formatViewCount,
   countActiveCardEffects, objectForRoute, filesMountedBy, inspectorObject, type ObjectId,
 } from "./inspectorObjects";
-import { createInspectorSession } from "./inspectorSession";
+import { createSelectionMemory as createInspectorSession } from "./editorSelection";
 import { capabilityMatrix, P, LIENZO } from "./editorCapabilities";
 import { getProfileCardEffects } from "./profileCardEffects";
 import { cardBaseColor } from "./cardColors";

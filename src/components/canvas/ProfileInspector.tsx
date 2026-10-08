@@ -1,10 +1,10 @@
 "use client";
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import type { ProfileCardData } from "@/types";
 import { InspectorShell } from "@/ui";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { inspectorObject, type ObjectId } from "@/lib/inspectorObjects";
-import { inspectorSession } from "@/lib/inspectorSession";
+import type { SelectionMemory } from "@/lib/editorSelection";
 import { INSPECTOR_TITLE_ID } from "@/ui/InspectorShell";
 import { ObjectList } from "./ObjectList";
 import ProfileConfigMenu from "./ProfileConfigMenu";
@@ -17,25 +17,32 @@ interface ProfileInspectorProps {
   linksFits?: boolean;
   viewCount?: number;
   canvas?:    { w: number; h: number; topOffset: number };
+  /** Controlled (Editor v3 Phase B): the active object comes from the
+   * editor selection (editorSelection.ts), never from local state. */
+  object:     ObjectId;
+  onSelectObject: (id: ObjectId) => void;
+  /** Session memory for the body's scroll per object. */
+  memory:     SelectionMemory;
   onChange:   (patch: Partial<ProfileCardData>) => void;
   onClose:    () => void;
   returnFocusTo: () => HTMLElement | null;
   top:        number;
   width:      number;
-  overlay:    boolean;
+  mode:       "dock" | "sheet";
+  height?:    number;
   collapsed:  boolean;
   onExpand:   () => void;
 }
 
-// Menu redesign Phase 2: the ProfileCard inspector = InspectorShell (docked
-// aside, header with the object's h2) + ObjectList (tablist) + the active
-// object's sections (tabpanel, ProfileConfigMenu). Remembers the active
-// object and each object's scroll per card for the session
-// (inspectorSession.ts).
+// The ProfileCard inspector = InspectorShell (docked aside or bottom sheet,
+// header with the object's h2) + ObjectList (tablist) + the active object's
+// sections (tabpanel, ProfileConfigMenu). Phase B: mounted by EditorHost
+// (CanvasBoard level), CONTROLLED by the editor selection; it only restores
+// and records the body scroll per object (session memory).
 export default function ProfileInspector({
-  id, card, baseColor, linksFits, viewCount, canvas, onChange, onClose, returnFocusTo, top, width, overlay, collapsed, onExpand,
+  id, card, baseColor, linksFits, viewCount, canvas, object, onSelectObject, memory,
+  onChange, onClose, returnFocusTo, top, width, mode, height, collapsed, onExpand,
 }: ProfileInspectorProps) {
-  const [object, setObject] = useState<ObjectId>(() => inspectorSession.activeObject(card.id));
   const bodyRef = useRef<HTMLDivElement>(null);
   const panelId = `mnemo-inspector-panel-${card.id}`;
   const obj = inspectorObject(object);
@@ -43,8 +50,7 @@ export default function ProfileInspector({
 
   function select(id: ObjectId) {
     if (id === object) return;
-    inspectorSession.setActiveObject(card.id, id);
-    setObject(id);
+    onSelectObject(id);
   }
   // r2: in-section links switch object; the link itself unmounts with the
   // old body, so focus goes to the new object's h2 (never <body>).
@@ -56,8 +62,8 @@ export default function ProfileInspector({
   useLayoutEffect(() => {
     if (collapsed) return;
     const body = bodyRef.current;
-    if (body) body.scrollTop = inspectorSession.scrollOf(card.id, object);
-  }, [object, card.id, collapsed]);
+    if (body) body.scrollTop = memory.scrollOf(card.id, object);
+  }, [object, card.id, collapsed, memory]);
 
   return (
     <InspectorShell
@@ -68,11 +74,12 @@ export default function ProfileInspector({
       returnFocusTo={returnFocusTo}
       top={top}
       width={width}
-      overlay={overlay}
+      mode={mode}
+      height={height}
       collapsed={collapsed}
       onExpand={onExpand}
       bodyRef={bodyRef}
-      onBodyScroll={e => inspectorSession.setScroll(card.id, object, e.currentTarget.scrollTop)}
+      onBodyScroll={e => memory.setScroll(card.id, object, e.currentTarget.scrollTop)}
     >
       <ObjectList active={object} onSelect={select} panelId={panelId}
         ctx={{ card, effective, baseColor, viewCount }} />

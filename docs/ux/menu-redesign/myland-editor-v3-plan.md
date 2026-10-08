@@ -43,7 +43,14 @@
     idéntico en los 3 temas y los menús legacy quedan en dark.
   - Ningún sistema protegido tocado. Pendientes registrados en § 6 (Fases B, D, F y G).
   - **Sin QA en navegador** (temas vía `localStorage["myland.editorTheme"]` = `light|dark|og`; todavía no hay selector).
-- **NO empezadas:** las fases B, C, D, F, E, G, H e I. **La Fase B arranca solo con el OK del usuario.**
+- **Fase A:** commit `19c3ce7`.
+- **Fase B (arquitectura del editor, D1 + D2): TERMINADA (2026-10-08)** en `feature/myland-editor-v3`, commit
+  `feat: implement MYLAND editor v3 phase B (editor selection, inspector host, bottom sheet)`. **No mergeada a `main`.**
+  - Revisión: Regresiones, Accesibilidad e Interaction/Visual, una ronda consolidada de correcciones y verificación de
+    cierre. Detalle y pendientes en § 6, Fase B.
+  - `npm test` 539/539, `tsc` limpio, `next build` 13/13. Ningún sistema protegido tocado.
+  - **Sin QA en navegador.**
+- **NO empezadas:** las fases C, D, F, E, G, H e I. **La Fase C arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -53,8 +60,8 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Fase A cerrada.** Siguiente: QA en navegador de la Fase A (y de la Fase 2), y **la Fase B** (§ 6) solo con el
-   OK del usuario, con el flujo de trabajo de § 9. Merge de la Fase A a `main` solo con OK explícito.
+6. **Fases A y B cerradas.** Siguiente: QA en navegador de las Fases 2, A y B, y **la Fase C** (§ 6) solo con el OK
+   del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
 
 ---
 
@@ -366,6 +373,37 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   - `inspectorSession.ts`, `inspectorViewOffset.ts`;
   - nuevos: `src/lib/editorSelection.ts`, `src/components/canvas/EditorHost.tsx`.
 - **Riesgo:** alto/medio, porque toca archivos sensibles.
+- **Estado: TERMINADA (2026-10-08)**, ver § 1. Qué quedó:
+  - `src/lib/editorSelection.ts`: reducer `{ selectedIds, target }` + `useEditorSelection()`. CanvasBoard reemplazó su
+    `useState` de selección (mismo contrato de `setSelectedIds`, las ~28 llamadas sin cambios) y el estado
+    `inspectorCardId`. Un target cuyo elemento deja la selección se cierra en el mismo update (antes: un efecto).
+    Absorbe `inspectorSession.ts` (borrado): objeto activo y scroll por card, en memoria.
+  - `src/components/canvas/EditorHost.tsx`: único lugar donde se monta el inspector (portal a `<body>`, fuera del
+    wrapper del canvas). `ProfileInspector` es controlado. ProfileCard ya no lo monta: recibe `onEditActivate` y
+    reporta `linksFits`/`viewCount` con `onEditorFacts` (layout effect); su comparador de memo ya no mira la geometría
+    del inspector. `CANVAS_TOP_OFFSET` (44, sin cambios) se exporta una sola vez desde ProfileCard.
+  - **Angosto: bottom sheet** (reemplaza el overlay de la Fase 2). Debajo del elemento: alto = el espacio que queda
+    bajo el elemento, entre max(200px, 40%) y 60% del viewport; el canvas sube (`dy`) para centrarlo entre la topbar y
+    el sheet, dejando 38px arriba para "Editar". Grabber decorativo, Cerrar y barra colapsada de 44px, radio 28,
+    entrada 220ms (instantánea con reduced motion), safe-area, contenido a 560px como máximo. Se colapsa a una barra
+    cuando el sheet tapa la card con el foco en el canvas, o tapa el elemento enfocado; el foco dentro del inspector
+    lo anula. El FAB y sus menús se ocultan con el sheet expandido (la papelera sigue apareciendo durante un drag).
+  - **Breakpoint:** el diseño dice "~900px"; queda en **992** (`T.ui.breakpoint.inspectorSheet`, antes
+    `inspectorOverlay`) porque el dock de 320 necesita espacio para la card más ancha (320 + 640 + 32). La Fase D lo
+    recalcula con el dock de 360.
+  - Pendiente de la Fase A hecho: borde en forced colors de `NumberField` / `.mn-value-input`.
+- **Pendientes (no bloquearon):**
+  - **Fase G:** el rotate de imagen y de Music usa el centro en coordenadas de canvas contra `clientX/Y`. Hoy no
+    importa (al seleccionarlos el inspector se cierra y el offset vuelve a 0), pero cuando G abra el inspector para
+    Imagen/Music con `dx/dy ≠ 0` hay que pasar el centro del DOM.
+  - **D/F:** al abrir sobre una card más alta que el espacio disponible, el sheet tapa su parte inferior hasta que el
+    foco vuelve al canvas (entonces se colapsa). Evaluar priorizar el objeto activo visible.
+  - **F:** chips de 44px en el sheet y header nuevo (ya previsto).
+  - **QA (NVDA):** si el foco estaba en "+" cuando el sheet se expande, el botón se desmonta y el foco llega al h2 en
+    el siguiente frame (rAF). Verificar que no se anuncie nada raro.
+  - **QA en navegador:** sheet a 390/700/900px y con zoom 200–400%; resize de la card con el sheet abierto; cambio
+    dock ↔ sheet al redimensionar la ventana; Esc/F6/Editar con el sheet colapsado; drag a la papelera con el sheet
+    abierto; `space_mobile`.
 
 ### Fase C: Controladores por objeto y deshacer/rehacer global (D3)
 - **Objetivo:** que todas las escrituras pasen por un controlador por tipo de objeto y por el historial.
