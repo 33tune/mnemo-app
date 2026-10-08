@@ -230,7 +230,7 @@ function SocialCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <MenuPanel pos={portalPos} label="Editor de Social" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
+        <MenuPanel pos={portalPos} theme="dark" label="Editor de Social" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
 
           {/* Header */}
           <div style={{ ...T.type.title, color: T.ui.text.primary, marginBottom: T.space[4] }}>

@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef } from "react";
-import { T } from "@/ui";
+import { T, uv } from "@/ui";
 import {
   INSPECTOR_OBJECTS, OBJECT_GROUPS, chipAccessibleName, nextTabIndex, type ChipContext, type ChipData, type ObjectId,
 } from "@/lib/inspectorObjects";
@@ -94,8 +94,8 @@ function ChipVisual({ data }: { data: ChipData }) {
   }
   if (data.links) {
     return (
-      <span className="mn-objchip__icons" aria-hidden="true">
-        {data.links.urls.map((u, i) => <PlatformIcon key={i} platform={detectPlatform(u)} size={14} color={T.ui.text.primary} />)}
+      <span className="mn-objchip__icons" aria-hidden="true" style={{ color: uv("text-primary") }}>
+        {data.links.urls.map((u, i) => <PlatformIcon key={i} platform={detectPlatform(u)} size={14} color="currentColor" />)}
         {data.links.more > 0 && <span className="mn-objchip__more">+{data.links.more}</span>}
       </span>
     );

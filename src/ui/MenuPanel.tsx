@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, type CSSProperties } from "react";
-import { T } from "./tokens";
+import { T, uv, type EditorThemeName } from "./tokens";
 import { EDITOR_ATTR, CANVAS_ATTR } from "@/lib/editorGuards";
 
 interface MenuPanelProps {
@@ -19,6 +19,11 @@ interface MenuPanelProps {
   returnFocusTo?: () => HTMLElement | null;
   /** id for the opener's aria-controls. */
   id?:         string;
+  /** MYLAND v3 (A7): lock this panel to one editor theme regardless of the
+   * user's preference (data-editor-theme on the root; tokens.ts emits the
+   * lock rule). Used ONLY by the legacy widgets (Links/Social/Stats/Music),
+   * whose menus keep the dark look in Light/OG. */
+  theme?:      EditorThemeName;
 }
 
 // Block 1 (editor safety):
@@ -49,7 +54,7 @@ interface MenuPanelProps {
 //   <body> by the panel's removal) and that element is still in the DOM.
 //   Most openers today are non-focusable gear divs, so this mostly matters
 //   for keyboard users who opened a menu from a real button.
-export function MenuPanel({ children, pos, width, onKeyDown, style, label, returnFocusTo, id }: MenuPanelProps) {
+export function MenuPanel({ children, pos, width, onKeyDown, style, label, returnFocusTo, id, theme }: MenuPanelProps) {
   // Floating panels (`pos`) take focus on mount — the gear that opens them
   // is a non-focusable div, so focus would otherwise stay on <body>: Escape
   // (onKeyDown below) wouldn't reach the panel until the user clicked
@@ -62,6 +67,7 @@ export function MenuPanel({ children, pos, width, onKeyDown, style, label, retur
       ref={rootRef}
       id={id}
       {...{ [EDITOR_ATTR]: "" }}
+      data-editor-theme={theme}
       role="dialog"
       aria-label={label ?? "Editor"}
       className="mn-panel"
@@ -85,8 +91,8 @@ export function MenuPanel({ children, pos, width, onKeyDown, style, label, retur
         maxHeight:     pos ? `calc(100vh - ${pos.top + 8}px)` : undefined,
         overflowY:     "auto",
         scrollbarWidth: "thin" as CSSProperties["scrollbarWidth"],
-        fontFamily:    T.font.sans,
-        color:         T.ui.text.primary,
+        fontFamily:    T.uiFont.sans,
+        color:         uv("text-primary"),
         outline:       "none",
         ...style,
       }}

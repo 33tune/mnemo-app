@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { ContactLink, ProfileCardData } from "@/types";
-import { T, MenuSection, MenuNote, SliderRow, TextInput, IconButton, refocusFieldControl } from "@/ui";
+import { T, uv, MenuSection, MenuNote, SliderRow, TextInput, IconButton, refocusFieldControl } from "@/ui";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
 import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
 import BlockStyleFields from "./BlockStyleFields";
@@ -78,10 +78,10 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
           {links.map(link => (
             <div key={link.id} data-mn-item="" style={{
               display: "flex", alignItems: "center", gap: 6,
-              background: T.ui.surface.group, boxShadow: `inset 0 0 0 0.5px ${T.ui.line.group}`,
+              background: uv("surface-group"), color: uv("text-secondary"), boxShadow: `inset 0 0 0 0.5px ${uv("line-group")}`,
               borderRadius: T.ui.radius.control, padding: "2px 2px 2px 10px", minHeight: T.ui.size.row,
             }}>
-              <PlatformIcon platform={detectPlatform(link.url)} size={12} color={T.ui.text.secondary} />
+              <PlatformIcon platform={detectPlatform(link.url)} size={12} color="currentColor" />
               {editingId === link.id ? (
                 <TextInput
                   value={editUrl}
@@ -100,7 +100,7 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
                 />
               ) : (
                 <span style={{
-                  ...T.type.value, color: T.ui.text.secondary, flex: 1, minWidth: 0,
+                  ...T.type.value, color: uv("text-secondary"), flex: 1, minWidth: 0,
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   {PLATFORM_LABELS[detectPlatform(link.url)]} · {link.url.replace(/^https?:\/\/(www\.)?/, "")}

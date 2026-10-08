@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { T } from "./tokens";
+import { T, uv } from "./tokens";
 import { useFieldLabelId } from "./MenuRow";
 import { useSectionHeadingId } from "./MenuSection";
 
@@ -50,10 +50,13 @@ export function TextInput({ value, onChange, placeholder, onKeyDown, mono, type 
       style={{
         display:       "block",
         width:         "100%",
-        height:        T.comp.inputH,
-        padding:       "0 10px",
-        fontFamily:    mono ? T.font.mono : T.font.sans,
-        fontSize:      mono ? T.size.xs : T.size.base,
+        // v3 field look: 40px = 11px + 18px line + 11px (padding 11/12),
+        // written as a height so call sites that override `height` keep
+        // their text vertically centered.
+        height:        40,
+        padding:       "0 12px",
+        fontFamily:    mono ? T.uiFont.mono : T.uiFont.sans,
+        fontSize:      mono ? T.type.value.fontSize : T.type.label.fontSize,
         letterSpacing: mono ? "0.02em" : 0,
         boxSizing:     "border-box",
         ...style,
@@ -98,13 +101,13 @@ export function TextArea({ value, onChange, placeholder, maxLength, rows = 2, la
         onChange={e => onChange(e.target.value)}
         onMouseDown={e => e.stopPropagation()}
         style={{
-          display: "block", width: "100%", padding: "6px 10px", boxSizing: "border-box",
-          fontFamily: T.font.sans, fontSize: T.size.base, lineHeight: 1.5, resize: "none",
+          display: "block", width: "100%", padding: "11px 12px", boxSizing: "border-box",
+          fontFamily: T.uiFont.sans, fontSize: T.type.label.fontSize, lineHeight: 1.5, resize: "none",
           ...style,
         }}
       />
       {maxLength != null && (
-        <span id={counterId} style={{ ...T.type.value, color: T.ui.text.secondary, alignSelf: "flex-end" }}>
+        <span id={counterId} style={{ ...T.type.value, color: uv("text-tertiary"), alignSelf: "flex-end" }}>
           {value.length}/{maxLength}
         </span>
       )}

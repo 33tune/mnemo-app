@@ -45,10 +45,13 @@ export function Collapsible({ label, children, defaultOpen = false }: Collapsibl
           textAlign:      "left",
         }}
       >
-        <span className="mn-collapse__chev" style={{ display: "inline-flex" }}>
-          <Icon name="chevron-right" size={12} />
+        {/* v3: a disclosure ROW ("Espaciado ›") - label first, chevron at
+            the end (rotates 90° open). r2: DS "control" role (550) so a
+            disclosure never reads like a field label (450). */}
+        <span style={{ ...T.type.control, color: "inherit", minWidth: 0 }}>{label}</span>
+        <span className="mn-collapse__chev" style={{ display: "inline-flex", marginLeft: "auto" }}>
+          <Icon name="chevron-right" size={14} />
         </span>
-        <span style={{ ...T.type.section, color: "inherit" }}>{label}</span>
       </button>
       <div id={bodyId} role="group" aria-labelledby={btnId} className="mn-collapse__body" data-open={open} inert={!open}>
         <div className="mn-collapse__inner">

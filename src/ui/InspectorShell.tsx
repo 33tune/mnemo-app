@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, type CSSProperties } from "react";
-import { T } from "./tokens";
+import { T, uv } from "./tokens";
 import { EDITOR_ATTR } from "@/lib/editorGuards";
 import { usePanelFocus } from "./MenuPanel";
 import { IconButton } from "./IconButton";
@@ -65,8 +65,8 @@ export function InspectorShell({
     zIndex:    T.z.inspector,
     display:   "flex",
     flexDirection: "column",
-    fontFamily: T.font.sans,
-    color:     T.ui.text.primary,
+    fontFamily: T.uiFont.sans,
+    color:     uv("text-primary"),
     outline:   "none",
   };
 
@@ -107,17 +107,17 @@ export function InspectorShell({
           <div className="mn-inspector__header" style={{
             display: "flex", alignItems: "center", gap: T.space[2],
             padding: `${T.space[3]}px ${T.ui.size.panelPad}px`,
-            boxShadow: `inset 0 -1px 0 ${T.ui.line.group}`,
+            boxShadow: `inset 0 -1px 0 ${uv("line-group")}`,
             flexShrink: 0,
           }}>
             <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
               {context && (
-                <span style={{ ...T.type.help, color: T.ui.text.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span style={{ ...T.type.help, color: uv("text-secondary"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {context}
                 </span>
               )}
               <h2 ref={titleRef} id={INSPECTOR_TITLE_ID} tabIndex={-1} className="mn-inspector__title" style={{
-                ...T.type.title, margin: 0, color: T.ui.text.primary,
+                ...T.type.title, margin: 0, color: uv("text-primary"),
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
               }}>
                 {title}

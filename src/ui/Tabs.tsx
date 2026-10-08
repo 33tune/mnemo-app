@@ -1,6 +1,6 @@
 "use client";
 import React, { useId, useRef } from "react";
-import { T } from "./tokens";
+import { T, uv } from "./tokens";
 import { useFieldLabelId } from "./MenuRow";
 
 interface Tab { id: string; label: string; }
@@ -46,7 +46,7 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
   if (variant === "underline") {
     return (
       <div role="tablist" {...nameProps} onKeyDown={onKeyDown}
-        style={{ display: "flex", gap: 2, boxShadow: `inset 0 -1px 0 ${T.ui.line.group}`, marginBottom: T.space[4] }}>
+        style={{ display: "flex", gap: 2, boxShadow: `inset 0 -1px 0 ${uv("line-group")}`, marginBottom: T.space[4] }}>
         {tabs.map((t, i) => {
           const selected = active === t.id;
           return (
@@ -85,9 +85,9 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
   return (
     <div role="radiogroup" {...nameProps} onKeyDown={onKeyDown}
       style={{
-        position: "relative", display: "flex", height: 32, padding: 2, boxSizing: "border-box",
-        background: T.ui.surface.group, borderRadius: T.ui.radius.control,
-        boxShadow: `inset 0 0 0 0.5px ${T.ui.line.group}`,
+        // v3 segmented: `field` track radius 10, `seg` thumb radius 8.
+        position: "relative", display: "flex", height: 34, padding: 2, boxSizing: "border-box",
+        background: uv("surface-group"), borderRadius: T.ui.radius.segTrack,
       }}>
       <div
         aria-hidden
@@ -96,9 +96,9 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
           position: "absolute", top: 2, bottom: 2, left: 2,
           width: `calc((100% - 4px) / ${n})`,
           transform: `translateX(${activeIndex * 100}%)`,
-          background: T.ui.surface.thumb,
-          borderRadius: T.ui.radius.segment,
-          boxShadow: T.ui.shadow.thumb,
+          background: uv("surface-thumb"),
+          borderRadius: T.ui.radius.segThumb,
+          boxShadow: uv("shadow-thumb"),
           pointerEvents: "none",
         }}
       />
@@ -120,9 +120,9 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
               flex:         1,
               background:   "transparent",
               border:       "none",
-              borderRadius: T.ui.radius.segment,
+              borderRadius: T.ui.radius.segThumb,
               cursor:       "pointer",
-              ...T.type.tab,
+              ...T.type.tab, fontWeight: selected ? 650 : 500,
               userSelect:   "none",
             }}
           >{t.label}</button>

@@ -41,14 +41,16 @@ export function FontSelect({ value, onChange, fonts, label }: FontSelectProps) {
       onChange={e => onChange(e.target.value)}
       onMouseDown={e => e.stopPropagation()}
       style={{
-        height: T.ui.size.control, padding: "0 10px", boxSizing: "border-box",
+        // v3 field look (same 40px / 12px as TextInput); the closed select
+        // renders the current family in itself.
+        height: 40, padding: "0 12px", boxSizing: "border-box",
         ...T.type.label, lineHeight: "normal",
-        fontFamily: current?.style ?? T.font.sans,
+        fontFamily: current?.style ?? T.uiFont.sans,
         width: "100%",
       }}
     >
       {fonts.map(f => (
-        <option key={f.key} value={f.key} style={{ fontFamily: f.style ?? T.font.sans }}>{f.label}</option>
+        <option key={f.key} value={f.key} style={{ fontFamily: f.style ?? T.uiFont.sans }}>{f.label}</option>
       ))}
     </select>
   );

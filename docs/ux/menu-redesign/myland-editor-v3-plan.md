@@ -34,8 +34,16 @@
   - Block 1, Block 2, Iteración 0;
   - Menu Redesign Fase 1 (Cimientos) y Fase 2 (Inspector acoplado + lista de objetos).
 - **Sin QA en navegador:** la Fase 2. El usuario sí probó la Iteración 0.
-- **NO empezadas:** las fases 0, A, B, C, D, F, E, G, H e I de este documento.
-  - La fase 0 se completa con el commit de este checkpoint.
+- **Fase 0 (docs):** hecha (`b5d40e2`).
+- **Fase A (tema, tipografía y controles): TERMINADA (2026-10-07)** en `feature/myland-editor-v3`, commit
+  `feat: implement MYLAND editor v3 phase A (themes, type, controls)`. **No mergeada a `main`.**
+  - 3 rondas de revisión (Visual, UX Critic, Accesibilidad, Regresiones). En la ronda 3 Regresiones dio APPROVE y
+    los otros tres APPROVE WITH NOTES.
+  - `npm test` 522/522, `tsc` limpio, `next build` 13/13. Harness estático Light/Dark/OG: el canvas renderiza
+    idéntico en los 3 temas y los menús legacy quedan en dark.
+  - Ningún sistema protegido tocado. Pendientes registrados en § 6 (Fases B, D, F y G).
+  - **Sin QA en navegador** (temas vía `localStorage["myland.editorTheme"]` = `light|dark|og`; todavía no hay selector).
+- **NO empezadas:** las fases B, C, D, F, E, G, H e I. **La Fase B arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -45,7 +53,8 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Arrancar la Fase A** (§ 6), solo con el OK del usuario, con el flujo de trabajo de § 9.
+6. **Fase A cerrada.** Siguiente: QA en navegador de la Fase A (y de la Fase 2), y **la Fase B** (§ 6) solo con el
+   OK del usuario, con el flujo de trabajo de § 9. Merge de la Fase A a `main` solo con OK explícito.
 
 ---
 
@@ -129,6 +138,28 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   | n1–n4 (tono de sección 01–04) | `#6B4EFF` `#E11D74` `#C2541A` `#5E7A00` | `#9B85FF` `#FF5C9D` `#FF8A3D` `#C6F432` | igual que light |
 
   El detalle completo está en el archivo de diseño: `glassEdge`, `glassBtn`, `panelShadow`, `segShadow`.
+- **Ajustes de contraste (Fase A, decisión A5).** La fuente es `src/ui/tokens.ts` (`T.theme`) y los mide `uiTokens.test.ts` (texto ≥ 4.5:1, no-texto con estado ≥ 3:1):
+
+  | Token | Tema | Diseño → implementado | Motivo |
+  |---|---|---|---|
+  | ink3 | light / og | `#A1A1AA` → `#69696F` | texto: 2.29:1 → 4.50:1 sobre `fieldHover` (placeholder y valor heredado en hover) |
+  | ink3 | dark | `#5F5F68` → `#8B8B91` | texto: 2.69:1 → 4.50:1 sobre `fieldHover` |
+  | ink2 | light / og | `#6B6B73` / `#66666E` → `#56565E` | jerarquía: ink2 7.27:1 vs ink3 5.45:1 sobre el panel (antes casi iguales) |
+  | ink2 | dark | `#9B9BA4` → `#B4B4BC` | jerarquía: 9.08:1 vs ink3 5.52:1 |
+  | pop | los 3 | `.78` / `.74` / `.80` → `.90` | labels ink2 del ColorPopover ≥ 4.5:1 sobre cualquier wallpaper (negro y blanco) |
+  | track (slider) | light / og · dark | `.09` → `.12` · `.10` → `.14` | track sin relleno más visible |
+  | segShadow | light · dark | + anillo `edge` 1px | segmento seleccionado ≥ 3:1 contra el track (más peso 650 vs 500) |
+  | edge (nuevo) | light / og · dark | `#8B8B93` · `#67676B` | borde ≥ 3:1 en panel y field: contorno de todos los campos, anillo del thumb del slider (Light/OG), anillo del segmento |
+  | picker wellBase / checker | light / og | damero oscuro → `#FFFFFF` / `#E4E4E7` | colores con alfa limpios en Light/OG |
+  | track2 (switch apagado) | light / og | `#E4E4E7` → `#949496` | no-texto: 1.27:1 → 3.03:1 sobre `panel` |
+  | track2 | dark | `#2C2C31` → `#616165` | no-texto: 1.35:1 → 3.03:1 |
+  | on (switch encendido) | og | `#FF5C9D` → `#F5559A` | no-texto: 2.89:1 → 3.16:1 (y knob blanco sobre él) |
+  | sel | dark | `#7B61FF` → `#765DF5` | `selInk` blanco: 4.20:1 → 4.51:1 |
+  | glass / glassInk2 | og | `rgba(16,16,18,.55)` / `rgba(255,255,255,.65)` → `.64` / `.80` | glassInk2 2.89:1 → 4.59:1 sobre la página og |
+
+  El switch apagado de Light mantiene `#949496` en vez de `#E4E4E7` + anillo. Con un solo color se cumplen las dos condiciones: el track da ≥ 3:1 sobre el panel y el knob blanco da ≥ 3:1 sobre el track. Con el anillo, el knob quedaría en 1.27:1.
+
+  Además hay claves derivadas que el diseño no define (líneas, anillo de foco, peligro, fallbacks opacos), elegidas por tema y testeadas igual. `sel` lima de OG (1.28:1 sobre blanco) no se ajusta: la selección también se marca con forma (borde), nunca solo con color. El glass se midió sobre la página del tema; **la Fase D tiene que volver a medirlo sobre wallpapers reales** cuando la topbar y el rail lo usen.
 - **Colores de marca:**
   - violeta `#6B4EFF`: selección y marco;
   - rosa `#FF5C9D`: Publicar y Agregar;
@@ -300,6 +331,16 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   - `src/ui/*` (primitivos), `src/ui/uiTokens.test.ts`;
   - un archivo nuevo para la preferencia de tema (por ejemplo `src/lib/editorTheme.ts`).
 - **Riesgo:** bajo a medio, porque es visual y afecta a todos los menús.
+- **Estado: TERMINADA (2026-10-07)**, ver § 1. Decisiones de cierre (ronda 3):
+  - Campos: en reposo, línea inferior opaca de 1px `edge` (≥ 3:1, WCAG 1.4.11) + perímetro de 0.5px; aro completo
+    en hover; anillo de foco sin cambios. Lo fija un test en `uiTokens.test.ts`.
+  - Valores heredados sin itálica (Geist Mono no tiene itálica): se distinguen por la pill sin relleno y el chip.
+- **Pendientes de la revisión de cierre (no bloquearon):**
+  - **A11y (viene de la Iteración 0):** en forced colors, `NumberField` (`.mn-value-input--field`) y el input inline
+    `.mn-value-input` quedan sin borde (el box-shadow se descarta). Arreglo: sumar `.mn-value-input` a la regla de
+    forced colors con `border: 1px solid ButtonText`, con test. Hacerlo al inicio de la Fase B.
+  - **QA en navegador:** que el chip de heredado aparezca siempre en las filas de color; que la línea inferior curvada
+    por el radio 12 no se lea como error de dibujo; el ancho que cambia con el peso 650/500 en los segmentados.
 
 ### Fase B: Arquitectura del editor (D1 + D2)
 - **Objetivo:** una sola fuente de verdad de selección y un host del inspector fuera de `ProfileCard`. Sin cambio visual mayor.
@@ -374,6 +415,13 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   - nuevos: `EditorRail.tsx`, `RoomInspector.tsx`, `CanvasGrid.tsx`, `InspectorHeader.tsx`.
 - **Riesgo:** medio, por la Topbar compartida y porque MyLand tiene que quedar idéntico.
 
+**Pendientes registrados en la Fase A (revisión r2):**
+- **Diálogo "Link de la imagen"** (`CanvasBoard.tsx`): la superficie es oscura literal, pero su `.mn-input` sigue el tema.
+  - Se trata como chrome neutral (A6).
+  - Opciones: agregarle `data-editor-theme="dark"`, o pasarlo a chrome en esta fase.
+  - `CanvasBoard` estaba en STOP durante la Fase A.
+- **Menú `+` y Ajustes de MyLand:** siguen el tema a través de `T.ui`, mientras el FAB y la papelera quedan oscuros. Se unifican en el rail de esta fase.
+
 ### Fase F: Inspector de la card con el diseño nuevo
 - **Header:** el de D, con ruta `profile-card / <objeto>`, título, "de la tarjeta" y medidas.
 - **Chips de objeto:** una fila horizontal que reemplaza a la lista agrupada de la Fase 2.
@@ -401,6 +449,11 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   - `editorCapabilities.ts`.
 - **Riesgo:** medio, por las capacidades.
 
+**Pendientes de la Fase A para F (y B):**
+- **`edit` = `n3`:** el color de modificado y de "N cambios" es el mismo que la tonalidad `n3`. No usar `tone={3}` junto con `changed`, o diferenciar `n3`.
+- **`sel` lima de OG:** da 1.28:1 sobre blanco. Los chips de objeto tienen que llevar, además del relleno lima, un borde o forma ≥ 3:1 (por ejemplo, ink de 1px).
+- **Switches sobre `field`** (MenuNote, filas de Links): el track queda en ~2.7:1. Si se ponen ahí, hay que testearlo contra `field`.
+
 ### Fase E: Layers
 - **Alcance:** el de § 5 (Layers). Se abre desde "Capas" en el rail y se muestra en el dock.
 - **Lógica pura `layerOrder.ts`:**
@@ -425,6 +478,11 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   - secciones Contenido, Fondo y Texto, más las filas Fuente, Efectos, Animar y Medidas;
   - O2/O4 sin cambios.
 - **Widgets legacy:** mantienen su panel flotante (P4B).
+- **Music:** en la Fase A su `MenuPanel` quedó bloqueado en dark por la decisión A7 del usuario. Al pasar al dock:
+  - sacar `theme="dark"`;
+  - migrar sus 8 `T.border.subtle` a `uv("line-group")`;
+  - con eso, su baseline legacy baja a 0.
+- **Densidad:** la Fase A llevó los campos a 40px y los botones a 34px. En los paneles legacy de 272px, los labels largos pueden partirse; por ejemplo, "Interlineado de textos secundarios" con el chip de heredado al lado. Revisarlo en la QA del navegador.
 - **Archivos:** `CanvasBoard.tsx` (chrome de texto e imagen), `MusicCardWidget.tsx` y los nuevos `TextInspector`, `ImageInspector`, `MusicInspector`.
 - **Riesgo:** medio.
 

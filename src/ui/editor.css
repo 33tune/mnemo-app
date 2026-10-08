@@ -18,6 +18,14 @@
  * reach card render. Custom properties `--ui-*` are generated from T.ui
  * (tokens.ts) and injected by layout.tsx; `--mn-*` are per-control runtime
  * values set inline (e.g. a slider's fill %).
+ *
+ * MYLAND Editor v3 (Phase A): every color here is a --ui-* variable that
+ * follows the editor theme (<html data-editor-theme="light|dark|og">, see
+ * tokens.ts) - EXCEPT the canvas chrome (.mn-canvas-btn*, [data-mnemo-chrome],
+ * the canvas focus ring), which reads only the fixed --ui-chrome-* /
+ * canvas-ring values and stays neutral dark in every theme (decision A6).
+ * Fonts: --ui-font-* (next/font, the editor's own families; the canvas keeps
+ * DM Sans / Space Mono from globals.css).
  */
 
 :where([data-mnemo-editor], [data-mnemo-ui]) {
@@ -62,7 +70,7 @@
   flex: 1; width: 100%; margin: 0; padding: 12px 0; border: none; background: transparent; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 8px; overflow: hidden;
   color: var(--ui-text-secondary);
-  font-family: 'DM Sans', sans-serif; font-size: 12px; line-height: 16px; font-weight: 500;
+  font-family: var(--ui-font-sans); font-size: 12px; line-height: 16px; font-weight: 500;
 }
 /* r2: read bottom-to-top like standard side tabs. */
 :where([data-mnemo-editor]) .mn-inspector__tab-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 100%; }
@@ -80,7 +88,7 @@
   height: var(--ui-size-obj-chip); padding: 0 10px; box-sizing: border-box;
   border-radius: var(--ui-radius-chip); border: 1px solid var(--ui-line-control);
   background: var(--ui-surface-control); color: var(--ui-text-secondary); cursor: pointer;
-  font-family: 'DM Sans', sans-serif; font-size: 12px; line-height: 16px; font-weight: 400;
+  font-family: var(--ui-font-sans); font-size: 12px; line-height: 16px; font-weight: 400;
   transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, border-color var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor]) .mn-objchip:hover { background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
@@ -115,7 +123,7 @@
 :where([data-mnemo-editor]) .mn-objlink {
   display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; min-height: 24px;
   margin: 0; padding: 2px 4px; border: none; border-radius: var(--ui-radius-segment); background: transparent; cursor: pointer;
-  color: var(--ui-text-secondary); font-family: 'DM Sans', sans-serif; font-size: 12px; line-height: 16px; text-align: left;
+  color: var(--ui-text-secondary); font-family: var(--ui-font-sans); font-size: 12px; line-height: 16px; text-align: left;
   text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--ui-line-strong);
 }
 :where([data-mnemo-editor]) .mn-objlink:hover { color: var(--ui-text-primary); }
@@ -172,33 +180,34 @@
 
 /* ── Switch ─────────────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch {
+  /* v3 M3Toggle: 40x24 track (off track2, on `on`), 20px knob (off white,
+     on knobOn), spring 320ms. Both tracks measured >= 3:1 on the panel. */
   position: relative; flex-shrink: 0;
-  width: 36px; height: 22px; padding: 0; margin: 0;
+  width: var(--ui-size-switch-w); height: var(--ui-size-switch-h); padding: 0; margin: 0;
   border: none; border-radius: 999px;
-  background: var(--ui-accent-track);
+  background: var(--ui-accent-switch-off);
   cursor: pointer;
-  transition: background-color var(--ui-motion-base) var(--ui-motion-ease);
+  transition: background-color 240ms var(--ui-motion-ease);
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch:hover { background: var(--ui-accent-track-hover); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] { background: var(--ui-accent-on); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"]:hover { background: var(--ui-accent-on-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch:hover { box-shadow: inset 0 0 0 1px var(--ui-line-strong); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] { background: var(--ui-accent-switch-on); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch__knob {
   position: absolute; top: 2px; left: 2px;
-  width: 18px; height: 18px; border-radius: 50%;
+  width: var(--ui-size-knob); height: var(--ui-size-knob); border-radius: 50%;
   background: var(--ui-accent-knob);
   box-shadow: var(--ui-shadow-knob);
-  transition: transform var(--ui-motion-base) var(--ui-motion-ease), background-color var(--ui-motion-base) var(--ui-motion-ease);
+  transition: transform var(--ui-motion-switch) var(--ui-motion-spring), background-color var(--ui-motion-base) var(--ui-motion-ease);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] .mn-switch__knob {
-  transform: translateX(14px);
-  background: var(--ui-accent-on-ink);
+  transform: translateX(16px);
+  background: var(--ui-accent-knob-on);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-disabled="true"] { opacity: var(--ui-opacity-disabled); cursor: not-allowed; }
 
 /* ── Range (SliderRow / OffsetRow) — not animated on purpose ────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range {
   -webkit-appearance: none; appearance: none;
-  width: 100%; height: 16px; margin: 0; padding: 0;
+  width: 100%; height: 18px; margin: 0; padding: 0;
   background: transparent; cursor: pointer;
   --mn-pct: 50%;
 }
@@ -215,46 +224,59 @@
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
-  width: 16px; height: 16px; margin-top: -6px;
+  width: var(--ui-size-thumb); height: var(--ui-size-thumb); margin-top: -7px;
   border: none; border-radius: 50%;
   background: var(--ui-accent-thumb);
   box-shadow: var(--ui-shadow-range-thumb);
   transition: transform var(--ui-motion-fast) var(--ui-motion-ease);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-thumb {
-  width: 16px; height: 16px; border: none; border-radius: 50%;
+  width: var(--ui-size-thumb); height: var(--ui-size-thumb); border: none; border-radius: 50%;
   background: var(--ui-accent-thumb);
   box-shadow: var(--ui-shadow-range-thumb-moz);
   transition: transform var(--ui-motion-fast) var(--ui-motion-ease);
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-webkit-slider-thumb { transform: scale(1.15); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-moz-range-thumb { transform: scale(1.15); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-webkit-slider-thumb { transform: scale(1.18); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-moz-range-thumb { transform: scale(1.18); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus-visible::-webkit-slider-thumb { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:focus-visible::-moz-range-thumb { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:disabled { opacity: var(--ui-opacity-disabled); cursor: not-allowed; }
 
 /* Click-to-edit numeric value */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-value {
-  background: transparent; border: none; padding: 0 4px; margin: 0 -4px 0 0;
-  border-radius: 4px; cursor: text;
-  font-family: 'Space Mono', monospace; font-size: 11px; line-height: 16px;
+  /* v3: the value "pill" - field fill, mono 12, radius 7, min-width 34. */
+  background: var(--ui-surface-control); border: none; padding: 2px 7px; margin: 0;
+  border-radius: var(--ui-radius-pill); cursor: text; box-sizing: border-box;
+  font-family: var(--ui-font-mono); font-size: 12px; line-height: 16px; font-weight: 450;
   font-variant-numeric: tabular-nums; color: var(--ui-text-secondary);
   transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value:hover { background: var(--ui-surface-control); color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value:hover { background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
+/* While the slider is dragged (pointer held on its range) the value reads in
+   the slider's fill color. CSS only - no handler changes. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:has(.mn-range:active) .mn-value { color: var(--ui-accent-fill); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-value { color: var(--ui-text-tertiary); }
+/* r2 (Critic-2): an INHERITED value is not "your" value — no pill fill (a
+   non-color cue, plus the outlined "hereda" chip); the fill comes back on
+   hover (ink3 is >= 4.5:1 on fieldHover too). r3: no italic — Geist Mono has
+   no italic face, so it rendered as a synthetic oblique. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-value { background: transparent; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-value:hover { background: var(--ui-surface-control-hover); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input {
-  width: 56px; height: 20px; padding: 0 4px; margin: 0 -4px 0 0; box-sizing: border-box;
+  width: 64px; height: 20px; padding: 0 7px; margin: 0; box-sizing: border-box;
   background: var(--ui-surface-control); color: var(--ui-text-primary);
-  border: none; border-radius: 4px; text-align: right;
-  font-family: 'Space Mono', monospace; font-size: 11px; font-variant-numeric: tabular-nums;
+  border: none; border-radius: var(--ui-radius-pill); text-align: right;
+  font-family: var(--ui-font-mono); font-size: 12px; font-variant-numeric: tabular-nums;
   outline: none; box-shadow: var(--ui-shadow-ring);
 }
-/* Iteration 0: NumberField — the same value input, always visible: a
-   hairline at rest, the shared ring only on focus. */
+/* Iteration 0: NumberField — the same value input, always visible: the
+   shared field outline at rest (same as .mn-input), the ring only on focus. */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input.mn-value-input--field {
-  height: 24px; margin: 0; box-shadow: inset 0 0 0 1px var(--ui-line-field);
+  /* v3 field look (radius 12, padding 11/12), same outline as .mn-input. */
+  height: 40px; padding: 11px 12px; margin: 0; border-radius: var(--ui-radius-field);
+  box-shadow: inset 0 -1px 0 var(--ui-line-field), inset 0 0 0 0.5px var(--ui-line-panel);
 }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input.mn-value-input--field:hover { box-shadow: inset 0 0 0 1px var(--ui-line-field); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-value-input.mn-value-input--field:focus-visible { box-shadow: var(--ui-shadow-ring); }
 
 /* ── Field state (modified dot -> reset, inherited chip) ────────────────── */
@@ -269,7 +291,7 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark::before {
   /* Iteration 0: drawn with a border in currentColor (not a background), so
      the "modified" dot survives forced colors (backgrounds are dropped). */
-  content: ""; width: 0; height: 0; border: 2.5px solid currentColor; border-radius: 50%; color: var(--ui-accent-fill);
+  content: ""; width: 0; height: 0; border: 3px solid currentColor; border-radius: 50%; color: var(--ui-accent-edit);
   transition: opacity var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark svg {
@@ -281,16 +303,18 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field:focus-within .mn-field__mark svg { opacity: 1; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field__mark:hover { color: var(--ui-text-primary); background: var(--ui-surface-control); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-chip {
-  position: relative; display: inline-flex; align-items: center; height: 16px; padding: 0 6px;
-  border-radius: 999px; background: var(--ui-surface-control);
-  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.04em;
+  /* r2 (Critic-3): the "inherited from" chip is an OUTLINED capsule in sans
+     (the value pill is a filled mono rectangle) — never mistaken for it. */
+  position: relative; display: inline-flex; align-items: center; height: 18px; padding: 0 7px;
+  border-radius: 999px; background: transparent; box-shadow: inset 0 0 0 1px var(--ui-line-strong);
+  font-family: var(--ui-font-sans); font-size: 11px; line-height: 14px; font-weight: 450;
   color: var(--ui-text-secondary); white-space: nowrap;
 }
 
 /* ── Icon button ────────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-  padding: 0; margin: 0; border: none; border-radius: 8px;
+  padding: 0; margin: 0; border: none; border-radius: var(--ui-radius-button);
   background: transparent; color: var(--ui-text-secondary); cursor: pointer;
   transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
 }
@@ -305,15 +329,15 @@
 /* ── Action button ──────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 32px; padding: 0 14px; border-radius: 8px; box-sizing: border-box;
-  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; line-height: 18px;
+  height: var(--ui-size-button); padding: 0 14px; border-radius: var(--ui-radius-button); box-sizing: border-box;
+  font-family: var(--ui-font-sans); font-size: 13px; font-weight: 550; line-height: 18px;
   cursor: pointer; user-select: none; white-space: nowrap;
   transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, box-shadow var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary { background: var(--ui-accent-on); color: var(--ui-accent-on-ink); border: none; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary:hover:not(:disabled) { background: var(--ui-accent-on-hover); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--primary:active:not(:disabled) { background: var(--ui-accent-on-active); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary { background: var(--ui-surface-control); color: var(--ui-text-primary); border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line-control); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary { background: var(--ui-surface-control); color: var(--ui-text-primary); border: none; box-shadow: none; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary:hover:not(:disabled) { background: var(--ui-surface-control-hover); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--secondary:active:not(:disabled) { background: var(--ui-surface-control-active); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn--ghost { background: transparent; color: var(--ui-text-secondary); border: none; }
@@ -329,20 +353,25 @@
 
 /* ── Text input / select ────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input {
+  /* v3 field look: field fill, radius 12 (padding set by the component). */
   background: var(--ui-surface-control);
-  border: none; box-shadow: inset 0 0 0 0.5px var(--ui-line-control);
-  border-radius: 8px; color: var(--ui-text-primary);
+  /* r3 (Visual closure + A11y 1.4.11): EVERY field (TextInput, TextArea,
+     select, NumberField) shows an opaque 1px `edge` BOTTOM line at rest
+     (>= 3:1 on panel and field — the fill alone is ~1.1:1) plus a soft 0.5px
+     perimeter; the full 1px `edge` ring on hover, the focus ring on focus. */
+  border: none; box-shadow: inset 0 -1px 0 var(--ui-line-field), inset 0 0 0 0.5px var(--ui-line-panel);
+  border-radius: var(--ui-radius-field); color: var(--ui-text-primary);
   transition: box-shadow var(--ui-motion-fast) ease, background-color var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input::placeholder { color: var(--ui-text-placeholder); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:hover { background: var(--ui-surface-control-hover); box-shadow: inset 0 0 0 1px var(--ui-line-field); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:focus { outline: none; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-input:focus-visible { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-select {
   -webkit-appearance: none; appearance: none;
-  padding-right: 28px !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='rgba(255,255,255,0.62)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 8px center;
+  padding-right: 34px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%2386868E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
   cursor: pointer;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-select option { background: var(--ui-surface-option); color: var(--ui-text-primary); }
@@ -366,11 +395,13 @@
   transition: color var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn:hover { color: var(--ui-text-primary); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn[aria-checked="true"] { color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn[aria-checked="true"] { color: var(--ui-text-seg); }
+/* r2 (A11y-4): the thumb carries a >= 3:1 `edge` ring (segShadow); the
+   selected label is also heavier (Tabs.tsx: 650 vs 500) — non-color cue. */
 
 /* ── Collapsible ────────────────────────────────────────────────────────── */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__btn {
-  color: var(--ui-text-section);
+  color: var(--ui-text-secondary);
   box-shadow: inset 0 1px 0 var(--ui-line-group);
   transition: color var(--ui-motion-fast) ease;
 }
@@ -401,13 +432,13 @@
   background-image: var(--ui-picker-checker);
   background-size: 8px 8px;
   box-shadow: var(--ui-shadow-well);
-  transition: box-shadow var(--ui-motion-fast) ease;
+  transition: box-shadow var(--ui-motion-fast) ease, transform var(--ui-motion-fast) var(--ui-motion-ease);
 }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:hover { box-shadow: var(--ui-shadow-well-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:hover { box-shadow: var(--ui-shadow-well-hover); transform: scale(1.12); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:focus-visible { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-well[aria-disabled="true"] { cursor: not-allowed; opacity: var(--ui-opacity-disabled); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-hex {
-  font-family: 'Space Mono', monospace; font-size: 11px; line-height: 16px;
+  font-family: var(--ui-font-mono); font-size: 12px; line-height: 16px;
   font-variant-numeric: tabular-nums; color: var(--ui-text-secondary); white-space: nowrap;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-field[data-inherited] .mn-hex { color: var(--ui-text-tertiary); }
@@ -439,7 +470,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; height: 32px; padding: 0 10px; box-sizing: border-box;
   border: none; border-radius: 8px; background: transparent; cursor: pointer; text-align: left;
-  font-family: 'DM Sans', sans-serif; font-size: 13px; line-height: 18px; color: var(--ui-text-secondary);
+  font-family: var(--ui-font-sans); font-size: 13px; line-height: 18px; color: var(--ui-text-secondary);
   transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem:hover,
@@ -460,6 +491,10 @@
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-webkit-slider-thumb { transition: none !important; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range::-moz-range-thumb { transition: none !important; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__body { transition: none !important; }
+  /* v3: no spring and no scale with reduced motion (thumb, well). */
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-webkit-slider-thumb { transform: none; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-range:active::-moz-range-thumb { transform: none; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-well:hover { transform: none; }
   .mn-canvas[data-mnemo-canvas] { transition: none !important; }
 }
 
@@ -467,7 +502,13 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn, :where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem { transition-property: background-color, color, box-shadow, transform; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn:active:not(:disabled),
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:active:not(:disabled),
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem:active { transform: scale(0.98); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem:active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn:active:not(:disabled),
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-iconbtn:active:not(:disabled),
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-menuitem:active { transform: none; }
+}
 
 /* ── Review round (A11Y-6): forced colors / Windows High Contrast ───────
    box-shadow rings vanish there; a transparent outline becomes visible.
@@ -555,23 +596,23 @@
   box-shadow: var(--ui-chrome-shadow);
   transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
 }
-:where([data-mnemo-ui]) .mn-canvas-btn:hover { background: var(--ui-chrome-bg-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-ui]) .mn-canvas-btn:hover { background: var(--ui-chrome-bg-hover); color: var(--ui-chrome-text-hover); }
 /* Review r2 (Visual-2): the pressed/expanded tint is OVERLAID on the opaque
    base — a translucent fill read white-on-white over light wallpapers. */
 :where([data-mnemo-ui]) .mn-canvas-btn[aria-expanded="true"],
 :where([data-mnemo-ui]) .mn-canvas-btn[aria-pressed="true"] {
   background: linear-gradient(var(--ui-chrome-tint), var(--ui-chrome-tint)), var(--ui-chrome-bg);
-  color: var(--ui-text-primary); border-color: var(--ui-chrome-line-active);
+  color: var(--ui-chrome-text-hover); border-color: var(--ui-chrome-line-active);
 }
-:where([data-mnemo-ui]) .mn-canvas-btn:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-ui]) .mn-canvas-btn:focus-visible { box-shadow: var(--ui-chrome-ring); }
 :where([data-mnemo-ui]) .mn-canvas-btn--rect { border-radius: 6px; width: auto; min-width: 24px; padding: 0 6px; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.04em; }
 /* Review r2 (A11y-1 / Visual-1): flat variant for buttons INSIDE a canvas
    toolbar (layers, corners). Its look lives here, not inline, so the focus
    ring, hover and forced-colors borders keep working. */
 :where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat { background: transparent; border: 1px solid transparent; box-shadow: none; color: var(--ui-chrome-text); }
-:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:hover { background: var(--ui-chrome-flat-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:hover { background: var(--ui-chrome-flat-hover); color: var(--ui-chrome-text-hover); }
 :where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat[aria-pressed="true"] { background: var(--ui-chrome-flat-pressed); color: var(--ui-chrome-flat-ink); border-color: transparent; }
-:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-ui]) .mn-canvas-btn.mn-canvas-btn--flat:focus-visible { box-shadow: var(--ui-chrome-ring); }
 /* Corner-shape glyph inside a flat button. */
 :where([data-mnemo-ui]) .mn-canvas-btn__shape { display: block; width: 14px; height: 14px; border: 1px solid var(--ui-chrome-shape); }
 :where([data-mnemo-ui]) .mn-canvas-btn[aria-pressed="true"] .mn-canvas-btn__shape { border-color: var(--ui-chrome-shape-pressed); background: var(--ui-chrome-shape-fill); }
@@ -587,4 +628,15 @@
 }
 /* Review r2: the image "Link" chip keeps its own look inline (lime when
    linked); focus ring from here. */
-:where([data-mnemo-ui]) .mn-canvas-btn--chip:focus-visible { box-shadow: var(--ui-shadow-ring); outline: none; }
+:where([data-mnemo-ui]) .mn-canvas-btn--chip:focus-visible { box-shadow: var(--ui-chrome-ring); outline: none; }
+/* A6: every [data-mnemo-chrome] control keeps the neutral chrome ring. */
+:where([data-mnemo-ui]) [data-mnemo-chrome]:focus-visible { box-shadow: var(--ui-chrome-ring); }
+
+/* ── v3 (Phase A): MenuSection "N cambios" dot ────────────────────────────
+   Drawn with a border in currentColor (like the field's modified dot) so it
+   survives forced colors. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-section__changed { display: inline-flex; align-items: center; gap: 6px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-section__dot { display: inline-block; width: 0; height: 0; border: 3px solid currentColor; border-radius: 50%; color: var(--ui-accent-edit); }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-section__dot { color: CanvasText; }
+}

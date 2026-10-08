@@ -229,7 +229,7 @@ function MusicCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <MenuPanel pos={portalPos} label="Editor de Music" id={panelId}
+        <MenuPanel pos={portalPos} theme="dark" label="Editor de Music" id={panelId}
           returnFocusTo={() => editBtnRef.current}
           onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); setMenuOpen(false); } }}>
 

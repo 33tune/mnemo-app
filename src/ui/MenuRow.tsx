@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useId } from "react";
-import { T } from "./tokens";
+import { T, uv } from "./tokens";
 import { Icon } from "./icons";
 import { pickRefocusTarget } from "@/lib/focusRecovery";
 
@@ -100,7 +100,7 @@ export function InheritedChip({ children = "Card", id }: { children?: React.Reac
 /** Shared label typography (DM Sans 13/18). */
 export const labelStyle: React.CSSProperties = {
   ...T.type.label,
-  color:      T.ui.text.secondary,
+  color:      uv("text-secondary"),
   userSelect: "none",
 };
 

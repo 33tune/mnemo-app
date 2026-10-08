@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { T } from "./tokens";
+import { T, uv } from "./tokens";
 import { ColorSwatch } from "./ColorSwatch";
 import { IconButton } from "./IconButton";
 import { labelStyle } from "./MenuRow";
@@ -73,7 +73,7 @@ export function GradientStops({ colors, onChange, min = DEFAULT_MIN, max = DEFAU
         <div ref={barRef} className="mn-gbar" role="radiogroup" aria-label="Colores del gradiente" style={{
           position: "relative", height: 20, borderRadius: 6,
           background: n > 1 ? `linear-gradient(to right, ${colors.join(", ")})` : colors[0],
-          boxShadow: `inset 0 0 0 0.5px ${T.ui.line.control}`,
+          boxShadow: `inset 0 0 0 0.5px ${uv("line-control")}`,
         }}>
           {colors.map((c, i) => (
             <button

@@ -5,7 +5,7 @@ import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
 import { useRef, useState } from "react";
 import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { T, MenuSection, MenuRow, MenuNote, SliderRow, ActionButton, ColorRow, Toggle, Collapsible, refocusFieldControl } from "@/ui";
+import { T, uv, MenuSection, MenuRow, MenuNote, SliderRow, ActionButton, ColorRow, Toggle, Collapsible, refocusFieldControl } from "@/ui";
 import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
 import BlockStyleFields from "./BlockStyleFields";
 import { mergePatch } from "@/lib/effectPause";
@@ -117,12 +117,12 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
           <div onClick={() => photoRef.current?.click()} style={{
             width: 46, height: 46, borderRadius: "50%", flexShrink: 0,
             overflow: "hidden", cursor: "pointer",
-            border: `1px solid ${T.border.default}`, background: T.surface.raised,
+            border: `1px solid ${uv("line-strong")}`, background: uv("surface-control"),
           }}>
             {photo
               ? <img src={photo} alt="Foto de perfil actual" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.text.muted} strokeWidth="1.5" strokeLinecap="round">
+              : <div style={{ color: uv("text-tertiary"), width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                     <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
                   </svg>
                 </div>}
@@ -221,14 +221,14 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
             placeholder="nombre"
             aria-label="Nombre"
             className="mn-focusable"
-            style={{ width: "100%", background: "transparent", color: T.text.primary, fontSize: 18, fontWeight: 600, fontFamily: T.font.sans, padding: "6px 0", borderBottom: `1px solid ${T.border.default}`, boxSizing: "border-box", outline: "none" }}
+            style={{ width: "100%", background: "transparent", color: uv("text-primary"), fontSize: 18, fontWeight: 600, fontFamily: T.uiFont.sans, padding: "6px 0", borderBottom: `1px solid ${uv("line-strong")}`, boxSizing: "border-box", outline: "none" }}
           />
         ) : (
           // Block 2: keyboard-operable (Tab + Enter/Space opens the field).
           <div ref={nameBtnRef} onClick={openNameEdit}
             role="button" tabIndex={0} aria-label={name ? `Nombre: ${name}. Editar` : "Editar nombre"} className="mn-focusable"
             onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openNameEdit(); } }}
-            style={{ fontSize: 18, fontWeight: 600, fontFamily: T.font.sans, color: name ? T.ui.text.primary : T.ui.text.tertiary, cursor: "text", padding: "6px 0", borderBottom: `1px solid ${T.ui.line.group}` }}>
+            style={{ fontSize: 18, fontWeight: 600, fontFamily: T.uiFont.sans, color: name ? uv("text-primary") : uv("text-tertiary"), cursor: "text", padding: "6px 0", borderBottom: `1px solid ${uv("line-group")}` }}>
             {name || "nombre"}
           </div>
         )}
@@ -236,7 +236,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
 
       {only === "handle" && <MenuSection label="Usuario de la cuenta" first>
         <MenuRow>
-          <span style={{ ...T.type.help, color: T.ui.text.secondary }}>@{handle}</span>
+          <span style={{ ...T.type.help, color: uv("text-secondary") }}>@{handle}</span>
         </MenuRow>
         <MenuNote>Es el @ de tu cuenta: no se edita acá.</MenuNote>
       </MenuSection>}

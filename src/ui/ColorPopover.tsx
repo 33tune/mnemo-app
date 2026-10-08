@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { T } from "./tokens";
+import { T, uv } from "./tokens";
 import { EDITOR_ATTR } from "@/lib/editorGuards";
 import { formatColor, hsvToRgb, parseColor, rgbToHex, toHsva, resolveHexCommit, resolveAlphaCommit, resolveFieldEscape, HUE_SPECTRUM_CSS, svAreaCss, type HSVA } from "@/lib/colorModel";
 
@@ -17,7 +17,7 @@ interface ColorPopoverProps {
 
 const WIDTH = 240;
 const GAP = 8;
-const CHECKER = `${T.ui.picker.checker} 0 0 / 8px 8px`;
+const CHECKER = `${uv("picker-checker")} 0 0 / 8px 8px`;
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 // Block 2: the L3 color picker — SV area + hue bar + (optional) alpha bar +
@@ -30,6 +30,15 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 // Closes on Esc (without letting the panel's own Esc handler close the
 // whole menu), on pointerdown outside, and when focus leaves it; focus
 // returns to the well that opened it.
+/** MYLAND v3 r2: the theme lock of the well that opened the popover (e.g. a
+ * dark-locked legacy MenuPanel). The popover is portaled to <body>, so it
+ * would otherwise follow the <html> theme. null = no lock (follow <html>). */
+export function anchorThemeLock(anchor: Pick<Element, "closest"> | null, root: unknown =
+  typeof document !== "undefined" ? document.documentElement : null): string | null {
+  const host = anchor?.closest("[data-editor-theme]") ?? null;
+  return host && host !== root ? host.getAttribute("data-editor-theme") : null;
+}
+
 export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }: ColorPopoverProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const areaRef = useRef<HTMLDivElement>(null);
@@ -226,7 +235,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
   const opaque = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
   const handle: React.CSSProperties = {
     position: "absolute", width: 14, height: 14, borderRadius: "50%",
-    border: `2px solid ${T.ui.picker.handleBorder}`, boxShadow: T.ui.shadow.handle,
+    border: `2px solid ${uv("picker-handle-border")}`, boxShadow: uv("shadow-handle"),
     transform: "translate(-50%, -50%)", pointerEvents: "none", boxSizing: "border-box",
   };
   const bar: React.CSSProperties = { position: "relative", height: 12, borderRadius: 6 };
@@ -238,6 +247,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
     <div
       ref={rootRef}
       {...{ [EDITOR_ATTR]: "" }}
+      data-editor-theme={anchorThemeLock(anchor) ?? undefined}
       className="mn-popover"
       role="dialog"
       aria-label={label ? `Color: ${label}` : "Selector de color"}
@@ -265,7 +275,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
       style={{
         position: "fixed", left: pos?.left ?? -9999, top: pos?.top ?? -9999,
         width: WIDTH, padding: 12, boxSizing: "border-box", zIndex: T.z.popover,
-        display: "flex", flexDirection: "column", gap: 10, fontFamily: T.font.sans,
+        display: "flex", flexDirection: "column", gap: 10, fontFamily: T.uiFont.sans,
         visibility: pos ? "visible" : "hidden",
       }}
     >
@@ -321,7 +331,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
 
       <div style={{ display: "flex", gap: 8 }}>
         <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ ...T.type.section, color: T.ui.text.section }}>Hex</span>
+          <span style={{ ...T.type.section, color: uv("text-section") }}>Hex</span>
           <input
             className="mn-input"
             spellCheck={false}
@@ -337,7 +347,7 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
         </label>
         {alpha && (
           <label style={{ width: 64, display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ ...T.type.section, color: T.ui.text.section }}>Alfa</span>
+            <span style={{ ...T.type.section, color: uv("text-section") }}>Alfa</span>
             <input
               className="mn-input"
               inputMode="numeric"

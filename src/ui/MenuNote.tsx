@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { T } from "./tokens";
+import { T, uv } from "./tokens";
 
 interface MenuNoteProps {
   children: ReactNode;
@@ -17,9 +17,9 @@ export function MenuNote({ children, id }: MenuNoteProps) {
   return (
     <div role="note" id={id} style={{
       ...T.type.help,
-      color: T.ui.text.secondary,
-      background: T.ui.surface.group,
-      boxShadow: `inset 0 0 0 0.5px ${T.ui.line.group}`,
+      color: uv("text-secondary"),
+      background: uv("surface-group"),
+      boxShadow: `inset 0 0 0 0.5px ${uv("line-group")}`,
       borderRadius: T.ui.radius.control,
       padding: "8px 10px",
     }}>

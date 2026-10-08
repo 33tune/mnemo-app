@@ -1,6 +1,6 @@
 "use client";
 import React, { useId } from "react";
-import { T } from "./tokens";
+import { T, uv } from "./tokens";
 import { labelStyle } from "./MenuRow";
 
 interface OffsetRowProps {
@@ -26,7 +26,7 @@ export function OffsetRow({ label = "Desplazamiento", x, y, min, max, step = 1, 
       <div style={{ display: "flex", gap: 12 }}>
         {([["X", x, (v: number) => onChange(v, y)], ["Y", y, (v: number) => onChange(x, v)]] as const).map(([axis, val, set]) => (
           <div key={axis} style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            <span aria-hidden style={{ ...T.type.value, color: T.ui.text.secondary, flexShrink: 0 }}>{axis}</span>
+            <span aria-hidden style={{ ...T.type.value, color: uv("text-secondary"), flexShrink: 0 }}>{axis}</span>
             <input
               type="range" className="mn-range" min={min} max={max} step={step} value={val}
               aria-label={`${label} ${axis}`}
@@ -35,7 +35,7 @@ export function OffsetRow({ label = "Desplazamiento", x, y, min, max, step = 1, 
               onMouseDown={e => e.stopPropagation()}
               style={{ flex: 1, minWidth: 0, ["--mn-pct" as string]: `${pct(val)}%` } as React.CSSProperties}
             />
-            <span style={{ ...T.type.value, color: T.ui.text.secondary, minWidth: 22, textAlign: "right" }}>{Math.round(val)}</span>
+            <span style={{ ...T.type.value, color: uv("text-secondary"), minWidth: 22, textAlign: "right" }}>{Math.round(val)}</span>
           </div>
         ))}
       </div>

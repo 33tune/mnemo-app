@@ -1,4 +1,4 @@
-export { T }              from "./tokens";
+export { T, uv }          from "./tokens";
 export { MenuPanel, usePanelFocus } from "./MenuPanel";
 export { InspectorShell, INSPECTOR_TITLE_ID, INSPECTOR_EXPAND_ID } from "./InspectorShell";
 export { MenuSection }    from "./MenuSection";

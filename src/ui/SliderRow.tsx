@@ -83,7 +83,7 @@ export function SliderRow({
       className="mn-field"
       data-state={state}
       data-inherited={state === "inherited" ? "" : undefined}
-      style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 2 }}
+      style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}
     >
       <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", gap: T.space[2], minHeight: 20 }}>
         {state === "modified" && onReset && <FieldResetMark label={label} onReset={onReset} />}
@@ -117,7 +117,7 @@ export function SliderRow({
               onMouseDown={e => e.stopPropagation()}
               onClick={e => { e.stopPropagation(); startEdit(); }}
               // VIS-11: Mono only for numbers — a word value ("círculo") reads in Sans.
-              style={{ minWidth: 34, textAlign: "right", ...(/\d/.test(display) ? {} : { fontFamily: T.font.sans, fontSize: 12 }) }}
+              style={{ minWidth: 34, textAlign: "right", ...(/\d/.test(display) ? {} : { fontFamily: T.uiFont.sans, fontSize: 12 }) }}
             >
               {display}
             </button>

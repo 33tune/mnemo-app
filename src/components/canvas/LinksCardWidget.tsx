@@ -543,7 +543,7 @@ function LinksCardWidget({
 
       {/* Config portal */}
       {menuOpen && canInteract && portalPos && createPortal(
-        <MenuPanel pos={portalPos} label="Editor de Links" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
+        <MenuPanel pos={portalPos} theme="dark" label="Editor de Links" onKeyDown={e => { if (e.key === "Escape") setMenuOpen(false); }}>
 
           {/* Header */}
           <div style={{ ...T.type.title, color: T.ui.text.primary, paddingBottom: T.space[3], marginBottom: T.space[2] }}>

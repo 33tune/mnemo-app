@@ -23,9 +23,12 @@ planeado acá hasta confirmarlo.
 > - `main` = `origin/main` = `44f4acc`, que incluye las Fases 1 y 2.
 > - Branch de trabajo: **`feature/myland-editor-v3`**. Se mergea a `main` por fase y
 >   solo con OK explícito del usuario.
-> - Fase 0 (docs) hecha con el commit del checkpoint. **Fase A NO empezada.**
+> - Fase 0 (docs) hecha con el commit del checkpoint (`b5d40e2`).
+> - **Fase A (temas Light/Dark/OG del editor, tipografía y controles) TERMINADA (2026-10-07)**,
+>   commiteada y pusheada en `feature/myland-editor-v3`. **No mergeada a `main`.** Detalle y
+>   pendientes en el plan (§ 1 y § 6, Fase A). Sin QA en navegador todavía.
 >
-> **Siguiente acción:** fase A, con el OK del usuario.
+> **Siguiente acción:** QA en navegador de la Fase A; la Fase B solo con el OK del usuario.
 >
 > **Dirección visual:** "Darkroom" (monocromo), descrita más abajo, quedó **SUPERADA**
 > por el diseño de Claude Design: colores de marca y modos Light/Dark/OG solo del editor.
