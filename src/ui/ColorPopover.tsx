@@ -3,6 +3,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { T, uv } from "./tokens";
 import { EDITOR_ATTR } from "@/lib/editorGuards";
+import { holdHistoryStep } from "@/lib/editorHistory";
 import { formatColor, hsvToRgb, parseColor, rgbToHex, toHsva, resolveHexCommit, resolveAlphaCommit, resolveFieldEscape, HUE_SPECTRUM_CSS, svAreaCss, type HSVA } from "@/lib/colorModel";
 
 interface ColorPopoverProps {
@@ -53,6 +54,11 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
   // override, or round a 0.055 alpha to 0.06.
   const hexInitial = useRef<string | null>(null);
   const alphaInitial = useRef<string | null>(null);
+
+  // Editor v3 Phase C (plan §5: "Selector de color: cerrar o confirmar"):
+  // everything done while the popover is open — area / hue / alpha drags,
+  // typed hex — is ONE undo step, ended when it closes.
+  useEffect(() => holdHistoryStep(), []);
 
   // External value changes (undo, another control) resync — but never the
   // echo of our own emission, which would lose hue on greys/black.

@@ -50,7 +50,11 @@
     cierre. Detalle y pendientes en § 6, Fase B.
   - `npm test` 539/539, `tsc` limpio, `next build` 13/13. Ningún sistema protegido tocado.
   - **Sin QA en navegador.**
-- **NO empezadas:** las fases C, D, F, E, G, H e I. **La Fase C arranca solo con el OK del usuario.**
+- **Fase B:** commit `05950ce`.
+- **Fase C (controladores por objeto y deshacer/rehacer global, D3): TERMINADA (2026-10-08)** en
+  `feature/myland-editor-v3`, commit `feat: implement MYLAND editor v3 phase C (object controllers, global undo/redo)`.
+  **No mergeada a `main`.** Detalle y pendientes en § 6, Fase C. **Sin QA en navegador.**
+- **NO empezadas:** las fases D, F, E, G, H e I. **La Fase D arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -60,8 +64,8 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Fases A y B cerradas.** Siguiente: QA en navegador de las Fases 2, A y B, y **la Fase C** (§ 6) solo con el OK
-   del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
+6. **Fases A, B y C cerradas.** Siguiente: QA en navegador de las Fases 2, A, B y C, y **la Fase D** (§ 6) solo con el
+   OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
 
 ---
 
@@ -425,6 +429,57 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   - primitivos de `src/ui`, que avisan cuándo empieza y termina el gesto;
   - nuevos: `src/lib/editorHistory.ts` y `src/lib/objectControllers.ts` (o un archivo por objeto).
 - **Riesgo:** medio.
+- **Estado: TERMINADA (2026-10-08)**, ver § 1. Qué quedó:
+  - **Historial** (`src/lib/editorHistory.ts`, puro): entradas con el estado anterior y posterior de cada objeto
+    tocado (`el:<id>`) o ajuste del espacio (`room:set_*`), objetos completos. Se registra **una sola vez, en
+    `enqueueOp`**, así ningún menú puede olvidarse. Deshacer/rehacer se escriben con las ops existentes
+    (`enqueueOp(op, { record: false })`) y solo con las keys que cambió la entrada (las ausentes como `undefined`,
+    igual que un reset). Máximo 50 entradas. El deshacer re-selecciona lo que vuelve. Un delete escrito por el
+    historial no borra el archivo del storage (la imagen puede volver).
+  - **Fin de gesto:** puntero = de `pointerdown` (con una "foto" del estado en ese momento, para los gestos que solo
+    escriben al soltar: drag, resize, rotate) al final de la tarea del `pointerup`; teclado/escritura = ~500ms sin
+    escrituras o cambio de foco; nudge con flechas = desde la primera flecha hasta el flush del keyup; Delete, pegar,
+    duplicar y "Eliminar Music" = una entrada explícita.
+  - **Decisión de implementación:** los primitivos de `src/ui` **no** cambiaron. En vez de que cada control avise
+    inicio/fin de gesto, los límites salen de puntero, foco e inactividad a nivel global: cumplen la tabla de § 5 y
+    cubren por igual a los menús legacy (Music) sin tocarlos.
+  - **Escrituras del sistema:** el recentrado/crecimiento de ProfileCard (`update_profile` solo con x/y/h, fuera de un
+    gesto) no se registra; dentro de un gesto se suma a esa entrada. Toda escritura de tamaño del usuario incluye `w`.
+  - **Pila anterior migrada:** `undoStackRef`/`pushUndo` (funciones sueltas para agregar/borrar) se eliminó; pegar,
+    Delete y Eliminar Music quedan registrados por `enqueueOp`, con el mismo resultado (deshacer re-agrega y
+    selecciona; deshacer un pegado deja la selección vacía) y ahora con rehacer.
+  - **Atajos:** Ctrl/⌘+Z deshace; Ctrl/⌘+Shift+Z y Ctrl+Y rehacen. Funcionan con el foco en el canvas **o en el
+    editor** (inspector, popovers, menús); dentro de campos de texto manda el deshacer nativo; con el foco en `<body>`
+    no hacen nada. Anuncio por `role=status`. Los botones de la topbar llegan en D.
+  - **Controladores** (`src/lib/objectControllers.ts`): `elementOps` (agregar/actualizar/borrar de cada tipo de
+    elemento, usado por Delete, pegar y el historial) y los de identidad, metadata, fondo, logo y links, con los
+    patches movidos tal cual desde los menús (test de equivalencia). Texto/imagen/Music ya escribían por funciones
+    únicas de CanvasBoard → `enqueueOp`; tipografía y efectos ya tenían los suyos.
+  - **Sistema protegido tocado (§ 4, cola de persistencia):** `flushOps` une los patches **adyacentes** del mismo
+    objeto (mismo tipo de op, id y canvas) antes de insertar (`mergeQueuedPatches`). Motivo: § 5 "Persistencia". Qué
+    puede cambiar: menos filas en `canvas_ops`, mismo estado final y mismo orden. Aislamiento: función pura con test
+    de equivalencia de replay; ninguna otra parte de la cola cambió.
+  - **Ronda de revisión (correcciones):** deshacer un cambio de propiedad no mueve la selección (solo agregar/quitar
+    elementos la toca) y el foco nunca queda en `<body>`; el fin de una subida no es un paso y el historial reemplaza
+    la URL `blob:` por la definitiva (una subida fallida se olvida); las subidas de los menús son un paso propio; el
+    selector de color es un solo paso de abrir a cerrar; un campo que confirma al perder el foco es su propio paso;
+    escribir en un campo de texto usa una pausa de 1200ms; nada se registra antes de la primera interacción;
+    "Medidas" con Enter queda registrado; deshacer el borrado de un widget compartido en los canvas del espacio lo
+    vuelve a mostrar (`show_widget`); deshacer música o cursor del espacio actualiza también la fila del espacio;
+    anuncio "Deshecho: <objeto>"; Ctrl+Z por código de tecla en teclados no latinos.
+- **Limitaciones conocidas (decisión del usuario 2026-10-08: documentar y seguir):**
+  - **Borrar una key no se persiste hasta la compactación.** Deshacer el PRIMER valor de un campo (y el
+    "Restablecer" de cualquier campo, que ya pasaba antes) escribe la key como `undefined`; el JSON la descarta, así
+    que al recargar antes de la compactación (cada 50 ops) el valor vuelve. Arreglo previsto en un paso propio:
+    persistir el borrado (centinela) o forzar un snapshot. Toca la persistencia protegida (§ 4).
+  - **Ya existían:** un Delete del usuario borra el archivo del storage, así que deshacerlo re-agrega una imagen que
+    ya no carga; capa/candado de la toolbar de imagen y "traer al frente" cambian solo el estado local (sin op), así
+    que no se deshacen (el bug de persistencia del doble click se arregla en E); la subida del MP3 de Music se suma
+    al gesto abierto si coincide.
+  - **Nota de cierre:** una subida que termina con el selector de color abierto se suma al paso del color (deshacerlo
+    también la revierte). Raro y sin pérdida de datos.
+  - **Para la Fase D:** el botón Deshacer de la topbar es un gesto de puntero; el recentrado de la card que corre
+    después del undo no debe registrarse (`isSystemLayoutWrite` mira `pointerActive`): revisarlo al agregar el botón.
 
 ### Fase D: Shell del editor (rail, topbar, "Tu sala" y cuadrícula visual)
 - **Rail (64px):**

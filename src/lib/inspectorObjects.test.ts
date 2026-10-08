@@ -264,7 +264,7 @@ test("r2: the unit check catches a mis-routed control", () => {
   assert.ok(!unitsOf("name").has(`${C}ProfileTypographyMenu.tsx#global`), "textAlign routed to Nombre would fail");
   assert.equal(unitAt(`${C}ProfileEffectsMenu.tsx`, "patchBorder({ color: v })"), "effects");
   assert.ok(!unitsOf("cardBg").has(`${C}ProfileEffectsMenu.tsx#effects`), "border.color routed to Fondo would fail");
-  assert.equal(unitAt(`${C}ProfileIdentityMenu.tsx`, "onChange({ pfpSizePx: v })"), "only:photo");
+  assert.equal(unitAt(`${C}ProfileIdentityMenu.tsx`, "id.setPfpSize(v)"), "only:photo");
   assert.ok(!unitsOf("name").has(`${C}ProfileIdentityMenu.tsx#only:photo`));
 });
 

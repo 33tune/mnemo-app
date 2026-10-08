@@ -5,6 +5,7 @@ import { T, uv, MenuSection, MenuNote, SliderRow, TextInput, IconButton, refocus
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
 import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
 import BlockStyleFields from "./BlockStyleFields";
+import { linksController } from "@/lib/objectControllers";
 
 type ContactLinksPatch = Partial<ProfileCardData>;
 
@@ -29,11 +30,13 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
   const [newUrl, setNewUrl] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editUrl, setEditUrl] = useState("");
+  // Editor v3 Phase C: writes go through the links controller.
+  const linksCtl = linksController(links, onChange);
 
   function addLink() {
     const url = newUrl.trim();
     if (!url || links.length >= CONTACT_LINKS_MAX) return;
-    onChange({ contactLinks: [...links, { id: crypto.randomUUID(), url }] });
+    linksCtl.add(url);
     setNewUrl("");
   }
 
@@ -45,14 +48,14 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
   function confirmEdit() {
     const url = editUrl.trim();
     if (url && editingId) {
-      onChange({ contactLinks: links.map(l => l.id === editingId ? { ...l, url } : l) });
+      linksCtl.update(editingId, url);
     }
     setEditingId(null);
     setEditUrl("");
   }
 
   function removeLink(id: string) {
-    onChange({ contactLinks: links.filter(l => l.id !== id) });
+    linksCtl.remove(id);
     if (editingId === id) { setEditingId(null); setEditUrl(""); }
   }
 
@@ -71,7 +74,7 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
       <SliderRow
         label="Tamaño" min={CONTACT_LINK_ICON_SIZE_MIN} max={CONTACT_LINK_ICON_SIZE_MAX} step={1}
         value={linksIconSize ?? CONTACT_LINK_ICON_SIZE} unit="px"
-        onChange={v => onChange({ linksIconSize: v })}
+        onChange={v => linksCtl.setIconSize(v)}
       />
       {links.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: T.space[2] }}>

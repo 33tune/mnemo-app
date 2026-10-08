@@ -2,6 +2,7 @@
 import type { ProfileCardData } from "@/types";
 import { T, MenuSection, MenuRow, Toggle, TextInput, TextArea } from "@/ui";
 import BlockStyleFields from "./BlockStyleFields";
+import { metadataController } from "@/lib/objectControllers";
 
 type MetadataPatch = Partial<ProfileCardData>;
 
@@ -25,30 +26,32 @@ export type MetadataPart = "descriptor" | "location" | "bio" | "views";
 // override viejo al editarse. Ver ProfileTypographyMenu.tsx.
 export default function ProfileMetadataMenu({ card, onChange, only }: ProfileMetadataMenuProps) {
   const { status, location, bio, showViews } = card;
+  // Editor v3 Phase C: writes go through the metadata controller.
+  const meta = metadataController(onChange);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
       {only === "descriptor" && <MenuSection label="Texto" first>
         {/* Iteration 0: shared TextInput — named by the visible section
             heading (was placeholder-only) and with the editor focus ring
             (was outline:none). */}
-        <TextInput value={status ?? ""} onChange={v => onChange({ status: v })}
+        <TextInput value={status ?? ""} onChange={v => meta.setText("status", v)}
           placeholder="diseñador multimedia, just for fun..." maxLength={60} />
       </MenuSection>}
 
       {only === "location" && <MenuSection label="Texto" first>
-        <TextInput value={location ?? ""} onChange={v => onChange({ location: v })}
+        <TextInput value={location ?? ""} onChange={v => meta.setText("location", v)}
           placeholder="la plata, buenos aires" maxLength={60} />
         <BlockStyleFields card={card} blockKey="location" onChange={onChange} />
       </MenuSection>}
 
       {only === "bio" && <MenuSection label="Texto" first>
-        <TextArea value={bio ?? ""} onChange={v => onChange({ bio: v })}
+        <TextArea value={bio ?? ""} onChange={v => meta.setText("bio", v)}
           placeholder="una bio corta…" maxLength={120} rows={2} />
       </MenuSection>}
 
       {only === "views" && <MenuSection label="Contador" first>
         <MenuRow label="Mostrar cantidad">
-          <Toggle value={!!showViews} onChange={v => onChange({ showViews: v })} />
+          <Toggle value={!!showViews} onChange={v => meta.setShowViews(v)} />
         </MenuRow>
         {showViews && <BlockStyleFields card={card} blockKey="views" onChange={onChange} />}
       </MenuSection>}

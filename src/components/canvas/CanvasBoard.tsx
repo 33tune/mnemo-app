@@ -55,6 +55,11 @@ import { INSPECTOR_COLLAPSED_W, INSPECTOR_SHEET_COLLAPSED_H, INSPECTOR_EXPAND_ID
 import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown } from "@/lib/inspectorViewOffset";
 import { useEditorSelection, profileTargetId } from "@/lib/editorSelection";
 import { EditorHost, type ProfileEditorFacts } from "./EditorHost";
+import {
+  createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
+  HISTORY_TEXT_IDLE_MS, ownHistoryStep, inOwnHistoryStep, undoShortcutOwner, historyShortcut, type EditorHistory, type HistoryEntry, type Snap,
+} from "@/lib/editorHistory";
+import { elementOps, historyOps, opElementId, entryLabel, type ElementOp } from "@/lib/objectControllers";
 
 const MONO = "'Space Mono', monospace";
 const SANS = "'DM Sans', sans-serif";
@@ -78,6 +83,13 @@ const LAYER_NAMES = ["Back", "Mid", "Front"] as const;
 const LAYER_LABELS_ES = ["Fondo", "Medio", "Frente"] as const;
 
 const CANVAS_H = 3000;
+/** Element kinds Ctrl+V / Ctrl+D create (unchanged since before Phase C). */
+const PASTEABLE_KINDS: ReadonlySet<string> = new Set(["card", "image", "text", "gallery", "media"]);
+/** Space-wide settings that are also saved on the space row (undo / redo
+ * keeps that row in step, like the original write did). */
+const GLOBAL_SETTING_OF_OP: Record<string, "spaceMusic" | "spaceCursor" | undefined> = {
+  set_space_music: "spaceMusic", set_space_cursor: "spaceCursor",
+};
 const MOBILE_CANVAS_W = 390;
 
 function isSpaceCanvas(mode: CanvasMode): boolean {
@@ -509,8 +521,22 @@ export default function CanvasBoard({
   const selChangedRef  = useRef(false);
   // ── Keyboard / clipboard / drag ──────────────────────────────────────────────
   const internalClipboard = useRef<CanvasElement[]>([]);
-  const undoStackRef      = useRef<Array<() => void>>([]);
-  const pushUndoRef       = useRef<((fn: () => void) => void) | null>(null);
+  // Editor v3 Phase C (D3): the global undo / redo history (editorHistory.ts)
+  // — replaces the old Array<() => void> undo stack (add / delete only).
+  // Every write is recorded from enqueueOp; one gesture = one entry.
+  const historyRef        = useRef<EditorHistory | null>(null);
+  if (!historyRef.current) historyRef.current = createEditorHistory();
+  /** State at the start of the current pointer / nudge gesture: the "before"
+   * of writes that only happen at its end (a drag persists on mouseup, after
+   * the live setElements already moved the element). */
+  const gestureBaselineRef = useRef<{ elements: CanvasElement[]; room: Record<string, unknown> } | null>(null);
+  /** Room settings by their set_* op type (the "before" of a set_* write). */
+  const roomRef           = useRef<Record<string, unknown>>({});
+  /** False until the user's first pointer / key interaction: load-time
+   * writes are never undo steps. */
+  const historyArmedRef   = useRef(false);
+  /** True while a focusout is being dispatched (a field committing on blur). */
+  const blurCommitRef     = useRef(false);
   const lastMousePosRef   = useRef({ x: 0, y: 0 });
   const dragCounterRef    = useRef(0);
   // Live refs updated each render so [] effects always see current values
@@ -518,7 +544,7 @@ export default function CanvasBoard({
   const selIdsRef         = useRef(selectedIds);
   const canInteractRef    = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const enqueueOpRef      = useRef<(op: any) => void>(() => {});
+  const enqueueOpRef      = useRef<(op: any, opts?: { record?: boolean }) => void>(() => {});
   const canvasIdRef       = useRef<string | null>(null);
   const savingRef         = useRef(false);
   const lastSavedStateRef = useRef<CanvasState | null>(null);
@@ -1127,6 +1153,15 @@ export default function CanvasBoard({
   // persistDragResult). Rotation goes through the same op the rotate drag
   // persists.
   function setElementGeometry(id: string, target: { x?: number; y?: number; w?: number; h?: number; rotation?: number }) {
+    // Phase C (review C-R2): the writes below mutate elementsRef before
+    // persisting — the history needs the state before them as its baseline
+    // (a pointer gesture already provides one; Enter in Medidas doesn't).
+    if (gestureBaselineRef.current) return setElementGeometryNow(id, target);
+    historyRef.current?.close();
+    gestureBaselineRef.current = { elements: elementsRef.current, room: { ...roomRef.current } };
+    try { setElementGeometryNow(id, target); } finally { historyRef.current?.close(); gestureBaselineRef.current = null; }
+  }
+  function setElementGeometryNow(id: string, target: { x?: number; y?: number; w?: number; h?: number; rotation?: number }) {
     const el = elementsRef.current.find(e => e.id === id);
     if (!el || !canInteract) return;
     if ((el as { locked?: boolean }).locked) return;
@@ -1425,14 +1460,122 @@ export default function CanvasBoard({
       .then();
   }
 
-  function enqueueOp(op: CanvasOp) {
+  // ── History (Editor v3 Phase C) ──────────────────────────────────────────
+  roomRef.current = {
+    set_bg: bgColor, set_wallpaper: wallpaper, set_wallpaper_blur: wallpaperBlur,
+    set_wallpaper_brightness: wallpaperBrightness, set_wallpaper_vignette: wallpaperVignette,
+    set_space_music: spaceMusic, set_space_font: spaceFont, set_space_cursor: spaceCursor,
+  };
+  /** An element's state before the current gesture (its start, for gestures
+   * that write only at the end) or right now. */
+  function beforeOfElement(id: string): Snap {
+    const base = gestureBaselineRef.current?.elements ?? elementsRef.current;
+    const el = base.find(e => e.id === id);
+    return el ? snap(el) : ABSENT;
+  }
+  /** Records one write into the open history entry: "before" the first time
+   * a target is touched in the gesture, "after" = this op applied to the
+   * target's latest state in the entry (several writes chain correctly
+   * within one task, before React re-renders). */
+  function recordOp(op: CanvasOp) {
+    const h = historyRef.current!;
+    // Review C-6: nothing is an undo step before the user's first
+    // interaction (load-time seeding, the free-layout defaults effect).
+    if (!historyArmedRef.current) return;
+    if (isSystemLayoutWrite(op as { type: string; patch?: unknown }, {
+      pointerActive: h.isPointerActive(), entryOpen: h.isOpen(),
+    })) return;
+    // Review C-4: typing pauses longer than slider arrows ("blur o pausa").
+    const idle = isTextEntry(document.activeElement as HTMLElement | null) ? HISTORY_TEXT_IDLE_MS : undefined;
+    const baseline = gestureBaselineRef.current;
+    // Review C-3: a field committing on blur (Hex, NumberField, a link)
+    // when the user clicks something else is its OWN step: it is recorded
+    // against the gesture baseline, then the baseline moves past it.
+    const blurCommit = blurCommitRef.current || inOwnHistoryStep();
+    if (op.type.startsWith("set_")) {
+      const key = `room:${op.type}`;
+      const room = baseline?.room ?? roomRef.current;
+      const after = snap((op as { value: unknown }).value);
+      h.record(key, snap(room[op.type]), after, idle);
+      if (blurCommit && baseline) baseline.room = { ...baseline.room, [op.type]: after.value };
+      return;
+    }
+    const ids = op.type === "move_elements" ? op.moves.map(m => m.id) : [opElementId(op as ElementOp)].filter((i): i is string => !!i);
+    for (const id of ids) {
+      const key = `el:${id}`;
+      const prev = h.pendingAfter(key) ?? beforeOfElement(id);
+      let after: Snap;
+      if (op.type === "move_elements") {
+        const m = op.moves.find(mv => mv.id === id)!;
+        after = prev.present ? snap({ ...(prev.value as object), x: m.x, y: m.y }) : prev;
+      } else {
+        const next = reduceOp(prev.present ? [prev.value as CanvasElement] : [], op).filter(e => e.id === id).pop();
+        after = next ? snap(next) : ABSENT;
+      }
+      h.record(key, beforeOfElement(id), after, idle);
+      if (blurCommit && baseline) {
+        const rest = baseline.elements.filter(e => e.id !== id);
+        baseline.elements = after.present ? [...rest, after.value as CanvasElement] : rest;
+      }
+    }
+  }
+  /** Writes an undone / redone entry back through the existing ops (so
+   * persistence, Publish and the public view stay unchanged), without
+   * recording it again. Only the keys the entry changed are written. */
+  function applyHistoryEntry(entry: HistoryEntry, dir: "undo" | "redo") {
+    const { ops, addedIds, removedIds } = historyOps(entry, dir, id => elementsRef.current.find(e => e.id === id));
+    const shared: readonly string[] = SHARED_WIDGET_KINDS;
+    for (const op of ops) {
+      // Review C-R4: in the space canvases a deleted shared widget was
+      // persisted as hide_widget — bringing it back must un-hide it too
+      // (show_widget, an existing op), or it vanishes again on reload.
+      const kind = op.type.startsWith("add_") ? op.type.slice(4) : null;
+      if (kind && shared.includes(kind) && isSpaceCanvas(canvasModeRef.current)) {
+        enqueueOp({ type: "show_widget", widgetType: kind as SharedWidgetKind, id: opElementId(op)! }, { record: false });
+      }
+      enqueueOp(op as unknown as CanvasOp, { record: false });
+      const global = GLOBAL_SETTING_OF_OP[op.type];
+      if (global) saveGlobalSettingsToSpace({ [global]: (op as { value?: unknown }).value }).catch(() => {});
+    }
+    // Review C-1: only steps that bring elements back or remove them touch
+    // the selection (a deleted element reappears selected, as the old undo
+    // did; an undone add just leaves the selection). A plain property change
+    // never moves it — the inspector stays on the object being edited.
+    const cur = selIdsRef.current;
+    if (addedIds.length) setSelectedIds(new Set(addedIds));
+    else if (removedIds.some(id => cur.has(id))) setSelectedIds(new Set([...cur].filter(id => !removedIds.includes(id))));
+    // …and focus never falls to <body> (a control that unmounted with the
+    // step, a closed inspector): the inspector's h2 if open, else the canvas.
+    requestAnimationFrame(() => {
+      const a = document.activeElement;
+      if (a && a !== document.body) return;
+      const h2 = inspectorCardIdRef.current ? document.getElementById(INSPECTOR_TITLE_ID) : null;
+      (h2 ?? canvasWrapperRef.current)?.focus({ preventScroll: true });
+    });
+  }
+  function runHistory(dir: "undo" | "redo") {
+    const h = historyRef.current!;
+    const entry = dir === "undo" ? h.undo() : h.redo();
+    if (!entry) { announceRef.current?.(dir === "undo" ? "Nada para deshacer" : "Nada para rehacer"); return; }
+    applyHistoryEntry(entry, dir);
+    // Review C-5: say WHAT changed (it may be out of view).
+    announceRef.current?.(`${dir === "undo" ? "Deshecho" : "Rehecho"}: ${entryLabel(entry)}`);
+  }
+  const runHistoryRef = useRef(runHistory);
+  runHistoryRef.current = runHistory;
+
+  function enqueueOp(op: CanvasOp, opts: { record?: boolean } = {}) {
     if (!canEdit) return;
     userInteractedRef.current = true;
+    if (opts.record !== false) recordOp(op);
     if (!firstEditRef.current && currentUserId) {
       firstEditRef.current = true;
       analytics.canvasEdit(currentUserId, op.type);
     }
-    if (op.type === "delete_image") {
+    // Phase C: a delete written by undo / redo keeps the file — the same
+    // image may come back with the next redo / undo (orphaned files are
+    // collected by queueOrphanedAssets on compaction).
+    if (op.type === "delete_image" && opts.record !== false) {
       const imgEl = elements.find(e => e.elementType === "image" && e.id === op.id);
       const storagePath = imgEl?.elementType === "image" ? imgEl.storage_path : undefined;
       console.log("[STORAGE DELETE ATTEMPT]", storagePath);
@@ -1477,20 +1620,11 @@ export default function CanvasBoard({
       return { x: clientX - rect.left, y: clientY - rect.top + scroll };
     }
 
-    const MAX_UNDO = 50;
-
-    function pushUndo(fn: () => void) {
-      undoStackRef.current.push(fn);
-      if (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift();
-    }
-    // Iteration 0: menu actions outside this effect ("Eliminar Music") push
-    // onto the same undo stack.
-    pushUndoRef.current = pushUndo;
-
-    // Paste items centered on mousePos (or +24px offset).
-    // Pushes an undo entry that deletes the newly created elements.
+    // Paste items centered on mousePos (or +24px offset). Phase C: the adds
+    // are recorded by enqueueOp as ONE history entry (closed around it).
     function pasteItems(items: CanvasElement[], mousePos: { x: number; y: number } | null) {
       if (!items.length) return;
+      historyRef.current?.close();
       let dx = 24, dy = 24;
       if (mousePos) {
         const xs = items.map(el => (el as { x: number }).x);
@@ -1516,26 +1650,12 @@ export default function CanvasBoard({
           // original; if the copy is deleted we must not remove the shared file.
           ...(el.elementType === "image" ? { storage_path: undefined, isLocal: false } : {}),
         };
-        if      (el.elementType === "card")    enqueueOpRef.current({ type: "add_card",    card:    base as CanvasCard });
-        else if (el.elementType === "image")   enqueueOpRef.current({ type: "add_image",   image:   base as CanvasImageType });
-        else if (el.elementType === "text")    enqueueOpRef.current({ type: "add_text",    text:    base as CanvasText });
-        else if (el.elementType === "gallery") enqueueOpRef.current({ type: "add_gallery", gallery: base as CanvasGallery });
-        else if (el.elementType === "media")   enqueueOpRef.current({ type: "add_media",   media:   base as CanvasMedia });
+        // Same kinds as before (cards / images / texts / galleries / media);
+        // the add op itself comes from the element controller.
+        if (PASTEABLE_KINDS.has(el.elementType)) enqueueOpRef.current(elementOps.add(base as CanvasElement));
       });
       setSelectedIds(new Set(newIds));
-      // Undo: delete everything we just added
-      pushUndo(() => {
-        newIds.forEach(id => {
-          const el = elementsRef.current.find(e => e.id === id);
-          if (!el) return;
-          if      (el.elementType === "card")    enqueueOpRef.current({ type: "delete_card",    id });
-          else if (el.elementType === "image")   enqueueOpRef.current({ type: "delete_image",   id });
-          else if (el.elementType === "text")    enqueueOpRef.current({ type: "delete_text",    id });
-          else if (el.elementType === "gallery") enqueueOpRef.current({ type: "delete_gallery", id });
-          else if (el.elementType === "media")   enqueueOpRef.current({ type: "delete_media",   id });
-        });
-        setSelectedIds(new Set());
-      });
+      historyRef.current?.close();
     }
 
     function handler(e: KeyboardEvent) {
@@ -1553,6 +1673,20 @@ export default function CanvasBoard({
         if (inInspector) canvasWrapperRef.current?.focus({ preventScroll: true });
         else if (inspectorCollapsedRef.current) expandInspectorRef.current();
         else document.getElementById(INSPECTOR_TITLE_ID)?.focus({ preventScroll: true });
+        return;
+      }
+
+      // Phase C: Ctrl/⌘+Z undoes, Ctrl/⌘+Shift+Z / Ctrl+Y redo — the global
+      // history, with focus on the canvas OR on an editor surface (the
+      // inspector, a popover, a menu), so a style change is undone right
+      // where it was made. Inside a text field the browser's own text undo
+      // wins; with focus on <body> nothing happens (undoShortcutOwner).
+      const histKey = historyShortcut(e);
+      if (histKey) {
+        const owner = undoShortcutOwner(e.target as HTMLElement | null, document.activeElement as HTMLElement | null);
+        if (owner !== "history") return;
+        e.preventDefault();
+        runHistoryRef.current(histKey);
         return;
       }
 
@@ -1578,6 +1712,12 @@ export default function CanvasBoard({
       // always mounted (Iteration 1).
       if (!canvasShortcutAllowed(e.target as GuardElement | null, document.activeElement as GuardElement | null)) return;
 
+      // Phase C: a held arrow nudge moves elements live and persists on
+      // keyup — its history "before" is the state at the FIRST arrow.
+      if (e.key.startsWith("Arrow") && !gestureBaselineRef.current) {
+        historyRef.current?.close();
+        gestureBaselineRef.current = { elements: elementsRef.current, room: { ...roomRef.current } };
+      }
       // O1 + keyboard selection (arrows, Ctrl/⌘+arrows, [ ] and Enter) —
       // lives in render scope (needs the current elements/bounds/mode).
       if (canvasKeyRef.current?.(e)) return;
@@ -1592,44 +1732,17 @@ export default function CanvasBoard({
         // guard as drag-to-trash/marquee.
         const ids = resolveBulkDeleteIds(rawIds, elementsRef.current);
         if (!ids.size) return;
-        // Snapshot before deleting so the undo fn can re-add them
-        const snapshot = structuredClone(elementsRef.current.filter(el => ids.has(el.id)));
-        snapshot.forEach(el => {
-          if      (el.elementType === "image")   enqueueOpRef.current({ type: "delete_image",   id: el.id });
-          else if (el.elementType === "card")    enqueueOpRef.current({ type: "delete_card",    id: el.id });
-          else if (el.elementType === "text")    enqueueOpRef.current({ type: "delete_text",    id: el.id });
-          else if (el.elementType === "gallery") enqueueOpRef.current({ type: "delete_gallery", id: el.id });
-          else if (el.elementType === "profile") enqueueOpRef.current({ type: "delete_profile", id: el.id });
-          else if (el.elementType === "media")   enqueueOpRef.current({ type: "delete_media",   id: el.id });
-          // Iteration 0: these were silently skipped (the key cleared the
-          // selection and pushed an empty undo) — a selectable element that
-          // the same key doesn't delete was a lie of the UI.
-          else if (el.elementType === "music")     enqueueOpRef.current({ type: "delete_music",     id: el.id });
-          else if (el.elementType === "social")    enqueueOpRef.current({ type: "delete_social",    id: el.id });
-          else if (el.elementType === "links")     enqueueOpRef.current({ type: "delete_links",     id: el.id });
-          else if (el.elementType === "stats")     enqueueOpRef.current({ type: "delete_stats",     id: el.id });
-          else if (el.elementType === "guestbook") enqueueOpRef.current({ type: "delete_guestbook", id: el.id });
-        });
+        // Every selectable kind is deleted (Iteration 0), through the
+        // element controller. Phase C: ONE history entry (closed around it)
+        // whose undo re-adds them all, selected, and whose redo deletes
+        // them again.
+        const doomed = elementsRef.current.filter(el => ids.has(el.id));
+        historyRef.current?.close();
+        doomed.forEach(el => enqueueOpRef.current(elementOps.remove(el.elementType, el.id)));
+        historyRef.current?.close();
         const undoKey = isMacPlatform() ? "⌘Z" : "Ctrl+Z";
-        announceRef.current?.(snapshot.length === 1 ? `Elemento eliminado. ${undoKey} para deshacer` : `${snapshot.length} elementos eliminados. ${undoKey} para deshacer`);
+        announceRef.current?.(doomed.length === 1 ? `Elemento eliminado. ${undoKey} para deshacer` : `${doomed.length} elementos eliminados. ${undoKey} para deshacer`);
         setSelectedIds(new Set());
-        // Undo: re-add everything that was deleted
-        pushUndo(() => {
-          snapshot.forEach(el => {
-            if      (el.elementType === "card")    enqueueOpRef.current({ type: "add_card",    card:    el as CanvasCard });
-            else if (el.elementType === "image")   enqueueOpRef.current({ type: "add_image",   image:   el as CanvasImageType });
-            else if (el.elementType === "text")    enqueueOpRef.current({ type: "add_text",    text:    el as CanvasText });
-            else if (el.elementType === "gallery") enqueueOpRef.current({ type: "add_gallery", gallery: el as CanvasGallery });
-            else if (el.elementType === "profile") enqueueOpRef.current({ type: "add_profile", profile: el as ProfileCardData });
-            else if (el.elementType === "media")   enqueueOpRef.current({ type: "add_media",   media:   el as CanvasMedia });
-            else if (el.elementType === "music")     enqueueOpRef.current({ type: "add_music",     music:     el as MusicCardData });
-            else if (el.elementType === "social")    enqueueOpRef.current({ type: "add_social",    social:    el as SocialCardData });
-            else if (el.elementType === "links")     enqueueOpRef.current({ type: "add_links",     links:     el as LinksCardData });
-            else if (el.elementType === "stats")     enqueueOpRef.current({ type: "add_stats",     stats:     el as StatsCardData });
-            else if (el.elementType === "guestbook") enqueueOpRef.current({ type: "add_guestbook", guestbook: el as GuestbookCardData });
-          });
-          setSelectedIds(new Set(snapshot.map(e => e.id)));
-        });
         return;
       }
 
@@ -1667,22 +1780,22 @@ export default function CanvasBoard({
         return;
       }
 
-      // Ctrl+Z — undo last tracked action
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        e.preventDefault();
-        undoStackRef.current.pop()?.();
-        return;
-      }
 
     }
 
     // O1: a held arrow updates local state on keydown (like mousemove);
     // releasing it persists (like mouseup). Also flushed on window blur
     // (alt-tab mid-press) — see flushNudgeRef.
-    function upHandler(e: KeyboardEvent) {
-      if (e.key.startsWith("Arrow")) flushNudgeRef.current?.();
+    // Phase C: the nudge persists here, so its history entry ends here.
+    function endNudgeGesture() {
+      if (historyRef.current?.isPointerActive()) return;
+      historyRef.current?.close();
+      gestureBaselineRef.current = null;
     }
-    function blurHandler() { flushNudgeRef.current?.(); }
+    function upHandler(e: KeyboardEvent) {
+      if (e.key.startsWith("Arrow")) { flushNudgeRef.current?.(); endNudgeGesture(); }
+    }
+    function blurHandler() { flushNudgeRef.current?.(); endNudgeGesture(); }
 
     window.addEventListener("keydown", handler);
     window.addEventListener("keyup", upHandler);
@@ -1694,6 +1807,60 @@ export default function CanvasBoard({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── History gesture boundaries (Editor v3 Phase C) ─────────────────────────
+  // One pointer gesture (slider / color drag, a click, a canvas drag /
+  // resize / rotate) = one history entry: it opens at pointerdown — with a
+  // baseline of the state at that moment — and closes once the pointerup
+  // task (mouseup → persistDragResult, click handlers) has run. Keyboard /
+  // typing gestures close after ~500ms without writes (editorHistory.ts) or
+  // when focus moves. System writes (ProfileCard re-centering) are not
+  // recorded (isSystemLayoutWrite).
+  useEffect(() => {
+    if (!canEdit) return;
+    const h = historyRef.current!;
+    // The color popover and uploads reach this history (holdHistoryStep /
+    // ownHistoryStep in editorHistory.ts).
+    bindEditorHistory(h);
+    const arm = () => { historyArmedRef.current = true; };
+    const down = () => {
+      arm();
+      h.pointerDown();
+      gestureBaselineRef.current = { elements: elementsRef.current, room: { ...roomRef.current } };
+    };
+    const up = () => {
+      setTimeout(() => { h.pointerUp(); gestureBaselineRef.current = null; }, 0);
+    };
+    const focus = () => h.focusChanged();
+    // Review C-3: a blur-commit (Hex, NumberField, a link field) during the
+    // pointerdown of the NEXT gesture is recorded as its own step: flagged
+    // while the focusout is dispatched, closed right after. A task, not a
+    // microtask (closure review N1): microtasks run between listeners, i.e.
+    // BEFORE React's own focusout listener fires the onBlur commit.
+    const focusOut = () => {
+      if (!h.isPointerActive()) return;
+      blurCommitRef.current = true;
+      setTimeout(() => { blurCommitRef.current = false; h.close(); }, 0);
+    };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    document.addEventListener("focusin", focus);
+    window.addEventListener("focusout", focusOut, true);
+    window.addEventListener("keydown", arm, true);
+    // N2: dropping a file can be the first interaction.
+    window.addEventListener("drop", arm, true);
+    return () => {
+      window.removeEventListener("drop", arm, true);
+      bindEditorHistory(null);
+      window.removeEventListener("focusout", focusOut, true);
+      window.removeEventListener("keydown", arm, true);
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+      document.removeEventListener("focusin", focus);
+    };
+  }, [canEdit]);
 
   // ── Paste image from clipboard (screenshots, Discord, etc.) ──────────────────
   useEffect(() => {
@@ -1722,7 +1889,12 @@ export default function CanvasBoard({
     if (flushingRef.current) return;
     if (!opsQueueRef.current.length) return;
     flushingRef.current = true;
-    const batch = [...opsQueueRef.current];
+    // Phase C (plan §5 "Persistencia"; touches the protected queue — reason,
+    // behavior and risk documented in the plan, Fase C): consecutive update
+    // patches of the same object that queued while a flush was in flight
+    // merge into one row. Order is kept; only ADJACENT updates of the same
+    // op type / id / canvas merge, so nothing is lost or reordered.
+    const batch = mergeQueuedPatches([...opsQueueRef.current]);
     opsQueueRef.current = [];
     try {
       const userId = currentUserIdRef.current;
@@ -1850,7 +2022,8 @@ export default function CanvasBoard({
       lastSavedStateRef.current = null;
       userInteractedRef.current = false;
       opsQueueRef.current   = [];
-      undoStackRef.current  = [];
+      historyRef.current?.clear();
+      gestureBaselineRef.current = null;
       canvasIdRef.current   = null;
       setLinkEditId(null);
 
@@ -2530,7 +2703,7 @@ export default function CanvasBoard({
     const validExt = FONT_EXTS.includes(ext as typeof FONT_EXTS[number]) ? (ext as SpaceFont["format"]) : "woff2";
     const name = file.name.replace(/\.[^.]+$/, "");
     const { publicUrl } = await uploadToStorage(file);
-    enqueueOp({ type: "set_space_font", value: { name, url: publicUrl, format: validExt } });
+    ownHistoryStep(() => enqueueOp({ type: "set_space_font", value: { name, url: publicUrl, format: validExt } }));
   }
 
   async function saveGlobalSettingsToSpace(patch: Partial<Pick<import("@/types").CanvasState, "spaceMusic" | "spaceFont" | "spaceCursor">>) {
@@ -2553,7 +2726,7 @@ export default function CanvasBoard({
   async function handleMusicUpload(file: File) {
     const { publicUrl } = await uploadToStorage(file);
     const name = file.name.replace(/\.[^.]+$/, "");
-    enqueueOp({ type: "set_space_music", value: { url: publicUrl, name } });
+    ownHistoryStep(() => enqueueOp({ type: "set_space_music", value: { url: publicUrl, name } }));
     saveGlobalSettingsToSpace({ spaceMusic: { url: publicUrl, name } }).catch(() => {});
   }
 
@@ -2580,7 +2753,7 @@ export default function CanvasBoard({
       img.src = objUrl;
     });
     const { publicUrl } = await uploadToStorage(resized);
-    enqueueOp({ type: "set_space_cursor", value: { url: publicUrl } });
+    ownHistoryStep(() => enqueueOp({ type: "set_space_cursor", value: { url: publicUrl } }));
     saveGlobalSettingsToSpace({ spaceCursor: { url: publicUrl } }).catch(() => {});
   }
 
@@ -2941,12 +3114,19 @@ export default function CanvasBoard({
         const uploadSession = sessionIdRef.current;
         uploadToStorage(f)
           .then(({ publicUrl, storagePath }) => {
-            if (!publicUrl) { enqueueOpRef.current({ type: "delete_image", id }); return; }
+            // Phase C (review C-2 / R-1): finishing an upload is not a user
+            // step — the drop already was. Its write is not recorded, and the
+            // history's copies of this image swap the temporary blob: URL for
+            // the stored one, so undo / redo never write a revoked blob back.
+            // A failed upload removes the image AND its history.
+            if (!publicUrl) { enqueueOpRef.current({ type: "delete_image", id }, { record: false }); historyRef.current?.forget(`el:${id}`); return; }
             if (uploadSession !== sessionIdRef.current) { URL.revokeObjectURL(localUrl); return; }
-            enqueueOpRef.current({ type: "update_image", id, patch: { src: publicUrl, isLocal: false, storage_path: storagePath } });
+            const done = { src: publicUrl, isLocal: false, storage_path: storagePath };
+            enqueueOpRef.current({ type: "update_image", id, patch: done }, { record: false });
+            historyRef.current?.rebase(`el:${id}`, done);
             URL.revokeObjectURL(localUrl);
           })
-          .catch(() => { enqueueOpRef.current({ type: "delete_image", id }); URL.revokeObjectURL(localUrl); });
+          .catch(() => { enqueueOpRef.current({ type: "delete_image", id }, { record: false }); historyRef.current?.forget(`el:${id}`); URL.revokeObjectURL(localUrl); });
       };
       el.src = localUrl;
     }
@@ -2964,7 +3144,7 @@ export default function CanvasBoard({
     const f=e.target.files?.[0];
     if(!f||!bgCardId.current)return;
     const [{ publicUrl: src }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
-    updateCard(bgCardId.current,{bgImage:src,bgMode});
+    ownHistoryStep(() => updateCard(bgCardId.current!,{bgImage:src,bgMode}));
     bgCardId.current=null;
     if(bgImageRef.current)bgImageRef.current.value="";
   }
@@ -3035,7 +3215,7 @@ export default function CanvasBoard({
         </div>
       )}
 
-      <input ref={wallpaperRef} type="file" accept="image/*" style={{display:"none"}} onChange={async e=>{const f=e.target.files?.[0];if(f){const {publicUrl}=await uploadToStorage(f);enqueueOp({type:"set_wallpaper",value:publicUrl});}}} />
+      <input ref={wallpaperRef} type="file" accept="image/*" style={{display:"none"}} onChange={async e=>{const f=e.target.files?.[0];if(f){const {publicUrl}=await uploadToStorage(f);ownHistoryStep(()=>enqueueOp({type:"set_wallpaper",value:publicUrl}));}}} />
       <input ref={imageRef} type="file" accept="image/*,image/gif" multiple style={{display:"none"}} onChange={handleImageUpload} />
       <input ref={bgImageRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleBgImage} />
 
@@ -3463,15 +3643,17 @@ export default function CanvasBoard({
               onToggleLock={() => setElements(p => p.map(e => e.elementType === "music" && e.id === mc.id ? { ...e, locked: !e.locked } : e))}
               canInteract={canInteract}
               onDelete={id => {
-                // Iteration 0: same undo snapshot as Backspace/Delete.
-                const snap = elementsRef.current.find(e => e.id === id && e.elementType === "music");
+                // Iteration 0: same undo as Backspace/Delete — Phase C: one
+                // history entry (undo re-adds it, selected; redo deletes it).
+                const existed = elementsRef.current.some(e => e.id === id && e.elementType === "music");
+                historyRef.current?.close();
                 enqueueOp({ type: "delete_music", id });
+                historyRef.current?.close();
                 setSelectedIds(new Set());
-                if (snap) {
-                  const copy = structuredClone(snap) as MusicCardData;
-                  pushUndoRef.current?.(() => { enqueueOpRef.current({ type: "add_music", music: copy }); setSelectedIds(new Set([id])); });
-                  announceRef.current?.(`Music eliminado. ${isMacUi ? "⌘Z" : "Ctrl+Z"} para deshacer`);
-                }
+                // Review C-6: the menu (and its button) unmount — focus goes to
+                // the canvas, where Ctrl/⌘+Z works, before announcing it.
+                canvasWrapperRef.current?.focus({ preventScroll: true });
+                if (existed) announceRef.current?.(`Music eliminado. ${isMacUi ? "⌘Z" : "Ctrl+Z"} para deshacer`);
               }}
             />
           </WidgetBoundary>
@@ -3735,7 +3917,7 @@ export default function CanvasBoard({
           if (!f || !gbBgIdRef.current) return;
           const { uploadToStorage } = await import("@/lib/storage");
           const { publicUrl } = await uploadToStorage(f);
-          updateGuestbook(gbBgIdRef.current, { bgImage: publicUrl, bgMode: "cover" });
+          ownHistoryStep(() => updateGuestbook(gbBgIdRef.current!, { bgImage: publicUrl, bgMode: "cover" }));
           e.target.value = "";
         }}
       />

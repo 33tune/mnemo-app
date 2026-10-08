@@ -3,6 +3,7 @@ import { useRef } from "react";
 import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { MenuSection, SliderRow, ActionButton, MenuNote, refocusFieldControl } from "@/ui";
+import { logoController } from "@/lib/objectControllers";
 
 type LogoPatch = Partial<Pick<ProfileCardData, "logo">>;
 
@@ -10,8 +11,6 @@ interface Props {
   logo?:    ProfileCardData["logo"];
   onChange: (patch: LogoPatch) => void;
 }
-
-const DEFAULT_LOGO_SIZE = 48;
 
 // CONTENT: Logo — a free visual element living inside ProfileCard's own
 // bounds (Product closeout). NOT a structural block: no width/height
@@ -23,22 +22,15 @@ const DEFAULT_LOGO_SIZE = 48;
 export default function ProfileLogoMenu({ logo, onChange }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function patchLogo(p: Partial<NonNullable<ProfileCardData["logo"]>>) {
-    if (!logo) return;
-    onChange({ logo: { ...logo, ...p } });
-  }
+  // Editor v3 Phase C: every write goes through the logo controller
+  // (objectControllers.ts — same patches as before, moved verbatim).
+  const logoCtl = logoController(logo, onChange);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     const { publicUrl } = await uploadToStorage(f);
-    if (logo) {
-      patchLogo({ url: publicUrl });
-    } else {
-      // Sensible default: top-right corner, modest size — never a
-      // structural placement decision (no computeBlockLayout involved).
-      onChange({ logo: { url: publicUrl, anchorX: 0.85, anchorY: 0.15, w: DEFAULT_LOGO_SIZE, h: DEFAULT_LOGO_SIZE, opacity: 1, rotation: 0, zIndex: 1 } });
-    }
+    logoCtl.setImage(publicUrl);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -50,17 +42,17 @@ export default function ProfileLogoMenu({ logo, onChange }: Props) {
         <>
           <div style={{ display: "flex", gap: 6 }}>
             <ActionButton onClick={() => fileRef.current?.click()}>reemplazar imagen</ActionButton>
-            <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; onChange({ logo: undefined }); refocusFieldControl(el); }}>quitar</ActionButton>
+            <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; logoCtl.remove(); refocusFieldControl(el); }}>quitar</ActionButton>
           </div>
 
-          <SliderRow label="Ancho" min={16} max={200} step={1} value={logo.w} unit="px" onChange={v => patchLogo({ w: v })} />
-          <SliderRow label="Alto" min={16} max={200} step={1} value={logo.h} unit="px" onChange={v => patchLogo({ h: v })} />
+          <SliderRow label="Ancho" min={16} max={200} step={1} value={logo.w} unit="px" onChange={v => logoCtl.patch({ w: v })} />
+          <SliderRow label="Alto" min={16} max={200} step={1} value={logo.h} unit="px" onChange={v => logoCtl.patch({ h: v })} />
           <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={logo.opacity ?? 1}
-            fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchLogo({ opacity: v })} />
+            fmt={v => `${Math.round(v * 100)}%`} onChange={v => logoCtl.patch({ opacity: v })} />
           <SliderRow label="Rotación" min={-180} max={180} step={1} value={logo.rotation ?? 0}
-            fmt={v => `${v}°`} onChange={v => patchLogo({ rotation: v })} />
+            fmt={v => `${v}°`} onChange={v => logoCtl.patch({ rotation: v })} />
           <SliderRow label="Profundidad" min={-5} max={10} step={1} value={logo.zIndex ?? 0}
-            onChange={v => patchLogo({ zIndex: v })} />
+            onChange={v => logoCtl.patch({ zIndex: v })} />
           <MenuNote>
             Arrastrá el logo directamente sobre la card para moverlo. Profundidad negativa lo manda detrás del resto de los elementos.
           </MenuNote>

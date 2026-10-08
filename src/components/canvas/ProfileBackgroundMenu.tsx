@@ -4,9 +4,8 @@ import type { CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
 import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, ActionButton, Divider, Collapsible, refocusFieldControl } from "@/ui";
-import { patchEffectGroup, setEffectEnabled } from "@/lib/effectBinding";
-import { CARD_BG_DEFAULT_COLOR, GRADIENT_DEFAULT
-} from "@/lib/effectEditorDefaults";
+import { CARD_BG_DEFAULT_COLOR } from "@/lib/effectEditorDefaults";
+import { backgroundController } from "@/lib/objectControllers";
 
 interface Props {
   /** getProfileCardEffects(card) — what the card renders. Display only. */
@@ -36,15 +35,12 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
   const bg   = effective.bg;
   const grad = effective.gradient;
 
-  function patchBg(patch: Partial<NonNullable<CardEffects["bg"]>>) {
-    // mergePatch: "clear" DELETES the key — see effectPause.ts (legacy
-    // bgColor underneath must look the same before and after reload).
-    onChange(patchEffectGroup(raw, "bg", patch));
-  }
-  function patchGradient(patch: Partial<NonNullable<CardEffects["gradient"]>>) {
-    const base = raw?.gradient ?? GRADIENT_DEFAULT;
-    onChange({ ...raw, gradient: { ...base, ...patch } });
-  }
+  // Editor v3 Phase C: writes go through the background controller
+  // (objectControllers.ts). patchBg: "clear" DELETES the key — legacy
+  // bgColor underneath must look the same before and after reload.
+  const bgCtl = backgroundController(raw, onChange);
+  const patchBg = bgCtl.patchBg;
+  const patchGradient = bgCtl.patchGradient;
 
   const bgImgRef = useRef<HTMLInputElement>(null);
   async function handleBgImgUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -52,7 +48,7 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
     if (!f) return;
     const [{ publicUrl: src }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
     // Color and image coexist — never clear the color when an image is set.
-    patchBg({ image: src, imageMode: bgMode });
+    bgCtl.setImage(src, bgMode);
     if (bgImgRef.current) bgImgRef.current.value = "";
   }
 
@@ -93,7 +89,7 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
 
         <MenuSection label="Gradiente" first>
           <MenuRow label="Activar">
-            <Toggle value={!!grad} onChange={v => onChange(setEffectEnabled(raw, "gradient", v))} />
+            <Toggle value={!!grad} onChange={v => bgCtl.setGradient(v)} />
           </MenuRow>
           {grad && (
             <>

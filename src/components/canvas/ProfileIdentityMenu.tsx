@@ -1,6 +1,5 @@
 "use client";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
-import { setEffectEnabled } from "@/lib/effectBinding";
 import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
 import { useRef, useState } from "react";
 import type { ProfileCardData } from "@/types";
@@ -8,7 +7,7 @@ import { uploadToStorage } from "@/lib/storage";
 import { T, uv, MenuSection, MenuRow, MenuNote, SliderRow, ActionButton, ColorRow, Toggle, Collapsible, refocusFieldControl } from "@/ui";
 import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
 import BlockStyleFields from "./BlockStyleFields";
-import { mergePatch } from "@/lib/effectPause";
+import { identityController } from "@/lib/objectControllers";
 import {
   pfpBorderDisplay, pfpShadowOn, pfpShadowColor, PFP_GLOW_DEFAULT_COLOR, pfpGlowRadius,
 } from "@/lib/effectEditorDefaults";
@@ -56,7 +55,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
     setEditingName(true);
   }
   function closeNameEdit(cancel: boolean) {
-    if (cancel && (name ?? "") !== nameAtEdit.current) onChange({ name: nameAtEdit.current });
+    if (cancel && (name ?? "") !== nameAtEdit.current) id.setName(nameAtEdit.current);
     setEditingName(false);
     requestAnimationFrame(() => nameBtnRef.current?.focus({ preventScroll: true }));
   }
@@ -65,25 +64,13 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
   const currentSize = resolvePfpSize(photoSize, pfpSizePx, cardW, cardH, pad);
 
   const pfpFx = card.effects?.pfp;
-  function patchPfpFx(patch: Partial<NonNullable<ProfileCardData["effects"]>["pfp"]>) {
-    onChange({ effects: { ...card.effects, pfp: { ...card.effects?.pfp, ...patch } } });
-  }
-  function patchPfpBorder(patch: Partial<NonNullable<NonNullable<ProfileCardData["effects"]>["pfp"]>["border"]>) {
-    // Creating pfp.border switches render to `border.width ?? 2` — seed the
-    // width currently shown (0 on minimal) so editing only the color doesn't
-    // also make a border appear.
-    patchPfpFx({ border: mergePatch(pfpFx?.border ?? { width: pfpBorder.width }, patch) });
-  }
-  function patchPfpShadow(patch: Partial<NonNullable<NonNullable<ProfileCardData["effects"]>["pfp"]>["shadow"]>) {
-    // No stored shadow = the guns/poster variant default is what's visible
-    // (the controls only show while it's on) — seed the intensity the
-    // slider displays, otherwise an explicit shadow without intensity
-    // would render as 0 and the edit would make the shadow vanish.
-    patchPfpFx({ shadow: mergePatch(pfpFx?.shadow ?? { intensity: 0.5 }, patch) });
-  }
-  function patchPfpGlow(patch: Partial<NonNullable<NonNullable<ProfileCardData["effects"]>["pfp"]>["glow"]>) {
-    patchPfpFx({ glow: mergePatch(pfpFx?.glow, patch) });
-  }
+  // Editor v3 Phase C: every write goes through the identity controller
+  // (objectControllers.ts — the same patches, moved verbatim: border seeds
+  // the width shown, shadow seeds the intensity shown, switches pause).
+  const id = identityController(card, onChange);
+  const patchPfpBorder = (p: Parameters<typeof id.pfpBorder>[0]) => id.pfpBorder(p, pfpBorder.width);
+  const patchPfpShadow = id.pfpShadow;
+  const patchPfpGlow = id.pfpGlow;
 
   // Block 1 (estado efectivo): the photo style shows what ProfileCard.tsx
   // actually draws — absent pfp.border/pfp.shadow fall back to variant-
@@ -99,14 +86,14 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
   // it) lives in effectBinding.ts with the rest of the switch semantics —
   // menu redesign Phase 1.
   function setPfpShadowOn(on: boolean) {
-    onChange({ effects: setEffectEnabled(card.effects, "pfp.shadow", on, variant) });
+    id.setPfpEffect("pfp.shadow", on);
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     const { publicUrl } = await uploadToStorage(f);
-    onChange({ photo: publicUrl });
+    id.setPhoto(publicUrl);
     if (photoRef.current) photoRef.current.value = "";
   }
 
@@ -129,17 +116,17 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <ActionButton onClick={() => photoRef.current?.click()}>subir</ActionButton>
-            {photo && <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; onChange({ photo: "" }); refocusFieldControl(el); }}>quitar</ActionButton>}
+            {photo && <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; id.removePhoto(); refocusFieldControl(el); }}>quitar</ActionButton>}
           </div>
         </div>
         <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
 
         <SliderRow label="Tamaño" min={sizeMin} max={sizeMax} step={1} value={currentSize} unit="px"
-          onChange={v => onChange({ pfpSizePx: v })} />
+          onChange={v => id.setPfpSize(v)} />
 
         <SliderRow label="Forma" min={0} max={100} step={1} value={pfpRadius ?? 100} unit="%"
           fmt={v => pfpRadiusToPercent(v) === 50 ? "círculo" : pfpRadiusToPercent(v) === 0 ? "cuadrado" : `${Math.round(v)}%`}
-          onChange={v => onChange({ pfpRadius: v })} />
+          onChange={v => id.setPfpRadius(v)} />
 
         {/* UX audit finding: this used to be called "Avanzado", same label
             BlockStyleFields' own Identity collapsible below uses for a
@@ -179,7 +166,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
               {/* Iteration 0: "on" = visible (intensity > 0, what the avatar
                   renders), not mere presence — a stored glow at intensity 0
                   used to read "on" while drawing nothing. */}
-              <Toggle value={isIntensityEffectVisible(pfpFx?.glow)} onChange={v => onChange({ effects: setEffectEnabled(card.effects, "pfp.glow", v) })} />
+              <Toggle value={isIntensityEffectVisible(pfpFx?.glow)} onChange={v => id.setPfpEffect("pfp.glow", v)} />
             </MenuRow>
             {pfpFx?.glow && isIntensityEffectVisible(pfpFx.glow) && (
               <>
@@ -211,7 +198,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
         {editingName ? (
           <input autoFocus
             value={name}
-            onChange={e => onChange({ name: e.target.value })}
+            onChange={e => id.setName(e.target.value)}
             onBlur={() => setEditingName(false)}
             onKeyDown={e => {
               if (e.key === "Enter") { e.preventDefault(); closeNameEdit(false); }
