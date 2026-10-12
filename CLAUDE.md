@@ -48,7 +48,13 @@ planeado acá hasta confirmarlo.
 >   pusheada en `feature/myland-editor-v3`. **No mergeada a `main`.** Revisión de cierre: Regresiones y
 >   Visual/UX/A11y APPROVE. Sin QA en navegador real. Detalle en el plan (§ 1 y § 6, Fase F).
 >
-> **Siguiente acción:** QA en navegador de las Fases D y F; la Fase E solo con el OK del usuario.
+>
+> - **Fase E (Layers: panel Capas en el dock desde el rail, orden real por capa, reordenar dentro de la capa, selector
+>   Fondo/Medio/Frente, un paso de deshacer por cambio, doble click "traer al frente" persistido) TERMINADA
+>   (2026-10-12)**, commiteada y pusheada en `feature/myland-editor-v3`. **No mergeada a `main`.** Revisión de cierre:
+>   Regresiones y Visual/UX/A11y. Sin QA en navegador real. Detalle en el plan (§ 1 y § 6, Fase E).
+>
+> **Siguiente acción:** QA en navegador de las Fases D, F y E; la Fase G solo con el OK del usuario.
 >
 > **Dirección visual:** "Darkroom" (monocromo), descrita más abajo, quedó **SUPERADA**
 > por el diseño de Claude Design: colores de marca y modos Light/Dark/OG solo del editor.

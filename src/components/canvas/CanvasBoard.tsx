@@ -54,7 +54,9 @@ import { T as UIT, Icon, ActionButton, SliderRow, ColorRow, MenuSection, MenuNot
 import { INSPECTOR_COLLAPSED_W, INSPECTOR_SHEET_COLLAPSED_H, INSPECTOR_EXPAND_ID } from "@/ui/InspectorShell";
 import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown } from "@/lib/inspectorViewOffset";
 import { useEditorSelection, profileTargetId } from "@/lib/editorSelection";
-import { EditorHost, type ProfileEditorFacts } from "./EditorHost";
+import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANEL_ID } from "./EditorHost";
+import { toLayerItems, visualOrder, reorder as reorderLayers, moveWithinLayer, setLayer as setElementLayer, bringToFront, layerLabels, positionAfter, LAYER_NAMES as LAYER_TITLES, type LayerPatch } from "@/lib/layerOrder";
+import type { LayerRow } from "./LayersPanel";
 import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail";
 import { CanvasGrid, useGridPreference } from "./CanvasGrid";
 import type { RoomOp } from "./RoomInspector";
@@ -652,7 +654,7 @@ export default function CanvasBoard({
   const inspectorCardId = profileTargetId(editorSel.target);
   const inspectorCardIdRef = useRef<string | null>(null);
   inspectorCardIdRef.current = inspectorCardId;
-  const { openProfile, openRoom, closeInspector, setObject: setInspectorObject } = editorSel;
+  const { openProfile, openRoom, openLayers, closeInspector, setObject: setInspectorObject } = editorSel;
   /** Any inspector (the card's or "Tu sala") is open — F6 / Esc layering. */
   const inspectorOpenRef = useRef(false);
   inspectorOpenRef.current = !!editorSel.target;
@@ -735,6 +737,8 @@ export default function CanvasBoard({
   const railW = railShown ? UIT.ui.size.railW : 0;
   /** "Tu sala" (target kind "room") is open. */
   const roomOpen = editorSel.target?.kind === "room";
+  /** Editor v3 Phase E: Capas (the Layers panel) is open. */
+  const layersOpen = editorSel.target?.kind === "layers";
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
     : undefined;
@@ -745,7 +749,8 @@ export default function CanvasBoard({
   const computedView = (() => {
     // "Tu sala" moves nothing (it is about the whole room); as a sheet it
     // takes the max share of the viewport.
-    if (roomOpen && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
+    // Phase E: Capas, like Tu sala, is about the whole room — nothing moves.
+    if ((roomOpen || layersOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
     if (!inspectorProfile) return { dx: 0, dy: 0, sheetH: 0, covered: false };
     if (!sheetMode) {
       const o = viewOffsetEnabled
@@ -810,7 +815,7 @@ export default function CanvasBoard({
   // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
-  const inspectorShown = (!!inspectorProfile && canInteract) || roomShown;
+  const inspectorShown = ((!!inspectorProfile || layersOpen) && canInteract) || roomShown;
   const fabShift = inspectorShown && !sheetMode ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0;
   const fabLift = inspectorShown && sheetMode ? (inspectorCollapsed ? INSPECTOR_SHEET_COLLAPSED_H : inspView.sheetH) : 0;
   // Review B-UX-1: lifted above an EXPANDED sheet the FAB and its menus land
@@ -841,7 +846,8 @@ export default function CanvasBoard({
     if (!editorShell || !canInteract) return false;
     if (key === "v") { setAddingText(false); setMenuOpen(false); return true; }
     if (key === "a") { setMenuOpen(m => !m); return true; }
-    return false; // "l" (Capas) arrives with Phase E.
+    if (key === "l") { if (editorSel.target?.kind === "layers") closeInspector(); else { setMenuOpen(false); openLayers(); } return true; }
+    return false;
   };
 
   const router = useRouter();
@@ -1018,6 +1024,34 @@ export default function CanvasBoard({
   const visMusicCards  = useMemo(() => inSpace ? musicCards.filter(c => c.isPublic)         : musicCards,   [inSpace, musicCards]);
   const visLinksCards  = useMemo(() => inSpace ? linksCards.filter(c => c.isPublic)         : linksCards,   [inSpace, linksCards]);
   const visStatsCards  = useMemo(() => inSpace ? statsCards.filter(c => c.isPublic)         : statsCards,   [inSpace, statsCards]);
+
+  // ── Editor v3 Phase E: Layers ─────────────────────────────────────────────
+  // The rendered elements (same sets the canvas maps over) and ONE writer for
+  // every stacking change: the patches layerOrder.ts builds go out through the
+  // existing update_* ops (elementOps), as a single undo step — persisted and
+  // undoable like any other edit (the old double click only set local state).
+  const visibleIds = useMemo(() => new Set<string>([
+    ...visProfiles, ...visMusicCards, ...visImages, ...visTexts, ...visCards, ...visGalleries,
+    ...visMedias, ...visGuestbooks, ...visSocialCards, ...visLinksCards, ...visStatsCards,
+  ].map(e => e.id)), [visProfiles, visMusicCards, visImages, visTexts, visCards, visGalleries, visMedias, visGuestbooks, visSocialCards, visLinksCards, visStatsCards]);
+  const visibleIdsRef = useRef(visibleIds);
+  visibleIdsRef.current = visibleIds;
+  const layerItemsNow = () => toLayerItems(elementsRef.current.filter(e => visibleIdsRef.current.has(e.id)));
+  function applyLayerPatches(patches: LayerPatch[]) {
+    if (!patches.length) return;
+    ownHistoryStep(() => patches.forEach(p => enqueueOpRef.current(elementOps.update(p.kind, p.id, p.patch))));
+  }
+  /** Capas: write + say where the element ended up (role=status — the list
+   * reorders silently otherwise). */
+  function applyLayerChange(id: string, patches: LayerPatch[]) {
+    const items = layerItemsNow();
+    applyLayerPatches(patches);
+    const at = positionAfter(items, patches, id);
+    const label = layerLabels(elementsRef.current.filter(e => visibleIdsRef.current.has(e.id))).get(id);
+    if (!label || !at) return;
+    const { name, detail } = label;
+    announceRef.current?.(`${name}${detail ? ` ${detail}` : ""}: ${at.position} de ${at.count} en ${LAYER_TITLES[at.layer]}`);
+  }
 
   // Iteration 0: "+" menu / MyLand focus targets (Esc and item activation
   // return focus to their opener instead of <body>).
@@ -3275,6 +3309,9 @@ export default function CanvasBoard({
           selectActive={!menuOpen && !addingText}
           roomOpen={roomOpen}
           onRoom={() => { if (roomOpen) closeInspector(); else { setMenuOpen(false); openRoom(); } }}
+          layersOpen={layersOpen}
+          onLayers={() => { if (layersOpen) closeInspector(); else { setMenuOpen(false); openLayers(); } }}
+          layersPanelId={LAYERS_PANEL_ID}
           addMenuId="mnemo-add-menu"
           roomInspectorId="mnemo-room-inspector"
         />
@@ -3467,18 +3504,18 @@ export default function CanvasBoard({
             }}
             onClick={e=>handleElementClick(img.id,e)}
 
-            onDoubleClick={e=>{e.stopPropagation();zCounter.current++;setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,zIndex:zCounter.current}:e));}}>
+            onDoubleClick={e=>{e.stopPropagation();/* Phase E: persisted, undoable — same reorder as Capas › Al frente. */applyLayerPatches(bringToFront(layerItemsNow(),img.id));}}>
             <img src={img.src} draggable={false} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:img.borderRadius??( img.isTransparent?0:8),outline:isSel?"1px solid rgba(255,255,255,0.3)":"none",filter:isSel?"drop-shadow(0 0 8px rgba(255,255,255,0.12))":"none"}} />
             {/* Iteration 0: real <button>s (were 14px divs with English
                 tooltips), >=24px targets, Spanish names; [data-mnemo-ui] so
                 the canvas keyboard guard treats a focused one as UI. Moved
                 up to clear the n/nw/ne handles' 24px target circles. */}
             {isSel&&canInteract&&(<div data-mnemo-ui="" role="group" aria-label="Opciones de imagen" tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();canvasWrapperRef.current?.focus({preventScroll:true});}}} style={{outline:"none",position:"absolute",top:resolveToolbarTop(img,chromeCanvas).top,left:"50%",transform:"translateX(-50%)",display:"flex",alignItems:"center",gap:2,padding:3,background:"rgba(0,0,0,0.72)",border:"1px solid rgba(255,255,255,0.14)",borderRadius:8,backdropFilter:"blur(6px)",zIndex:20}} onMouseDown={e=>e.stopPropagation()}>
-              {([0,1,2] as const).map(l=>(<button key={l} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--rect mn-canvas-btn--flat" aria-pressed={img.layer===l} aria-label={`Capa: ${LAYER_LABELS_ES[l]}`} title={`Capa: ${LAYER_LABELS_ES[l]}`} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,layer:l}:e));}} onMouseDown={e=>e.stopPropagation()}>{LAYER_LABELS_ES[l].slice(0,2).toUpperCase()}</button>))}
+              {([0,1,2] as const).map(l=>(<button key={l} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--rect mn-canvas-btn--flat" aria-pressed={img.layer===l} aria-label={`Capa: ${LAYER_LABELS_ES[l]}`} title={`Capa: ${LAYER_LABELS_ES[l]}`} onClick={e=>{e.stopPropagation();applyLayerPatches(setElementLayer(layerItemsNow(),img.id,l));}} onMouseDown={e=>e.stopPropagation()}>{LAYER_LABELS_ES[l].slice(0,2).toUpperCase()}</button>))}
               <div aria-hidden style={{width:1,height:14,background:"rgba(255,255,255,0.22)",margin:"0 2px",flexShrink:0}} />
               {([0,8,20,999] as const).map(r=>{const cur=img.borderRadius??(img.isTransparent?0:8);const active=r===999?cur>=50:cur===r;const vr=r===0?"2px":r===8?"4px":r===20?"7px":"50%";const nm=r===0?"Esquinas rectas":r===8?"Esquinas suaves":r===20?"Esquinas redondeadas":"Círculo";return(<button key={r} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--flat" aria-pressed={active} aria-label={nm} title={nm} onClick={e=>{e.stopPropagation();setElements(p=>p.map(el=>el.elementType==="image"&&el.id===img.id?{...el,borderRadius:r}:el));enqueueOp({type:"update_image",id:img.id,patch:{borderRadius:r}});}} onMouseDown={e=>e.stopPropagation()}><span aria-hidden className="mn-canvas-btn__shape" style={{borderRadius:vr}} /></button>);})}
             </div>)}
-            {isSel&&canInteract&&!multiSel&&(<LockBtn name="imagen" box={img} canvas={chromeCanvas} locked={!!img.locked} onClick={e=>{e.stopPropagation();setElements(p=>p.map(e=>e.elementType==="image"&&e.id===img.id?{...e,locked:!e.locked}:e));}} />)}
+            {isSel&&canInteract&&!multiSel&&(<LockBtn name="imagen" box={img} canvas={chromeCanvas} locked={!!img.locked} onClick={e=>{e.stopPropagation();enqueueOp({type:"update_image",id:img.id,patch:{locked:!img.locked}});}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<ResizeHandles onResizeMD={(h,e)=>startSingleResize(img.id,"image",h,e)} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle name="imagen" box={img} canvas={chromeCanvas} onMouseDown={e=>{e.stopPropagation();startRotate(img.id,"image",e);}} onKeyRotate={()=>enqueueOp({type:"update_image",id:img.id,patch:{rotation:Math.round(((img.rotation??0)+15)%360)}})} />)}
             {isSel&&canInteract&&!multiSel&&(<>
@@ -3542,7 +3579,7 @@ export default function CanvasBoard({
               ref={el=>{if(el&&isEdit&&el.innerText!==txt.content){el.innerText=txt.content;}}}
             />
             {isSel&&canInteract&&!isEdit&&(<div data-mnemo-ui="" role="group" aria-label="Capa del texto" tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();canvasWrapperRef.current?.focus({preventScroll:true});}}} style={{outline:"none",position:"absolute",top:resolveToolbarTop(textChromeBox(txt),chromeCanvas).top,left:0,display:"flex",gap:2,padding:3,background:"rgba(0,0,0,0.72)",border:"1px solid rgba(255,255,255,0.14)",borderRadius:8,backdropFilter:"blur(6px)",zIndex:20}} onMouseDown={e=>e.stopPropagation()}>
-              {([0,1,2] as const).map(l=>(<button key={l} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--rect mn-canvas-btn--flat" aria-pressed={txt.layer===l} aria-label={`Capa: ${LAYER_LABELS_ES[l]}`} title={`Capa: ${LAYER_LABELS_ES[l]}`} onClick={e=>{e.stopPropagation();updateText(txt.id,{layer:l});}} onMouseDown={e=>e.stopPropagation()}>{LAYER_LABELS_ES[l].slice(0,2).toUpperCase()}</button>))}
+              {([0,1,2] as const).map(l=>(<button key={l} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--rect mn-canvas-btn--flat" aria-pressed={txt.layer===l} aria-label={`Capa: ${LAYER_LABELS_ES[l]}`} title={`Capa: ${LAYER_LABELS_ES[l]}`} onClick={e=>{e.stopPropagation();applyLayerPatches(setElementLayer(layerItemsNow(),txt.id,l));}} onMouseDown={e=>e.stopPropagation()}>{LAYER_LABELS_ES[l].slice(0,2).toUpperCase()}</button>))}
             </div>)}
             {isSel&&canInteract&&!isEdit&&(<LockBtn name="texto" box={textChromeBox(txt)} canvas={chromeCanvas} locked={!!txt.locked} onClick={e=>{e.stopPropagation();updateText(txt.id,{locked:!txt.locked});}} />)}
             {isSel&&canInteract&&!isEdit&&!txt.locked&&(<RotateHandle name="texto" box={textChromeBox(txt)} canvas={chromeCanvas} onMouseDown={e=>onRotateText(txt.id,e)} onKeyRotate={()=>updateText(txt.id,{rotation:Math.round(((txt.rotation??0)+15)%360)})} />)}
@@ -3656,7 +3693,7 @@ export default function CanvasBoard({
               onResizeMD={gb.locked ? (_h:ResizeHandle,e:React.MouseEvent)=>e.stopPropagation() : (h,e)=>startSingleResize(gb.id,"guestbook",h,e)}
               onRotateMD={gb.locked ? e => e.stopPropagation() : e => startRotate(gb.id, "guestbook", e, gb.x + gb.w / 2, gb.y + gb.h / 2)}
               updateGuestbook={updateGuestbook}
-              onToggleLock={() => setElements(p => p.map(e => e.elementType === "guestbook" && e.id === gb.id ? { ...e, locked: !e.locked } : e))}
+              onToggleLock={() => updateGuestbook(gb.id, { locked: !gb.locked })}
               canInteract={canInteract}
               ownerUserId={ownerUserId ?? currentUserId}
               currentUserId={currentUserId}
@@ -3685,7 +3722,7 @@ export default function CanvasBoard({
               onResizeMD={sc.locked ? (_h: ResizeHandle, e: React.MouseEvent) => e.stopPropagation() : (h, e) => startSingleResize(sc.id, "social", h, e)}
               onRotateMD={sc.locked ? e => e.stopPropagation() : e => startRotate(sc.id, "social", e, sc.x + sc.w / 2, sc.y + sc.h / 2)}
               updateCard={updateSocialCard}
-              onToggleLock={() => setElements(p => p.map(e => e.elementType === "social" && e.id === sc.id ? { ...e, locked: !e.locked } : e))}
+              onToggleLock={() => updateSocialCard(sc.id, { locked: !sc.locked })}
               canInteract={canInteract}
               onDelete={id => enqueueOp({ type: "delete_social", id })}
             />
@@ -3714,7 +3751,7 @@ export default function CanvasBoard({
               updateCard={updateMusicCard}
               onGeometry={canvasMode === "space_mobile" ? undefined : g => setElementGeometry(mc.id, g)}
               canvasBounds={chromeCanvas}
-              onToggleLock={() => setElements(p => p.map(e => e.elementType === "music" && e.id === mc.id ? { ...e, locked: !e.locked } : e))}
+              onToggleLock={() => /* Phase E: persisted (Capas shows the same flag). */ updateMusicCard(mc.id, { locked: !mc.locked })}
               canInteract={canInteract}
               onDelete={id => {
                 // Iteration 0: same undo as Backspace/Delete — Phase C: one
@@ -3753,7 +3790,7 @@ export default function CanvasBoard({
               onResizeMD={lc.locked ? (_h: ResizeHandle, e: React.MouseEvent) => e.stopPropagation() : (h, e) => startSingleResize(lc.id, "links", h, e)}
               onRotateMD={lc.locked ? e => e.stopPropagation() : e => startRotate(lc.id, "links", e, lc.x + lc.w / 2, lc.y + lc.h / 2)}
               updateCard={updateLinksCard}
-              onToggleLock={() => setElements(p => p.map(e => e.elementType === "links" && e.id === lc.id ? { ...e, locked: !e.locked } : e))}
+              onToggleLock={() => updateLinksCard(lc.id, { locked: !lc.locked })}
               canInteract={canInteract}
               ownerUserId={ownerUserId ?? currentUserId}
               onDelete={id => enqueueOp({ type: "delete_links", id })}
@@ -3781,7 +3818,7 @@ export default function CanvasBoard({
               onResizeMD={tc.locked ? (_h: ResizeHandle, e: React.MouseEvent) => e.stopPropagation() : (h, e) => startSingleResize(tc.id, "stats", h, e)}
               onRotateMD={tc.locked ? e => e.stopPropagation() : e => startRotate(tc.id, "stats", e, tc.x + tc.w / 2, tc.y + tc.h / 2)}
               updateCard={updateStatsCard}
-              onToggleLock={() => setElements(p => p.map(e => e.elementType === "stats" && e.id === tc.id ? { ...e, locked: !e.locked } : e))}
+              onToggleLock={() => updateStatsCard(tc.id, { locked: !tc.locked })}
               canInteract={canInteract}
               ownerUserId={ownerUserId ?? currentUserId}
               onDelete={id => enqueueOp({ type: "delete_stats", id })}
@@ -3811,7 +3848,7 @@ export default function CanvasBoard({
             onMouseDown={e=>{if(!card.locked)onElementMouseDown(card.id,"card",card.x,card.y,e);else e.stopPropagation();}}
             onClick={e=>handleElementClick(card.id,e)}
 
-            onDoubleClick={e=>{e.stopPropagation();zCounter.current++;setElements(p=>p.map(e=>e.elementType==="card"&&e.id===card.id?{...e,zIndex:zCounter.current}:e));}}
+            onDoubleClick={e=>{e.stopPropagation();/* Phase E: persisted, undoable — same reorder as Capas › Al frente. */applyLayerPatches(bringToFront(layerItemsNow(),card.id));}}
             style={{position:"absolute",left:card.x,top:card.y,width:card.w,height:card.h,zIndex:card.zIndex+card.layer*100+(isSel?SELECTION_Z_BOOST:0),cursor:card.locked?"default":dragging?.id===card.id?"grabbing":"grab",userSelect:"none",transform:`${ps.transform} rotate(${card.rotation}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`}as object:{})}}>
             <div style={{position:"absolute",inset:0,borderRadius:card.borderRadius,border:isSel?`1px solid ${light?"rgba(0,0,0,0.2)":"rgba(255,255,255,0.22)"}`:`1px solid ${light?"rgba(0,0,0,0.07)":"rgba(255,255,255,0.06)"}`,...(card.bgImage?bgImageStyle(card.bgImage,card.bgMode):{background:card.bgColor||"rgba(255,255,255,0.045)"}),backdropFilter:card.bgColor?"none":"blur(18px)",WebkitBackdropFilter:card.bgColor?"none":"blur(18px)",boxShadow:isNote?"0 8px 28px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.12)":"0 2px 14px rgba(0,0,0,0.18)",opacity:card.opacity}} />
             {isNote&&card.bgColor&&(<div style={{position:"absolute",top:-6,left:"50%",transform:"translateX(-50%)",width:32,height:10,borderRadius:3,background:"rgba(0,0,0,0.08)",backdropFilter:"blur(2px)",zIndex:2}} />)}
@@ -3853,7 +3890,7 @@ export default function CanvasBoard({
               onRotateMD={media.locked ? e => e.stopPropagation() : e => startRotate(media.id, "media", e, media.x + media.w / 2, media.y + media.h / 2)}
               updateMedia={updateMedia}
               locked={!!media.locked}
-              onToggleLock={() => setElements(p => p.map(e => e.elementType === "media" && e.id === media.id ? { ...e, locked: !e.locked } : e))}
+              onToggleLock={() => updateMedia(media.id, { locked: !media.locked })}
               canInteract={canInteract}
             />
           </WidgetBoundary>
@@ -4031,6 +4068,39 @@ export default function CanvasBoard({
             pickCursor: () => spaceCursorRef.current?.click(),
             grid: gridOn, onGrid: setGridOn,
           }}
+          layers={layersOpen ? (() => {
+            const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));
+            const byId = new Map(elements.map(e => [e.id, e] as const));
+            const labels = layerLabels(elements.filter(e => visibleIds.has(e.id)));
+            const rows: LayerRow[] = visualOrder(items).reverse().map(it => {
+              const el = byId.get(it.id)!;
+              const { name, detail } = labels.get(it.id)!;
+              return {
+                id: it.id, layer: it.layer, name, detail,
+                thumb: el.elementType === "image" ? el.src : undefined,
+                // The ProfileCard is fixed and centered: no lock (capability matrix).
+                locked: el.elementType === "profile" ? undefined : !!(el as { locked?: boolean }).locked,
+              };
+            });
+            return {
+              items, rows, selectedIds,
+              onSelect: (id: string, additive: boolean) => setSelectedIds(prev => {
+                if (!additive) return new Set([id]);
+                const next = new Set(prev);
+                if (next.has(id)) next.delete(id); else next.add(id);
+                return next;
+              }),
+              onReorder: (id: string, action: Parameters<typeof reorderLayers>[2]) => applyLayerChange(id, reorderLayers(layerItemsNow(), id, action)),
+              onMove: (id: string, to: number) => applyLayerChange(id, moveWithinLayer(layerItemsNow(), id, to)),
+              onSetLayer: (id: string, layer: 0 | 1 | 2) => applyLayerChange(id, setElementLayer(layerItemsNow(), id, layer)),
+              onToggleLock: (id: string) => {
+                const el = elementsRef.current.find(e => e.id === id);
+                if (!el || el.elementType === "profile") return;
+                ownHistoryStep(() => enqueueOpRef.current(elementOps.update(el.elementType, id, { locked: !(el as { locked?: boolean }).locked })));
+              },
+            };
+          })() : undefined}
+          layersReturnFocus={() => document.getElementById(RAIL_LAYERS_BUTTON_ID) ?? addBtnRef.current}
           memory={editorSel.memory}
           onSelectObject={setInspectorObject}
           updateProfile={updateProfile}
@@ -4103,6 +4173,7 @@ export default function CanvasBoard({
             <>
               <div aria-hidden style={{height:1,background:UIT.ui.line.group,margin:"4px 6px"}} />
               <button type="button" className="mn-menuitem" onClick={()=>{setMenuOpen(false);openRoom();}}>Tu sala</button>
+              {canInteract && <button type="button" className="mn-menuitem" onClick={()=>{setMenuOpen(false);openLayers();}}>Capas</button>}
             </>
           )}
         </div>

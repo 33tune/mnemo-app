@@ -12,7 +12,7 @@ import {
   countActiveCardEffects, objectForRoute, filesMountedBy, inspectorObject, type ObjectId,
 } from "./inspectorObjects";
 import { createSelectionMemory as createInspectorSession } from "./editorSelection";
-import { capabilityMatrix, P, LIENZO } from "./editorCapabilities";
+import { capabilityMatrix, P, LIENZO, CAPAS } from "./editorCapabilities";
 import { getProfileCardEffects } from "./profileCardEffects";
 import { cardBaseColor } from "./cardColors";
 import { stripComments } from "./sourceScan";
@@ -185,8 +185,9 @@ test("every ProfileCard route names an inspector object whose files hold its evi
   const bad: string[] = [];
   for (const { owner, path, cap } of capabilityMatrix()) {
     if (cap.kind !== "route") continue;
-    if (owner === "music") { assert.ok(cap.ui.startsWith("Music") || cap.ui.startsWith(LIENZO) || cap.ui.startsWith("handles de resize") || cap.ui.startsWith("Rotar"), `music:${path} → ${cap.ui}`); continue; }
-    if (cap.ui.startsWith(LIENZO)) continue;
+    if (owner === "music") { assert.ok(cap.ui.startsWith("Music") || cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith("handles de resize") || cap.ui.startsWith("Rotar"), `music:${path} → ${cap.ui}`); continue; }
+    // Phase E: Capas is room level, like the canvas (not an inspector object).
+    if (cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS)) continue;
     const o = objectForRoute(cap.ui, P);
     if (!o) { bad.push(`${path}: "${cap.ui}" names no object`); continue; }
     const files = filesMountedBy(o.id);
@@ -247,7 +248,7 @@ function unitsOf(id: ObjectId): Set<string> {
 test("r2: every route's evidence sits in a SECTION its object mounts (textAlign under Nombre or border.color under Fondo would fail)", () => {
   const bad: string[] = [];
   for (const { owner, path, cap } of capabilityMatrix()) {
-    if (owner !== "profile" || cap.kind !== "route" || cap.ui.startsWith(LIENZO)) continue;
+    if (owner !== "profile" || cap.kind !== "route" || cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS)) continue;
     const o = objectForRoute(cap.ui, P)!;
     const units = unitsOf(o.id);
     for (const [file, text] of cap.evidence) {

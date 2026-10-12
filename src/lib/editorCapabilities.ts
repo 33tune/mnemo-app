@@ -92,6 +92,8 @@ const TIPO = "Tipografía";
 const COLOR = "Color";
 const FX_TEXTO = "Efectos del texto";
 export const LIENZO = "Lienzo (arrastrar)";
+/** Editor v3 Phase E: the Layers panel (room level, like the canvas). */
+export const CAPAS = "Capas";
 
 const LEGACY_POS = "pre-composition position/scale (Stage 3 replaced it with block anchors); kept for old data";
 const BLOCK_DRAG = (block: string) => card(`${LIENZO} › bloque ${block}`, `${block}: ["${block}AnchorX", "${block}AnchorY"]`, "[fx]: latest.x");
@@ -105,7 +107,10 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   y: system("centerCardPosition(): ProfileCard is always centered; the inspector never writes x/y"),
   w: config(`${FONDO} › Medidas › Ancho · handles de resize`, "onChange({ w: c.w, h: c.h"),
   h: config(`${FONDO} › Medidas › Alto · handles de resize`, "onChange({ w: c.w, h: c.h"),
-  zIndex: system("canvas stacking order"), layer: system("canvas stacking layer"), depth: system("parallax depth of the element"),
+  // Editor v3 Phase E: the card's stacking against free elements, in Capas.
+  zIndex: route(`${CAPAS} › Orden`, ev("CanvasBoard.tsx", "onMove: (id: string, to: number) => applyLayerChange(id, moveWithinLayer(layerItemsNow(), id, to))")),
+  layer: route(`${CAPAS} › Capa`, ev("CanvasBoard.tsx", "onSetLayer: (id: string, layer: 0 | 1 | 2) => applyLayerChange(id, setElementLayer(layerItemsNow(), id, layer))")),
+  depth: system("parallax depth of the element"),
   rotation: unsupported("ProfileCard is fixed and centered (no rotation)"),
   format: retired("only a soft FORMAT_BIAS tie-break since C.2.2; no longer chosen in the UI"),
   sizeScale: retired("legacy scale, replaced by free width/height"),
@@ -354,8 +359,11 @@ export const MUSIC_CARD_CAPS: Record<MusicFieldPath, Capability> = {
   w: music(`handles de resize · ${MEDIDAS} › Ancho`, "onGeometry({ w: v })"),
   h: music(`handles de resize · ${MEDIDAS} › Alto`, "onGeometry({ h: v })"),
   rotation: music(`Rotar · ${MEDIDAS} › Rotación`, "onGeometry({ rotation: v })", "updateCard(card.id, { rotation:"),
-  zIndex: system("canvas stacking order"), layer: system("canvas stacking layer"), depth: system("parallax depth of the element"),
-  locked: route(`${M} › Bloquear`, ev("CanvasBoard.tsx", 'e.elementType === "music" && e.id === mc.id ? { ...e, locked: !e.locked }')),
+  // Editor v3 Phase E: stacking is edited in Capas (rail › Capas), for every element.
+  zIndex: route(`${CAPAS} › Orden (Al frente / Subir / Bajar / Al fondo, arrastrar)`, ev("CanvasBoard.tsx", "applyLayerChange(id, reorderLayers(layerItemsNow(), id, action))"), ev("LayersPanel.tsx", "p.onReorder(single.id, b.action)")),
+  layer: route(`${CAPAS} › Capa (Fondo / Medio / Frente)`, ev("LayersPanel.tsx", "p.onSetLayer(single.id, Number(t.id) as LayerIndex)")),
+  depth: system("parallax depth of the element"),
+  locked: route(`${M} › Bloquear (y Capas › Seleccionado › Bloquear)`, ev("CanvasBoard.tsx", "updateMusicCard(mc.id, { locked: !mc.locked })")),
   isPublic: system("visibility per space, set on creation"), stackId: system("stack membership (canvas grouping)"),
   musicUrl: retired("legacy link preview (Spotify/YouTube/SoundCloud) — MP3 only now"),
   mood: retired("legacy link preview caption"),

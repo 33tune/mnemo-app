@@ -86,7 +86,8 @@ test("rail: wide viewports only; V / A / L only with focus on the canvas; + menu
   const keys = BOARD.indexOf("railKeyRef.current?.(e.key.toLowerCase())");
   assert.ok(guard > 0 && keys > guard, "plain-letter tools run after the positive canvas guard");
   assert.ok(RAIL.includes('aria-label="Herramientas"') && RAIL.includes("[EDITOR_UI_ATTR]"));
-  assert.ok(RAIL.includes('label="Capas · próximamente" keys="L" disabled'), "Capas arrives with Phase E");
+  // Phase E: Capas (L) is live — it opens the Layers panel in the dock.
+  assert.ok(RAIL.includes('label="Capas" keys="L" id={RAIL_LAYERS_BUTTON_ID} expanded={layersOpen}'), "Capas opens Layers (Phase E)");
   assert.ok(BOARD.includes("left:RAIL_ADD_MENU_POS.left,top:RAIL_ADD_MENU_POS.top"));
   assert.ok(BOARD.includes("(!railShown || isActive)"), "with the rail the floating + is gone; the trash still shows during a drag");
 });
@@ -146,7 +147,8 @@ test("Phase D review: narrow viewports get the compact editor topbar (1.4.10) wi
 test("Phase D review: \"Tu sala\" opens on touch devices too (room settings were reachable from + before D)", () => {
   assert.ok(BOARD.includes("const roomShown = roomOpen && canEdit;"));
   assert.ok(BOARD.includes('{view === "canvas" && inspectorEnabled && (canInteract || roomShown) && ('));
-  assert.ok(BOARD.includes("const inspectorShown = (!!inspectorProfile && canInteract) || roomShown;"));
+  // Phase E: Capas joins the card's inspector on the canInteract side (no touch editing).
+  assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || layersOpen) && canInteract) || roomShown;"));
 });
 
 test("Phase D review: object chrome clears the 60px topbar and the rail (placement only, geometry keeps 44)", () => {

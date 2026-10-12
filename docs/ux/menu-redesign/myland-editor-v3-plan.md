@@ -68,7 +68,13 @@
     introducido por la ronda. `npm test` 590/590, `tsc` limpio, `next build` 13/13.
   - **Sin QA en navegador real.** Hubo capturas de un harness estático (el `ProfileInspector` real con `editor.css` y los
     tokens, en Edge headless, fuentes del sistema): no reemplaza la QA.
-- **NO empezadas:** las fases E, G, H e I. **La siguiente fase arranca solo con el OK del usuario.**
+- **Fase E (Layers): TERMINADA (2026-10-12)** en `feature/myland-editor-v3`, commit
+  `feat: implement MYLAND editor v3 phase E (layers)`. **No mergeada a `main`.** Detalle y pendientes en § 6, Fase E.
+  - Revisión: Regresiones/Capacidades y Visual/UX/Accesibilidad; una ronda de correcciones (2 bloqueantes: el orden
+    con datos que cruzan de banda y el contraste del detalle en la fila seleccionada) y verificación de cierre de los
+    dos. `npm test` 611/611, `tsc` limpio, `next build` 13/13.
+  - **Sin QA en navegador real** (capturas del panel en el harness estático, no reemplazan la QA).
+- **NO empezadas:** las fases G, H e I. **La siguiente fase arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -78,8 +84,8 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Fases A, B, C, D y F cerradas.** Siguiente: QA en navegador de las Fases D y F, y **la Fase E** (§ 6, orden
-   `… D → F → E …`) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
+6. **Fases A, B, C, D, F y E cerradas.** Siguiente: QA en navegador de las Fases D, F y E, y **la Fase G** (§ 6, orden
+   `… F → E → G → H`) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
 
 ---
 
@@ -655,6 +661,43 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
 - **Elementos legacy** (cards, galerías, etc.): aparecen en la lista para que sea fiel al canvas real, pero no se agregan features legacy.
 - **Archivos:** `CanvasBoard.tsx` y los nuevos `LayersPanel.tsx`, `src/lib/layerOrder.ts` (+ test).
 - **Riesgo:** medio/bajo. Cambia a propósito qué elemento recibe el click donde se superponen, así que hay que probar el hit-stack con una imagen sobre la card.
+
+- **Estado: TERMINADA (2026-10-12)**, ver § 1. Qué quedó:
+  - **`src/lib/layerOrder.ts`** (puro, testeado): orden visual = `zIndex + layer × 100` con el desempate por orden de
+    render de CanvasBoard; reorden SIEMPRE dentro de la capa y con cambios mínimos — Al frente = máximo + 1, Al fondo =
+    mínimo − 1 (nunca bajo 1: la capa de click del fondo es 0 y la cuadrícula 1), Subir/Bajar/arrastrar rotan solo los
+    valores del tramo que cambia. **Decisión (revisión E-B1):** no se normaliza la capa a 1…n — con datos viejos
+    (`zCounter` ≥ 100, que cruza de banda) eso mandaba elementos detrás de la ProfileCard. `setLayer` (el selector
+    Fondo/Medio/Frente, única forma de cambiar `layer`) deja el elemento arriba de la capa destino en un solo patch.
+  - **Panel Capas** (`LayersPanel.tsx`, en el dock, target `layers` de `editorSelection` que sobrevive a cualquier
+    selección): lista del orden real (arriba = frente) con un encabezado Frente/Medio/Fondo por tramo (una lista por
+    tramo, nombrada por su encabezado), click = seleccionar en el lienzo (Shift/Ctrl/⌘ suma), arrastre por el grip
+    dentro de la capa, sección "Seleccionado" con Capa (3 botones con `aria-pressed`), Al frente / Subir / Bajar /
+    Al fondo (`aria-disabled`, el foco no se pierde) y Bloquear (no para la ProfileCard). Cada cambio se anuncia por
+    `role=status` ("Texto: 1 de 3 en Frente"). Nombres repetidos llevan "n.º N".
+  - **Escritura:** `applyLayerPatches` = `ownHistoryStep` + `elementOps.update` por patch → un solo paso de deshacer,
+    persistido por las ops `update_*` (en `space_mobile`, `zIndex`/`layer`/`locked` van como `update_placement`).
+  - **Bug del doble click arreglado:** "traer al frente" (imagen y card legacy) usa la misma función y persiste.
+    También persisten ahora la capa y el candado de la toolbar de imagen, la capa de la toolbar de texto y el candado
+    de Music y de los widgets legacy (antes solo estado local).
+  - **Rail:** Capas (L) activo; en angosto, ítem "Capas" en el menú `+` (solo con `canInteract`).
+  - Matriz de capacidades: `zIndex`/`layer` de la tarjeta y de Music pasan de `system` a ruta "Capas".
+  - Ningún sistema protegido tocado (geometría, drag, resize, hit-testing, render, público, mobile).
+- **Pendientes (no bloquearon):**
+  - **QA en navegador:** orden con imágenes sobre la tarjeta (R5: el hit-stack cambia a propósito), doble click,
+    arrastre en la lista, deshacer/rehacer de cada operación, recargar y ver el orden persistido (también en
+    `space_mobile`), NVDA (anuncios, listas por capa), Windows High Contrast, angosto (menú `+` › Capas).
+  - **Selección elevada:** `SELECTION_Z_BOOST` dibuja el elemento seleccionado arriba de todo mientras está
+    seleccionado (para sus handles); "Al fondo" se ve al deseleccionar. El panel lo explica; cambiarlo tocaría la
+    selección y el hit-testing.
+  - Las altas nuevas siguen usando `zCounter` (pueden cruzar de banda); se respeta porque cambiarlo es modelo de datos.
+  - El selector de Capa también se ofrece para la ProfileCard (el dato existe); confirmar en QA que se quiere.
+  - Un doble tap en táctil (`canEdit` sin `canInteract`) ahora persiste un "al frente".
+  - Con datos viejos que cruzan de banda (`zIndex` ≥ 100), Subir/Bajar en medio de la capa reparte los valores del
+    tramo: un vecino puede heredar el valor alto y pasar sobre otra capa (el orden dentro de la capa es correcto; 0
+    casos con datos dentro de la banda). "Al frente" (máximo + 1) puede superar 99, como ya pasaba con `zCounter`.
+  - Con `zIndex` repetidos en una capa, el reorden reescribe esa capa entera con valores crecientes (para que el
+    elemento quede en el lugar pedido).
 
 ### Fase G: Texto, Imagen y Music en el dock (D8)
 - **Texto:** contenido, fuente, tamaño, interletrado, mayúsculas, color y opacidad. **Solo los campos que hoy existen en `CanvasText`**: hay que verificarlos antes de implementar.

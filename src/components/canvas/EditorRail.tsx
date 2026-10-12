@@ -2,7 +2,7 @@
 import React from "react";
 import { T, uv, Icon, type IconName } from "@/ui";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
-import { RAIL_ROOM_BUTTON_ID } from "./EditorHost";
+import { RAIL_ROOM_BUTTON_ID, RAIL_LAYERS_BUTTON_ID } from "./EditorHost";
 
 /** id of the rail's "Agregar" button (the "+" menu returns focus here). */
 export const RAIL_ADD_BUTTON_ID = "mnemo-rail-add";
@@ -18,6 +18,10 @@ interface EditorRailProps {
   selectActive: boolean;
   roomOpen: boolean;
   onRoom: () => void;
+  /** Editor v3 Phase E: Capas (L) opens the Layers panel in the dock. */
+  layersOpen: boolean;
+  onLayers: () => void;
+  layersPanelId: string;
   addMenuId: string;
   roomInspectorId: string;
 }
@@ -53,7 +57,7 @@ function RailButton({ icon, label, keys, pressed, expanded, controls, disabled, 
 // themed with the editor (Light / Dark / OG), never the canvas; the
 // canvas-level shortcuts V / A / L run only with focus on the canvas
 // (positive guard, CanvasBoard).
-export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpen, onRoom, addMenuId, roomInspectorId }: EditorRailProps) {
+export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpen, onRoom, layersOpen, onLayers, layersPanelId, addMenuId, roomInspectorId }: EditorRailProps) {
   return (
     <nav
       aria-label="Herramientas"
@@ -69,8 +73,7 @@ export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpe
       <img src="/logo.png" alt="" width={34} height={27} draggable={false} style={{ width: 34, height: "auto", marginBottom: 14 }} />
       <RailButton icon="pointer" label="Seleccionar" keys="V" pressed={selectActive} onClick={onSelectTool} />
       <RailButton icon="plus" label="Agregar" keys="A" id={RAIL_ADD_BUTTON_ID} expanded={addOpen} controls={addMenuId} onClick={onAdd} />
-      {/* Capas (L) arrives with Phase E (Layers). */}
-      <RailButton icon="layers" label="Capas · próximamente" keys="L" disabled />
+      <RailButton icon="layers" label="Capas" keys="L" id={RAIL_LAYERS_BUTTON_ID} expanded={layersOpen} controls={layersPanelId} onClick={onLayers} />
       <div style={{ flex: 1 }} />
       <div style={{ marginBottom: 12 }}>
         <RailButton icon="room" label="Tu sala" id={RAIL_ROOM_BUTTON_ID} expanded={roomOpen} controls={roomInspectorId} onClick={onRoom} />
