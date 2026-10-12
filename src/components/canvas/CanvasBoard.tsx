@@ -55,6 +55,9 @@ import { INSPECTOR_COLLAPSED_W, INSPECTOR_SHEET_COLLAPSED_H, INSPECTOR_EXPAND_ID
 import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown } from "@/lib/inspectorViewOffset";
 import { useEditorSelection, profileTargetId } from "@/lib/editorSelection";
 import { EditorHost, type ProfileEditorFacts } from "./EditorHost";
+import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail";
+import { CanvasGrid, useGridPreference } from "./CanvasGrid";
+import type { RoomOp } from "./RoomInspector";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
   HISTORY_TEXT_IDLE_MS, ownHistoryStep, inOwnHistoryStep, undoShortcutOwner, historyShortcut, type EditorHistory, type HistoryEntry, type Snap,
@@ -473,7 +476,6 @@ export default function CanvasBoard({
   const gbBgIdRef     = useRef<string | null>(null);
   const [editingId,     setEditingId]     = useState<string | null>(null);
   const [menuOpen,      setMenuOpen]      = useState(false);
-  const [wallpaperMenuOpen, setWallpaperMenuOpen] = useState(false);
   const [isLoading,     setIsLoading]     = useState(false);
   const [publishState,  setPublishState]  = useState<PublishState>("idle");
   // Bug fix (2026-09-30): "space" is the canvas [handle]/page.tsx actually
@@ -537,6 +539,8 @@ export default function CanvasBoard({
   const historyArmedRef   = useRef(false);
   /** True while a focusout is being dispatched (a field committing on blur). */
   const blurCommitRef     = useRef(false);
+  /** When the last undo / redo was applied (Phase D: topbar buttons). */
+  const lastHistoryApplyRef = useRef(0);
   const lastMousePosRef   = useRef({ x: 0, y: 0 });
   const dragCounterRef    = useRef(0);
   // Live refs updated each render so [] effects always see current values
@@ -648,7 +652,10 @@ export default function CanvasBoard({
   const inspectorCardId = profileTargetId(editorSel.target);
   const inspectorCardIdRef = useRef<string | null>(null);
   inspectorCardIdRef.current = inspectorCardId;
-  const { openProfile, closeInspector, setObject: setInspectorObject } = editorSel;
+  const { openProfile, openRoom, closeInspector, setObject: setInspectorObject } = editorSel;
+  /** Any inspector (the card's or "Tu sala") is open — F6 / Esc layering. */
+  const inspectorOpenRef = useRef(false);
+  inspectorOpenRef.current = !!editorSel.target;
   // 2.4.11: the bottom sheet collapses to a bar (the dock never does) when
   // focus goes to the canvas and the sheet would hide it — "card": focus on
   // the canvas / card while the sheet covers the card; "focus": a focused
@@ -720,6 +727,14 @@ export default function CanvasBoard({
   const inspLayout = inspectorLayout({
     viewportW, inspectorW: UIT.ui.size.inspectorW, sheetBreakpoint: UIT.ui.breakpoint.inspectorSheet,
   });
+  // Editor v3 Phase D: the editor shell — the glass topbar (whenever the
+  // owner edits the canvas) and the tool rail (wide viewports only: the
+  // narrow layout of the design has none, the "+" stays a floating button).
+  const editorShell = canEdit && view === "canvas";
+  const railShown = editorShell && canInteract && inspLayout.mode === "dock";
+  const railW = railShown ? UIT.ui.size.railW : 0;
+  /** "Tu sala" (target kind "room") is open. */
+  const roomOpen = editorSel.target?.kind === "room";
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
     : undefined;
@@ -728,17 +743,21 @@ export default function CanvasBoard({
   // Sheet (narrow): the sheet sits BELOW the card, never over it — as tall
   // as the room under the card allows — and the canvas moves UP (dy).
   const computedView = (() => {
+    // "Tu sala" moves nothing (it is about the whole room); as a sheet it
+    // takes the max share of the viewport.
+    if (roomOpen && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
     if (!inspectorProfile) return { dx: 0, dy: 0, sheetH: 0, covered: false };
     if (!sheetMode) {
       const o = viewOffsetEnabled
-        ? inspectorViewOffset({ viewportW, inspectorW: inspLayout.width, box: { x: inspectorProfile.x, w: inspectorProfile.w } })
+        // Phase D: the visible area runs from the rail to the floating dock.
+        ? inspectorViewOffset({ viewportW, inspectorW: inspLayout.width + UIT.ui.size.dockMargin, left: railW, box: { x: inspectorProfile.x, w: inspectorProfile.w } })
         : { dx: 0, covered: false };
       return { dx: o.dx, dy: 0, sheetH: 0, covered: o.covered };
     }
-    const sheetH = inspectorSheetHeight({ viewportH, topOffset: CANVAS_TOP_OFFSET, boxH: inspectorProfile.h });
+    const sheetH = inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: inspectorProfile.h });
     const box = { y: inspectorProfile.y, h: inspectorProfile.h };
     const o = viewOffsetEnabled
-      ? inspectorSheetOffset({ viewportH, topOffset: CANVAS_TOP_OFFSET, sheetH, box })
+      ? inspectorSheetOffset({ viewportH, topOffset: UIT.ui.size.editorTopbarH, sheetH, box })
       // space_mobile: no offset and, as before, never "covered" (review B-R3).
       : { dy: 0, covered: false };
     return { dx: 0, dy: o.dy, sheetH, covered: o.covered };
@@ -788,8 +807,8 @@ export default function CanvasBoard({
   // The FAB ("+"/trash) and its menus are fixed to the bottom-right corner,
   // under the inspector: they move LEFT by the dock's width, or UP by the
   // sheet's height, while it's open.
-  const inspectorShown = !!inspectorProfile && canInteract;
-  const fabShift = inspectorShown && !sheetMode ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width) : 0;
+  const inspectorShown = (!!inspectorProfile || roomOpen) && canInteract;
+  const fabShift = inspectorShown && !sheetMode ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0;
   const fabLift = inspectorShown && sheetMode ? (inspectorCollapsed ? INSPECTOR_SHEET_COLLAPSED_H : inspView.sheetH) : 0;
   // Review B-UX-1: lifted above an EXPANDED sheet the FAB and its menus land
   // on the card (narrow screens; the design's screen 10 has no FAB) — they
@@ -799,8 +818,28 @@ export default function CanvasBoard({
   // Closure B-UX/R: menus hidden with the FAB are closed, not just hidden —
   // otherwise they reappear open when the sheet collapses or closes.
   useEffect(() => {
-    if (fabHidden) { setMenuOpen(false); setWallpaperMenuOpen(false); }
+    if (fabHidden) setMenuOpen(false);
   }, [fabHidden]);
+
+  // ── Editor shell state (Phase D) ──────────────────────────────────────────
+  // Deshacer / Rehacer in the topbar follow the history (Phase C).
+  const [histFlags, setHistFlags] = useState({ canUndo: false, canRedo: false });
+  useEffect(() => {
+    const h = historyRef.current!;
+    const update = () => setHistFlags(f => (f.canUndo === h.canUndo() && f.canRedo === h.canRedo() ? f : { canUndo: h.canUndo(), canRedo: h.canRedo() }));
+    update();
+    return h.subscribe(update);
+  }, []);
+  // Lienzo › Mostrar cuadrícula (local editor preference).
+  const [gridOn, setGridOn] = useGridPreference();
+  // Rail tools from the keyboard (canvas focus only — see the key handler).
+  const railKeyRef = useRef<((key: string) => boolean) | null>(null);
+  railKeyRef.current = (key: string) => {
+    if (!editorShell || !canInteract) return false;
+    if (key === "v") { setAddingText(false); setMenuOpen(false); return true; }
+    if (key === "a") { setMenuOpen(m => !m); return true; }
+    return false; // "l" (Capas) arrives with Phase E.
+  };
 
   const router = useRouter();
 
@@ -980,11 +1019,9 @@ export default function CanvasBoard({
   // Iteration 0: "+" menu / MyLand focus targets (Esc and item activation
   // return focus to their opener instead of <body>).
   const addBtnRef = useRef<HTMLButtonElement>(null);
-  const mylandBtnRef = useRef<HTMLButtonElement>(null);
   function closeAddMenu() {
     setMenuOpen(false);
-    setWallpaperMenuOpen(false);
-    requestAnimationFrame(() => addBtnRef.current?.focus({ preventScroll: true }));
+    requestAnimationFrame(() => (addBtnRef.current ?? document.getElementById(RAIL_ADD_BUTTON_ID))?.focus({ preventScroll: true }));
   }
 
   // ── Iteration 0: canvas keyboard (O1) + status announcements ─────────────────
@@ -1483,7 +1520,9 @@ export default function CanvasBoard({
     // interaction (load-time seeding, the free-layout defaults effect).
     if (!historyArmedRef.current) return;
     if (isSystemLayoutWrite(op as { type: string; patch?: unknown }, {
-      pointerActive: h.isPointerActive(), entryOpen: h.isOpen(),
+      // Phase D: right after an undo / redo (e.g. from the topbar button,
+      // itself a pointer gesture) the card's re-centering is a system write.
+      pointerActive: h.isPointerActive() && Date.now() - lastHistoryApplyRef.current > 1000, entryOpen: h.isOpen(),
     })) return;
     // Review C-4: typing pauses longer than slider arrows ("blur o pausa").
     const idle = isTextEntry(document.activeElement as HTMLElement | null) ? HISTORY_TEXT_IDLE_MS : undefined;
@@ -1555,6 +1594,7 @@ export default function CanvasBoard({
   }
   function runHistory(dir: "undo" | "redo") {
     const h = historyRef.current!;
+    lastHistoryApplyRef.current = Date.now();
     const entry = dir === "undo" ? h.undo() : h.redo();
     if (!entry) { announceRef.current?.(dir === "undo" ? "Nada para deshacer" : "Nada para rehacer"); return; }
     applyHistoryEntry(entry, dir);
@@ -1666,7 +1706,7 @@ export default function CanvasBoard({
       // also covers focus on <body>.
       // Phase 2: F6 moves focus between the canvas and the open inspector
       // (both ways — it runs before the editor guard on purpose).
-      if (e.key === "F6" && inspectorCardIdRef.current) {
+      if (e.key === "F6" && inspectorOpenRef.current) {
         const active = document.activeElement as HTMLElement | null;
         const inInspector = !!active?.closest?.('aside[aria-label="Inspector"]');
         e.preventDefault();
@@ -1694,7 +1734,7 @@ export default function CanvasBoard({
         if (isEditingInput(e)) return;
         // Phase 2 Esc layering, on the canvas: a first Esc closes the open
         // inspector (focus stays on the canvas), the next one deselects.
-        if (inspectorCardIdRef.current) {
+        if (inspectorOpenRef.current) {
           closeInspector();
           return;
         }
@@ -1712,6 +1752,9 @@ export default function CanvasBoard({
       // always mounted (Iteration 1).
       if (!canvasShortcutAllowed(e.target as GuardElement | null, document.activeElement as GuardElement | null)) return;
 
+      // Phase D: rail tools — V Seleccionar, A Agregar (the "+" menu), L Capas
+      // (Phase E). Plain letters, so only here, after the canvas-focus guard.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && railKeyRef.current?.(e.key.toLowerCase())) { e.preventDefault(); return; }
       // Phase C: a held arrow nudge moves elements live and persists on
       // keyup — its history "before" is the state at the FIRST arrow.
       if (e.key.startsWith("Arrow") && !gestureBaselineRef.current) {
@@ -3207,10 +3250,32 @@ export default function CanvasBoard({
         unreadChats={totalUnread}
         unreadSignals={canEdit ? unreadCount : undefined}
         onSignals={canEdit ? () => { if (!showSignals) markAllRead(); setShowSignals(s => !s); } : undefined}
+        editor={editorShell ? {
+          path: `@${userHandle} / ${canvasMode === "home" ? "inicio" : canvasMode === "space_mobile" ? "my land · móvil" : "my land"}`,
+          left: railW,
+          canUndo: histFlags.canUndo, canRedo: histFlags.canRedo,
+          onUndo: () => runHistoryRef.current("undo"), onRedo: () => runHistoryRef.current("redo"),
+          previewHref: userHandle ? `/${userHandle}` : undefined,
+          undoKeys: isMacUi ? "⌘Z" : "Ctrl+Z", redoKeys: isMacUi ? "⇧⌘Z" : "Ctrl+Y",
+        } : undefined}
       />
 
+      {/* ── Tool rail (Editor v3 Phase D) ── */}
+      {railShown && (
+        <EditorRail
+          addOpen={menuOpen}
+          onAdd={() => setMenuOpen(m => !m)}
+          onSelectTool={() => { setAddingText(false); setMenuOpen(false); canvasWrapperRef.current?.focus({ preventScroll: true }); }}
+          selectActive={!menuOpen && !addingText}
+          roomOpen={roomOpen}
+          onRoom={() => { if (roomOpen) closeInspector(); else { setMenuOpen(false); openRoom(); } }}
+          addMenuId="mnemo-add-menu"
+          roomInspectorId="mnemo-room-inspector"
+        />
+      )}
+
       {view==="canvas"&&(creatingCard||rotating||addingText)&&(
-        <div style={{position:"fixed",top:58,left:"50%",transform:"translateX(-50%)",background:"rgba(10,10,12,0.92)",color:"rgba(255,255,255,0.4)",padding:"5px 14px",borderRadius:6,zIndex:700,fontFamily:MONO,fontSize:9,letterSpacing:2,textTransform:"uppercase",border:"1px solid rgba(255,255,255,0.06)",pointerEvents:"none"}}>
+        <div style={{position:"fixed",top:editorShell?UIT.ui.size.editorTopbarH+12:58,left:"50%",transform:"translateX(-50%)",background:"rgba(10,10,12,0.92)",color:"rgba(255,255,255,0.4)",padding:"5px 14px",borderRadius:6,zIndex:700,fontFamily:MONO,fontSize:9,letterSpacing:2,textTransform:"uppercase",border:"1px solid rgba(255,255,255,0.06)",pointerEvents:"none"}}>
           {addingText?"click to place text":rotating?"rotating":"draw the area"}
         </div>
       )}
@@ -3338,6 +3403,9 @@ export default function CanvasBoard({
 
       {/* Grid overlay */}
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,0.016) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.016) 1px,transparent 1px)",backgroundSize:"48px 48px",pointerEvents:"none",zIndex:1}} />
+      {/* Editor v3 Phase D: "Mostrar cuadrícula" (Tu sala › Lienzo) — editor
+          only (never the public render), no pointer events. */}
+      {canEdit && <CanvasGrid visible={gridOn} />}
 
       <div style={{position:"absolute",inset:0,zIndex:0}}
         onMouseDown={e=>{
@@ -3943,8 +4011,20 @@ export default function CanvasBoard({
           profile={inspectorProfile && visProfiles.some(p => p.id === inspectorProfile.id) ? inspectorProfile : undefined}
           facts={profileFacts?.id === inspectorCardId ? profileFacts.facts : undefined}
           canvas={canvasMode === "space_mobile" ? undefined : { w: viewportW, h: viewportH, topOffset: CANVAS_TOP_OFFSET }}
-          top={CANVAS_TOP_OFFSET}
+          // Phase D: the floating dock starts under the editor topbar.
+          top={editorShell ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : CANVAS_TOP_OFFSET}
           layout={inspectorHostLayout}
+          room={{
+            bgColor, wallpaper, wallpaperBlur, wallpaperBrightness, wallpaperVignette, spaceMusic, spaceFont, spaceCursor,
+            objectCount: elements.length,
+            // The SAME ops the old "Ajustes de MyLand" submenu sent.
+            enqueue: (op: RoomOp) => enqueueOp(op as CanvasOp),
+            pickWallpaper: () => wallpaperRef.current?.click(),
+            pickMusic: () => spaceMusicRef.current?.click(),
+            pickFont: () => spaceFontRef.current?.click(),
+            pickCursor: () => spaceCursorRef.current?.click(),
+            grid: gridOn, onGrid: setGridOn,
+          }}
           memory={editorSel.memory}
           onSelectObject={setInspectorObject}
           updateProfile={updateProfile}
@@ -3954,7 +4034,9 @@ export default function CanvasBoard({
       )}
 
       {/* ── Trash FAB ── */}
-      {!isReadOnly && view === "canvas" && (!fabHidden || isActive) && (
+      {/* Phase D: with the rail, only the trash shows here (during a drag);
+          "+" lives in the rail. Narrow viewports keep the floating "+". */}
+      {!isReadOnly && view === "canvas" && (!fabHidden || isActive) && (!railShown || isActive) && (
       <div ref={trashRef} style={{position:"fixed",bottom:20+fabLift,right:20+fabShift,zIndex:1000}}>
         {isActive?(
           <div style={{width:38,height:38,borderRadius:"50%",border:overTrash?"1px solid rgba(255,80,60,0.5)":"1px solid rgba(255,255,255,0.08)",background:overTrash?"rgba(255,50,30,0.15)":"rgba(10,10,12,0.9)",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)"}}>
@@ -3963,7 +4045,7 @@ export default function CanvasBoard({
             </svg>
           </div>
         ):(
-          <button ref={addBtnRef} onClick={e=>{e.stopPropagation();setMenuOpen(m=>{if(m)setWallpaperMenuOpen(false);return!m;});}}
+          <button ref={addBtnRef} onClick={e=>{e.stopPropagation();setMenuOpen(m=>!m);}}
             aria-label="Agregar elemento" aria-expanded={menuOpen} aria-controls="mnemo-add-menu"
             style={{width:38,height:38,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.08)",background:menuOpen?"rgba(255,255,255,0.10)":"rgba(10,10,12,0.9)",color:menuOpen?UIT.ui.text.primary:"rgba(255,255,255,0.5)",cursor:"pointer",backdropFilter:"blur(12px)",display:"flex",alignItems:"center",justifyContent:"center",transition:`background-color ${UIT.motion.fast}ms ${UIT.motion.ease}, color ${UIT.motion.fast}ms ${UIT.motion.ease}`}}>
             {/* Block 2: SVG icon instead of the "+"/"×" text glyphs. */}
@@ -3982,7 +4064,9 @@ export default function CanvasBoard({
         // closes it and returns focus to "+".
         <div data-mnemo-ui="" id="mnemo-add-menu" role="group" aria-label="Agregar elemento" tabIndex={-1}
           onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();closeAddMenu();}}}
-          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface({position:"fixed",bottom:66+fabLift,right:20+fabShift,padding:4,zIndex:1000,width:180,boxSizing:"border-box"})}}>
+          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface(railShown
+            ? {position:"fixed",left:RAIL_ADD_MENU_POS.left,top:RAIL_ADD_MENU_POS.top,padding:4,zIndex:1000,width:180,boxSizing:"border-box"}
+            : {position:"fixed",bottom:66+fabLift,right:20+fabShift,padding:4,zIndex:1000,width:180,boxSizing:"border-box"})}}>
           {[
             // Stage 4.2-C.2.1: "New Card" (generic standalone CanvasCard),
             // "Links", "Media" and "Guestbook" were removed from here —
@@ -4009,76 +4093,12 @@ export default function CanvasBoard({
               {item.label}
             </button>
           ))}
-          <div aria-hidden style={{height:1,background:UIT.ui.line.group,margin:"4px 6px"}} />
-          <button ref={mylandBtnRef} type="button" className="mn-menuitem" aria-expanded={wallpaperMenuOpen} aria-controls="mnemo-myland-settings"
-            onClick={e=>{e.stopPropagation();setWallpaperMenuOpen(o=>!o);}}>
-            <span>Ajustes de MyLand</span>
-            <Icon name={wallpaperMenuOpen?"chevron-left":"chevron-right"} size={16} style={{opacity:0.62}} />
-          </button>
-        </div>
-      )}
-
-      {/* ── Wallpaper submenu ── */}
-      {/* Block 2: restyled with the src/ui primitives and the >= 10px type
-          scale, same place, same operations (every enqueueOp below is the
-          one the old 7-9px mono menu sent). Block 4 moves this to "Espacio". */}
-      {!isReadOnly && view === "canvas" && menuOpen && wallpaperMenuOpen && !fabHidden && (
-        <div data-mnemo-ui="" id="mnemo-myland-settings" role="region" aria-label="Ajustes de MyLand" tabIndex={-1}
-          onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setWallpaperMenuOpen(false);requestAnimationFrame(()=>mylandBtnRef.current?.focus({preventScroll:true}));}}}
-          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface({position:"fixed",bottom:66+fabLift,right:206+fabShift,padding:16,zIndex:1000,width:256,boxSizing:"border-box",maxHeight:`calc(100vh - ${140+fabLift}px)`,overflowY:"auto",display:"flex",flexDirection:"column",fontFamily:SANS})}}>
-          <MenuSection label="Fondo" first>
-            {/* Block 1: picking a color no longer also clears the wallpaper
-                (it used to enqueue set_wallpaper:"" on every input tick). The
-                color is the base layer and the wallpaper paints over it — they
-                coexist; "Quitar wallpaper" is the explicit way to drop it. */}
-            <ColorRow label="Color de fondo" value={bgColor} onChange={v=>enqueueOp({type:"set_bg",value:v})} />
-            {wallpaper&&(<MenuNote>El wallpaper se muestra encima del color.</MenuNote>)}
-            <WallpaperMenuBtn label="Subir wallpaper" onClick={()=>wallpaperRef.current?.click()} />
-            {wallpaper&&(<WallpaperMenuBtn label="Quitar wallpaper" onClick={()=>enqueueOp({type:"set_wallpaper",value:""})} danger />)}
-            {(wallpaper||bgColor!=="#0a0a0c")&&(<WallpaperMenuBtn label="Restablecer fondo por defecto" onClick={()=>{enqueueOp({type:"set_wallpaper",value:""});enqueueOp({type:"set_bg",value:"#0a0a0c"});enqueueOp({type:"set_wallpaper_blur",value:0});enqueueOp({type:"set_wallpaper_brightness",value:100});enqueueOp({type:"set_wallpaper_vignette",value:0});}} dim />)}
-            <WallpaperSlider label="Desenfoque" value={wallpaperBlur} min={0} max={40} unit="px" defaultValue={0} onChange={v=>enqueueOp({type:"set_wallpaper_blur",value:v})} />
-            <WallpaperSlider label="Brillo" value={wallpaperBrightness} min={0} max={200} unit="%" defaultValue={100} onChange={v=>enqueueOp({type:"set_wallpaper_brightness",value:v})} />
-            <WallpaperSlider label="Viñetado" value={wallpaperVignette} min={0} max={100} unit="" defaultValue={0} onChange={v=>enqueueOp({type:"set_wallpaper_vignette",value:v})} />
-          </MenuSection>
-          {/* ── MÚSICA ── */}
-          <MenuSection label="Música">
-            {spaceMusic?.url ? (
-              <>
-                <div style={{...UIT.type.value,color:UIT.ui.text.secondary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{spaceMusic.name ?? "ambient.mp3"}</div>
-                <WallpaperMenuBtn label="Cambiar música" onClick={()=>spaceMusicRef.current?.click()} />
-                <WallpaperMenuBtn label="Quitar música" onClick={()=>enqueueOp({type:"set_space_music",value:undefined})} danger />
-              </>
-            ) : (
-              <WallpaperMenuBtn label="Subir música (.mp3)" onClick={()=>spaceMusicRef.current?.click()} />
-            )}
-          </MenuSection>
-          {/* ── FUENTES ── */}
-          <MenuSection label="Fuente global">
-            {spaceFont ? (
-              <>
-                <div style={{fontFamily:`"${spaceFont.name}", ${SANS}`,fontSize:13,lineHeight:"18px",color:UIT.ui.text.primary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{spaceFont.name}</div>
-                <WallpaperMenuBtn label="Cambiar fuente" onClick={()=>spaceFontRef.current?.click()} />
-                <WallpaperMenuBtn label="Quitar fuente" onClick={()=>enqueueOp({type:"set_space_font",value:undefined})} danger />
-              </>
-            ) : (
-              <WallpaperMenuBtn label="Subir fuente (.woff2 .woff .ttf .otf)" onClick={()=>spaceFontRef.current?.click()} />
-            )}
-          </MenuSection>
-          {/* ── CURSOR ── */}
-          <MenuSection label="Cursor">
-            {spaceCursor?.url ? (
-              <>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <img src={spaceCursor.url} alt="Cursor actual" style={{width:20,height:20,objectFit:"contain",imageRendering:"pixelated",opacity:0.7}} />
-                  <span style={{...UIT.type.value,color:UIT.ui.text.secondary}}>cursor.png</span>
-                </div>
-                <WallpaperMenuBtn label="Cambiar cursor" onClick={()=>spaceCursorRef.current?.click()} />
-                <WallpaperMenuBtn label="Quitar cursor" onClick={()=>enqueueOp({type:"set_space_cursor",value:undefined})} danger />
-              </>
-            ) : (
-              <WallpaperMenuBtn label="Subir cursor (.png)" onClick={()=>spaceCursorRef.current?.click()} />
-            )}
-          </MenuSection>
+          {!railShown && (
+            <>
+              <div aria-hidden style={{height:1,background:UIT.ui.line.group,margin:"4px 6px"}} />
+              <button type="button" className="mn-menuitem" onClick={()=>{setMenuOpen(false);openRoom();}}>Tu sala</button>
+            </>
+          )}
         </div>
       )}
 
@@ -4189,18 +4209,6 @@ export default function CanvasBoard({
 // primitives (SliderRow: label association, editable value, double-click
 // reset; ActionButton: system button, red only on hover for removals).
 // Same signatures/operations as before; `defaultValue` and `danger` are new.
-function WallpaperSlider({label,value,min,max,unit,onChange,defaultValue}:{label:string;value:number;min:number;max:number;unit:string;onChange:(v:number)=>void;defaultValue?:number}) {
-  return <SliderRow label={label} value={value} min={min} max={max} step={1} unit={unit} defaultValue={defaultValue} onChange={onChange} />;
-}
-
-function WallpaperMenuBtn({label,onClick,dim,danger}:{label:string;onClick:()=>void;dim?:boolean;danger?:boolean}) {
-  return (
-    <ActionButton variant={danger ? "danger" : dim ? "ghost" : "secondary"} fullWidth onClick={() => onClick()}>
-      {label}
-    </ActionButton>
-  );
-}
-
 /** L1-like surface for the "+" menu and the MyLand settings submenu (no
  * blur: the editor body is solid; Block 4 gives the chrome its own L0). */
 function mylandMenuSurface(extra: React.CSSProperties): React.CSSProperties {
@@ -4305,6 +4313,9 @@ function ImageLinkPortal({
   return createPortal(
     <div
       data-mnemo-ui=""
+      // Phase D (pending from Phase A, A6): canvas chrome stays neutral dark —
+      // its field must not follow the editor theme.
+      data-editor-theme="dark"
       role="dialog"
       aria-label="Link de la imagen"
       tabIndex={-1}

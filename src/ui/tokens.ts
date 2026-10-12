@@ -252,31 +252,52 @@ export const T = {
       /** Select chevron, drawn inside a data: URI (no var() there): one
        * mid grey with >= 3:1 on the field of every theme (tested). */
       chevron: "#86868E",
+      /** Editor v3 Phase D: the MYLAND brand pink of "Publicar" (design
+       * #FF5C9D) with its ink — the same in every theme (7.0:1, tested). */
+      brand:    "#FF5C9D",
+      brandInk: "#0B0B0C",
     },
     /** Section number tones 01–04 (MenuSection `tone`). */
     tone: { n1: th("n1"), n2: th("n2"), n3: th("n3"), n4: th("n4") },
+    /** Editor v3 Phase D: the editor shell — the tool rail and the glass
+     * editor topbar (design --t-rail* / --t-glass*). Themed. */
+    shell: {
+      rail: th("rail"), railInk: th("railInk"), railSel: th("railSel"), railSelInk: th("railSelInk"),
+      glass: th("glass"), glassInk: th("glassInk"), glassInk2: th("glassInk2"), glassBtn: th("glassBtn"),
+      /** A box-shadow (the glass bottom hairline). */
+      glassEdge: th("glassEdge"),
+    },
     /** Editor font stacks as variables (--ui-font-sans …) for editor.css. */
     font: UI_FONT,
     opacity: { disabled: 0.38 },
     radius: { panel: 16, group: 12, control: 8, segment: 6, chip: 999, field: 12, pill: 7, button: 10, segTrack: 10, segThumb: 8,
       /** Editor v3 Phase B: top corners of the bottom sheet (design screen 10). */
-      sheet: 28 },
+      sheet: 28,
+      /** Editor v3 Phase D: the floating dock (design: radius 22). */
+      dock: 22 },
     size:   {
       panelPad: 16, row: 32, control: 28, swatch: 24, icon: 16,
-      /** Menu redesign Phase 2: the docked inspector's width (InspectorShell). */
-      inspectorW: 320,
+      /** The docked inspector's width (InspectorShell). Editor v3 Phase D: 360,
+       * floating `dockMargin` px from the right / bottom edges and under the
+       * editor topbar (design screen 01). */
+      inspectorW: 360,
+      dockMargin: 12,
+      /** Editor v3 Phase D: the tool rail (left) and the editor topbar. The
+       * topbar OVERLAYS the canvas (glass): CANVAS_TOP_OFFSET stays 44 (R1). */
+      railW: 64,
+      editorTopbarH: 60,
       /** Object-list chip height (design-direction.md §E). */
       objChip: 32,
       /** v3 controls (plan §3): switch 40×24 / knob 20, slider thumb 18, button 34. */
       switchW: 40, switchH: 24, knob: 20, thumb: 18, button: 34,
     },
     /** Below this viewport width the inspector stops docking and becomes a
-     * bottom sheet (Editor v3 Phase B; Phase 2 used a right overlay here).
-     * The design says "under ~900px"; the value stays 992 because the dock
-     * must leave room for the widest ProfileCard next to it — see
-     * uiTokens.test.ts (inspectorW + getFreeformCardBounds().maxW + 2 × 16px
-     * gutter). Phase D (dock 360px) recomputes it from the same rule. */
-    breakpoint: { inspectorSheet: 992 },
+     * bottom sheet (Editor v3 Phase B) and the rail hides (design screen 10
+     * has none). The design says "under ~900px"; the value comes from the rule
+     * that the widest ProfileCard fits between the rail and the dock — see
+     * uiTokens.test.ts (railW + 16 + maxW 640 + 16 + inspectorW + dockMargin).
+     * Phase D: 64 + 16 + 640 + 16 + 360 + 12 = 1108. */
+    breakpoint: { inspectorSheet: 1108 },
     shadow: {
       panel:   th("panelShadow"),
       popover: th("popShadow"),

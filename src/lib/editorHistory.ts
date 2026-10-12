@@ -124,6 +124,9 @@ export interface EditorHistory {
   canRedo(): boolean;
   clear(): void;
   size(): { undo: number; redo: number };
+  /** Phase D: called whenever canUndo / canRedo may have changed (the
+   * topbar buttons). Returns the unsubscribe function. */
+  subscribe(fn: () => void): () => void;
 }
 
 export function createEditorHistory(opts: { max?: number; idleMs?: number; timers?: HistoryTimers } = {}): EditorHistory {
@@ -139,6 +142,12 @@ export function createEditorHistory(opts: { max?: number; idleMs?: number; timer
   let pointer = false;
   let holds = 0;
   let idle: unknown = null;
+  const listeners = new Set<() => void>();
+  let lastFlags = "00";
+  const flags = () => `${undoStack.length > 0 || (!!open && open.changes.size > 0) ? 1 : 0}${redoStack.length > 0 ? 1 : 0}`;
+  /** Notifies only when canUndo / canRedo actually change (a slider drag
+   * records on every tick). */
+  const notify = () => { const f = flags(); if (f === lastFlags) return; lastFlags = f; listeners.forEach(l => l()); };
 
   const stopIdle = () => { if (idle != null) { timers.clear(idle); idle = null; } };
 
@@ -156,12 +165,12 @@ export function createEditorHistory(opts: { max?: number; idleMs?: number; timer
   const close = () => { if (!holds) commit(); };
   const allEntries = () => [...undoStack, ...redoStack, ...(open ? [open] : [])];
 
-  return {
+  const api: EditorHistory = {
     record(target, before, after, ms) {
       if (!open) open = { changes: new Map() };
       const prev = open.changes.get(target);
       open.changes.set(target, { before: prev ? prev.before : before, after });
-      if (!pointer && !holds) { stopIdle(); idle = timers.set(close, ms ?? idleMs); }
+      if (!pointer && !holds) { stopIdle(); idle = timers.set(() => { close(); notify(); }, ms ?? idleMs); }
     },
     pendingAfter: target => open?.changes.get(target)?.after,
     close,
@@ -214,7 +223,17 @@ export function createEditorHistory(opts: { max?: number; idleMs?: number; timer
     canRedo: () => redoStack.length > 0,
     clear() { stopIdle(); open = null; holds = 0; undoStack.length = 0; redoStack = []; },
     size: () => ({ undo: undoStack.length, redo: redoStack.length }),
+    subscribe(fn) { listeners.add(fn); return () => { listeners.delete(fn); }; },
   };
+  // Every mutating call re-checks the flags afterwards.
+  for (const k of ["record", "close", "pointerDown", "pointerUp", "focusChanged", "rebase", "forget", "undo", "redo", "clear"] as const) {
+    const fn = api[k] as (...a: unknown[]) => unknown;
+    (api as unknown as Record<string, unknown>)[k] = (...a: unknown[]) => { const r = fn(...a); notify(); return r; };
+  }
+  // The idle timer and hold release commit internally: notify after them too.
+  const rawHold = api.hold;
+  api.hold = () => { const release = rawHold(); return () => { release(); notify(); }; };
+  return api;
 }
 
 // ── Bridge for components outside CanvasBoard ──────────────────────────────

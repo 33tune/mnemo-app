@@ -16,6 +16,7 @@ const BOARD = read("src/components/canvas/CanvasBoard.tsx");
 const LIST = read("src/components/canvas/ObjectList.tsx");
 const INSPECTOR = read("src/components/canvas/ProfileInspector.tsx");
 const HOST = read("src/components/canvas/EditorHost.tsx");
+const HEADER = read("src/ui/InspectorHeader.tsx");
 const CONFIG = read("src/components/canvas/ProfileConfigMenu.tsx");
 const ROLE = read("src/components/canvas/RoleTypographyFields.tsx");
 
@@ -26,7 +27,9 @@ test("the inspector is a stable-named landmark and an editor root — not a dial
   assert.ok(!SHELL.includes('role="dialog"') && !SHELL.includes("aria-modal"), "non-modal, no dialog role");
   assert.ok(SHELL.includes("onMouseDown={e => e.stopPropagation()}") && SHELL.includes("onClick={e => e.stopPropagation()}"),
     "nothing inside starts a canvas drag or selects the card");
-  assert.match(SHELL, /<h2[^>]*id=\{INSPECTOR_TITLE_ID\}[^>]*tabIndex=\{-1\}/, "visible h2, focus target of Editar/F6");
+  // Phase D: the h2 lives in the shared InspectorHeader, wired with the same id / ref.
+  assert.match(HEADER, /<h2 ref=\{titleRef\} id=\{titleId\} tabIndex=\{-1\}/, "visible h2, focus target of Editar/F6");
+  assert.ok(SHELL.includes("<InspectorHeader path={path} title={title} titleId={INSPECTOR_TITLE_ID} titleRef={titleRef}"));
 });
 
 test("one focus contract for both panels (usePanelFocus) — no parallel panel system", () => {
@@ -100,8 +103,8 @@ test("marquee uses canvas coordinates (still correct while the offset is frozen 
 
 test("keyboard: F6 toggles canvas ⇄ inspector and is declared; Esc on the canvas closes the inspector first", () => {
   assert.equal((BOARD.match(/Escape F6"/g) ?? []).length, 2, "aria-keyshortcuts (mac + others)");
-  assert.ok(BOARD.includes('e.key === "F6" && inspectorCardIdRef.current'));
-  assert.match(BOARD, /if \(inspectorCardIdRef\.current\) \{\s*closeInspector\(\);\s*return;\s*\}/);
+  assert.ok(BOARD.includes('e.key === "F6" && inspectorOpenRef.current'), "Phase D: also for Tu sala");
+  assert.match(BOARD, /if \(inspectorOpenRef\.current\) \{\s*closeInspector\(\);\s*return;\s*\}/);
 });
 
 test("ObjectList is an APG tablist controlling a tabpanel labelled by the h2; no live regions", () => {
@@ -153,13 +156,13 @@ test("r2: the sheet's collapse looks at focus ANYWHERE inside the canvas", () =>
 
 test("Phase B: narrow viewport = bottom sheet below the element, 44px targets, collapses to a bar; the FAB moves up", () => {
   assert.ok(SHELL.includes("? { left: 0, right: 0, bottom: 0, height: collapsed ? INSPECTOR_SHEET_COLLAPSED_H : height }"));
-  assert.ok(SHELL.includes("export const SHEET_TARGET = 44;") && SHELL.includes("size={sheet ? SHEET_TARGET : undefined}"));
+  assert.ok(SHELL.includes("export const SHEET_TARGET = 44;") && HEADER.includes("size={sheet ? 44 : 28}"), "44px close in the sheet");
   assert.ok(SHELL.includes('className={sheet ? "mn-inspector__bar" : "mn-inspector__tab"}'));
   const css = read("src/ui/editor.css");
   assert.match(css, /\.mn-inspector__bar \{[^}]*min-height: 44px/);
   assert.match(css, /\.mn-panel\.mn-panel--sheet\[data-mnemo-editor\] \{[^}]*border-radius: var\(--ui-radius-sheet\)/);
   assert.ok(BOARD.includes("bottom:20+fabLift,right:20+fabShift"), "the FAB is never under the sheet");
-  assert.ok(BOARD.includes("inspectorSheetOffset({ viewportH, topOffset: CANVAS_TOP_OFFSET, sheetH, box })"));
+  assert.ok(BOARD.includes("inspectorSheetOffset({ viewportH, topOffset: UIT.ui.size.editorTopbarH, sheetH, box })"));
   assert.ok(CARD.includes("export const CANVAS_TOP_OFFSET = 44;") && BOARD.includes('import ProfileCard, { CANVAS_TOP_OFFSET } from "./ProfileCard";'),
     "R1: one topbar offset (44, unchanged), shared by the card and the sheet math");
 });
@@ -177,9 +180,9 @@ test("Phase B review fixes: collapse only when the sheet hides the focus; FAB hi
   // B-UX-1: FAB + its menus hidden while the sheet is expanded (the trash still shows during a drag).
   assert.ok(BOARD.includes("const fabHidden = inspectorShown && sheetMode && !inspectorCollapsed;"));
   assert.ok(BOARD.includes('view === "canvas" && (!fabHidden || isActive) && ('));
-  assert.equal((BOARD.match(/menuOpen( && wallpaperMenuOpen)? && !fabHidden/g) ?? []).length, 2);
-  assert.ok(BOARD.includes("if (fabHidden) { setMenuOpen(false); setWallpaperMenuOpen(false); }"), "hidden menus are closed, not left open");
-  assert.ok(BOARD.includes("maxHeight:`calc(100vh - ${140+fabLift}px)`"), "B-R2: the MyLand panel never leaves the screen");
+  assert.equal((BOARD.match(/menuOpen && !fabHidden/g) ?? []).length, 1, "Phase D: the MyLand submenu moved to Tu sala");
+  assert.ok(BOARD.includes("if (fabHidden) setMenuOpen(false);"), "hidden menus are closed, not left open");
+  assert.ok(!BOARD.includes("mnemo-myland-settings"), "Phase D: the MyLand panel left the + menu (Tu sala)");
   // B-A11y-4: the collapsed state is exposed.
   assert.ok(SHELL.includes("aria-expanded={false}"));
   // B-UX-4/6 + reduced motion; B-A11y-3: the outline stays inside the bar in forced colors.

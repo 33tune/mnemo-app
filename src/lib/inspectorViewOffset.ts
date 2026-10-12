@@ -111,8 +111,12 @@ export function inspectorSheetOffset({ viewportH, topOffset, sheetH, box, gutter
 
 export interface ViewOffsetInput {
   viewportW: number;
+  /** Width the dock takes from the RIGHT edge (Phase D: its width + the
+   * floating margin). */
   inspectorW: number;
   box: { x: number; w: number };
+  /** Width taken from the LEFT edge (Phase D: the tool rail). */
+  left?: number;
   gutter?: number;
 }
 
@@ -125,17 +129,18 @@ export interface ViewOffset {
 }
 
 /** Docked mode (horizontal). */
-export function inspectorViewOffset({ viewportW, inspectorW, box, gutter = INSPECTOR_GUTTER }: ViewOffsetInput): ViewOffset {
+export function inspectorViewOffset({ viewportW, inspectorW, box, left = 0, gutter = INSPECTOR_GUTTER }: ViewOffsetInput): ViewOffset {
   // Review r2: CENTER the box in the area the inspector leaves visible
-  // (instead of hugging the inspector's edge). ProfileCard is always
-  // centered on the canvas (centerCardPosition), so for it this is a
-  // constant inspectorW / 2 — it does not change while the card is resized.
-  const visibleW = viewportW - inspectorW;
+  // (instead of hugging the inspector's edge) — Phase D: between the rail
+  // and the floating dock. ProfileCard is always centered on the canvas
+  // (centerCardPosition), so for it this is a constant (inspectorW − left) / 2
+  // — it does not change while the card is resized.
+  const visibleRight = viewportW - inspectorW;
   const center = box.x + box.w / 2;
-  // The box's left edge never leaves the screen.
-  const max = Math.max(0, box.x - gutter);
-  const dx = Math.min(Math.max(0, center - visibleW / 2), max);
-  return { dx, covered: box.x + box.w - dx + gutter > visibleW };
+  // The box's left edge never goes under the rail / off the screen.
+  const max = Math.max(0, box.x - left - gutter);
+  const dx = Math.min(Math.max(0, center - (left + visibleRight) / 2), max);
+  return { dx, covered: box.x + box.w - dx + gutter > visibleRight };
 }
 
 /** Review r2: whether a pointer gesture freezes the view offset. ALWAYS

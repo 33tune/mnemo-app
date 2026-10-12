@@ -69,7 +69,9 @@ export default function ProfileInspector({
     <InspectorShell
       id={id}
       title={obj.caption}
-      context="Card de presentación"
+      // Phase D header: route · title · measures (Phase F refines it).
+      path="card de presentación"
+      meta={`${Math.round(card.w)} × ${Math.round(card.h)} px`}
       onClose={onClose}
       returnFocusTo={returnFocusTo}
       top={top}

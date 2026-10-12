@@ -23,6 +23,12 @@ const PATHS = {
   lock:           <><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></>,
   unlock:         <><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1" /></>,
   rotate:         <><path d="M12.5 8a4.5 4.5 0 1 1-1.3-3.2" /><path d="M12.5 2.5v3h-3" /></>,
+  // Editor v3 Phase D: rail + editor topbar.
+  pointer:        <path d="M4 2.5l8.5 5.5-3.8.9L11 13l-1.6.8-2.2-4.1L4.5 12z" />,
+  layers:         <><path d="M8 2.5l5.5 3L8 8.5l-5.5-3z" /><path d="M2.5 8.5L8 11.5l5.5-3" /><path d="M2.5 11.2L8 14.2l5.5-3" /></>,
+  undo:           <><path d="M5.5 4L2.5 7l3 3" /><path d="M2.5 7h7.5a3 3 0 0 1 0 6H7" /></>,
+  redo:           <><path d="M10.5 4l3 3-3 3" /><path d="M13.5 7H6a3 3 0 0 0 0 6h3" /></>,
+  room:           <><path d="M2.5 7.5L8 3l5.5 4.5" /><path d="M4 6.5v7h8v-7" /><path d="M6.5 13.5v-3.5h3v3.5" /></>,
 } as const;
 
 export type IconName = keyof typeof PATHS;

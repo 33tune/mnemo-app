@@ -3,7 +3,7 @@ import React, { useRef, type CSSProperties } from "react";
 import { T, uv } from "./tokens";
 import { EDITOR_ATTR } from "@/lib/editorGuards";
 import { usePanelFocus } from "./MenuPanel";
-import { IconButton } from "./IconButton";
+import { InspectorHeader } from "./InspectorHeader";
 import { Icon } from "./icons";
 
 /** id of the inspector's visible h2 — F6 (CanvasBoard) and "Editar" move
@@ -23,14 +23,18 @@ export const SHEET_CONTENT_MAX = 560;
 interface InspectorShellProps {
   /** The active object's name — the visible h2. */
   title:     string;
-  /** Visible context under the h2 ("Card de presentación"). */
-  context?:  string;
+  /** Phase D header (InspectorHeader): route in mono, serif aside next to
+   * the title, mono meta line (measures, counts). */
+  path?:     string;
+  aside?:    string;
+  meta?:     string;
   children:  React.ReactNode;
   onClose:   () => void;
   /** Where focus goes when the inspector closes ("Editar"); the canvas
    * when it is gone — never <body> (usePanelFocus). */
   returnFocusTo?: () => HTMLElement | null;
-  /** Distance from the top of the viewport (the fixed topbar's height). */
+  /** Dock: distance from the top of the viewport (Phase D: the editor
+   * topbar + the floating margin). */
   top:       number;
   width:     number;
   /** Phase B: "dock" (right edge) or "sheet" (narrow viewport: bottom
@@ -53,15 +57,16 @@ interface InspectorShellProps {
 // - same editor root contract (data-mnemo-editor → keyboard guards, focus
 //   return via the shared usePanelFocus, mousedown/click stopped so nothing
 //   here starts a canvas drag or selects the card);
-// - same surface (.mn-panel) with the --docked modifier (editor.css): left
-//   hairline, no radius, no outer shadow.
+// - same surface (.mn-panel) with the --docked modifier (editor.css) —
+//   Editor v3 Phase D: floating 12px from the edges, radius 22, shadow, and
+//   the design's header (InspectorHeader).
 // A landmark, not a dialog (non-modal, the canvas keeps working): <aside>
 // with a STABLE name ("Inspector"); the visible h2 changes with the active
 // object. Header (h2 + Cerrar) stays put; the body scrolls.
 // Rendered through a portal to <body> by its owner — never inside the
 // canvas wrapper, whose view-offset transform would re-anchor a fixed box.
 export function InspectorShell({
-  title, context, children, onClose, returnFocusTo, top, width, mode = "dock", height = 0, collapsed, onExpand, bodyRef, onBodyScroll, id,
+  title, path, aside, meta, children, onClose, returnFocusTo, top, width, mode = "dock", height = 0, collapsed, onExpand, bodyRef, onBodyScroll, id,
 }: InspectorShellProps) {
   const sheet = mode === "sheet";
   // Review B-UX-5: a full-width sheet on a ~900px window would stretch the
@@ -76,7 +81,8 @@ export function InspectorShell({
   // Dock: right edge, under the topbar. Sheet: full-width, from the bottom.
   const box: CSSProperties = sheet
     ? { left: 0, right: 0, bottom: 0, height: collapsed ? INSPECTOR_SHEET_COLLAPSED_H : height }
-    : { top, right: 0, bottom: 0, width: collapsed ? INSPECTOR_COLLAPSED_W : width };
+    // Phase D: a FLOATING dock — dockMargin from the right / bottom edges.
+    : { top, right: T.ui.size.dockMargin, bottom: T.ui.size.dockMargin, width: collapsed ? INSPECTOR_COLLAPSED_W : width };
   const base: CSSProperties = {
     position:  "fixed",
     ...box,
@@ -126,27 +132,8 @@ export function InspectorShell({
       ) : (
         <>
           {sheet && <span aria-hidden="true" className="mn-inspector__grab" />}
-          <div className="mn-inspector__header" style={{
-            display: "flex", alignItems: "center", gap: T.space[2],
-            padding: `${T.space[3]}px ${sideGutter}`,
-            boxShadow: `inset 0 -1px 0 ${uv("line-group")}`,
-            flexShrink: 0,
-          }}>
-            <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
-              {context && (
-                <span style={{ ...T.type.help, color: uv("text-secondary"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {context}
-                </span>
-              )}
-              <h2 ref={titleRef} id={INSPECTOR_TITLE_ID} tabIndex={-1} className="mn-inspector__title" style={{
-                ...T.type.title, margin: 0, color: uv("text-primary"),
-                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-              }}>
-                {title}
-              </h2>
-            </div>
-            <IconButton icon="close" aria-label="Cerrar inspector" size={sheet ? SHEET_TARGET : undefined} onClick={() => onClose()} />
-          </div>
+          <InspectorHeader path={path} title={title} titleId={INSPECTOR_TITLE_ID} titleRef={titleRef}
+            aside={aside} meta={meta} onClose={onClose} sheet={sheet} />
           <div
             ref={bodyRef}
             onScroll={onBodyScroll}

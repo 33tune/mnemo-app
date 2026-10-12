@@ -129,6 +129,9 @@ export interface EditorSelection {
   setSelectedIds: (ids: SetStateAction<Set<string>>) => void;
   /** Opens the ProfileCard inspector on the card's remembered object. */
   openProfile: (cardId: string) => void;
+  /** Editor v3 Phase D: opens "Tu sala" — clears the selection first (the
+   * room target exists only with nothing selected). */
+  openRoom: () => void;
   closeInspector: () => void;
   /** Switches the open ProfileCard inspector to another object (and
    * remembers it for the card). */
@@ -142,6 +145,10 @@ export function useEditorSelection(memory: SelectionMemory = selectionMemory): E
   const openProfile = useCallback((cardId: string) => {
     dispatch({ type: "open", target: { kind: "profile", id: cardId, objectId: memory.activeObject(cardId) } });
   }, [memory]);
+  const openRoom = useCallback(() => {
+    dispatch({ type: "select", ids: new Set() });
+    dispatch({ type: "open", target: { kind: "room" } });
+  }, []);
   const closeInspector = useCallback(() => dispatch({ type: "close" }), []);
   const profileId = profileTargetId(state.target);
   const setObject = useCallback((objectId: ObjectId) => {
@@ -150,6 +157,6 @@ export function useEditorSelection(memory: SelectionMemory = selectionMemory): E
   }, [memory, profileId]);
   return useMemo(() => ({
     selectedIds: state.selectedIds, target: state.target,
-    setSelectedIds, openProfile, closeInspector, setObject, memory,
-  }), [state, setSelectedIds, openProfile, closeInspector, setObject, memory]);
+    setSelectedIds, openProfile, openRoom, closeInspector, setObject, memory,
+  }), [state, setSelectedIds, openProfile, openRoom, closeInspector, setObject, memory]);
 }

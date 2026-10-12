@@ -7,6 +7,13 @@ import type { ObjectId } from "@/lib/inspectorObjects";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { cardBaseColor } from "@/lib/cardColors";
 import ProfileInspector from "./ProfileInspector";
+import RoomInspector from "./RoomInspector";
+
+type RoomProps = Omit<React.ComponentProps<typeof RoomInspector>,
+  "onClose" | "returnFocusTo" | "top" | "width" | "mode" | "height" | "collapsed" | "onExpand" | "id">;
+
+/** id of the rail's "Tu sala" button (where focus returns when it closes). */
+export const RAIL_ROOM_BUTTON_ID = "mnemo-rail-room";
 
 /** Render-time facts about a ProfileCard that only its render knows
  * (composition / views). ProfileCard reports them while its inspector is
@@ -32,6 +39,8 @@ interface EditorHostProps {
   /** The ProfileCard of a "profile" target (undefined if it is gone). */
   profile?:  ProfileCardData;
   facts?:    ProfileEditorFacts;
+  /** "Tu sala" (target kind "room"): the room values + writers. */
+  room?:     RoomProps;
   canvas?:   { w: number; h: number; topOffset: number };
   top:       number;
   layout:    EditorHostLayout;
@@ -49,9 +58,19 @@ interface EditorHostProps {
 // inspector; the other target kinds (Tu sala, Texto, Imagen, Music) arrive
 // in D/G — until then Music keeps its own floating MenuPanel.
 export function EditorHost({
-  target, profile, facts, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
+  target, profile, facts, room, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
 }: EditorHostProps) {
   if (typeof document === "undefined") return null;
+  // Editor v3 Phase D: "Tu sala" — the inspector with nothing selected.
+  if (target?.kind === "room" && room) {
+    return createPortal(
+      <RoomInspector {...room} id="mnemo-room-inspector" onClose={onClose}
+        returnFocusTo={() => document.getElementById(RAIL_ROOM_BUTTON_ID)}
+        top={top} width={layout.width} mode={layout.mode} height={layout.height}
+        collapsed={layout.collapsed} onExpand={onExpand} />,
+      document.body,
+    );
+  }
   if (target?.kind !== "profile" || !profile || profile.id !== target.id) return null;
 
   const id = profileInspectorId(profile.id);

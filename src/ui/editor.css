@@ -50,18 +50,18 @@
 .mn-panel[data-mnemo-editor]::-webkit-scrollbar { width: 6px; }
 .mn-panel[data-mnemo-editor]::-webkit-scrollbar-thumb { background: var(--ui-surface-scrollbar); border-radius: 3px; }
 
-/* Menu redesign Phase 2: the docked inspector (InspectorShell) — the SAME
-   L1 surface, docked to the right edge: left hairline only, no radius, no
-   outer shadow. In overlay mode (narrow viewport) it floats over the canvas,
-   so it gets the panel shadow back for separation. */
+/* The docked inspector (InspectorShell) — the SAME L1 surface (Menu redesign
+   Phase 2), floating since Editor v3 Phase D. */
 .mn-panel.mn-panel--docked[data-mnemo-editor] {
-  border: 0 solid var(--ui-line-panel);
-  border-left-width: 0.5px;
-  border-radius: 0;
-  box-shadow: none;
+  /* Editor v3 Phase D: a FLOATING dock (design screen 01) — 12px from the
+     edges, radius 22, the panel shadow; the hairline all around. */
+  border: 0.5px solid var(--ui-line-panel);
+  border-radius: var(--ui-radius-dock);
+  box-shadow: var(--ui-shadow-panel);
+  overflow: hidden;
 }
 @media (max-resolution: 1dppx) {
-  .mn-panel.mn-panel--docked[data-mnemo-editor] { border-left-width: 1px; }
+  .mn-panel.mn-panel--docked[data-mnemo-editor] { border-width: 1px; }
 }
 /* Editor v3 Phase B: the bottom sheet (narrow viewport, InspectorShell
    mode "sheet") — same L1 surface, top hairline + rounded top corners, the
@@ -112,6 +112,99 @@
 :where([data-mnemo-editor]) .mn-inspector__tab-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 100%; }
 :where([data-mnemo-editor]) .mn-inspector__tab:hover { color: var(--ui-text-primary); background: var(--ui-surface-control); }
 :where([data-mnemo-editor]) .mn-inspector__tab:focus-visible { box-shadow: inset 0 0 0 2px var(--ui-accent-focus); }
+
+/* Editor v3 Phase D: the editor topbar (Topbar.tsx, editor variant) — glass
+   over the canvas (design: glass fill + blur 24 / saturate 180), themed. */
+.mn-topbar[data-mnemo-ui] {
+  background: var(--ui-shell-glass); color: var(--ui-shell-glass-ink);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--ui-shell-glass-edge);
+}
+:where([data-mnemo-ui]) .mn-topbar__wordmark {
+  font-family: var(--ui-font-display); font-weight: 800; font-size: 21px; line-height: 1; letter-spacing: -0.055em;
+}
+:where([data-mnemo-ui]) .mn-topbar__path {
+  font-family: var(--ui-font-mono); font-size: 12px; line-height: 1; font-weight: 500; color: var(--ui-shell-glass-ink2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+:where([data-mnemo-ui]) .mn-topbar__tabs { display: flex; gap: 2px; margin-left: 16px; padding: 2px; border-radius: 10px; background: var(--ui-shell-glass-btn); }
+:where([data-mnemo-ui]) .mn-topbar__tab {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; margin: 0; border: none; border-radius: 8px;
+  background: transparent; color: var(--ui-shell-glass-ink2); cursor: pointer;
+  font-family: var(--ui-font-sans); font-size: 12px; font-weight: 550; letter-spacing: 0.04em;
+}
+:where([data-mnemo-ui]) .mn-topbar__tab[aria-pressed="true"] { background: var(--ui-surface-panel); color: var(--ui-text-primary); box-shadow: var(--ui-shadow-thumb); }
+:where([data-mnemo-ui]) .mn-topbar__btn {
+  display: inline-grid; place-items: center; width: 34px; height: 34px; margin: 0; padding: 0; border: none; border-radius: 10px;
+  background: transparent; color: inherit; cursor: pointer; text-decoration: none;
+  transition: background-color var(--ui-motion-fast) var(--ui-motion-ease), transform var(--ui-motion-fast) var(--ui-motion-ease);
+}
+:where([data-mnemo-ui]) .mn-topbar__btn--text {
+  display: inline-flex; align-items: center; gap: 7px; width: auto; height: 36px; padding: 0 12px;
+  font-family: var(--ui-font-sans); font-size: 13px; font-weight: 550;
+}
+:where([data-mnemo-ui]) .mn-topbar__btn--filled { background: var(--ui-shell-glass-btn); }
+:where([data-mnemo-ui]) .mn-topbar__btn:hover { background: var(--ui-shell-glass-btn); }
+:where([data-mnemo-ui]) .mn-topbar__btn:active { transform: scale(0.97); }
+:where([data-mnemo-ui]) .mn-topbar__btn[aria-disabled="true"] { opacity: 0.35; cursor: default; }
+:where([data-mnemo-ui]) .mn-topbar__btn[aria-disabled="true"]:hover { background: transparent; }
+:where([data-mnemo-ui]) .mn-topbar__count {
+  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 6px; display: inline-grid; place-items: center;
+  background: var(--ui-text-primary); color: var(--ui-surface-panel); font-family: var(--ui-font-mono); font-size: 11px; font-weight: 600;
+}
+:where([data-mnemo-ui]) .mn-topbar__publish {
+  display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 15px; margin: 0 0 0 4px; border: none; border-radius: 12px;
+  background: var(--ui-accent-brand); color: var(--ui-accent-brand-ink); cursor: pointer;
+  font-family: var(--ui-font-sans); font-size: 14px; font-weight: 700; letter-spacing: -0.01em;
+  transition: transform var(--ui-motion-fast) var(--ui-motion-ease), opacity var(--ui-motion-fast) var(--ui-motion-ease);
+}
+:where([data-mnemo-ui]) .mn-topbar__publish:active { transform: scale(0.97); }
+/* Nothing to publish / publishing: not the call to action. */
+:where([data-mnemo-ui]) .mn-topbar__publish[aria-disabled="true"] { background: var(--ui-shell-glass-btn); color: var(--ui-shell-glass-ink2); cursor: default; }
+:where([data-mnemo-ui]) .mn-topbar__publish[data-state="publishing"] { animation: mn-pub-pulse 1.1s ease-in-out infinite; }
+@keyframes mn-pub-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+:where([data-mnemo-ui]) .mn-topbar__tab:focus,
+:where([data-mnemo-ui]) .mn-topbar__btn:focus,
+:where([data-mnemo-ui]) .mn-topbar__publish:focus { outline: none; }
+:where([data-mnemo-ui]) .mn-topbar__tab:focus-visible,
+:where([data-mnemo-ui]) .mn-topbar__btn:focus-visible,
+:where([data-mnemo-ui]) .mn-topbar__publish:focus-visible { box-shadow: var(--ui-shadow-ring); }
+@media (prefers-reduced-motion: reduce) {
+  :where([data-mnemo-ui]) .mn-topbar__publish[data-state="publishing"] { animation: none; }
+  :where([data-mnemo-ui]) .mn-topbar__btn:active, :where([data-mnemo-ui]) .mn-topbar__publish:active { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .mn-topbar[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ui-surface-panel); }
+}
+@media (forced-colors: active) {
+  .mn-topbar[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: Canvas; border-bottom: 1px solid CanvasText; }
+  :where([data-mnemo-ui]) .mn-topbar__publish, :where([data-mnemo-ui]) .mn-topbar__btn--text { border: 1px solid ButtonText; }
+}
+
+/* Editor v3 Phase D: the tool rail (EditorRail.tsx) — 44px buttons, radius
+   13 (design screen 01); the active tool on railSel; hover = a tint of the
+   rail ink (currentColor, no literal colors). */
+:where([data-mnemo-ui]) .mn-rail__btn {
+  position: relative; width: 44px; height: 44px; margin: 0; padding: 0; border: none; border-radius: 13px;
+  display: grid; place-items: center; cursor: pointer;
+  background: transparent; color: var(--ui-shell-rail-ink);
+  transition: background-color var(--ui-motion-fast) var(--ui-motion-ease), transform 200ms var(--ui-motion-spring);
+}
+:where([data-mnemo-ui]) .mn-rail__btn:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
+:where([data-mnemo-ui]) .mn-rail__btn:active { transform: scale(0.94); }
+:where([data-mnemo-ui]) .mn-rail__btn[data-active] { background: var(--ui-shell-rail-sel); color: var(--ui-shell-rail-sel-ink); }
+:where([data-mnemo-ui]) .mn-rail__btn[aria-disabled="true"] { opacity: var(--ui-opacity-disabled); cursor: default; }
+:where([data-mnemo-ui]) .mn-rail__btn[aria-disabled="true"]:hover { background: transparent; }
+:where([data-mnemo-ui]) .mn-rail__btn:focus { outline: none; }
+:where([data-mnemo-ui]) .mn-rail__btn:focus-visible { box-shadow: var(--ui-shadow-ring); }
+@media (prefers-reduced-motion: reduce) {
+  :where([data-mnemo-ui]) .mn-rail__btn { transition: none; }
+  :where([data-mnemo-ui]) .mn-rail__btn:active { transform: none; }
+}
+@media (forced-colors: active) {
+  .mn-rail[data-mnemo-ui] { border-right: 1px solid CanvasText; }
+  :where([data-mnemo-ui]) .mn-rail__btn[data-active] { border: 2px solid Highlight; }
+}
 
 /* Object list (ObjectList.tsx): chips 32px high, fully rounded
    (design-direction.md §E). Monochrome chrome; the user's colors appear only
@@ -593,7 +686,7 @@
   :where([data-mnemo-editor]) .mn-objchip__swatch,
   :where([data-mnemo-editor]) .mn-objchip__sample,
   :where([data-mnemo-editor]) .mn-objchip__thumb { forced-color-adjust: none; border: 1px solid CanvasText; }
-  .mn-panel.mn-panel--docked[data-mnemo-editor] { border-left: 1px solid CanvasText; }
+  .mn-panel.mn-panel--docked[data-mnemo-editor] { border: 1px solid CanvasText; }
   .mn-panel.mn-panel--sheet[data-mnemo-editor] { border-top: 1px solid CanvasText; }
   /* Review B-A11y-3: the bar touches the viewport edges — keep the forced-
      colors focus outline inside it. */

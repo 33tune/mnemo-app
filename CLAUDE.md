@@ -36,7 +36,11 @@ planeado acá hasta confirmarlo.
 >   commiteada y pusheada en `feature/myland-editor-v3`. **No mergeada a `main`.** Detalle en el
 >   plan (§ 1 y § 6, Fase C).
 >
-> **Siguiente acción:** QA en navegador de las Fases A, B y C; la Fase D solo con el OK del usuario.
+> - **Fase D (shell del editor: rail, topbar de editor, dock flotante de 360px, "Tu sala" a
+>   pedido, cuadrícula) TERMINADA (2026-10-08)**, commiteada y pusheada en
+>   `feature/myland-editor-v3`. **No mergeada a `main`.** Detalle en el plan (§ 1 y § 6, Fase D).
+>
+> **Siguiente acción:** QA en navegador de la Fase D; la Fase F solo con el OK del usuario.
 >
 > **Dirección visual:** "Darkroom" (monocromo), descrita más abajo, quedó **SUPERADA**
 > por el diseño de Claude Design: colores de marca y modos Light/Dark/OG solo del editor.

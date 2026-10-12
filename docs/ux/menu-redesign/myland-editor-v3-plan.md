@@ -53,8 +53,11 @@
 - **Fase B:** commit `05950ce`.
 - **Fase C (controladores por objeto y deshacer/rehacer global, D3): TERMINADA (2026-10-08)** en
   `feature/myland-editor-v3`, commit `feat: implement MYLAND editor v3 phase C (object controllers, global undo/redo)`.
-  **No mergeada a `main`.** Detalle y pendientes en § 6, Fase C. **Sin QA en navegador.**
-- **NO empezadas:** las fases D, F, E, G, H e I. **La Fase D arranca solo con el OK del usuario.**
+  **No mergeada a `main`.** Detalle y pendientes en § 6, Fase C. Commit `0dab9a7`; el usuario la probó en navegador.
+- **Fase D (shell del editor: rail, topbar, dock, "Tu sala", cuadrícula): TERMINADA (2026-10-08)** en
+  `feature/myland-editor-v3`, commit `feat: implement MYLAND editor v3 phase D (editor shell)`. **No mergeada a
+  `main`.** Detalle y pendientes en § 6, Fase D. **Sin QA en navegador.**
+- **NO empezadas:** las fases F, E, G, H e I. **La siguiente fase arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -64,8 +67,8 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Fases A, B y C cerradas.** Siguiente: QA en navegador de las Fases 2, A, B y C, y **la Fase D** (§ 6) solo con el
-   OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
+6. **Fases A, B, C y D cerradas.** Siguiente: QA en navegador de la Fase D, y **la Fase F** (§ 6, orden
+   `… D → F → E …`) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
 
 ---
 
@@ -507,6 +510,29 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   - `InspectorShell.tsx`, `inspectorViewOffset.ts` (forma del dock), `tokens.ts`;
   - nuevos: `EditorRail.tsx`, `RoomInspector.tsx`, `CanvasGrid.tsx`, `InspectorHeader.tsx`.
 - **Riesgo:** medio, por la Topbar compartida y porque MyLand tiene que quedar idéntico.
+- **Estado: TERMINADA (2026-10-08)**, ver § 1. Qué quedó:
+  - **Decisión del usuario (2026-10-08):** "Tu sala" se abre **a pedido desde el rail** (botón "Tu sala"), no como
+    dock fijo; se cierra con Cerrar o Esc y el lienzo se ve completo el resto del tiempo.
+  - **Rail** (`EditorRail.tsx`, 64px, solo en anchos de dock): logo, Seleccionar (V), Agregar (A: el menú `+`
+    existente, ahora junto al rail), Capas (L, deshabilitado hasta E) y "Tu sala". V/A/L solo con el foco en el canvas
+    (guard positivo). Con el rail, el botón flotante `+` desaparece; la papelera sigue apareciendo al arrastrar. En
+    angosto no hay rail: sigue el `+` flotante y su menú suma "Tu sala".
+  - **Topbar de editor** (`Topbar.tsx`, prop `editor`): vidrio de 60px sobre el canvas (R1: `CANVAS_TOP_OFFSET` sigue
+    en 44), con tema; wordmark y ruta, MY LAND/SOCIAL, Señales, Deshacer/Rehacer (historial de C, se habilitan con
+    `history.subscribe`), Vista previa (el perfil público, en otra pestaña), Publicar con los estados actuales y sin
+    conteo, Salir. La barra de visitantes no cambió.
+  - **Dock:** 360px, flotante a 12px, radio 22, header nuevo (`InspectorHeader.tsx`: ruta en mono, título en display,
+    aside en serif, medidas, Cerrar). La card se centra **entre el rail y el dock**. Corte a bottom sheet recalculado:
+    64 + 16 + 640 + 16 + 360 + 12 = **1108px**.
+  - **"Tu sala"** (`RoomInspector.tsx`): Fondo (color, wallpaper, restablecer, desenfoque, brillo, viñetado), Música,
+    Fuente y Cursor, con **las mismas ops** que el submenú "Ajustes de MyLand" (que salió del menú `+`); Lienzo
+    ("Mostrar cuadrícula") y Apariencia (Light/Dark/OG).
+  - **Cuadrícula** (`CanvasGrid.tsx`): dentro del wrapper del canvas, solo con `canEdit`, sin eventos de puntero,
+    preferencia local `myland.editorGrid`; un test garantiza que nunca está en el render público.
+  - **Chrome y topbar de 60px:** el "Editar" de la card se ubica por debajo de la topbar (`EDITOR_CHROME_TOP`, solo
+    ubicación del botón) y el sheet deja libre la topbar; la geometría sigue con 44.
+  - Pendiente de A resuelto: el diálogo "Link de la imagen" queda en oscuro neutral (`data-editor-theme="dark"`).
+  - Pendiente de C resuelto: deshacer desde el botón de la topbar no registra el recentrado posterior.
 
 **Pendientes registrados en la Fase A (revisión r2):**
 - **Diálogo "Link de la imagen"** (`CanvasBoard.tsx`): la superficie es oscura literal, pero su `.mn-input` sigue el tema.

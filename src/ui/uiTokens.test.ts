@@ -220,17 +220,19 @@ test("inspector stacking: under Music's floating menu and ColorPopover, above ca
   assert.ok(T.z.inspector > 1000, "above the FAB (1000) and the topbar (800)");
 });
 
-test("sheet breakpoint leaves room for the widest card beside the docked inspector", () => {
-  // inspectorW + the widest ProfileCard + a 16px gutter on each side: above
-  // the breakpoint, the view offset can always uncover the whole card.
-  const need = T.ui.size.inspectorW + getFreeformCardBounds().maxW + 2 * 16;
+test("sheet breakpoint leaves room for the widest card between the rail and the floating dock", () => {
+  // Phase D: rail + gutter + the widest ProfileCard + gutter + dock + its
+  // margin — above the breakpoint the view offset can always uncover the card.
+  const need = T.ui.size.railW + 16 + getFreeformCardBounds().maxW + 16 + T.ui.size.inspectorW + T.ui.size.dockMargin;
   assert.ok(T.ui.breakpoint.inspectorSheet >= need, `${T.ui.breakpoint.inspectorSheet} < ${need}`);
-  assert.equal(T.ui.size.inspectorW, 320);
+  assert.equal(T.ui.size.inspectorW, 360, "design: dock 360px");
+  assert.equal(T.ui.size.dockMargin, 12);
+  assert.equal(T.ui.radius.dock, 22);
   assert.equal(T.ui.size.objChip, 32);
 });
 
 test("the docked inspector and the object chips are styled by editor.css (incl. forced colors / reduced motion)", () => {
-  assert.match(css, /\.mn-panel\.mn-panel--docked\[data-mnemo-editor\]\s*\{[^}]*border-radius:\s*0/);
+  assert.match(css, /\.mn-panel\.mn-panel--docked\[data-mnemo-editor\]\s*\{[^}]*border-radius:\s*var\(--ui-radius-dock\)[^}]*box-shadow:\s*var\(--ui-shadow-panel\)/, "Phase D: floating dock");
   assert.match(css, /\.mn-objchip\s*\{[^}]*height:\s*var\(--ui-size-obj-chip\)[^}]*border-radius:\s*var\(--ui-radius-chip\)/);
   assert.match(css, /\.mn-objchip\[aria-selected="true"\]\s*\{[^}]*border:\s*2px solid Highlight/);
   assert.match(css, /\*::after\s*\{\s*transition-property/, "reduced motion covers ::after");

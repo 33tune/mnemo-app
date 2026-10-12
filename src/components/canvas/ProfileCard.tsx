@@ -70,6 +70,11 @@ const PFP_CENTER_POINT = [0.5] as const;
 // already uses in CanvasBoard.tsx (kept as a separate local constant there
 // rather than shared, see the vertical-recentering effect below for why).
 export const CANVAS_TOP_OFFSET = 44;
+/** Editor v3 Phase D: the editor topbar is 60px of glass OVER the canvas
+ * (CANVAS_TOP_OFFSET stays 44 — R1). Only the "Editar" chrome avoids it;
+ * card geometry never reads this. Parity with T.ui.size.editorTopbarH is
+ * tested (this render file must not import the editor tokens). */
+export const EDITOR_CHROME_TOP = 60;
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -262,7 +267,7 @@ function ProfileCard({
   const panelId = profileInspectorId(card.id);
   // Review r2: same resolver as every canvas chrome control (on-canvas, not
   // under the topbar, clear of the resize handles; below-left before inside).
-  const openerPos = resolveOpenerSpot(card, { w: viewportW ?? Number.POSITIVE_INFINITY, h: viewportH ?? Number.POSITIVE_INFINITY, topOffset: CANVAS_TOP_OFFSET });
+  const openerPos = resolveOpenerSpot(card, { w: viewportW ?? Number.POSITIVE_INFINITY, h: viewportH ?? Number.POSITIVE_INFINITY, topOffset: EDITOR_CHROME_TOP });
 
   // Layout mode
   const layout = (card.layout ?? "vertical") as "vertical" | "horizontal" | "free";

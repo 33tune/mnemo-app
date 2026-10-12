@@ -1,6 +1,25 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import type { CanvasMode, PublishState } from "@/types";
+import { T, Icon } from "@/ui";
+import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
+
+/** Editor v3 Phase D: what the EDITOR variant of the topbar needs (only the
+ * owner editing their canvas gets it — visitors keep the classic bar). */
+export interface EditorTopbarProps {
+  /** Mono route next to the wordmark ("@mara / my land"). */
+  path: string;
+  /** Space taken by the tool rail on the left (0 without rail). */
+  left: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  /** The public profile (Vista previa). */
+  previewHref?: string;
+  undoKeys: string;
+  redoKeys: string;
+}
 
 const MONO = "'Space Mono', monospace";
 
@@ -20,6 +39,7 @@ export default function Topbar({
   unreadChats,
   unreadSignals,
   onSignals,
+  editor,
 }: {
   wallpaper: string;
   handle?: string;
@@ -36,6 +56,9 @@ export default function Topbar({
   unreadChats?:   number;
   unreadSignals?: number;
   onSignals?:     () => void;
+  /** Editor v3 Phase D: the glass editor topbar. Absent = the classic bar
+   * (visitors, Browse, chats) — unchanged. */
+  editor?:        EditorTopbarProps;
 }) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
@@ -81,6 +104,13 @@ export default function Topbar({
     });
   }
   if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats, onClick: onChats });
+
+  if (editor) {
+    return (
+      <EditorTopbar editor={editor} tabs={tabs} publishState={publishState} onPublish={onPublish}
+        unreadChats={unreadChats} unreadSignals={unreadSignals} onSignals={onSignals} onLogout={onLogout} />
+    );
+  }
 
   return (
     <>
@@ -402,5 +432,94 @@ function LogoutBtn({ onClick }: { onClick: () => Promise<void> }) {
     >
       exit
     </button>
+  );
+}
+
+// ── Editor variant (MYLAND Editor v3 Phase D) ──────────────────────────────────
+// Glass topbar of the design (screen 01), only in the owner's editor: an
+// editor UI surface ([data-mnemo-ui]) themed Light / Dark / OG. 60px high,
+// right of the rail, OVER the canvas (CANVAS_TOP_OFFSET stays 44 — plan R1).
+// Keeps every function of the classic bar (MY LAND / SOCIAL, signals,
+// logout); adds Deshacer / Rehacer (Phase C history), Vista previa (the
+// existing public profile) and Publicar with the existing states — no
+// unpublished-change count (out of scope, the design's own fallback).
+const PUBLISH_LABEL: Record<PublishState, string> = {
+  idle: "Publicado", pending: "Publicar", publishing: "Publicando…", success: "Publicado",
+};
+
+function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unreadSignals, onSignals, onLogout }: {
+  editor: EditorTopbarProps;
+  tabs: { key: string; label: string; active: boolean; onClick: () => void }[];
+  publishState?: PublishState;
+  onPublish?: () => void;
+  unreadChats?: number;
+  unreadSignals?: number;
+  onSignals?: () => void;
+  onLogout?: () => Promise<void>;
+}) {
+  return (
+    <header
+      {...{ [EDITOR_UI_ATTR]: "" }}
+      className="mn-topbar"
+      style={{
+        position: "fixed", top: 0, left: editor.left, right: 0, height: T.ui.size.editorTopbarH, zIndex: 800,
+        display: "flex", alignItems: "center", gap: 12, padding: "0 14px 0 20px", boxSizing: "border-box",
+        fontFamily: T.uiFont.sans,
+      }}
+    >
+      <span className="mn-topbar__wordmark">myland</span>
+      <span className="mn-topbar__path">{editor.path}</span>
+
+      {tabs.length > 0 && (
+        <div role="group" aria-label="Sección" className="mn-topbar__tabs">
+          {tabs.map(tab => (
+            <button key={tab.key} type="button" className="mn-topbar__tab" aria-pressed={tab.active} onClick={tab.onClick}>
+              {tab.label}
+              {tab.key === "chats" && (unreadChats ?? 0) > 0 && <span className="mn-topbar__count">{unreadChats}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+        {onSignals && (
+          <button type="button" className="mn-topbar__btn mn-topbar__btn--text" onClick={onSignals}
+            aria-label={(unreadSignals ?? 0) > 0 ? `Señales, ${unreadSignals} sin leer` : "Señales"}>
+            Señales
+            {(unreadSignals ?? 0) > 0 && <span className="mn-topbar__count">{unreadSignals}</span>}
+          </button>
+        )}
+        <div style={{ display: "flex", gap: 2, marginLeft: 6 }}>
+          <button type="button" className="mn-topbar__btn" aria-label="Deshacer" title={`Deshacer ${editor.undoKeys}`}
+            aria-keyshortcuts={editor.undoKeys.replace("⌘", "Meta+")} aria-disabled={!editor.canUndo || undefined}
+            onClick={() => { if (editor.canUndo) editor.onUndo(); }}>
+            <Icon name="undo" size={16} />
+          </button>
+          <button type="button" className="mn-topbar__btn" aria-label="Rehacer" title={`Rehacer ${editor.redoKeys}`}
+            aria-disabled={!editor.canRedo || undefined}
+            onClick={() => { if (editor.canRedo) editor.onRedo(); }}>
+            <Icon name="redo" size={16} />
+          </button>
+        </div>
+        {editor.previewHref && (
+          <a className="mn-topbar__btn mn-topbar__btn--text mn-topbar__btn--filled" href={editor.previewHref} target="_blank" rel="noopener noreferrer"
+            aria-label="Vista previa (se abre en otra pestaña)">
+            <Icon name="eye" size={15} /> Vista previa
+          </a>
+        )}
+        {publishState !== undefined && (
+          <button type="button" className="mn-topbar__publish" data-state={publishState}
+            onClick={publishState === "pending" ? onPublish : undefined}
+            aria-disabled={publishState !== "pending" || undefined}
+            aria-live="polite">
+            {publishState === "success" && <Icon name="check" size={15} />}
+            {PUBLISH_LABEL[publishState]}
+          </button>
+        )}
+        {onLogout && (
+          <button type="button" className="mn-topbar__btn mn-topbar__btn--text" onClick={() => { void onLogout(); }}>Salir</button>
+        )}
+      </div>
+    </header>
   );
 }
