@@ -28,6 +28,8 @@ interface InspectorShellProps {
   path?:     string;
   aside?:    string;
   meta?:     string;
+  /** Editor v3 Phase F: fixed under the title (the card's object chips). */
+  headerExtra?: React.ReactNode;
   children:  React.ReactNode;
   onClose:   () => void;
   /** Where focus goes when the inspector closes ("Editar"); the canvas
@@ -66,7 +68,7 @@ interface InspectorShellProps {
 // Rendered through a portal to <body> by its owner — never inside the
 // canvas wrapper, whose view-offset transform would re-anchor a fixed box.
 export function InspectorShell({
-  title, path, aside, meta, children, onClose, returnFocusTo, top, width, mode = "dock", height = 0, collapsed, onExpand, bodyRef, onBodyScroll, id,
+  title, path, aside, meta, headerExtra, children, onClose, returnFocusTo, top, width, mode = "dock", height = 0, collapsed, onExpand, bodyRef, onBodyScroll, id,
 }: InspectorShellProps) {
   const sheet = mode === "sheet";
   // Review B-UX-5: a full-width sheet on a ~900px window would stretch the
@@ -133,7 +135,9 @@ export function InspectorShell({
         <>
           {sheet && <span aria-hidden="true" className="mn-inspector__grab" />}
           <InspectorHeader path={path} title={title} titleId={INSPECTOR_TITLE_ID} titleRef={titleRef}
-            aside={aside} meta={meta} onClose={onClose} sheet={sheet} />
+            aside={aside} meta={meta} onClose={onClose} sheet={sheet}>
+            {headerExtra}
+          </InspectorHeader>
           <div
             ref={bodyRef}
             onScroll={onBodyScroll}

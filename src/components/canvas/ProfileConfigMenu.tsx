@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import type { ProfileCardData, CardEffects } from "@/types";
-import { T, Collapsible, NumberField, MenuNote, Icon } from "@/ui";
+import { T, Collapsible, NumberField, MenuNote, Icon, SectionNumber, type SectionNumberValue } from "@/ui";
 import { getCardPadding, getFreeformCardBounds, clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import type { ObjectId } from "@/lib/inspectorObjects";
@@ -44,11 +44,18 @@ export interface SectionContext {
 
 export interface Section {
   key: string;
+  /** Editor v3 Phase F: the number + tone of the section this entry renders
+   * (design screen 02: 01 Contenido, 02 Tipografía, 03 Color…). Entries that
+   * number their own several sections (role text, effects, Fondo) omit it;
+   * "more" rows (links to other objects, Estilo del bloque) have none. */
+  num?: SectionNumberValue;
   render: (c: SectionContext) => React.ReactNode;
 }
+const N1: SectionNumberValue = { num: "01", tone: 1 };
 
 const identity = (only: IdentityPart): Section => ({
   key: `identity-${only}`,
+  num: only === "name" || only === "handle" ? N1 : undefined,
   render: c => (
     <ProfileIdentityMenu only={only} card={c.card} cardW={c.card.w} cardH={c.card.h}
       pad={getCardPadding(c.card.variant)} baseColor={c.baseColor} onChange={c.onChange} />
@@ -56,6 +63,7 @@ const identity = (only: IdentityPart): Section => ({
 });
 const metadata = (only: MetadataPart): Section => ({
   key: `metadata-${only}`,
+  num: N1,
   render: c => <ProfileMetadataMenu only={only} card={c.card} onChange={c.onChange} />,
 });
 const roleText = (role: Extract<ObjectId, "name" | "handle" | "descriptor" | "location" | "bio" | "views">): Section => ({
@@ -123,21 +131,21 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
     identity("photo"),
   ],
   links: [
-    { key: "links", render: c => <ProfileContactLinksMenu card={c.card} fitsInCard={c.linksFits} onChange={c.onChange} /> },
+    { key: "links", num: N1, render: c => <ProfileContactLinksMenu card={c.card} fitsInCard={c.linksFits} onChange={c.onChange} /> },
   ],
   logo: [
-    { key: "logo", render: c => <ProfileLogoMenu logo={c.card.logo} onChange={c.onChange} /> },
+    { key: "logo", num: N1, render: c => <ProfileLogoMenu logo={c.card.logo} onChange={c.onChange} /> },
   ],
   cardBg: [
     { key: "bg", render: c => <ProfileBackgroundMenu effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)} /> },
-    { key: "corners", render: c => <CardCornersSection effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)} /> },
-    link("cardFx", "Color y grosor del borde: en Efectos de la card"),
+    { key: "corners", num: { num: "04", tone: 4 }, render: c => <CardCornersSection effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)} /> },
+    link("cardFx", "Color y grosor del borde: en Efectos"),
     { key: "measures", render: c => c.canvas ? <ProfileMeasures card={c.card} canvas={c.canvas} onChange={c.onChange} /> : null },
   ],
   cardFx: [
     { key: "effects", render: c => (
       <CardEffectsSection effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)}
-        borderFooter={<ObjectLink c={c} to="cardBg" label="Esquinas: en Fondo de la card" />} />
+        borderFooter={<ObjectLink c={c} to="cardBg" label="Esquinas: en Fondo" />} />
     ) },
   ],
   allText: [
@@ -153,8 +161,8 @@ interface ProfileConfigMenuProps extends Omit<SectionContext, "effective"> {
 export default function ProfileConfigMenu({ object, ...ctx }: ProfileConfigMenuProps) {
   const c: SectionContext = { ...ctx, effective: getProfileCardEffects(ctx.card) };
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
-      {OBJECT_SECTIONS[object].map(s => <React.Fragment key={s.key}>{s.render(c)}</React.Fragment>)}
+    <div style={{ display: "flex", flexDirection: "column", gap: T.space[6] }}>
+      {OBJECT_SECTIONS[object].map(s => <SectionNumber key={s.key} value={s.num ?? null}>{s.render(c)}</SectionNumber>)}
     </div>
   );
 }
@@ -179,7 +187,7 @@ function ProfileMeasures({ card, canvas, onChange }: {
     <Collapsible label="Medidas">
       <NumberField label="Ancho (px)" min={b.minW} max={b.maxW} step={1} unit="px" value={Math.round(card.w)} onChange={v => setSize(v, card.h)} />
       <NumberField label="Alto (px)" min={b.minH} max={b.maxH} step={1} unit="px" value={Math.round(card.h)} onChange={v => setSize(card.w, v)} />
-      <MenuNote>La card de presentación siempre queda centrada.</MenuNote>
+      <MenuNote>La tarjeta siempre queda centrada.</MenuNote>
     </Collapsible>
   );
 }

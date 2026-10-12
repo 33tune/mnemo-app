@@ -29,6 +29,10 @@ const PATHS = {
   undo:           <><path d="M5.5 4L2.5 7l3 3" /><path d="M2.5 7h7.5a3 3 0 0 1 0 6H7" /></>,
   redo:           <><path d="M10.5 4l3 3-3 3" /><path d="M13.5 7H6a3 3 0 0 0 0 6h3" /></>,
   room:           <><path d="M2.5 7.5L8 3l5.5 4.5" /><path d="M4 6.5v7h8v-7" /><path d="M6.5 13.5v-3.5h3v3.5" /></>,
+  // Editor v3 Phase F: text alignment (segmented control).
+  "align-left":   <><path d="M2.5 4h11" /><path d="M2.5 8h7" /><path d="M2.5 12h9" /></>,
+  "align-center": <><path d="M2.5 4h11" /><path d="M4.5 8h7" /><path d="M3.5 12h9" /></>,
+  "align-right":  <><path d="M2.5 4h11" /><path d="M6.5 8h7" /><path d="M4.5 12h9" /></>,
 } as const;
 
 export type IconName = keyof typeof PATHS;

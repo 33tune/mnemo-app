@@ -2,8 +2,11 @@
 import React, { useId, useRef } from "react";
 import { T, uv } from "./tokens";
 import { useFieldLabelId } from "./MenuRow";
+import { Icon, type IconName } from "./icons";
 
-interface Tab { id: string; label: string; }
+/** Phase F: a segment may show an icon instead of its text (the label
+ * stays its accessible name and tooltip). */
+interface Tab { id: string; label: string; icon?: IconName }
 
 interface TabsProps {
   tabs:     Tab[];
@@ -113,6 +116,8 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
             aria-checked={selected}
             tabIndex={selected ? 0 : -1}
             className="mn-seg__btn"
+            aria-label={t.icon ? t.label : undefined}
+            title={t.icon ? t.label : undefined}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onChange(t.id); }}
             style={{
@@ -124,8 +129,9 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
               cursor:       "pointer",
               ...T.type.tab, fontWeight: selected ? 650 : 500,
               userSelect:   "none",
+              display: "grid", placeItems: "center",
             }}
-          >{t.label}</button>
+          >{t.icon ? <Icon name={t.icon} size={14} /> : t.label}</button>
         );
       })}
     </div>

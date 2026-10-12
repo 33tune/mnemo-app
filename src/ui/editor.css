@@ -227,57 +227,117 @@
   :where([data-mnemo-ui]) .mn-rail__btn[data-active] { border: 2px solid Highlight; }
 }
 
-/* Object list (ObjectList.tsx): chips 32px high, fully rounded
-   (design-direction.md §E). Monochrome chrome; the user's colors appear only
-   in the swatch / "Aa" sample / thumbnail. Selected = 2px border (shape, not
-   only color) + aria-selected. */
-:where([data-mnemo-editor]) .mn-objlist { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
-:where([data-mnemo-editor]) .mn-objlist__group { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Editor v3 Phase F — object chips (ObjectList.tsx, design screens 02 / 10):
+   ONE horizontal row under the inspector's title. Each chip is the object's
+   name; selected = the `sel` fill + selInk, weight 600, plus a selEdge
+   outline (OG's lime has 1.28:1 on white: the outline gives the shape >= 3:1)
+   and aria-selected. The row scrolls sideways with edge fades; the three
+   groups are split by a hairline. Sheet: 44px touch chips. */
+:where([data-mnemo-editor]) .mn-objlist {
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; margin: 2px -20px 0; padding: 2px 20px 4px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+:where([data-mnemo-editor]) .mn-objlist::-webkit-scrollbar { display: none; }
+:where([data-mnemo-editor]) .mn-objlist[data-fade-end] { -webkit-mask-image: linear-gradient(to right, var(--ui-surface-panel) calc(100% - 36px), transparent); mask-image: linear-gradient(to right, var(--ui-surface-panel) calc(100% - 36px), transparent); }
+:where([data-mnemo-editor]) .mn-objlist[data-fade-start] { -webkit-mask-image: linear-gradient(to right, transparent, var(--ui-surface-panel) 36px); mask-image: linear-gradient(to right, transparent, var(--ui-surface-panel) 36px); }
+:where([data-mnemo-editor]) .mn-objlist[data-fade-start][data-fade-end] { -webkit-mask-image: linear-gradient(to right, transparent, var(--ui-surface-panel) 36px, var(--ui-surface-panel) calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, var(--ui-surface-panel) 36px, var(--ui-surface-panel) calc(100% - 36px), transparent); }
+:where([data-mnemo-editor]) .mn-objlist[data-sheet] { margin: 0 -16px; padding: 2px 16px 6px; }
+:where([data-mnemo-editor]) .mn-objlist__sep { flex: none; width: 1px; height: 16px; margin: 0 4px; background: var(--ui-line-group); }
 :where([data-mnemo-editor]) .mn-objchip {
-  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
-  height: var(--ui-size-obj-chip); padding: 0 10px; box-sizing: border-box;
-  border-radius: var(--ui-radius-chip); border: 1px solid var(--ui-line-control);
-  background: var(--ui-surface-control); color: var(--ui-text-secondary); cursor: pointer;
-  font-family: var(--ui-font-sans); font-size: 12px; line-height: 16px; font-weight: 400;
-  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, border-color var(--ui-motion-fast) ease;
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  height: var(--ui-size-obj-chip); padding: 0 10px; box-sizing: border-box; white-space: nowrap;
+  border: none; border-radius: var(--ui-radius-obj-chip);
+  background: transparent; color: var(--ui-text-secondary); cursor: pointer;
+  font-family: var(--ui-font-sans); font-size: 12.5px; line-height: 1; font-weight: 500;
+  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, transform 200ms cubic-bezier(.34,1.56,.64,1);
 }
 :where([data-mnemo-editor]) .mn-objchip:hover { background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-editor]) .mn-objchip:active { transform: scale(0.95); }
 :where([data-mnemo-editor]) .mn-objchip[aria-selected="true"] {
-  border: 2px solid var(--ui-text-primary); padding: 0 9px; color: var(--ui-text-primary); background: var(--ui-surface-control-active);
+  background: var(--ui-surface-sel); color: var(--ui-text-sel); font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--ui-line-sel-edge);
 }
 :where([data-mnemo-editor]) .mn-objchip:focus-visible { box-shadow: var(--ui-shadow-ring); }
-:where([data-mnemo-editor]) .mn-objchip__text { min-width: 0; max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:where([data-mnemo-editor]) .mn-objchip__text[data-placeholder] { color: var(--ui-text-tertiary); }
-:where([data-mnemo-editor]) .mn-objchip__thumb { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: var(--ui-shadow-well); }
-:where([data-mnemo-editor]) .mn-objchip__icons { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-:where([data-mnemo-editor]) .mn-objchip__more { font-size: 11px; color: var(--ui-text-secondary); }
-:where([data-mnemo-editor]) .mn-objchip__thumb--empty { box-shadow: none; border: 1px dashed var(--ui-line-strong); box-sizing: border-box; }
-/* r2: swatch and "Aa" sit on the same checker as the color well, so a
-   transparent / image / gradient background never vanishes on the panel. */
-:where([data-mnemo-editor]) .mn-objchip__swatch,
-:where([data-mnemo-editor]) .mn-objchip__sample {
-  position: relative; overflow: hidden; flex-shrink: 0; border-radius: 4px;
-  background-color: var(--ui-picker-well-base); background-image: var(--ui-picker-checker); background-size: 8px 8px;
-  box-shadow: var(--ui-shadow-well);
-}
-:where([data-mnemo-editor]) .mn-objchip__swatch { width: 16px; height: 16px; }
-:where([data-mnemo-editor]) .mn-objchip__sample {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 24px; height: 18px; padding: 0 3px; box-sizing: border-box;
-  font-size: 11px; line-height: 1; font-weight: 500;
-}
-:where([data-mnemo-editor]) .mn-objchip__layers { position: absolute; inset: 0; }
-:where([data-mnemo-editor]) .mn-objchip__sample-text { position: relative; }
-/* r2: in-section links to the object that owns a related control
-   ("Sombra, brillo y contorno: en Todos los textos"). */
+:where([data-mnemo-editor]) .mn-objlist[data-sheet] .mn-objchip { height: 44px; padding: 0 14px; border-radius: 12px; font-size: 13px; }
+/* The "modified" dot (design: 5px orange). */
+:where([data-mnemo-editor]) .mn-objchip__dot { flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--ui-accent-edit); }
+:where([data-mnemo-editor]) .mn-objchip[aria-selected="true"] .mn-objchip__dot { box-shadow: 0 0 0 1.5px var(--ui-surface-panel); }
+/* r2 → Phase F: in-section links to the object that owns a related control
+   ("Sombra, brillo y contorno: en Todos los textos") read as quiet "more"
+   rows (design: label + chevron), not as underlined body links. */
 :where([data-mnemo-editor]) .mn-objlink {
-  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; min-height: 24px;
-  margin: 0; padding: 2px 4px; border: none; border-radius: var(--ui-radius-segment); background: transparent; cursor: pointer;
-  color: var(--ui-text-secondary); font-family: var(--ui-font-sans); font-size: 12px; line-height: 16px; text-align: left;
-  text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--ui-line-strong);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 36px;
+  margin: 0; padding: 8px 0; border: none; border-radius: var(--ui-radius-segment); background: transparent; cursor: pointer;
+  color: var(--ui-text-secondary); font-family: var(--ui-font-sans); font-size: 13px; line-height: 18px; font-weight: 500; text-align: left;
 }
 :where([data-mnemo-editor]) .mn-objlink:hover { color: var(--ui-text-primary); }
 :where([data-mnemo-editor]) .mn-objlink:focus-visible { box-shadow: var(--ui-shadow-ring); }
+
+/* Phase F — effect rows (EffectRow.tsx, design screen 08): swatch, name,
+   state and switch; the open row sits on the field fill and unfolds its
+   parameters. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxlist { display: flex; flex-direction: column; gap: 2px; margin: 0 -8px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxlist__label {
+  padding: 12px 8px 4px; font-family: var(--ui-font-mono); font-size: 11px; line-height: 14px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-text-tertiary);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow { display: flex; flex-direction: column; border-radius: 14px; transition: background-color 200ms ease; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow[data-open] { background: var(--ui-surface-group); }
+/* Review F-B1 (1.4.11): on the open row's field fill the switch track drops
+   to ~2.7:1 — a 1px edge ring (>= 3:1 on field, tested) keeps its shape. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow[data-open] .mn-switch { box-shadow: inset 0 0 0 1px var(--ui-line-field); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow[data-open] .mn-switch:hover { box-shadow: inset 0 0 0 1px var(--ui-line-strong), inset 0 0 0 1px var(--ui-line-field); }
+/* Review F closure (2.4.7): the ring above must not swallow the focus ring. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow[data-open] .mn-switch:focus-visible { box-shadow: var(--ui-shadow-ring), inset 0 0 0 1px var(--ui-line-field); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__panel [role="note"] { background: none !important; box-shadow: none !important; padding: 0 !important; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxlist__group { display: flex; flex-direction: column; gap: 2px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__head { display: flex; align-items: center; gap: 8px; padding-right: 8px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__btn {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 8px; box-sizing: border-box;
+  margin: 0; border: none; border-radius: 14px; background: transparent; color: var(--ui-text-primary); cursor: pointer; text-align: left;
+  transition: background-color var(--ui-motion-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__btn:hover { background: var(--ui-surface-group-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__btn:focus-visible { outline: none; box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__swatch { flex: none; width: 28px; height: 28px; border-radius: 9px; transition: background-color 200ms ease; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--ui-font-sans); font-size: 14px; line-height: 1.15; font-weight: 550;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__state {
+  margin-left: auto; flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--ui-font-mono); font-size: 11px; line-height: 1; font-weight: 500; color: var(--ui-text-tertiary);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__chev { flex: none; display: inline-flex; color: var(--ui-text-tertiary); transition: transform var(--ui-motion-panel) var(--ui-motion-ease); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__state + .mn-fxrow__chev { margin-left: 0; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__name + .mn-fxrow__chev { margin-left: auto; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow[data-open] .mn-fxrow__chev { transform: rotate(180deg); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__panel { display: flex; flex-direction: column; gap: 12px; padding: 4px 12px 14px; animation: mn-fx-open var(--ui-motion-panel) var(--ui-motion-ease); }
+@keyframes mn-fx-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  :where([data-mnemo-editor]) .mn-objchip:active { transform: none; }
+}
+
+/* Phase F — font field (FontField.tsx, design screen 02): the family written
+   in itself on a filled field; the native <select> covers it transparently. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield {
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 12px; box-sizing: border-box;
+  border-radius: var(--ui-radius-field); background: var(--ui-surface-control); color: var(--ui-text-primary);
+  transition: background-color var(--ui-motion-fast) ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield:focus-within { box-shadow: var(--ui-shadow-ring); outline: 2px solid transparent; outline-offset: 2px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__face { display: flex; flex-direction: column; gap: 5px; min-width: 0; margin-right: auto; pointer-events: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__name { font-size: 18px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__detail { font-family: var(--ui-font-mono); font-size: 11px; line-height: 1; font-weight: 500; color: var(--ui-text-tertiary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__chev { display: inline-flex; color: var(--ui-text-secondary); pointer-events: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__select {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer;
+  font-size: 16px; /* no iOS zoom on focus */
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__select option { background: var(--ui-surface-option); color: var(--ui-text-primary); }
+/* Peso with more than four weights (system fonts / a synthetic value). */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-select.mn-select--compact { width: 148px; height: 34px; padding: 0 30px 0 12px; box-sizing: border-box; }
 
 /* Phase 2: the canvas wrapper's view offset (CanvasBoard.tsx) animates —
    never during a pointer gesture (it is frozen then); instant with reduced
@@ -704,9 +764,11 @@
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-chip { border: 1px solid CanvasText; }
   :where([data-mnemo-editor]) .mn-objchip { border: 1px solid CanvasText; }
   :where([data-mnemo-editor]) .mn-objchip[aria-selected="true"] { border: 2px solid Highlight; }
-  :where([data-mnemo-editor]) .mn-objchip__swatch,
-  :where([data-mnemo-editor]) .mn-objchip__sample,
-  :where([data-mnemo-editor]) .mn-objchip__thumb { forced-color-adjust: none; border: 1px solid CanvasText; }
+  :where([data-mnemo-editor]) .mn-objchip__dot { forced-color-adjust: none; background: CanvasText; box-shadow: none; }
+  :where([data-mnemo-editor]) .mn-objlist__sep { background: CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow[data-open] { border: 1px solid CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fxrow__swatch { forced-color-adjust: none; border: 1px solid CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield { border: 1px solid ButtonText; }
   .mn-panel.mn-panel--docked[data-mnemo-editor] { border: 1px solid CanvasText; }
   .mn-panel.mn-panel--sheet[data-mnemo-editor] { border-top: 1px solid CanvasText; }
   /* Review B-A11y-3: the bar touches the viewport edges — keep the forced-
@@ -714,7 +776,6 @@
   :where([data-mnemo-editor]) .mn-inspector__bar { border: 1px solid ButtonText; outline-offset: -3px !important; }
   :where([data-mnemo-editor]) .mn-inspector__grab { background: CanvasText; }
   :where([data-mnemo-editor]) .mn-inspector__tab { border: 1px solid ButtonText; }
-  :where([data-mnemo-editor]) .mn-objchip__thumb--empty { border: 1px dashed CanvasText; }
   :where([data-mnemo-editor]) .mn-objlink { color: LinkText; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-panel,
   :where([data-mnemo-editor], [data-mnemo-ui]).mn-panel,

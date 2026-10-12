@@ -60,7 +60,15 @@
   - Revisión (2026-10-12, después del corte por límite de sesión): Regresiones/Capacidades y Visual/UX/Accesibilidad
     dieron REQUEST CHANGES (3 bloqueantes), una ronda de correcciones y verificación de cierre: los dos **APPROVE WITH
     NOTES**. `npm test` 578/578, `tsc` limpio, `next build` 13/13. **Sin QA en navegador.**
-- **NO empezadas:** las fases F, E, G, H e I. **La siguiente fase arranca solo con el OK del usuario.**
+- **Fase F (inspector de la card con el diseño nuevo): TERMINADA (2026-10-12)** en `feature/myland-editor-v3`, commit
+  `feat: implement MYLAND editor v3 phase F (profile card inspector)`. **No mergeada a `main`.** Detalle y pendientes en
+  § 6, Fase F.
+  - Revisión: Regresiones/Capacidades y Visual/UX/Accesibilidad; una ronda de correcciones (3 bloqueantes) y
+    verificación de cierre: Regresiones **APPROVE**, Visual/UX/A11y **APPROVE** tras corregir un bloqueante de foco
+    introducido por la ronda. `npm test` 590/590, `tsc` limpio, `next build` 13/13.
+  - **Sin QA en navegador real.** Hubo capturas de un harness estático (el `ProfileInspector` real con `editor.css` y los
+    tokens, en Edge headless, fuentes del sistema): no reemplaza la QA.
+- **NO empezadas:** las fases E, G, H e I. **La siguiente fase arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -70,7 +78,7 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Fases A, B, C y D cerradas.** Siguiente: QA en navegador de la Fase D, y **la Fase F** (§ 6, orden
+6. **Fases A, B, C, D y F cerradas.** Siguiente: QA en navegador de las Fases D y F, y **la Fase E** (§ 6, orden
    `… D → F → E …`) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
 
 ---
@@ -588,6 +596,47 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   - `RoleTypographyFields.tsx`, `BlockStyleFields.tsx`;
   - `editorCapabilities.ts`.
 - **Riesgo:** medio, por las capacidades.
+
+- **Estado: TERMINADA (2026-10-12)**, ver § 1. Qué quedó:
+  - **Header** (`ProfileInspector` → `InspectorHeader`): ruta `tarjeta / <objeto>` en mono (desvío: el plan decía
+    `profile-card /`; se usa el vocabulario en español del producto), título = nombre corto del objeto, "de la tarjeta"
+    en serif, medidas `X · Y · W · H`. En el sheet, título + Cerrar (44px) en una fila, sin ruta ni medidas (pantalla 10;
+    también aplica a "Tu sala").
+  - **Chips** (`ObjectList.tsx`): una fila horizontal fija en el header (`InspectorShell` `headerExtra`), tablist APG
+    igual que antes, etiqueta = nombre del objeto (el contenido sigue en el nombre accesible, 2.5.3), separador entre
+    grupos, punto naranja si el objeto tiene valores de estilo propios (`objectModified`, puro y testeado: los efectos
+    se comparan contra el render sin `effects`), 44px en el sheet, el chip activo siempre a la vista (40px de los bordes
+    con fade), rueda vertical → scroll horizontal. Selección: relleno `sel` + borde `selEdge` (OG: ink, ≥ 3:1).
+  - **Secciones numeradas** (`MenuSection` toma número/tono por contexto: `SectionNumber`; solo la sección más externa,
+    nunca las anidadas ni las de un disclosure). Rol de texto: 01 Contenido · 02 Tipografía · 03 Color · 04 Efectos del
+    texto. Tono 3 nunca junto a "N cambios" (`edit` = `n3`, pendiente de A, con test). Las secciones de efectos dicen
+    "N activos" (sin punto: es estado, no cambio).
+  - **Tipografía** (`RoleTypographyFields.tsx`): `FontField` (la familia escrita en sí misma, `<select>` nativo
+    transparente encima), Tamaño, **Peso solo con los pesos cargados** (`src/lib/fontWeights.ts`, paridad testeada con
+    `globals.css`; fuentes del sistema 100–900; un peso guardado no cargado se muestra "N · sintético" y no se reescribe),
+    "Espaciado ›" (interletrado / interlineado) con su punto. Punto + reset que borra la key en fuente, tamaño, peso,
+    interletrado, interlineado y alineación.
+  - **Filas de efecto** (`src/ui/EffectRow.tsx`, pantalla 08): muestra, nombre, estado mono y switch AL LADO del botón
+    disclosure (APG); una abierta a la vez; los parámetros se montan solo abiertos. Usadas en Efectos de la tarjeta
+    (Borde sin switch, Sombra, Brillo — su switch apaga exterior e interior en una sola escritura —, Flotación,
+    Inclinación 3D, Al pasar el cursor, Spotlight y el grupo Retro), Efectos del texto (por rol y en Todos los textos),
+    Efectos de la foto y Superficie del fondo (Gradiente, Vidrio, Desenfoque). En una fila abierta el switch lleva un
+    anillo `lineField` (≥ 3:1 sobre `field`, pendiente de A) sin tapar el anillo de foco.
+  - **Todos los textos:** 01 Color · 02 Alineación (segmentado con íconos; `textAlign` es de toda la card, por eso no va
+    por rol) y el interlineado secundario (el botón "volver a normal" pasó al reset) · 03 Efectos del texto.
+  - **Fondo:** 01 Color (+ opacidad) · 02 Imagen · 03 Superficie · 04 Esquinas · enlace al borde · Medidas.
+    **Foto:** 01 Imagen · 02 Forma · 03 Efectos de la foto.
+  - Matriz de capacidades: rutas renombradas a las etiquetas nuevas; ninguna capacidad perdida (revisión control por
+    control contra `e1683ba`). Ningún sistema protegido tocado.
+- **Pendientes (no bloquearon):**
+  - **QA en navegador:** los 12 objetos en los 3 temas, dock y sheet (390/700/1000px, zoom 200%); la fila de chips con
+    rueda, teclado y touch; NVDA (chips "con cambios", filas de efecto botón + switch); Windows High Contrast (foco del
+    `FontField`, filas abiertas); el Peso en DM Sans (el Nombre por defecto se ve "700 · sintético", en select).
+  - El aria-label "Editar card de presentación" (`ProfileCard.tsx`, render protegido) y los `caption` internos
+    ("Fondo de la card", "Efectos de la card") todavía dicen "card"; unificar a "tarjeta" en un paso propio.
+  - Sobre una fila abierta, la muestra apagada (gris claro sobre `field`) casi no se ve; es decorativa.
+  - "N cambios" de Efectos cuenta valores guardados reales (un glow apagado conserva color e intensidad): correcto, pero
+    puede sorprender.
 
 **Pendientes de la Fase A para F (y B):**
 - **`edit` = `n3`:** el color de modificado y de "N cambios" es el mismo que la tonalidad `n3`. No usar `tone={3}` junto con `changed`, o diferenciar `n3`.

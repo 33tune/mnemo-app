@@ -233,7 +233,11 @@ test("sheet breakpoint leaves room for the widest card between the rail and the 
 
 test("the docked inspector and the object chips are styled by editor.css (incl. forced colors / reduced motion)", () => {
   assert.match(css, /\.mn-panel\.mn-panel--docked\[data-mnemo-editor\]\s*\{[^}]*border-radius:\s*var\(--ui-radius-dock\)[^}]*box-shadow:\s*var\(--ui-shadow-panel\)/, "Phase D: floating dock");
-  assert.match(css, /\.mn-objchip\s*\{[^}]*height:\s*var\(--ui-size-obj-chip\)[^}]*border-radius:\s*var\(--ui-radius-chip\)/);
+  // Phase F: chips are not pills (design: 9–12px) and the selected one has a
+  // selEdge outline (OG lime needs it for >= 3:1).
+  assert.match(css, /\.mn-objchip\s*\{[^}]*height:\s*var\(--ui-size-obj-chip\)[^}]*border-radius:\s*var\(--ui-radius-obj-chip\)/);
+  assert.match(css, /\.mn-objchip\[aria-selected="true"\]\s*\{[^}]*background:\s*var\(--ui-surface-sel\)[^}]*box-shadow:\s*inset 0 0 0 1px var\(--ui-line-sel-edge\)/);
+  assert.match(css, /\.mn-objlist\[data-sheet\] \.mn-objchip\s*\{[^}]*height:\s*44px/, "44px chips in the sheet");
   assert.match(css, /\.mn-objchip\[aria-selected="true"\]\s*\{[^}]*border:\s*2px solid Highlight/);
   assert.match(css, /\*::after\s*\{\s*transition-property/, "reduced motion covers ::after");
   assert.match(css, /\.mn-canvas\[data-mnemo-canvas\]\s*\{\s*transition:\s*none !important/, "view offset is instant with reduced motion");
@@ -445,6 +449,13 @@ for (const t of EDITOR_THEME_NAMES) {
       ["focus ring on panel", P.focus, P.panel], ["select chevron on field", T.ui.accent.chevron, P.field],
       // r2: the shared boundary grey (field outline, thumb ring, segment ring).
       ["edge (field outline) on panel", P.edge, P.panel], ["edge (field outline) on field", P.edge, P.field],
+      // Phase F: the selected object chip's shape — its `sel` fill, or (OG's
+      // lime, 1.28:1 on white) its selEdge outline — >= 3:1 on the panel.
+      ["selected chip boundary on panel", P.selEdge === "transparent" ? P.sel : P.selEdge, P.panel],
+      ["modified dot (chip) on field", P.edit, P.field],
+      // Review F-B1: the switch inside an OPEN effect row sits on `field`;
+      // its 1px ring (lineField) carries the shape there.
+      ["switch ring in an open effect row (on field)", P.lineField, P.field],
     ];
     for (const [name, fg, bg] of nonText) {
       const r = contrast(fg, bg);

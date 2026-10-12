@@ -1,7 +1,10 @@
 export { T, uv }          from "./tokens";
 export { MenuPanel, usePanelFocus } from "./MenuPanel";
 export { InspectorShell, INSPECTOR_TITLE_ID, INSPECTOR_EXPAND_ID } from "./InspectorShell";
-export { MenuSection }    from "./MenuSection";
+export { MenuSection, SectionNumber } from "./MenuSection";
+export type { SectionNumberValue } from "./MenuSection";
+export { EffectList, EffectRow } from "./EffectRow";
+export { FontField }      from "./FontField";
 export { MenuRow, FieldResetMark, InheritedChip, useFieldLabelId, FieldLabelProvider, labelStyle, refocusFieldControl }
                           from "./MenuRow";
 export type { FieldState, FieldStateProps } from "./MenuRow";

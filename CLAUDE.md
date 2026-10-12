@@ -42,7 +42,13 @@ planeado acá hasta confirmarlo.
 >   Regresiones y Visual/UX/A11y APPROVE WITH NOTES tras una ronda de correcciones (commit siguiente).
 >   Detalle en el plan (§ 1 y § 6, Fase D).
 >
-> **Siguiente acción:** QA en navegador de la Fase D; la Fase F solo con el OK del usuario.
+>
+> - **Fase F (inspector de la ProfileCard con el diseño nuevo: header, fila de chips con punto de modificado, secciones
+>   numeradas, campo de fuente, Peso con pesos cargados, filas de efecto) TERMINADA (2026-10-12)**, commiteada y
+>   pusheada en `feature/myland-editor-v3`. **No mergeada a `main`.** Revisión de cierre: Regresiones y
+>   Visual/UX/A11y APPROVE. Sin QA en navegador real. Detalle en el plan (§ 1 y § 6, Fase F).
+>
+> **Siguiente acción:** QA en navegador de las Fases D y F; la Fase E solo con el OK del usuario.
 >
 > **Dirección visual:** "Darkroom" (monocromo), descrita más abajo, quedó **SUPERADA**
 > por el diseño de Claude Design: colores de marca y modos Light/Dark/OG solo del editor.

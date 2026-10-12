@@ -16,6 +16,7 @@
 import type { BlockStyleKey, CardEffects, ProfileCardData, TextRole } from "@/types";
 import { effectState } from "./effectBinding";
 import { isCardGlowFlagVisible } from "./effectEditorDefaults";
+import { getProfileCardEffects } from "./profileCardEffects";
 
 export type ObjectId = TextRole | "photo" | "links" | "logo" | "cardBg" | "cardFx" | "allText";
 
@@ -147,7 +148,7 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
     } },
   { id: "logo", caption: "Logo", placeholder: "Logo", kind: "block", group: "block",
     chip: ({ card }) => card.logo?.url ? { text: "Logo", thumb: card.logo.url, spoken: "imagen" } : { text: "Logo", placeholder: true, emptyThumb: true } },
-  { id: "cardBg", caption: "Fondo de la card", placeholder: "Fondo", kind: "card", group: "card",
+  { id: "cardBg", caption: "Fondo de la card", shortCaption: "Fondo", placeholder: "Fondo", kind: "card", group: "card",
     chip: ({ effective }) => ({
       text: "Fondo",
       spoken: effective.bg?.image ? "imagen" : effective.gradient ? "gradiente" : effective.bg?.color ? "color" : "transparente",
@@ -164,6 +165,64 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
 ];
 
 export const OBJECT_IDS: readonly ObjectId[] = INSPECTOR_OBJECTS.map(o => o.id);
+
+/** Editor v3 Phase F: the chip's VISIBLE label (design screen 02 — the
+ * object's name, not its content; the content stays in the accessible name,
+ * which starts with this label, WCAG 2.5.3). */
+export function chipLabel(o: InspectorObject): string {
+  return o.shortCaption ?? o.caption;
+}
+
+// ── "Modified" (Phase F: the orange dot on a chip) ────────────────────────
+// True when the object has any STYLE value of its own stored — what reset
+// would remove. Content (the name text, the photo, the links) is not a
+// modification; neither is the always-derived position.
+const set = (v: unknown): boolean =>
+  v !== undefined && v !== null && !(typeof v === "object" && !Array.isArray(v) && !Object.values(v as object).some(set));
+
+/** Review F: a stored effect value counts only if it differs from what the
+ * card renders WITHOUT stored effects (toggling Flotación on and off leaves
+ * `floating: false`, which looks exactly like the default). A boolean
+ * compares against the default's truthiness. */
+const differs = (raw: unknown, base: unknown): boolean => {
+  if (raw === undefined || raw === null) return false;
+  if (typeof raw === "boolean") return raw !== !!base;
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return Object.entries(raw as Record<string, unknown>).some(([k, v]) => differs(v, (base as Record<string, unknown> | undefined)?.[k]));
+  }
+  return raw !== base;
+};
+
+const ROLE_KEYS: Record<TextRole, readonly (keyof ProfileCardData)[]> = {
+  name:       ["nameColor", "nameFont", "nameFontSize", "nameFontWeight", "nameLetterSpacing", "nameLineHeight"],
+  handle:     ["handleColor", "handleFont", "handleFontSize", "handleFontWeight", "handleLetterSpacing"],
+  descriptor: ["descriptorColor", "statusFont", "statusFontSize", "descriptorFontWeight", "descriptorLetterSpacing"],
+  location:   ["locationColor", "locationFont", "locationFontSize", "locationFontWeight", "locationLetterSpacing"],
+  bio:        ["bioColor", "bioFont", "bioFontSize", "bioFontWeight", "bioLineHeight"],
+  views:      ["viewsColor", "viewsFont", "viewsFontSize", "viewsFontWeight", "viewsLetterSpacing"],
+};
+
+export function objectModified(id: ObjectId, card: ProfileCardData): boolean {
+  const fx = card.effects;
+  const o = inspectorObject(id);
+  if (o.role) {
+    return ROLE_KEYS[o.role].some(k => set(card[k])) || set(fx?.textRoles?.[o.role])
+      || (o.blockKey ? set(card.blockStyle?.[o.blockKey]) : false);
+  }
+  switch (id) {
+    case "photo":   return set(card.pfpSizePx) || set(card.pfpRadius) || set(fx?.pfp);
+    case "links":   return set(card.linksIconSize) || set(card.linksIconColor) || set(card.blockStyle?.links);
+    case "logo":    return !!card.logo && (set(card.logo.opacity) || set(card.logo.rotation) || set(card.logo.zIndex));
+    case "cardBg":  return set(fx?.bg) || set(fx?.gradient) || set(fx?.border?.radius);
+    case "cardFx": {
+      const { bg: _bg, gradient: _g, text: _t, textRoles: _r, pfp: _p, paused: _pa, border, ...rest } = fx ?? {};
+      const base = getProfileCardEffects({ ...card, effects: undefined });
+      return differs(rest, base) || differs({ color: border?.color, width: border?.width, opacity: border?.opacity }, base.border);
+    }
+    case "allText": return set(card.textColor) || set(card.textAlign) || set(card.monoLineHeight) || set(fx?.text);
+    default:        return false;
+  }
+}
 export const DEFAULT_OBJECT: ObjectId = "name";
 
 export function inspectorObject(id: ObjectId): InspectorObject {

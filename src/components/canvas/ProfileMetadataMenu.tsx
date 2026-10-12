@@ -30,7 +30,7 @@ export default function ProfileMetadataMenu({ card, onChange, only }: ProfileMet
   const meta = metadataController(onChange);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
-      {only === "descriptor" && <MenuSection label="Texto" first>
+      {only === "descriptor" && <MenuSection label="Contenido" first>
         {/* Iteration 0: shared TextInput — named by the visible section
             heading (was placeholder-only) and with the editor focus ring
             (was outline:none). */}
@@ -38,13 +38,13 @@ export default function ProfileMetadataMenu({ card, onChange, only }: ProfileMet
           placeholder="diseñador multimedia, just for fun..." maxLength={60} />
       </MenuSection>}
 
-      {only === "location" && <MenuSection label="Texto" first>
+      {only === "location" && <MenuSection label="Contenido" first>
         <TextInput value={location ?? ""} onChange={v => meta.setText("location", v)}
           placeholder="la plata, buenos aires" maxLength={60} />
         <BlockStyleFields card={card} blockKey="location" onChange={onChange} />
       </MenuSection>}
 
-      {only === "bio" && <MenuSection label="Texto" first>
+      {only === "bio" && <MenuSection label="Contenido" first>
         <TextArea value={bio ?? ""} onChange={v => meta.setText("bio", v)}
           placeholder="una bio corta…" maxLength={120} rows={2} />
       </MenuSection>}

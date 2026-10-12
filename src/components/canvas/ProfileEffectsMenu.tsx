@@ -1,8 +1,9 @@
 "use client";
-import type React from "react";
+import React, { useId } from "react";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import type { CardEffects } from "@/types";
-import { T, SliderRow, Toggle, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, Divider, OffsetRow } from "@/ui";
+import { SliderRow, Toggle, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow } from "@/ui";
+import { countActiveCardEffects } from "@/lib/inspectorObjects";
 import { effectActions, effectState, type EffectOwner } from "@/lib/effectBinding";
 import {
   CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_RADIUS_FALLBACK,
@@ -114,7 +115,10 @@ export function CardCornersSection(props: Props) {
 }
 
 /** Every card-level effect — mounted by "Efectos de la card".
- * `borderFooter` (r2): the link to "Esquinas" under Fondo de la card. */
+ * `borderFooter` (r2): the link to "Esquinas" under Fondo de la card.
+ * Editor v3 Phase F (design screen 08): one row per effect — swatch, name,
+ * state and its switch; the name unfolds the effect's parameters inline,
+ * one row at a time (EffectRow). Same controls, ranges and writes as before. */
 export function CardEffectsSection({ borderFooter, ...props }: Props & { borderFooter?: React.ReactNode }) {
   const { raw } = props;
   const {
@@ -122,124 +126,121 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
     patchAnimations, patchRetro, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
     shadowFx, glowInt, hoverScaleOn, retro,
   } = useCardEffectActions(props);
+  // The Brillo row's switch: on = the outer glow (O3 neutral color and a
+  // visible intensity for a new glow — effectBinding); off = both flags off
+  // in ONE write (color/intensity stay, like the flags always did).
+  const setGlowOn = (on: boolean) => (on ? setGlowFlag("outer", true) : patchGlow({ outer: false, inner: false }));
+  const borderW = bord?.width ?? CARD_BORDER_DEFAULT_WIDTH;
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const hoverParts = [inter?.hoverGlow && "brillo", hoverScaleOn && "escala"].filter(Boolean) as string[];
+  const active = countActiveCardEffects(raw, props.effective);
+  const retroId = useId();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
-      <MenuSection label="Borde" first>
-        <ColorRow
-          label="Color" value={bord?.color ?? CARD_BORDER_DEFAULT_COLOR} onChange={v => patchBorder({ color: v })} keepAlpha
-          clearable={!!raw?.border?.color} onClear={() => patchBorder({ color: undefined })}
-          state={raw?.border?.color ? "modified" : undefined} onReset={() => patchBorder({ color: undefined })}
-        />
-        <SliderRow label="Grosor" min={0} max={6} step={0.5} value={bord?.width ?? CARD_BORDER_DEFAULT_WIDTH}
-          onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`}
-          state={raw?.border?.width !== undefined ? "modified" : undefined} onReset={() => patchBorder({ width: undefined })} />
-        {/* FASE 1: this no longer also fades shadow/glow — see CardLayers.tsx's
-            Layer 0c split. */}
-        <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bord?.opacity ?? 1}
-          onChange={v => patchBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`}
-          state={raw?.border?.opacity !== undefined ? "modified" : undefined} onReset={() => patchBorder({ opacity: undefined })} />
-        {borderFooter}
-      </MenuSection>
+    <MenuSection label="Efectos de la tarjeta" num="01" tone={4} active={active} first>
+      <EffectList label="Efectos de la tarjeta">
+        <EffectRow id="border" label="Borde" tone={1} active={borderW > 0}
+          state={borderW > 0 ? `${String(borderW).replace(".", ",")} px` : "Sin borde"}>
+          <ColorRow
+            label="Color" value={bord?.color ?? CARD_BORDER_DEFAULT_COLOR} onChange={v => patchBorder({ color: v })} keepAlpha
+            clearable={!!raw?.border?.color} onClear={() => patchBorder({ color: undefined })}
+            state={raw?.border?.color ? "modified" : undefined} onReset={() => patchBorder({ color: undefined })}
+          />
+          <SliderRow label="Grosor" min={0} max={6} step={0.5} value={borderW}
+            onChange={v => patchBorder({ width: v })} fmt={v => `${v}px`}
+            state={raw?.border?.width !== undefined ? "modified" : undefined} onReset={() => patchBorder({ width: undefined })} />
+          {/* FASE 1: this no longer also fades shadow/glow — see CardLayers.tsx's
+              Layer 0c split. */}
+          <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bord?.opacity ?? 1}
+            onChange={v => patchBorder({ opacity: v })} fmt={pct}
+            state={raw?.border?.opacity !== undefined ? "modified" : undefined} onReset={() => patchBorder({ opacity: undefined })} />
+          {borderFooter}
+        </EffectRow>
 
-      <Collapsible label="Sombra">
-        <MenuRow label="Activar">
-          <Toggle value={shadowOn} onChange={setShadowOn} />
-        </MenuRow>
-        {/* CardLayers always draws a faint baseline shadow when this is off
-            ("0 4px 20px rgba(0,0,0,0.2)") — say so instead of implying none. */}
-        {!shadowOn && <MenuNote>Apagada: queda la sombra base sutil de la card.</MenuNote>}
-        {shadowOn && (
-          <>
-            <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={sh!.intensity ?? 0}
-              onChange={v => patchShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
-            <ColorRow label="Color" value={shadowFx.color} onChange={v => patchShadow({ color: v })} />
-            <Collapsible label="Avanzado">
-              <SliderRow label="Blur" min={0} max={80} step={1} value={shadowFx.blur}
-                unit="px" onChange={v => patchShadow({ blur: v })} />
-              <OffsetRow
-                x={shadowFx.offsetX} y={shadowFx.offsetY}
-                min={-40} max={40} onChange={(x, y) => patchShadow({ offsetX: x, offsetY: y })}
-              />
-              <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={shadowFx.opacity}
-                onChange={v => patchShadow({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
-            </Collapsible>
-          </>
-        )}
-      </Collapsible>
+        <EffectRow id="shadow" label="Sombra" tone={1} on={shadowOn} onToggle={setShadowOn}
+          state={shadowOn ? pct(sh!.intensity ?? 0) : undefined}>
+          {/* CardLayers always draws a faint baseline shadow when this is off
+              ("0 4px 20px rgba(0,0,0,0.2)") — say so instead of implying none. */}
+          {!shadowOn && <MenuNote>Apagada: queda la sombra base sutil de la tarjeta.</MenuNote>}
+          {shadowOn && (
+            <>
+              <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={sh!.intensity ?? 0}
+                onChange={v => patchShadow({ intensity: v })} fmt={pct} />
+              <ColorRow label="Color" value={shadowFx.color} onChange={v => patchShadow({ color: v })} />
+              <Collapsible label="Avanzado">
+                <SliderRow label="Blur" min={0} max={80} step={1} value={shadowFx.blur}
+                  unit="px" onChange={v => patchShadow({ blur: v })} />
+                <OffsetRow
+                  x={shadowFx.offsetX} y={shadowFx.offsetY}
+                  min={-40} max={40} onChange={(x, y) => patchShadow({ offsetX: x, offsetY: y })}
+                />
+                <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={shadowFx.opacity}
+                  onChange={v => patchShadow({ opacity: v })} fmt={pct} />
+              </Collapsible>
+            </>
+          )}
+        </EffectRow>
 
-      <Collapsible label="Glow">
-        <MenuRow label="Exterior">
-          <Toggle value={outerOn} onChange={v => setGlowFlag("outer", v)} />
-        </MenuRow>
-        <MenuRow label="Interior">
-          <Toggle value={innerOn} onChange={v => setGlowFlag("inner", v)} />
-        </MenuRow>
-        {anyGlow && (
-          <>
-            <ColorRow label="Color" value={glow?.color ?? CARD_GLOW_DEFAULT_COLOR} onChange={v => patchGlow({ color: v })} />
-            <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={glowInt}
-              onChange={v => patchGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
-            <Collapsible label="Avanzado">
-              <SliderRow label="Radio" min={0} max={60} step={1} value={cardGlowRadius(glow)}
-                unit="px" onChange={v => patchGlow({ radius: v })} />
-            </Collapsible>
-          </>
-        )}
-        {/* Stage FASE 3: the "border animation" pulses the card's own Glow
-            (CardEffects.glow.animation). Phase 2: it lives next to Glow,
-            named "Pulso" — it animates the glow, not the border. */}
-        <MenuRow label="Pulso">
-          <Toggle value={!!glow?.animation?.enabled} onChange={v => patchGlowAnimation({ enabled: v })} />
-        </MenuRow>
-        {glow?.animation?.enabled && (
-          <SliderRow label="Velocidad del pulso" min={0.3} max={3} step={0.1} value={glow?.animation?.speed ?? 1}
-            onChange={v => patchGlowAnimation({ speed: v })} fmt={v => `${v.toFixed(1)}x`} />
-        )}
-        {!anyGlow && glow?.animation?.enabled && (
-          <MenuNote>El pulso está activado, pero no hay glow visible que animar: activá Exterior o Interior.</MenuNote>
-        )}
-      </Collapsible>
-
-      <Collapsible label="Movimiento">
-        <MenuSection label="Flotación" first>
-          <MenuRow label="Activar">
-            <Toggle value={!!anim?.floating} onChange={v => patchAnimations({ floating: v })} />
+        <EffectRow id="glow" label="Brillo" tone={2} on={anyGlow} onToggle={setGlowOn}
+          state={anyGlow ? [outerOn && innerOn ? "ambos" : outerOn ? "exterior" : "interior", glow?.animation?.enabled ? "pulso" : ""].filter(Boolean).join(" · ") : undefined}>
+          <MenuRow label="Exterior">
+            <Toggle value={outerOn} onChange={v => setGlowFlag("outer", v)} />
           </MenuRow>
-          {anim?.floating && (
+          <MenuRow label="Interior">
+            <Toggle value={innerOn} onChange={v => setGlowFlag("inner", v)} />
+          </MenuRow>
+          {anyGlow && (
+            <>
+              <ColorRow label="Color" value={glow?.color ?? CARD_GLOW_DEFAULT_COLOR} onChange={v => patchGlow({ color: v })} />
+              <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={glowInt}
+                onChange={v => patchGlow({ intensity: v })} fmt={pct} />
+              <Collapsible label="Avanzado">
+                <SliderRow label="Radio" min={0} max={60} step={1} value={cardGlowRadius(glow)}
+                  unit="px" onChange={v => patchGlow({ radius: v })} />
+              </Collapsible>
+            </>
+          )}
+          {/* Stage FASE 3: the "border animation" pulses the card's own Glow
+              (CardEffects.glow.animation) — named "Pulso", next to it. */}
+          <MenuRow label="Pulso">
+            <Toggle value={!!glow?.animation?.enabled} onChange={v => patchGlowAnimation({ enabled: v })} />
+          </MenuRow>
+          {glow?.animation?.enabled && (
+            <SliderRow label="Velocidad del pulso" min={0.3} max={3} step={0.1} value={glow?.animation?.speed ?? 1}
+              onChange={v => patchGlowAnimation({ speed: v })} fmt={v => `${v.toFixed(1)}x`} />
+          )}
+          {!anyGlow && glow?.animation?.enabled && (
+            <MenuNote>El pulso está activado, pero no hay glow visible que animar: activá Exterior o Interior.</MenuNote>
+          )}
+        </EffectRow>
+
+        <EffectRow id="float" label="Flotación" tone={4} on={!!anim?.floating} onToggle={v => patchAnimations({ floating: v })}
+          state={anim?.floating ? `${anim?.floatHeight ?? 8} px` : undefined}>
+          {anim?.floating ? (
             <>
               <SliderRow label="Amplitud" min={2} max={24} step={1} value={anim?.floatHeight ?? 8}
                 onChange={v => patchAnimations({ floatHeight: v })} unit="px" />
               <SliderRow label="Duración del ciclo" min={1} max={8} step={0.5} value={anim?.floatSpeed ?? 3}
                 onChange={v => patchAnimations({ floatSpeed: v })} fmt={v => `${v}s`} />
             </>
-          )}
-        </MenuSection>
+          ) : <MenuNote>La tarjeta sube y baja suavemente.</MenuNote>}
+        </EffectRow>
 
-        <Divider />
-
-        <MenuSection label="Inclinación 3D">
-          <MenuRow label="Activar">
-            <Toggle value={!!inter?.tilt3d} onChange={v => patchInteractions({ tilt3d: v })} />
-          </MenuRow>
-          {inter?.tilt3d && (
+        <EffectRow id="tilt" label="Inclinación 3D" tone={3} on={!!inter?.tilt3d} onToggle={v => patchInteractions({ tilt3d: v })}
+          state={inter?.tilt3d ? `${inter?.tiltIntensity ?? PROFILE_TILT_DEFAULT}°` : undefined}>
+          {inter?.tilt3d ? (
             <SliderRow label="Intensidad" min={1} max={20} step={0.5} value={inter?.tiltIntensity ?? PROFILE_TILT_DEFAULT}
               onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${v}°`} />
+          ) : <MenuNote>La tarjeta se inclina siguiendo el cursor.</MenuNote>}
+          {(!!anim?.floating || !!inter?.tilt3d) && (
+            <MenuNote>Flotación e inclinación pueden estar activas al mismo tiempo.</MenuNote>
           )}
-        </MenuSection>
+        </EffectRow>
 
-        {(!!anim?.floating || !!inter?.tilt3d) && (
-          <MenuNote>Flotación e inclinación pueden estar activas al mismo tiempo.</MenuNote>
-        )}
-
-        <Divider />
-
-        {/* Stage FASE 3: previously dead controls (Toggle existed since
-            FASE 2, nothing ever read them) — now implemented via
-            useCardInteractions.ts's onMouseEnter + CardLayers.tsx's
-            `--hover-glow`/`--hover-scale`, each on its own nested layer so
-            neither fights Tilt/Floating/Spotlight — all four can be active
-            simultaneously. See useCardInteractions.ts's header. */}
-        <MenuSection label="Hover">
+        {/* Stage FASE 3: hover glow / scale, each on its own nested layer
+            (useCardInteractions.ts + CardLayers.tsx) — two independent
+            switches, so the row has none of its own. */}
+        <EffectRow id="hover" label="Al pasar el cursor" tone={2} active={hoverParts.length > 0}
+          state={hoverParts.length ? hoverParts.join(" · ") : undefined}>
           <MenuRow label="Glow al pasar">
             <Toggle value={!!inter?.hoverGlow} onChange={setHoverGlow} />
           </MenuRow>
@@ -254,96 +255,73 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
               onChange={v => patchInteractions({ hoverScale: v })} fmt={v => `${Math.round((v - 1) * 100)}%`}
               displayScale={100} displayOffset={-1} />
           )}
-        </MenuSection>
-      </Collapsible>
+        </EffectRow>
 
-      <Collapsible label="Spotlight">
-        <MenuRow label="Activar">
-          <Toggle value={!!inter?.spotlight} onChange={v => patchInteractions({ spotlight: v })} />
-        </MenuRow>
-        {inter?.spotlight && (
-          <>
-            {/* Effective color (usually the variant's derived rgba). Block 2:
-                alpha is editable in the picker; a stored color shows the
-                modified dot, whose reset drops back to the variant's. */}
-            <ColorRow
-              label="Color"
-              value={inter?.spotlightColor ?? CARD_SPOTLIGHT_DEFAULT_COLOR}
-              onChange={v => patchInteractions({ spotlightColor: v })} keepAlpha
-              state={raw?.interactions?.spotlightColor ? "modified" : undefined}
-              onReset={() => patchInteractions({ spotlightColor: undefined })}
-            />
-            <SliderRow label="Radio" min={20} max={100} step={1} value={inter?.spotlightSize ?? CARD_SPOTLIGHT_DEFAULT_SIZE}
-              onChange={v => patchInteractions({ spotlightSize: v })} unit="%"
-              state={raw?.interactions?.spotlightSize !== undefined ? "modified" : undefined}
-              onReset={() => patchInteractions({ spotlightSize: undefined })} />
-            {/* Posición manual/estática: no implementada — el spotlight hoy
-                sigue al cursor vía CSS vars (useCardInteractions.ts) y no
-                existe infraestructura de posición fija. Agregarla sería
-                lógica de interacción nueva, fuera del alcance de esta fase
-                (solo UI sobre resolvers ya existentes). */}
-          </>
-        )}
-      </Collapsible>
+        <EffectRow id="spotlight" label="Spotlight" tone={1} on={!!inter?.spotlight} onToggle={v => patchInteractions({ spotlight: v })}>
+          {inter?.spotlight ? (
+            <>
+              {/* Effective color (usually the variant's derived rgba); a
+                  stored color shows the modified dot, whose reset drops back
+                  to the variant's. Position follows the cursor (no fixed
+                  position infrastructure exists). */}
+              <ColorRow
+                label="Color"
+                value={inter?.spotlightColor ?? CARD_SPOTLIGHT_DEFAULT_COLOR}
+                onChange={v => patchInteractions({ spotlightColor: v })} keepAlpha
+                state={raw?.interactions?.spotlightColor ? "modified" : undefined}
+                onReset={() => patchInteractions({ spotlightColor: undefined })}
+              />
+              <SliderRow label="Radio" min={20} max={100} step={1} value={inter?.spotlightSize ?? CARD_SPOTLIGHT_DEFAULT_SIZE}
+                onChange={v => patchInteractions({ spotlightSize: v })} unit="%"
+                state={raw?.interactions?.spotlightSize !== undefined ? "modified" : undefined}
+                onReset={() => patchInteractions({ spotlightSize: undefined })} />
+            </>
+          ) : <MenuNote>Una luz que sigue al cursor sobre la tarjeta.</MenuNote>}
+        </EffectRow>
 
-      {/* "Product closeout" (Parte 8): composable analog/retro screen
-          effects — each independent, own toggle/intensity, grouped under
-          one Collapsible (same pattern "Movimiento" already uses for
-          Flotación/Inclinación/Hover) instead of 4 separate top-level
-          sections. CSS/SVG-data-URI only, see CardLayers.tsx's rendering. */}
-      <Collapsible label="Retro">
-        <MenuSection label="Scanlines" first>
-          <MenuRow label="Activar">
-            <Toggle value={!!retro?.scanlines?.enabled} onChange={v => patchRetro({ scanlines: { enabled: v, intensity: retro?.scanlines?.intensity } })} />
-          </MenuRow>
-          {retro?.scanlines?.enabled && (
+        {/* "Product closeout": composable analog/retro screen effects — each
+            independent, own switch/intensity (CardLayers.tsx renders them). */}
+        <div role="group" aria-labelledby={retroId} className="mn-fxlist__group">
+        <div className="mn-fxlist__label" id={retroId}>Retro</div>
+        <EffectRow id="scanlines" label="Scanlines" tone={3} on={!!retro?.scanlines?.enabled}
+          onToggle={v => patchRetro({ scanlines: { enabled: v, intensity: retro?.scanlines?.intensity } })}
+          state={retro?.scanlines?.enabled ? pct(retro.scanlines.intensity ?? 0.5) : undefined}>
+          {retro?.scanlines?.enabled ? (
             <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={retro.scanlines.intensity ?? 0.5}
-              onChange={v => patchRetro({ scanlines: { enabled: true, intensity: v } })} fmt={v => `${Math.round(v * 100)}%`} />
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        <MenuSection label="Ruido VHS">
-          <MenuRow label="Activar">
-            <Toggle value={!!retro?.noise?.enabled} onChange={v => patchRetro({ noise: { enabled: v, intensity: retro?.noise?.intensity } })} />
-          </MenuRow>
-          {retro?.noise?.enabled && (
+              onChange={v => patchRetro({ scanlines: { enabled: true, intensity: v } })} fmt={pct} />
+          ) : <MenuNote>Líneas de pantalla CRT sobre la tarjeta.</MenuNote>}
+        </EffectRow>
+        <EffectRow id="noise" label="Ruido VHS" tone={4} on={!!retro?.noise?.enabled}
+          onToggle={v => patchRetro({ noise: { enabled: v, intensity: retro?.noise?.intensity } })}
+          state={retro?.noise?.enabled ? pct(retro.noise.intensity ?? 0.5) : undefined}>
+          {retro?.noise?.enabled ? (
             <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={retro.noise.intensity ?? 0.5}
-              onChange={v => patchRetro({ noise: { enabled: true, intensity: v } })} fmt={v => `${Math.round(v * 100)}%`} />
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        <MenuSection label="Flicker">
-          <MenuRow label="Activar">
-            <Toggle value={!!retro?.flicker?.enabled} onChange={v => patchRetro({ flicker: { enabled: v, intensity: retro?.flicker?.intensity, speed: retro?.flicker?.speed } })} />
-          </MenuRow>
-          {retro?.flicker?.enabled && (
+              onChange={v => patchRetro({ noise: { enabled: true, intensity: v } })} fmt={pct} />
+          ) : <MenuNote>Grano analógico sutil.</MenuNote>}
+        </EffectRow>
+        <EffectRow id="flicker" label="Flicker" tone={2} on={!!retro?.flicker?.enabled}
+          onToggle={v => patchRetro({ flicker: { enabled: v, intensity: retro?.flicker?.intensity, speed: retro?.flicker?.speed } })}
+          state={retro?.flicker?.enabled ? pct(retro.flicker.intensity ?? 0.5) : undefined}>
+          {retro?.flicker?.enabled ? (
             <>
               <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={retro.flicker.intensity ?? 0.5}
-                onChange={v => patchRetro({ flicker: { ...retro.flicker!, enabled: true, intensity: v } })} fmt={v => `${Math.round(v * 100)}%`} />
+                onChange={v => patchRetro({ flicker: { ...retro.flicker!, enabled: true, intensity: v } })} fmt={pct} />
               <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={retro.flicker.speed ?? 1}
                 onChange={v => patchRetro({ flicker: { ...retro.flicker!, enabled: true, speed: v } })} fmt={v => `${v.toFixed(1)}x`} />
             </>
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        <MenuSection label="Aberración cromática">
-          <MenuRow label="Activar">
-            <Toggle value={!!retro?.chromaticAberration?.enabled} onChange={v => patchRetro({ chromaticAberration: { enabled: v, intensity: retro?.chromaticAberration?.intensity } })} />
-          </MenuRow>
-          {retro?.chromaticAberration?.enabled && (
+          ) : <MenuNote>Un parpadeo de pantalla vieja.</MenuNote>}
+        </EffectRow>
+        <EffectRow id="chroma" label="Aberración cromática" tone={1} on={!!retro?.chromaticAberration?.enabled}
+          onToggle={v => patchRetro({ chromaticAberration: { enabled: v, intensity: retro?.chromaticAberration?.intensity } })}
+          state={retro?.chromaticAberration?.enabled ? pct(retro.chromaticAberration.intensity ?? 0.4) : undefined}>
+          {retro?.chromaticAberration?.enabled ? (
             <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={retro.chromaticAberration.intensity ?? 0.4}
-              onChange={v => patchRetro({ chromaticAberration: { enabled: true, intensity: v } })} fmt={v => `${Math.round(v * 100)}%`} />
-          )}
-        </MenuSection>
-
-        <MenuNote>Efectos analógicos sutiles — pensados para combinarse entre sí sin afectar la legibilidad.</MenuNote>
-      </Collapsible>
-    </div>
+              onChange={v => patchRetro({ chromaticAberration: { enabled: true, intensity: v } })} fmt={pct} />
+          ) : <MenuNote>Bordes rojo y cian desplazados.</MenuNote>}
+        </EffectRow>
+        </div>
+      </EffectList>
+      <MenuNote>Los efectos retro son sutiles y se combinan entre sí sin afectar la legibilidad.</MenuNote>
+    </MenuSection>
   );
 }

@@ -88,12 +88,14 @@ const BIO = obj("Bio"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS 
 const FONDO = obj("Fondo de la card");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");
-const ESTILO_TEXTO = "Estilo del texto";
+const TIPO = "Tipografía";
+const COLOR = "Color";
+const FX_TEXTO = "Efectos del texto";
 export const LIENZO = "Lienzo (arrastrar)";
 
 const LEGACY_POS = "pre-composition position/scale (Stage 3 replaced it with block anchors); kept for old data";
 const BLOCK_DRAG = (block: string) => card(`${LIENZO} › bloque ${block}`, `${block}: ["${block}AnchorX", "${block}AnchorY"]`, "[fx]: latest.x");
-const ROLE_COLOR = "text color is owned by each role (its object › Estilo del texto › Color — Block 1: una propiedad, un dueño)";
+const ROLE_COLOR = "text color is owned by each role (its object › Color › Color — Block 1: una propiedad, un dueño)";
 
 // ── ProfileCard fields ──────────────────────────────────────────────────────
 
@@ -109,9 +111,9 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   sizeScale: retired("legacy scale, replaced by free width/height"),
   pfpAnchorX: card(`${LIENZO} › foto`, "pfpAnchorX: latest.x"),
   pfpAnchorY: card(`${LIENZO} › foto`, "pfpAnchorY: latest.y"),
-  pfpSizePx: content(`${FOTO_OBJ} › Imagen › Tamaño`, "id.setPfpSize(v)"),
-  pfpRadius: content(`${FOTO_OBJ} › Imagen › Forma`, "id.setPfpRadius(v)"),
-  textAlign: type(`${TODOS} › Alineación`, "onChange({ textAlign: v"),
+  pfpSizePx: content(`${FOTO_OBJ} › Forma › Tamaño`, "id.setPfpSize(v)"),
+  pfpRadius: content(`${FOTO_OBJ} › Forma › Forma`, "id.setPfpRadius(v)"),
+  textAlign: type(`${TODOS} › Alineación y espaciado › Alineación`, "onChange({ textAlign: v"),
   identityAnchorX: BLOCK_DRAG("identity"), identityAnchorY: BLOCK_DRAG("identity"),
   locationAnchorX: BLOCK_DRAG("location"), locationAnchorY: BLOCK_DRAG("location"),
   viewsAnchorX: BLOCK_DRAG("views"), viewsAnchorY: BLOCK_DRAG("views"),
@@ -131,11 +133,11 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "logo.rotation": logo(`${LOGO} › Rotación`, "logoCtl.patch({ rotation: v })"),
   "logo.zIndex": logo(`${LOGO} › Profundidad`, "logoCtl.patch({ zIndex: v })"),
   photo: content(`${FOTO_OBJ} › Imagen › Subir`, "id.setPhoto(publicUrl)"),
-  name: content(`${NOMBRE} › Texto`, "id.setName(e.target.value)"),
+  name: content(`${NOMBRE} › Contenido`, "id.setName(e.target.value)"),
   handle: system("the account @handle — read-only in the editor"),
-  status: meta(`${FRASE} › Texto`, 'meta.setText("status", v)'),
-  location: meta(`${UBICACION} › Texto`, 'meta.setText("location", v)'),
-  bio: meta(`${BIO} › Texto`, 'meta.setText("bio", v)'),
+  status: meta(`${FRASE} › Contenido`, 'meta.setText("status", v)'),
+  location: meta(`${UBICACION} › Contenido`, 'meta.setText("location", v)'),
+  bio: meta(`${BIO} › Contenido`, 'meta.setText("bio", v)'),
   photoX: retired(LEGACY_POS), photoY: retired(LEGACY_POS), photoScale: retired(LEGACY_POS),
   photoSize: by("pfpSizePx", "legacy size preset, read as the fallback of the PFP size slider"),
   textX: retired(LEGACY_POS), textY: retired(LEGACY_POS), textScale: retired(LEGACY_POS),
@@ -147,43 +149,43 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   showViews: meta(`${VISITAS} › Contador › Mostrar cantidad`, "meta.setShowViews(v)"),
   viewsX: retired(LEGACY_POS), viewsY: retired(LEGACY_POS), viewsScale: retired(LEGACY_POS),
   font: by("nameFont", "card.font only ever reached the Name — Block 1 removed \"Fuente general\"; shown as the Name font fallback"),
-  nameFont: type(`${NOMBRE} › ${ESTILO_TEXTO} › Fuente`, "onChange({ nameFont: v })"),
-  nameFontSize: type(`${NOMBRE} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ nameFontSize: v })"),
-  bioFontSize: type(`${BIO} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ bioFontSize: v })"),
-  statusFont: type(`${FRASE} › ${ESTILO_TEXTO} › Fuente`, "onChange({ statusFont: v })"),
-  statusFontSize: type(`${FRASE} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ statusFontSize: v })"),
-  locationFontSize: type(`${UBICACION} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ locationFontSize: v })"),
+  nameFont: type(`${NOMBRE} › ${TIPO} › Fuente`, "onChange({ nameFont: v })"),
+  nameFontSize: type(`${NOMBRE} › ${TIPO} › Tamaño`, "onChange({ nameFontSize: v })"),
+  bioFontSize: type(`${BIO} › ${TIPO} › Tamaño`, "onChange({ bioFontSize: v })"),
+  statusFont: type(`${FRASE} › ${TIPO} › Fuente`, "onChange({ statusFont: v })"),
+  statusFontSize: type(`${FRASE} › ${TIPO} › Tamaño`, "onChange({ statusFontSize: v })"),
+  locationFontSize: type(`${UBICACION} › ${TIPO} › Tamaño`, "onChange({ locationFontSize: v })"),
   // Phase 2: back as "Color de todos los textos" (lost in FASE 2, 41f7ea3).
   // Side effects (documented in the UI hint): it is the base every role color
   // without an override derives from, AND the default of the Links icon
   // color, the PFP border/shadow and the drag outlines.
   textColor: type(`${TODOS} › Color › Color de todos los textos (también: íconos de Links, borde/sombra de la foto y contornos de arrastre sin color propio)`, "onChange({ textColor: v })"),
-  nameLetterSpacing: type(`${NOMBRE} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ nameLetterSpacing: v })"),
-  nameLineHeight: type(`${NOMBRE} › ${ESTILO_TEXTO} › Avanzado › Interlineado`, "onChange({ nameLineHeight: v })"),
-  nameFontWeight: type(`${NOMBRE} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ nameFontWeight: v })"),
-  handleFontSize: type(`${USUARIO} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ handleFontSize: v })"),
-  handleLetterSpacing: type(`${USUARIO} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ handleLetterSpacing: v })"),
-  descriptorLetterSpacing: type(`${FRASE} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ descriptorLetterSpacing: v })"),
-  locationLetterSpacing: type(`${UBICACION} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ locationLetterSpacing: v })"),
-  bioLineHeight: type(`${BIO} › ${ESTILO_TEXTO} › Avanzado › Interlineado`, "onChange({ bioLineHeight: v })"),
-  viewsFontSize: type(`${VISITAS} › ${ESTILO_TEXTO} › Tamaño`, "onChange({ viewsFontSize: v })"),
-  viewsLetterSpacing: type(`${VISITAS} › ${ESTILO_TEXTO} › Avanzado › Espaciado`, "onChange({ viewsLetterSpacing: v })"),
-  monoLineHeight: type(`${TODOS} › Interlineado de textos secundarios`, "onChange({ monoLineHeight: v })"),
-  handleFont: type(`${USUARIO} › ${ESTILO_TEXTO} › Fuente`, "onChange({ handleFont: v })"),
-  locationFont: type(`${UBICACION} › ${ESTILO_TEXTO} › Fuente`, "onChange({ locationFont: v })"),
-  bioFont: type(`${BIO} › ${ESTILO_TEXTO} › Fuente`, "onChange({ bioFont: v })"),
-  viewsFont: type(`${VISITAS} › ${ESTILO_TEXTO} › Fuente`, "onChange({ viewsFont: v })"),
-  handleFontWeight: type(`${USUARIO} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ handleFontWeight: v })"),
-  descriptorFontWeight: type(`${FRASE} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ descriptorFontWeight: v })"),
-  locationFontWeight: type(`${UBICACION} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ locationFontWeight: v })"),
-  bioFontWeight: type(`${BIO} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ bioFontWeight: v })"),
-  viewsFontWeight: type(`${VISITAS} › ${ESTILO_TEXTO} › Avanzado › Peso`, "onChange({ viewsFontWeight: v })"),
-  nameColor: type(`${NOMBRE} › ${ESTILO_TEXTO} › Color`, "onChange({ nameColor: v })"),
-  handleColor: type(`${USUARIO} › ${ESTILO_TEXTO} › Color`, "onChange({ handleColor: v })"),
-  descriptorColor: type(`${FRASE} › ${ESTILO_TEXTO} › Color`, "onChange({ descriptorColor: v })"),
-  locationColor: type(`${UBICACION} › ${ESTILO_TEXTO} › Color`, "onChange({ locationColor: v"),
-  bioColor: type(`${BIO} › ${ESTILO_TEXTO} › Color`, "onChange({ bioColor: v })"),
-  viewsColor: type(`${VISITAS} › ${ESTILO_TEXTO} › Color`, "onChange({ viewsColor: v"),
+  nameLetterSpacing: type(`${NOMBRE} › ${TIPO} › Espaciado › Interletrado`, "onChange({ nameLetterSpacing: v })"),
+  nameLineHeight: type(`${NOMBRE} › ${TIPO} › Espaciado › Interlineado`, "onChange({ nameLineHeight: v })"),
+  nameFontWeight: type(`${NOMBRE} › ${TIPO} › Peso`, "onChange({ nameFontWeight: v })"),
+  handleFontSize: type(`${USUARIO} › ${TIPO} › Tamaño`, "onChange({ handleFontSize: v })"),
+  handleLetterSpacing: type(`${USUARIO} › ${TIPO} › Espaciado › Interletrado`, "onChange({ handleLetterSpacing: v })"),
+  descriptorLetterSpacing: type(`${FRASE} › ${TIPO} › Espaciado › Interletrado`, "onChange({ descriptorLetterSpacing: v })"),
+  locationLetterSpacing: type(`${UBICACION} › ${TIPO} › Espaciado › Interletrado`, "onChange({ locationLetterSpacing: v })"),
+  bioLineHeight: type(`${BIO} › ${TIPO} › Espaciado › Interlineado`, "onChange({ bioLineHeight: v })"),
+  viewsFontSize: type(`${VISITAS} › ${TIPO} › Tamaño`, "onChange({ viewsFontSize: v })"),
+  viewsLetterSpacing: type(`${VISITAS} › ${TIPO} › Espaciado › Interletrado`, "onChange({ viewsLetterSpacing: v })"),
+  monoLineHeight: type(`${TODOS} › Alineación y espaciado › Interlineado de @usuario, Frase, Ubicación y Visitas`, "onChange({ monoLineHeight: v })"),
+  handleFont: type(`${USUARIO} › ${TIPO} › Fuente`, "onChange({ handleFont: v })"),
+  locationFont: type(`${UBICACION} › ${TIPO} › Fuente`, "onChange({ locationFont: v })"),
+  bioFont: type(`${BIO} › ${TIPO} › Fuente`, "onChange({ bioFont: v })"),
+  viewsFont: type(`${VISITAS} › ${TIPO} › Fuente`, "onChange({ viewsFont: v })"),
+  handleFontWeight: type(`${USUARIO} › ${TIPO} › Peso`, "onChange({ handleFontWeight: v })"),
+  descriptorFontWeight: type(`${FRASE} › ${TIPO} › Peso`, "onChange({ descriptorFontWeight: v })"),
+  locationFontWeight: type(`${UBICACION} › ${TIPO} › Peso`, "onChange({ locationFontWeight: v })"),
+  bioFontWeight: type(`${BIO} › ${TIPO} › Peso`, "onChange({ bioFontWeight: v })"),
+  viewsFontWeight: type(`${VISITAS} › ${TIPO} › Peso`, "onChange({ viewsFontWeight: v })"),
+  nameColor: type(`${NOMBRE} › ${COLOR} › Color`, "onChange({ nameColor: v })"),
+  handleColor: type(`${USUARIO} › ${COLOR} › Color`, "onChange({ handleColor: v })"),
+  descriptorColor: type(`${FRASE} › ${COLOR} › Color`, "onChange({ descriptorColor: v })"),
+  locationColor: type(`${UBICACION} › ${COLOR} › Color`, "onChange({ locationColor: v"),
+  bioColor: type(`${BIO} › ${COLOR} › Color`, "onChange({ bioColor: v })"),
+  viewsColor: type(`${VISITAS} › ${COLOR} › Color`, "onChange({ viewsColor: v"),
   linksIconColor: by("blockStyle.links.iconColor", "the icon color lives with Contact Links (FASE 2), via its block style"),
   bgColor: by("effects.bg.color", "legacy field merged by getProfileCardEffects (read effective, write raw)"),
   bgImage: by("effects.bg.image", "legacy field merged by getProfileCardEffects"),
@@ -206,68 +208,68 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
 // ── ProfileCard effects ─────────────────────────────────────────────────────
 
 const pfp = at("ProfileIdentityMenu.tsx");
-const FOTO = `${FOTO_OBJ} › Imagen › Estilo de foto`;
+const FOTO = `${FOTO_OBJ} › Efectos de la foto`;
 const RETRO = `${EFECTOS} › Retro`;
 
 export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
-  "bg.color": bgMenu(`${FONDO} › Color de fondo › Color`, "patchBg({ color: v })"),
-  "bg.image": bgMenu(`${FONDO} › Imagen / GIF`, "bgCtl.setImage(src, bgMode)"),
-  "bg.imageMode": bgMenu(`${FONDO} › Imagen / GIF (detectado al subir)`, "bgCtl.setImage(src, bgMode)"),
-  "bg.opacity": bgMenu(`${FONDO} › Color de fondo › Opacidad`, "patchBg({ opacity: v })"),
-  "bg.blur": bgMenu(`${FONDO} › Avanzado › Blur`, "patchBg({ blur: v"),
-  "bg.glass": bgMenu(`${FONDO} › Avanzado › Glass`, "patchBg({ glass: v })"),
+  "bg.color": bgMenu(`${FONDO} › Color › Color`, "patchBg({ color: v })"),
+  "bg.image": bgMenu(`${FONDO} › Imagen`, "bgCtl.setImage(src, bgMode)"),
+  "bg.imageMode": bgMenu(`${FONDO} › Imagen (detectado al subir)`, "bgCtl.setImage(src, bgMode)"),
+  "bg.opacity": bgMenu(`${FONDO} › Color › Opacidad`, "patchBg({ opacity: v })"),
+  "bg.blur": bgMenu(`${FONDO} › Superficie › Desenfoque`, "patchBg({ blur: v"),
+  "bg.glass": bgMenu(`${FONDO} › Superficie › Vidrio`, "patchBg({ glass: v })"),
   "border.color": fxMenu(`${EFECTOS} › Borde › Color`, "patchBorder({ color: v })"),
   "border.width": fxMenu(`${EFECTOS} › Borde › Grosor`, "patchBorder({ width: v })"),
   "border.radius": fxMenu(`${FONDO} › Esquinas › Radio de las esquinas`, "patchBorder({ radius: v })"),
   "border.opacity": fxMenu(`${EFECTOS} › Borde › Opacidad`, "patchBorder({ opacity: v })"),
-  "glow.color": fxMenu(`${EFECTOS} › Glow › Color`, "patchGlow({ color: v })"),
-  "glow.intensity": fxMenu(`${EFECTOS} › Glow › Intensidad`, "patchGlow({ intensity: v })"),
-  "glow.inner": fxMenu(`${EFECTOS} › Glow › Interior`, 'setGlowFlag("inner", v)'),
-  "glow.outer": fxMenu(`${EFECTOS} › Glow › Exterior`, 'setGlowFlag("outer", v)'),
-  "glow.radius": fxMenu(`${EFECTOS} › Glow › Avanzado › Radio`, "patchGlow({ radius: v })"),
-  "glow.animation.enabled": fxMenu(`${EFECTOS} › Glow › Pulso`, "patchGlowAnimation({ enabled: v })"),
-  "glow.animation.speed": fxMenu(`${EFECTOS} › Glow › Pulso › Velocidad del pulso`, "patchGlowAnimation({ speed: v })"),
+  "glow.color": fxMenu(`${EFECTOS} › Brillo › Color`, "patchGlow({ color: v })"),
+  "glow.intensity": fxMenu(`${EFECTOS} › Brillo › Intensidad`, "patchGlow({ intensity: v })"),
+  "glow.inner": fxMenu(`${EFECTOS} › Brillo › Interior`, 'setGlowFlag("inner", v)'),
+  "glow.outer": fxMenu(`${EFECTOS} › Brillo › Exterior`, 'setGlowFlag("outer", v)'),
+  "glow.radius": fxMenu(`${EFECTOS} › Brillo › Avanzado › Radio`, "patchGlow({ radius: v })"),
+  "glow.animation.enabled": fxMenu(`${EFECTOS} › Brillo › Pulso`, "patchGlowAnimation({ enabled: v })"),
+  "glow.animation.speed": fxMenu(`${EFECTOS} › Brillo › Pulso › Velocidad del pulso`, "patchGlowAnimation({ speed: v })"),
   "shadow.color": fxMenu(`${EFECTOS} › Sombra › Color`, "patchShadow({ color: v })"),
   "shadow.intensity": fxMenu(`${EFECTOS} › Sombra › Activar · Intensidad`, 'fx.setEnabled("shadow", on)', "patchShadow({ intensity: v })"),
   "shadow.blur": fxMenu(`${EFECTOS} › Sombra › Avanzado › Blur`, "patchShadow({ blur: v })"),
   "shadow.offsetX": fxMenu(`${EFECTOS} › Sombra › Avanzado › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
   "shadow.offsetY": fxMenu(`${EFECTOS} › Sombra › Avanzado › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
   "shadow.opacity": fxMenu(`${EFECTOS} › Sombra › Avanzado › Opacidad`, "patchShadow({ opacity: v })"),
-  "text.shadow.color": type(`${TODOS} › Efectos globales de texto › Sombra › Color`, 'toggleTextFx("text.shadow", v)', "patchShadow({ color: v })"),
-  "text.shadow.opacity": type(`${TODOS} › Efectos globales de texto › Sombra › Opacidad`, "patchShadow({ opacity: v })"),
-  "text.shadow.blur": type(`${TODOS} › Efectos globales de texto › Sombra › Blur`, "patchShadow({ blur: v })"),
-  "text.shadow.offsetX": type(`${TODOS} › Efectos globales de texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
-  "text.shadow.offsetY": type(`${TODOS} › Efectos globales de texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
-  "text.glow.color": type(`${TODOS} › Efectos globales de texto › Glow › Color`, "patchGlow({ color: v })"),
-  "text.glow.intensity": type(`${TODOS} › Efectos globales de texto › Glow › Activar · Intensidad`, 'toggleTextFx("text.glow", v)', "patchGlow({ intensity: v })"),
-  "text.glow.radius": type(`${TODOS} › Efectos globales de texto › Glow › Radio`, "patchGlow({ radius: v })"),
-  "text.stroke.color": type(`${TODOS} › Efectos globales de texto › Stroke › Color`, 'toggleTextFx("text.stroke", v)', "patchStroke({ color: v })"),
-  "text.stroke.width": type(`${TODOS} › Efectos globales de texto › Stroke › Grosor`, "patchStroke({ width: v })"),
-  "text.blur": type(`${TODOS} › Efectos globales de texto › Blur`, "patchTextFx({ blur: v"),
+  "text.shadow.color": type(`${TODOS} › Efectos del texto › Sombra › Color`, 'toggleTextFx("text.shadow", v)', "patchShadow({ color: v })"),
+  "text.shadow.opacity": type(`${TODOS} › Efectos del texto › Sombra › Opacidad`, "patchShadow({ opacity: v })"),
+  "text.shadow.blur": type(`${TODOS} › Efectos del texto › Sombra › Blur`, "patchShadow({ blur: v })"),
+  "text.shadow.offsetX": type(`${TODOS} › Efectos del texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
+  "text.shadow.offsetY": type(`${TODOS} › Efectos del texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: x, offsetY: y })"),
+  "text.glow.color": type(`${TODOS} › Efectos del texto › Brillo › Color`, "patchGlow({ color: v })"),
+  "text.glow.intensity": type(`${TODOS} › Efectos del texto › Brillo › Activar · Intensidad`, 'toggleTextFx("text.glow", v)', "patchGlow({ intensity: v })"),
+  "text.glow.radius": type(`${TODOS} › Efectos del texto › Brillo › Radio`, "patchGlow({ radius: v })"),
+  "text.stroke.color": type(`${TODOS} › Efectos del texto › Contorno › Color`, 'toggleTextFx("text.stroke", v)', "patchStroke({ color: v })"),
+  "text.stroke.width": type(`${TODOS} › Efectos del texto › Contorno › Grosor`, "patchStroke({ width: v })"),
+  "text.blur": type(`${TODOS} › Efectos del texto › Desenfoque`, "patchTextFx({ blur: v"),
   "pfp.border.color": pfp(`${FOTO} › Borde › Color`, "patchPfpBorder({ color: v })"),
   "pfp.border.width": pfp(`${FOTO} › Borde › Grosor`, "patchPfpBorder({ width: v })"),
   "pfp.border.opacity": pfp(`${FOTO} › Borde › Opacidad`, "patchPfpBorder({ opacity: v })"),
   "pfp.shadow.color": pfp(`${FOTO} › Sombra › Color`, "patchPfpShadow({ color: v })"),
   "pfp.shadow.intensity": pfp(`${FOTO} › Sombra › Activar · Intensidad`, 'id.setPfpEffect("pfp.shadow", on)', "patchPfpShadow({ intensity: v })"),
-  "pfp.glow.color": pfp(`${FOTO} › Glow › Color`, "patchPfpGlow({ color: v })"),
-  "pfp.glow.intensity": pfp(`${FOTO} › Glow › Activar · Intensidad`, 'id.setPfpEffect("pfp.glow", v)', "patchPfpGlow({ intensity: v })"),
-  "pfp.glow.radius": pfp(`${FOTO} › Glow › Radio`, "patchPfpGlow({ radius: v })"),
-  "pfp.glow.animation.enabled": pfp(`${FOTO} › Glow › Animación (pulso)`, "patchPfpGlow({ animation: { enabled: v"),
-  "pfp.glow.animation.speed": pfp(`${FOTO} › Glow › Animación › Velocidad`, "patchPfpGlow({ animation: { enabled: true, speed: v } })"),
-  "gradient.from": bgMenu(`${FONDO} › Gradiente › Color A`, "bgCtl.setGradient(v)", "patchGradient({ from: v })"),
-  "gradient.to": bgMenu(`${FONDO} › Gradiente › Color B`, "patchGradient({ to: v })"),
-  "gradient.angle": bgMenu(`${FONDO} › Gradiente › Ángulo`, "patchGradient({ angle: v })"),
-  "gradient.opacity": bgMenu(`${FONDO} › Gradiente › Opacidad`, "patchGradient({ opacity: v })"),
-  "interactions.tilt3d": fxMenu(`${EFECTOS} › Movimiento › Inclinación 3D`, "patchInteractions({ tilt3d: v })"),
-  "interactions.tiltIntensity": fxMenu(`${EFECTOS} › Movimiento › Inclinación 3D › Intensidad`, "patchInteractions({ tiltIntensity: v })"),
+  "pfp.glow.color": pfp(`${FOTO} › Brillo › Color`, "patchPfpGlow({ color: v })"),
+  "pfp.glow.intensity": pfp(`${FOTO} › Brillo › Activar · Intensidad`, 'id.setPfpEffect("pfp.glow", v)', "patchPfpGlow({ intensity: v })"),
+  "pfp.glow.radius": pfp(`${FOTO} › Brillo › Radio`, "patchPfpGlow({ radius: v })"),
+  "pfp.glow.animation.enabled": pfp(`${FOTO} › Brillo › Pulso`, "patchPfpGlow({ animation: { enabled: v"),
+  "pfp.glow.animation.speed": pfp(`${FOTO} › Brillo › Velocidad del pulso`, "patchPfpGlow({ animation: { enabled: true, speed: v } })"),
+  "gradient.from": bgMenu(`${FONDO} › Superficie › Gradiente › Color A`, "bgCtl.setGradient(v)", "patchGradient({ from: v })"),
+  "gradient.to": bgMenu(`${FONDO} › Superficie › Gradiente › Color B`, "patchGradient({ to: v })"),
+  "gradient.angle": bgMenu(`${FONDO} › Superficie › Gradiente › Ángulo`, "patchGradient({ angle: v })"),
+  "gradient.opacity": bgMenu(`${FONDO} › Superficie › Gradiente › Opacidad`, "patchGradient({ opacity: v })"),
+  "interactions.tilt3d": fxMenu(`${EFECTOS} › Inclinación 3D`, "patchInteractions({ tilt3d: v })"),
+  "interactions.tiltIntensity": fxMenu(`${EFECTOS} › Inclinación 3D › Intensidad`, "patchInteractions({ tiltIntensity: v })"),
   "interactions.spotlight": fxMenu(`${EFECTOS} › Spotlight › Activar`, "patchInteractions({ spotlight: v })"),
   "interactions.spotlightColor": fxMenu(`${EFECTOS} › Spotlight › Color`, "patchInteractions({ spotlightColor: v })"),
   "interactions.spotlightSize": fxMenu(`${EFECTOS} › Spotlight › Radio`, "patchInteractions({ spotlightSize: v })"),
-  "interactions.hoverGlow": fxMenu(`${EFECTOS} › Hover › Glow al pasar`, "fx.setHoverGlow(on)", "onChange={setHoverGlow}"),
-  "interactions.hoverScale": fxMenu(`${EFECTOS} › Hover › Escala al pasar`, 'fx.setEnabled("interactions.hoverScale", v)', "patchInteractions({ hoverScale: v })"),
-  "animations.floating": fxMenu(`${EFECTOS} › Movimiento › Flotación`, "patchAnimations({ floating: v })"),
-  "animations.floatHeight": fxMenu(`${EFECTOS} › Movimiento › Flotación › Amplitud`, "patchAnimations({ floatHeight: v })"),
-  "animations.floatSpeed": fxMenu(`${EFECTOS} › Movimiento › Flotación › Duración del ciclo`, "patchAnimations({ floatSpeed: v })"),
+  "interactions.hoverGlow": fxMenu(`${EFECTOS} › Al pasar el cursor › Glow al pasar`, "fx.setHoverGlow(on)", "onChange={setHoverGlow}"),
+  "interactions.hoverScale": fxMenu(`${EFECTOS} › Al pasar el cursor › Escala al pasar`, 'fx.setEnabled("interactions.hoverScale", v)', "patchInteractions({ hoverScale: v })"),
+  "animations.floating": fxMenu(`${EFECTOS} › Flotación`, "patchAnimations({ floating: v })"),
+  "animations.floatHeight": fxMenu(`${EFECTOS} › Flotación › Amplitud`, "patchAnimations({ floatHeight: v })"),
+  "animations.floatSpeed": fxMenu(`${EFECTOS} › Flotación › Duración del ciclo`, "patchAnimations({ floatSpeed: v })"),
   "retro.scanlines.enabled": fxMenu(`${RETRO} › Scanlines`, "patchRetro({ scanlines: { enabled: v"),
   "retro.scanlines.intensity": fxMenu(`${RETRO} › Scanlines › Intensidad`, "patchRetro({ scanlines: { enabled: true, intensity: v } })"),
   "retro.noise.enabled": fxMenu(`${RETRO} › Ruido VHS`, "patchRetro({ noise: { enabled: v"),
@@ -288,18 +290,18 @@ const ROLE_LABEL: Record<TextRole, string> = {
 };
 const ROLE_FIELDS = "RoleTypographyFields.tsx";
 function roleCaps(role: TextRole): Record<RoleEffectLeaf, Capability> {
-  const ui = `${obj(ROLE_LABEL[role])} › ${ESTILO_TEXTO}`;
+  const ui = `${obj(ROLE_LABEL[role])} › ${FX_TEXTO}`;
   const host = ev("ProfileTypographyMenu.tsx", `{...makeGradientHandlers("${role}")}`);
   const letter = role === "name"
-    ? (field: string) => route(`${ui} › Animación › ${field}`, ev("ProfileTypographyMenu.tsx", 'setRoleTextEffect("name", "letterAnimation", v)'), ev(ROLE_FIELDS, `onLetterAnimationChange({ ...letterAnimation, ${field}: v })`))
+    ? (field: string) => route(`${ui} › Animación por letra › ${field}`, ev("ProfileTypographyMenu.tsx", 'setRoleTextEffect("name", "letterAnimation", v)'), ev(ROLE_FIELDS, `onLetterAnimationChange({ ...letterAnimation, ${field}: v })`))
     : () => unsupported("letter animation is Name-only (Product closeout)");
   return {
     "gradient.colors": route(`${ui} › Gradiente`, host, ev(ROLE_FIELDS, "onGradientChange({ ...gradient, colors })")),
     "gradient.angle": route(`${ui} › Gradiente › Ángulo`, host, ev(ROLE_FIELDS, "onGradientChange({ ...gradient, angle: v })")),
     "gradient.from": retired("pre-multicolor shape: read as a fallback, never written"),
     "gradient.to": retired("pre-multicolor shape: read as a fallback, never written"),
-    "shimmer.intensity": route(`${ui} › Gradiente › Shimmer › Intensidad`, host, ev(ROLE_FIELDS, "onShimmerChange({ ...shimmer, intensity: v })")),
-    "shimmer.speed": route(`${ui} › Gradiente › Shimmer › Velocidad`, host, ev(ROLE_FIELDS, "onShimmerChange({ ...shimmer, speed: v })")),
+    "shimmer.intensity": route(`${ui} › Shimmer › Intensidad`, host, ev(ROLE_FIELDS, "onShimmerChange({ ...shimmer, intensity: v })")),
+    "shimmer.speed": route(`${ui} › Shimmer › Velocidad`, host, ev(ROLE_FIELDS, "onShimmerChange({ ...shimmer, speed: v })")),
     "letterAnimation.amplitude": letter("amplitude"),
     "letterAnimation.speed": letter("speed"),
     "letterAnimation.stagger": letter("stagger"),
@@ -315,7 +317,7 @@ export const ROLE_EFFECT_CAPS: Record<TextRole, Record<RoleEffectLeaf, Capabilit
 const BLOCK_HOST: Record<BlockStyleKey, [file: string, ui: string]> = {
   // One "Bloque de identidad" section, mounted under Nombre, @usuario, Frase and Bio.
   identity: ["ProfileIdentityMenu.tsx", `${NOMBRE} › Estilo del bloque · afecta Nombre, @usuario, Frase y Bio (también bajo esos objetos)`],
-  location: ["ProfileMetadataMenu.tsx", `${UBICACION} › Texto › Estilo del bloque`],
+  location: ["ProfileMetadataMenu.tsx", `${UBICACION} › Contenido › Estilo del bloque`],
   views:    ["ProfileMetadataMenu.tsx", `${VISITAS} › Contador › Estilo del bloque`],
   links:    ["ProfileContactLinksMenu.tsx", `${LINKS} › Estilo del bloque`],
 };
@@ -329,7 +331,7 @@ function blockCaps(block: BlockStyleKey): Record<keyof BlockStyleOverride, Capab
     textColor: block === "links"
       ? unsupported("Contact Links has no text")
       : block === "identity"
-        ? retired("never wired in render (blockStyle.ts: Identity has its own per-role colors); each role's Estilo del texto › Color owns it")
+        ? retired("never wired in render (blockStyle.ts: Identity has its own per-role colors); each role's Color › Color owns it")
         : by(`${block}Color`, ROLE_COLOR),
     iconColor: block === "links"
       ? route(`${ui} › Color de ícono`, ev(file, 'blockKey="links" showIconColor'), ev("BlockStyleFields.tsx", "patch({ iconColor: v })"))

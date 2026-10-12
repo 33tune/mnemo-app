@@ -11,12 +11,12 @@ import {
   nameFontSizeDefault, TEXT_SHADOW_DEFAULTS, textShadowOpacity, TEXT_GLOW_DEFAULT_COLOR, textGlowRadius, TEXT_STROKE_DEFAULT_COLOR,
   NAME_FONT_DEFAULT, MONO_ROLE_FONT_DEFAULT, MONO_LINE_HEIGHT_NORMAL, ROLE_TYPOGRAPHY_RANGES as R, ROLE_WEIGHT_FALLBACK,
 } from "@/lib/effectEditorDefaults";
-import { T, SliderRow, ColorSwatch, ColorRow, MenuSection, MenuRow, MenuNote, Tabs, Collapsible, Divider, Toggle, OffsetRow, ActionButton } from "@/ui";
+import { T, SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Tabs, OffsetRow, EffectList, EffectRow } from "@/ui";
 import RoleTypographyFields from "./RoleTypographyFields";
 
 type TextAlign = NonNullable<ProfileCardData["textAlign"]>;
-const ALIGN_TABS: { id: TextAlign; label: string }[] = [
-  { id: "left", label: "Izq" }, { id: "center", label: "Centro" }, { id: "right", label: "Der" },
+const ALIGN_TABS: { id: TextAlign; label: string; icon: "align-left" | "align-center" | "align-right" }[] = [
+  { id: "left", label: "Izquierda", icon: "align-left" }, { id: "center", label: "Centro", icon: "align-center" }, { id: "right", label: "Derecha", icon: "align-right" },
 ];
 // Role defaults (fonts, ranges, the "normal" mono line-height) live in
 // effectEditorDefaults.ts — menu redesign Phase 1.
@@ -121,9 +121,6 @@ export function useTypographyActions(card: ProfileCardData, baseColor: string, o
   };
 }
 
-/** Section heading of a role's text controls (the h2 already names the object). */
-const ROLE_HEADING = "Estilo del texto";
-
 /** One role's text style — mounted by that role's object. */
 export function RoleTextSection({ card, baseColor, onChange, role }: SectionProps & { role: TextRole }) {
   const { nameFontSize, typography, colors, locationBlockColor, viewsBlockColor, withoutBlockTextColor, textRoles, setRoleTextEffect, makeGradientHandlers } =
@@ -137,7 +134,12 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
       // (so a legacy card.font still displays) and writes nameFont.
       return (
         <RoleTypographyFields
-          label="Nombre" heading={ROLE_HEADING} first
+          label="Nombre"
+          fontModified={card.nameFont !== undefined} onFontReset={() => onChange({ nameFont: undefined })}
+          sizeModified={card.nameFontSize !== undefined} onSizeReset={() => onChange({ nameFontSize: undefined })}
+          weightModified={card.nameFontWeight !== undefined} onWeightReset={() => onChange({ nameFontWeight: undefined })}
+          letterSpacingModified={card.nameLetterSpacing !== undefined} onLetterSpacingReset={() => onChange({ nameLetterSpacing: undefined })}
+          lineHeightModified={card.nameLineHeight !== undefined} onLineHeightReset={() => onChange({ nameLineHeight: undefined })}
           color={colors.name} hasColorOverride={!!card.nameColor}
           onColorChange={v => onChange({ nameColor: v })} onColorClear={() => onChange({ nameColor: undefined })}
           font={card.nameFont ?? card.font ?? NAME_FONT_DEFAULT} onFontChange={v => onChange({ nameFont: v })}
@@ -154,7 +156,11 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
     case "handle":
       return (
         <RoleTypographyFields
-          label="@usuario" heading={ROLE_HEADING} first
+          label="@usuario"
+          fontModified={card.handleFont !== undefined} onFontReset={() => onChange({ handleFont: undefined })}
+          sizeModified={card.handleFontSize !== undefined} onSizeReset={() => onChange({ handleFontSize: undefined })}
+          weightModified={card.handleFontWeight !== undefined} onWeightReset={() => onChange({ handleFontWeight: undefined })}
+          letterSpacingModified={card.handleLetterSpacing !== undefined} onLetterSpacingReset={() => onChange({ handleLetterSpacing: undefined })}
           color={colors.handle} hasColorOverride={!!card.handleColor}
           onColorChange={v => onChange({ handleColor: v })} onColorClear={() => onChange({ handleColor: undefined })}
           font={card.handleFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ handleFont: v })}
@@ -167,7 +173,11 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
     case "descriptor":
       return (
         <RoleTypographyFields
-          label="Frase" heading={ROLE_HEADING} first
+          label="Frase"
+          fontModified={card.statusFont !== undefined} onFontReset={() => onChange({ statusFont: undefined })}
+          sizeModified={card.statusFontSize !== undefined} onSizeReset={() => onChange({ statusFontSize: undefined })}
+          weightModified={card.descriptorFontWeight !== undefined} onWeightReset={() => onChange({ descriptorFontWeight: undefined })}
+          letterSpacingModified={card.descriptorLetterSpacing !== undefined} onLetterSpacingReset={() => onChange({ descriptorLetterSpacing: undefined })}
           color={colors.descriptor} hasColorOverride={!!card.descriptorColor}
           onColorChange={v => onChange({ descriptorColor: v })} onColorClear={() => onChange({ descriptorColor: undefined })}
           font={card.statusFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ statusFont: v })}
@@ -180,7 +190,11 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
     case "location":
       return (
         <RoleTypographyFields
-          label="Ubicación" heading={ROLE_HEADING} first
+          label="Ubicación"
+          fontModified={card.locationFont !== undefined} onFontReset={() => onChange({ locationFont: undefined })}
+          sizeModified={card.locationFontSize !== undefined} onSizeReset={() => onChange({ locationFontSize: undefined })}
+          weightModified={card.locationFontWeight !== undefined} onWeightReset={() => onChange({ locationFontWeight: undefined })}
+          letterSpacingModified={card.locationLetterSpacing !== undefined} onLetterSpacingReset={() => onChange({ locationLetterSpacing: undefined })}
           color={locationBlockColor ?? colors.location} hasColorOverride={!!card.locationColor || !!locationBlockColor}
           onColorChange={v => onChange({ locationColor: v, ...withoutBlockTextColor("location") })}
           onColorClear={() => onChange({ locationColor: undefined, ...withoutBlockTextColor("location") })}
@@ -194,7 +208,11 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
     case "bio":
       return (
         <RoleTypographyFields
-          label="Bio" heading={ROLE_HEADING} first
+          label="Bio"
+          fontModified={card.bioFont !== undefined} onFontReset={() => onChange({ bioFont: undefined })}
+          sizeModified={card.bioFontSize !== undefined} onSizeReset={() => onChange({ bioFontSize: undefined })}
+          weightModified={card.bioFontWeight !== undefined} onWeightReset={() => onChange({ bioFontWeight: undefined })}
+          lineHeightModified={card.bioLineHeight !== undefined} onLineHeightReset={() => onChange({ bioLineHeight: undefined })}
           color={colors.bio} hasColorOverride={!!card.bioColor}
           onColorChange={v => onChange({ bioColor: v })} onColorClear={() => onChange({ bioColor: undefined })}
           font={card.bioFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ bioFont: v })}
@@ -209,7 +227,11 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
     case "views":
       return (
         <RoleTypographyFields
-          label="Visitas" heading={ROLE_HEADING} first
+          label="Visitas"
+          fontModified={card.viewsFont !== undefined} onFontReset={() => onChange({ viewsFont: undefined })}
+          sizeModified={card.viewsFontSize !== undefined} onSizeReset={() => onChange({ viewsFontSize: undefined })}
+          weightModified={card.viewsFontWeight !== undefined} onWeightReset={() => onChange({ viewsFontWeight: undefined })}
+          letterSpacingModified={card.viewsLetterSpacing !== undefined} onLetterSpacingReset={() => onChange({ viewsLetterSpacing: undefined })}
           color={viewsBlockColor ?? colors.views} hasColorOverride={!!card.viewsColor || !!viewsBlockColor}
           onColorChange={v => onChange({ viewsColor: v, ...withoutBlockTextColor("views") })}
           onColorClear={() => onChange({ viewsColor: undefined, ...withoutBlockTextColor("views") })}
@@ -223,18 +245,23 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
   }
 }
 
-/** "Todos los textos": what applies to every text role at once. */
+/** "Todos los textos": what applies to every text role at once.
+ * Editor v3 Phase F: numbered sections — 01 Color, 02 Alineación (icons,
+ * design screen 02) and the shared secondary line-height, 03 Efectos del
+ * texto as effect rows (Sombra, Brillo, Contorno, Desenfoque). */
 export function GlobalTextSection({ card, baseColor, onChange }: SectionProps) {
   const hintId = useId();
   const { textFx, patchTextFx, toggleTextFx, patchShadow, patchGlow, patchStroke } = useTypographyActions(card, baseColor, onChange);
+  const glowOn = isIntensityEffectVisible(textFx?.glow);
+  const fxOn = [!!textFx?.shadow, glowOn, !!textFx?.stroke, !!textFx?.blur].filter(Boolean).length;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: T.space[6] }}>
       {/* Phase 2: the base color every role color derives from (card.textColor
           — its control was lost in FASE 2, 41f7ea3). Shows the EFFECTIVE value
           (cardBaseColor: the background-derived default when unset); reset
           deletes the key. Role color rows without an override show they
           inherit from here (RoleTypographyFields). */}
-      <MenuSection label="Color" first>
+      <MenuSection label="Color" num="01" tone={1} changed={card.textColor ? 1 : 0} first>
         <ColorRow
           label="Color de todos los textos" value={baseColor}
           onChange={v => onChange({ textColor: v })}
@@ -244,93 +271,75 @@ export function GlobalTextSection({ card, baseColor, onChange }: SectionProps) {
         <MenuNote id={hintId}>También tiñe los íconos de Links y el borde de la foto cuando no tienen color propio.</MenuNote>
       </MenuSection>
 
-      <MenuSection label="Alineación">
-        <Tabs tabs={ALIGN_TABS} active={card.textAlign ?? "left"} onChange={v => onChange({ textAlign: v as TextAlign })} label="Alineación" />
-      </MenuSection>
-
-      {/* Block 1 (truthful labels): monoLineHeight is ONE field shared by
-          @usuario/Frase/Ubicación/Visitas. Absent = no CSS line-height at all
-          (browser "normal"), which the label says instead of a made-up number. */}
-      <MenuSection label="Interlineado de textos secundarios">
-        <SliderRow label="@usuario, Frase, Ubicación, Visitas" min={R.monoLineHeight[0]} max={R.monoLineHeight[1]} step={0.05}
+      <MenuSection label="Alineación y espaciado" num="02" tone={2} changed={[card.textAlign, card.monoLineHeight].filter(v => v != null).length} first>
+        <MenuRow label="Alineación" state={card.textAlign ? "modified" : undefined} onReset={() => onChange({ textAlign: undefined })}>
+          <div style={{ width: 128 }}>
+            <Tabs tabs={ALIGN_TABS} active={card.textAlign ?? "left"} onChange={v => onChange({ textAlign: v as TextAlign })} />
+          </div>
+        </MenuRow>
+        {/* Block 1 (truthful labels): monoLineHeight is ONE field shared by
+            @usuario/Frase/Ubicación/Visitas. Absent = no CSS line-height at
+            all (browser "normal"), which the value says instead of a
+            made-up number; reset goes back to "normal". */}
+        <SliderRow label="Interlineado de @usuario, Frase, Ubicación y Visitas" min={R.monoLineHeight[0]} max={R.monoLineHeight[1]} step={0.05}
           value={card.monoLineHeight ?? MONO_LINE_HEIGHT_NORMAL}
           fmt={v => card.monoLineHeight == null ? "normal" : v.toFixed(2)}
-          onChange={v => onChange({ monoLineHeight: v })} />
-        {card.monoLineHeight != null && (
-          <ActionButton variant="ghost" onClick={() => onChange({ monoLineHeight: undefined })}>volver a normal</ActionButton>
-        )}
+          onChange={v => onChange({ monoLineHeight: v })}
+          state={card.monoLineHeight != null ? "modified" : undefined} onReset={() => onChange({ monoLineHeight: undefined })} />
       </MenuSection>
 
       {/* Card-wide (card.effects.text — shadow/glow/stroke/blur), unlike each
-          role's own Gradiente/Animación. */}
-      <Collapsible label="Efectos globales de texto">
-        <MenuSection label="Sombra" first>
-          <MenuRow label="Activar">
-            <Toggle value={!!textFx?.shadow} onChange={v => toggleTextFx("text.shadow", v)} />
-          </MenuRow>
-          {textFx?.shadow && (
-            <>
-              <MenuRow label="Color">
-                <ColorSwatch value={textFx.shadow.color ?? TEXT_SHADOW_DEFAULTS.color} onChange={v => patchShadow({ color: v })} />
-              </MenuRow>
-              {/* Block 1: renderer default is 1 with an explicit color, 0.5
-                  without (textEffects.ts). */}
-              <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={textShadowOpacity(textFx.shadow.color, textFx.shadow.opacity)}
-                fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchShadow({ opacity: v })} />
-              <SliderRow label="Blur" min={0} max={20} step={1} value={textFx.shadow.blur ?? TEXT_SHADOW_DEFAULTS.blur} unit="px"
-                onChange={v => patchShadow({ blur: v })} />
-              <OffsetRow x={textFx.shadow.offsetX ?? TEXT_SHADOW_DEFAULTS.offsetX} y={textFx.shadow.offsetY ?? TEXT_SHADOW_DEFAULTS.offsetY} min={-20} max={20}
-                onChange={(x, y) => patchShadow({ offsetX: x, offsetY: y })} />
-            </>
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        <MenuSection label="Glow">
-          <MenuRow label="Activar">
-            {/* Iteration 0: "on" = visible (intensity > 0). */}
-            <Toggle value={isIntensityEffectVisible(textFx?.glow)} onChange={v => toggleTextFx("text.glow", v)} />
-          </MenuRow>
-          {textFx?.glow && isIntensityEffectVisible(textFx.glow) && (
-            <>
-              <MenuRow label="Color">
-                <ColorSwatch value={textFx.glow.color ?? TEXT_GLOW_DEFAULT_COLOR} onChange={v => patchGlow({ color: v })} />
-              </MenuRow>
-              <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={textFx.glow.intensity ?? 0}
-                fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchGlow({ intensity: v })} />
-              <SliderRow label="Radio" min={0} max={40} step={1} value={textGlowRadius(textFx.glow.radius, textFx.glow.intensity)} unit="px"
-                onChange={v => patchGlow({ radius: v })} />
-            </>
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        <MenuSection label="Stroke / contorno">
-          <MenuRow label="Activar">
-            <Toggle value={!!textFx?.stroke} onChange={v => toggleTextFx("text.stroke", v)} />
-          </MenuRow>
-          {textFx?.stroke && (
-            <>
-              <MenuRow label="Color">
-                <ColorSwatch value={textFx.stroke.color ?? TEXT_STROKE_DEFAULT_COLOR} onChange={v => patchStroke({ color: v })} />
-              </MenuRow>
-              <SliderRow label="Grosor" min={0.5} max={4} step={0.5} value={textFx.stroke.width ?? 1} unit="px"
-                onChange={v => patchStroke({ width: v })} />
-            </>
-          )}
-        </MenuSection>
-
-        <Divider />
-
-        {/* filter: blur() on the glyphs themselves — distinct from Sombra's
-            own blur above. Card-wide. */}
-        <MenuSection label="Blur">
-          <SliderRow label="Intensidad" min={0} max={8} step={0.5} value={textFx?.blur ?? 0} unit="px"
-            onChange={v => patchTextFx({ blur: v || undefined })} />
-        </MenuSection>
-      </Collapsible>
+          role's own Gradiente/Shimmer/Animación. */}
+      <MenuSection label="Efectos del texto" num="03" tone={4} active={fxOn} first>
+        <EffectList label="Efectos de todos los textos">
+          <EffectRow id="shadow" label="Sombra" tone={1} on={!!textFx?.shadow} onToggle={v => toggleTextFx("text.shadow", v)}>
+            {textFx?.shadow ? (
+              <>
+                <ColorRow label="Color" value={textFx.shadow.color ?? TEXT_SHADOW_DEFAULTS.color} onChange={v => patchShadow({ color: v })} />
+                {/* Block 1: renderer default is 1 with an explicit color, 0.5
+                    without (textEffects.ts). */}
+                <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={textShadowOpacity(textFx.shadow.color, textFx.shadow.opacity)}
+                  fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchShadow({ opacity: v })} />
+                <SliderRow label="Blur" min={0} max={20} step={1} value={textFx.shadow.blur ?? TEXT_SHADOW_DEFAULTS.blur} unit="px"
+                  onChange={v => patchShadow({ blur: v })} />
+                <OffsetRow x={textFx.shadow.offsetX ?? TEXT_SHADOW_DEFAULTS.offsetX} y={textFx.shadow.offsetY ?? TEXT_SHADOW_DEFAULTS.offsetY} min={-20} max={20}
+                  onChange={(x, y) => patchShadow({ offsetX: x, offsetY: y })} />
+              </>
+            ) : <MenuNote>Una sombra detrás de cada texto de la tarjeta.</MenuNote>}
+          </EffectRow>
+          {/* Iteration 0: "on" = visible (intensity > 0). */}
+          <EffectRow id="glow" label="Brillo" tone={2} on={glowOn} onToggle={v => toggleTextFx("text.glow", v)}
+            state={glowOn ? `${Math.round((textFx?.glow?.intensity ?? 0) * 100)}%` : undefined}>
+            {textFx?.glow && glowOn ? (
+              <>
+                <ColorRow label="Color" value={textFx.glow.color ?? TEXT_GLOW_DEFAULT_COLOR} onChange={v => patchGlow({ color: v })} />
+                <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={textFx.glow.intensity ?? 0}
+                  fmt={v => `${Math.round(v * 100)}%`} onChange={v => patchGlow({ intensity: v })} />
+                <SliderRow label="Radio" min={0} max={40} step={1} value={textGlowRadius(textFx.glow.radius, textFx.glow.intensity)} unit="px"
+                  onChange={v => patchGlow({ radius: v })} />
+              </>
+            ) : <MenuNote>Un halo de luz alrededor de los textos.</MenuNote>}
+          </EffectRow>
+          <EffectRow id="stroke" label="Contorno" tone={3} on={!!textFx?.stroke} onToggle={v => toggleTextFx("text.stroke", v)}
+            state={textFx?.stroke ? `${textFx.stroke.width ?? 1} px` : undefined}>
+            {textFx?.stroke ? (
+              <>
+                <ColorRow label="Color" value={textFx.stroke.color ?? TEXT_STROKE_DEFAULT_COLOR} onChange={v => patchStroke({ color: v })} />
+                <SliderRow label="Grosor" min={0.5} max={4} step={0.5} value={textFx.stroke.width ?? 1} unit="px"
+                  onChange={v => patchStroke({ width: v })} />
+              </>
+            ) : <MenuNote>Un trazo alrededor de cada letra.</MenuNote>}
+          </EffectRow>
+          {/* filter: blur() on the glyphs themselves — distinct from Sombra's
+              own blur. Card-wide; 0 deletes the key (no switch: the slider
+              is the whole control). */}
+          <EffectRow id="blur" label="Desenfoque" tone={4} active={!!textFx?.blur}
+            state={textFx?.blur ? `${textFx.blur} px` : undefined}>
+            <SliderRow label="Intensidad" min={0} max={8} step={0.5} value={textFx?.blur ?? 0} unit="px"
+              onChange={v => patchTextFx({ blur: v || undefined })} />
+          </EffectRow>
+        </EffectList>
+      </MenuSection>
     </div>
   );
 }

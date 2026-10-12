@@ -60,6 +60,9 @@ const LIGHT = {
   thumbShadow: "0 0 0 1.5px #8B8B93, 0 1px 3px rgba(0,0,0,0.20)",
   wellBase: "#FFFFFF",
   checker: "conic-gradient(#E4E4E7 25%, #FFFFFF 0 50%, #E4E4E7 0 75%, #FFFFFF 0)",
+  // Phase F: outline of the selected object chip. The violet `sel` already
+  // has >= 3:1 on the panel; OG's lime does not (1.28:1), so OG draws ink.
+  selEdge: "transparent",
 };
 type ThemePalette = { readonly [K in keyof typeof LIGHT]: string };
 
@@ -86,6 +89,7 @@ const DARK: ThemePalette = {
   // The white thumb itself is 18:1 on the dark panel: no ring needed.
   thumbShadow: "0 1px 3px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(0,0,0,0.2)",
   wellBase: "#2A2A30",
+  selEdge: "transparent",
   checker: "conic-gradient(#3A3A42 25%, #24242A 0 50%, #3A3A42 0 75%, #24242A 0)",
 };
 
@@ -99,6 +103,7 @@ const OG: ThemePalette = {
   pop: "rgba(255,255,255,0.90)",
   panelShadow: "0 24px 60px -24px rgba(0,0,0,0.6)",
   seg: "#0B0B0C", segInk: "#FFFFFF", segShadow: "none",
+  selEdge: "#0B0B0C",
 };
 
 /** Editor font stacks: next/font (layout.tsx) defines --font-display/-sans/
@@ -227,6 +232,8 @@ export const T = {
       strong: th("lineStrong"),
       /** Always-visible field hairline (NumberField). */
       field:  th("lineField"),
+      /** Phase F: selected object chip outline (OG lime needs ink, >= 3:1). */
+      selEdge: th("selEdge"),
     },
     accent: {
       /** Primary button: ink on panel. */
@@ -277,6 +284,8 @@ export const T = {
     radius: { panel: 16, group: 12, control: 8, segment: 6, chip: 999, field: 12, pill: 7, button: 10, segTrack: 10, segThumb: 8,
       /** Editor v3 Phase B: top corners of the bottom sheet (design screen 10). */
       sheet: 28,
+      /** Editor v3 Phase F: object chips (design: 9-12px, not a pill). */
+      objChip: 10,
       /** Editor v3 Phase D: the floating dock (design: radius 22). */
       dock: 22 },
     size:   {

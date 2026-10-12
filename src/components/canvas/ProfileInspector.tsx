@@ -3,7 +3,7 @@ import React, { useLayoutEffect, useRef } from "react";
 import type { ProfileCardData } from "@/types";
 import { InspectorShell } from "@/ui";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
-import { inspectorObject, type ObjectId } from "@/lib/inspectorObjects";
+import { inspectorObject, chipLabel, type ObjectId } from "@/lib/inspectorObjects";
 import type { SelectionMemory } from "@/lib/editorSelection";
 import { INSPECTOR_TITLE_ID } from "@/ui/InspectorShell";
 import { ObjectList } from "./ObjectList";
@@ -35,7 +35,7 @@ interface ProfileInspectorProps {
 }
 
 // The ProfileCard inspector = InspectorShell (docked aside or bottom sheet,
-// header with the object's h2) + ObjectList (tablist) + the active object's
+// header with the object's h2 and, under it, ObjectList — the tablist) + the active object's
 // sections (tabpanel, ProfileConfigMenu). Phase B: mounted by EditorHost
 // (CanvasBoard level), CONTROLLED by the editor selection; it only restores
 // and records the body scroll per object (session memory).
@@ -68,10 +68,17 @@ export default function ProfileInspector({
   return (
     <InspectorShell
       id={id}
-      title={obj.caption}
-      // Phase D header: route · title · measures (Phase F refines it).
-      path="card de presentación"
-      meta={`${Math.round(card.w)} × ${Math.round(card.h)} px`}
+      // Phase F header (design screen 02): route in mono, the object as the
+      // title, "de la tarjeta" in serif, the card's measures; the object
+      // chips stay fixed under it while the sections scroll.
+      title={chipLabel(obj)}
+      path={`tarjeta / ${chipLabel(obj).toLowerCase()}`}
+      aside="de la tarjeta"
+      meta={`X ${Math.round(card.x)}   Y ${Math.round(card.y)}   W ${Math.round(card.w)}   H ${Math.round(card.h)}`}
+      headerExtra={
+        <ObjectList active={object} onSelect={select} panelId={panelId} sheet={mode === "sheet"}
+          ctx={{ card, effective, baseColor, viewCount }} />
+      }
       onClose={onClose}
       returnFocusTo={returnFocusTo}
       top={top}
@@ -83,8 +90,6 @@ export default function ProfileInspector({
       bodyRef={bodyRef}
       onBodyScroll={e => memory.setScroll(card.id, object, e.currentTarget.scrollTop)}
     >
-      <ObjectList active={object} onSelect={select} panelId={panelId}
-        ctx={{ card, effective, baseColor, viewCount }} />
       <div role="tabpanel" id={panelId} aria-labelledby={INSPECTOR_TITLE_ID} data-object={object}>
         <ProfileConfigMenu object={object} card={card} baseColor={baseColor} linksFits={linksFits}
           canvas={canvas} onChange={onChange} goTo={goTo} />

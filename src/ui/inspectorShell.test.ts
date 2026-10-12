@@ -110,7 +110,10 @@ test("keyboard: F6 toggles canvas ⇄ inspector and is declared; Esc on the canv
 test("ObjectList is an APG tablist controlling a tabpanel labelled by the h2; no live regions", () => {
   assert.ok(LIST.includes('role="tablist"') && LIST.includes('role="tab"') && LIST.includes("aria-selected={selected}"));
   assert.ok(LIST.includes("tabIndex={selected ? 0 : -1}"), "roving tabindex");
-  assert.ok(LIST.includes('alt=""') && LIST.includes("draggable={false}"), "decorative thumbnail, not draggable");
+  // Phase F: chips are text labels (no thumbnails); the dot is decorative,
+  // its meaning is in the name.
+  assert.ok(LIST.includes("{chipLabel(o)}") && LIST.includes('className="mn-objchip__dot" aria-hidden="true"'));
+  assert.ok(LIST.includes("aria-label={modified ? `${name}, con cambios` : name}"), "the dot is spoken");
   assert.ok(INSPECTOR.includes('role="tabpanel"') && INSPECTOR.includes("aria-labelledby={INSPECTOR_TITLE_ID}"));
   for (const src of [LIST, INSPECTOR, SHELL]) assert.ok(!src.includes("aria-live") && !src.includes('role="status"'));
 });
@@ -196,7 +199,8 @@ test("r2: in-section links move focus to the new object's h2 (the link itself un
   assert.match(INSPECTOR, /function goTo\(id: ObjectId\) \{\s*select\(id\);\s*requestAnimationFrame\(\(\) => document\.getElementById\(INSPECTOR_TITLE_ID\)\?\.focus/);
   assert.ok(CONFIG.includes('link("allText", TEXT_FX_LINK)'));
   assert.equal((CONFIG.match(/link\("allText", TEXT_FX_LINK\)/g) ?? []).length, 6, "from every text role");
-  assert.ok(CONFIG.includes('to="cardBg" label="Esquinas: en Fondo de la card"') && CONFIG.includes('link("cardFx", "Color y grosor del borde: en Efectos de la card")'));
+  // Phase F: the links name the object by its chip label.
+  assert.ok(CONFIG.includes('to="cardBg" label="Esquinas: en Fondo"') && CONFIG.includes('link("cardFx", "Color y grosor del borde: en Efectos")'));
 });
 
 test("r2: the 'Color de todos los textos' hint describes its control", () => {
