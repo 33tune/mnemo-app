@@ -38,7 +38,9 @@ planeado acá hasta confirmarlo.
 >
 > - **Fase D (shell del editor: rail, topbar de editor, dock flotante de 360px, "Tu sala" a
 >   pedido, cuadrícula) TERMINADA (2026-10-08)**, commiteada y pusheada en
->   `feature/myland-editor-v3`. **No mergeada a `main`.** Detalle en el plan (§ 1 y § 6, Fase D).
+>   `feature/myland-editor-v3` (`64c863b`). **No mergeada a `main`.** Revisión de cierre (2026-10-12):
+>   Regresiones y Visual/UX/A11y APPROVE WITH NOTES tras una ronda de correcciones (commit siguiente).
+>   Detalle en el plan (§ 1 y § 6, Fase D).
 >
 > **Siguiente acción:** QA en navegador de la Fase D; la Fase F solo con el OK del usuario.
 >

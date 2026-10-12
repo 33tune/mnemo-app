@@ -28,6 +28,10 @@
 //   og glass/glassInk2  rgba(16,16,18,.55)/rgba(255,255,255,.65)
 //                    -> rgba(16,16,18,.64)/rgba(255,255,255,.80)
 //                       (glassInk2 2.89:1 -> 4.6:1 over the og page)
+//   Phase D review: glass over REAL wallpapers (white / black / mid grey,
+//   with and without glassBtn) >= 4.5:1 — light glass .80 -> .86 and
+//   glassInk2 #6B6B73 -> #56565E; dark .58 -> .85 and #9B9BA4 -> #B4B4BC;
+//   og .64 -> .74 (tested in uiTokens.test.ts).
 // Second block = derived keys the design file does not spell out (lines,
 // focus ring, danger, opaque fallbacks…), chosen per theme in the same
 // family and contrast-tested the same way.
@@ -37,7 +41,7 @@ const LIGHT = {
   track: "rgba(0,0,0,0.12)", track2: "#949496", fill: "#6B4EFF",
   sel: "#6B4EFF", selInk: "#FFFFFF", on: "#0B0B0C", knobOn: "#FFFFFF", edit: "#C2541A",
   rail: "#0B0B0C", railInk: "#8A8A93", railSel: "#6B4EFF", railSelInk: "#FFFFFF",
-  glass: "rgba(255,255,255,0.80)", glassInk: "#0B0B0C", glassInk2: "#6B6B73",
+  glass: "rgba(255,255,255,0.86)", glassInk: "#0B0B0C", glassInk2: "#56565E",
   glassEdge: "inset 0 -0.5px 0 rgba(0,0,0,0.08)", glassBtn: "rgba(0,0,0,0.05)",
   pop: "rgba(255,255,255,0.90)", popInk: "#0B0B0C",
   panelShadow: "0 0 0 0.5px rgba(0,0,0,0.06), 0 24px 60px -24px rgba(0,0,0,0.35)",
@@ -65,7 +69,7 @@ const DARK: ThemePalette = {
   track: "rgba(255,255,255,0.14)", track2: "#616165", fill: "#8B73FF",
   sel: "#765DF5", selInk: "#FFFFFF", on: "#C6F432", knobOn: "#0B0B0C", edit: "#FF8A3D",
   rail: "#000000", railInk: "#6F6F78", railSel: "#C6F432", railSelInk: "#0B0B0C",
-  glass: "rgba(16,16,18,0.58)", glassInk: "#F4F4F5", glassInk2: "#9B9BA4",
+  glass: "rgba(16,16,18,0.85)", glassInk: "#F4F4F5", glassInk2: "#B4B4BC",
   glassEdge: "inset 0 -0.5px 0 rgba(255,255,255,0.08)", glassBtn: "rgba(255,255,255,0.07)",
   pop: "rgba(26,26,30,0.90)", popInk: "#F4F4F5",
   panelShadow: "0 0 0 0.5px rgba(255,255,255,0.07), 0 30px 80px -24px rgba(0,0,0,0.9)",
@@ -90,7 +94,7 @@ const OG: ThemePalette = {
   ink2: "#56565E",
   sel: "#C6F432", selInk: "#0B0B0C", on: "#F5559A", knobOn: "#FFFFFF",
   rail: "#6B4EFF", railInk: "rgba(255,255,255,0.72)", railSel: "#C6F432", railSelInk: "#0B0B0C",
-  glass: "rgba(16,16,18,0.64)", glassInk: "#FFFFFF", glassInk2: "rgba(255,255,255,0.80)",
+  glass: "rgba(16,16,18,0.74)", glassInk: "#FFFFFF", glassInk2: "rgba(255,255,255,0.80)",
   glassEdge: "inset 0 -0.5px 0 rgba(255,255,255,0.1)", glassBtn: "rgba(255,255,255,0.1)",
   pop: "rgba(255,255,255,0.90)",
   panelShadow: "0 24px 60px -24px rgba(0,0,0,0.6)",

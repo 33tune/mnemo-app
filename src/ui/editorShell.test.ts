@@ -129,3 +129,26 @@ test("Phase D: chrome and the sheet keep clear of the 60px editor topbar (view /
   assert.ok(CARD.includes("centerCardPosition(viewportW, viewportH, card.w, requiredH, CANVAS_TOP_OFFSET)"), "geometry keeps 44 (R1)");
   assert.ok(BOARD.includes("inspectorSheetOffset({ viewportH, topOffset: UIT.ui.size.editorTopbarH, sheetH, box })"));
 });
+
+test("Phase D review: narrow viewports get the compact editor topbar (1.4.10) without losing any function", () => {
+  assert.ok(BOARD.includes('compact: inspLayout.mode === "sheet",'), "same breakpoint as the bottom sheet");
+  const c = TOPBAR.slice(TOPBAR.indexOf("function CompactEditorTopbar("));
+  assert.ok(c.includes("[EDITOR_UI_ATTR]"));
+  for (const k of ['aria-label="Deshacer"', "PUBLISH_LABEL[publishState]", "mn-topbar__btn--touch"]) assert.ok(c.includes(k), `bar keeps ${k}`);
+  const menu = c.slice(c.indexOf("{open && ("));
+  for (const k of ["tabs.map(", "onSignals &&", "editor.onRedo", "editor.previewHref", "onLogout &&"]) assert.ok(menu.includes(k), `"Más" keeps ${k}`);
+  assert.ok(c.includes('e.key === "Escape"') && c.includes("moreRef.current?.focus"), "Esc closes and returns focus to Más");
+  assert.ok(c.includes("sin leer"), "unread chats / signals are announced on Más");
+  assert.ok(!c.includes("aria-haspopup"), "a disclosure (group of buttons), not a role=menu popup");
+  assert.equal((c.match(/e.key === "Escape"/g) ?? []).length, 2, "Esc closes from the menu and from Más itself");
+});
+
+test("Phase D review: \"Tu sala\" opens on touch devices too (room settings were reachable from + before D)", () => {
+  assert.ok(BOARD.includes("const roomShown = roomOpen && canEdit;"));
+  assert.ok(BOARD.includes('{view === "canvas" && inspectorEnabled && (canInteract || roomShown) && ('));
+  assert.ok(BOARD.includes("const inspectorShown = (!!inspectorProfile && canInteract) || roomShown;"));
+});
+
+test("Phase D review: object chrome clears the 60px topbar and the rail (placement only, geometry keeps 44)", () => {
+  assert.ok(BOARD.includes("topOffset: editorShell ? EDITOR_CHROME_TOP : 44, left: railW"));
+});

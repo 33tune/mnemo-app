@@ -21,7 +21,7 @@ import { SocialDock } from "./SocialDock";
 import Topbar from "./Topbar";
 import CardMenu from "./CardMenu";
 import GalleryWidget from "./GalleryWidget";
-import ProfileCard, { CANVAS_TOP_OFFSET } from "./ProfileCard";
+import ProfileCard, { CANVAS_TOP_OFFSET, EDITOR_CHROME_TOP } from "./ProfileCard";
 import { CanvasChromeButton } from "./CanvasChromeButton";
 import { resolveSideSpot, resolveToolbarTop, resolveLinkChipTop, type ChromeBox, type ChromeCanvas } from "@/lib/openerPlacement";
 import { renderContent, textColor, isLight } from "./CardContent";
@@ -807,7 +807,10 @@ export default function CanvasBoard({
   // The FAB ("+"/trash) and its menus are fixed to the bottom-right corner,
   // under the inspector: they move LEFT by the dock's width, or UP by the
   // sheet's height, while it's open.
-  const inspectorShown = (!!inspectorProfile || roomOpen) && canInteract;
+  // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
+  // there, but the room settings were reachable from "+" before Phase D).
+  const roomShown = roomOpen && canEdit;
+  const inspectorShown = (!!inspectorProfile && canInteract) || roomShown;
   const fabShift = inspectorShown && !sheetMode ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0;
   const fabLift = inspectorShown && sheetMode ? (inspectorCollapsed ? INSPECTOR_SHEET_COLLAPSED_H : inspView.sheetH) : 0;
   // Review B-UX-1: lifted above an EXPANDED sheet the FAB and its menus land
@@ -1233,7 +1236,9 @@ export default function CanvasBoard({
 
   // Review r2: canvas bounds for the chrome placement resolvers
   // (openerPlacement.ts) — the same bounds the drag clamps to.
-  const chromeCanvas: ChromeCanvas = { w: effectiveW, h: effectiveH, topOffset: 44 };
+  // Review D: in the editor shell the chrome also clears the 60px glass
+  // topbar and the tool rail (placement only — geometry keeps 44, R1).
+  const chromeCanvas: ChromeCanvas = { w: effectiveW, h: effectiveH, topOffset: editorShell ? EDITOR_CHROME_TOP : 44, left: railW };
   // Free text has no stored w/h: its box comes from the last rendered size.
   function textChromeBox(txt: CanvasText): ChromeBox {
     const el = textElRefs.current[txt.id];
@@ -3257,6 +3262,7 @@ export default function CanvasBoard({
           onUndo: () => runHistoryRef.current("undo"), onRedo: () => runHistoryRef.current("redo"),
           previewHref: userHandle ? `/${userHandle}` : undefined,
           undoKeys: isMacUi ? "⌘Z" : "Ctrl+Z", redoKeys: isMacUi ? "⇧⌘Z" : "Ctrl+Y",
+          compact: inspLayout.mode === "sheet",
         } : undefined}
       />
 
@@ -4004,7 +4010,7 @@ export default function CanvasBoard({
       {/* ── Inspector host (Editor v3 Phase B, D2) ── the one place the
           inspector mounts: driven by the editor selection, outside the
           transformed canvas wrapper (portal to <body>). */}
-      {view === "canvas" && inspectorEnabled && canInteract && (
+      {view === "canvas" && inspectorEnabled && (canInteract || roomShown) && (
         <EditorHost
           target={editorSel.target}
           // Only a card that is actually rendered (same set ProfileCard maps over).

@@ -21,7 +21,8 @@ export const OPENER_SIZE = 24;
 export const HANDLE_TARGET_RADIUS = 12;
 
 export interface ChromeBox { x: number; y: number; w: number; h: number }
-export interface ChromeCanvas { w: number; h: number; topOffset: number }
+/** `left`: width covered on the left edge (Editor v3 Phase D: the tool rail). */
+export interface ChromeCanvas { w: number; h: number; topOffset: number; left?: number }
 export type ChromeSpot = { top: number; left: number; where: string };
 
 /** Distance from the closest point of a rect (element-relative) to the
@@ -46,7 +47,7 @@ export function clearanceFromHandles(r: { top: number; left: number; w: number; 
 export function isOnCanvas(r: { top: number; left: number; w: number; h: number }, el: ChromeBox, canvas: ChromeCanvas, checkX = true): boolean {
   const ax = el.x + r.left, ay = el.y + r.top;
   if (ay < canvas.topOffset || ay + r.h > canvas.h) return false;
-  if (checkX && (ax < 0 || ax + r.w > canvas.w)) return false;
+  if (checkX && (ax < (canvas.left ?? 0) || ax + r.w > canvas.w)) return false;
   return true;
 }
 

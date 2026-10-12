@@ -56,7 +56,10 @@
   **No mergeada a `main`.** Detalle y pendientes en § 6, Fase C. Commit `0dab9a7`; el usuario la probó en navegador.
 - **Fase D (shell del editor: rail, topbar, dock, "Tu sala", cuadrícula): TERMINADA (2026-10-08)** en
   `feature/myland-editor-v3`, commit `feat: implement MYLAND editor v3 phase D (editor shell)`. **No mergeada a
-  `main`.** Detalle y pendientes en § 6, Fase D. **Sin QA en navegador.**
+  `main`.** Commit `64c863b`. Detalle y pendientes en § 6, Fase D.
+  - Revisión (2026-10-12, después del corte por límite de sesión): Regresiones/Capacidades y Visual/UX/Accesibilidad
+    dieron REQUEST CHANGES (3 bloqueantes), una ronda de correcciones y verificación de cierre: los dos **APPROVE WITH
+    NOTES**. `npm test` 578/578, `tsc` limpio, `next build` 13/13. **Sin QA en navegador.**
 - **NO empezadas:** las fases F, E, G, H e I. **La siguiente fase arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
@@ -170,10 +173,11 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
   | on (switch encendido) | og | `#FF5C9D` → `#F5559A` | no-texto: 2.89:1 → 3.16:1 (y knob blanco sobre él) |
   | sel | dark | `#7B61FF` → `#765DF5` | `selInk` blanco: 4.20:1 → 4.51:1 |
   | glass / glassInk2 | og | `rgba(16,16,18,.55)` / `rgba(255,255,255,.65)` → `.64` / `.80` | glassInk2 2.89:1 → 4.59:1 sobre la página og |
+  | glass / glassInk2 (revisión D) | light / dark / og | `.80`/`#6B6B73` → `.86`/`#56565E` · `.58`/`#9B9BA4` → `.85`/`#B4B4BC` · `.64` → `.74` | glassInk y glassInk2 ≥ 4.5:1 sobre wallpapers blanco, negro y gris medio, con y sin `glassBtn` (peor caso 4.73:1) |
 
   El switch apagado de Light mantiene `#949496` en vez de `#E4E4E7` + anillo. Con un solo color se cumplen las dos condiciones: el track da ≥ 3:1 sobre el panel y el knob blanco da ≥ 3:1 sobre el track. Con el anillo, el knob quedaría en 1.27:1.
 
-  Además hay claves derivadas que el diseño no define (líneas, anillo de foco, peligro, fallbacks opacos), elegidas por tema y testeadas igual. `sel` lima de OG (1.28:1 sobre blanco) no se ajusta: la selección también se marca con forma (borde), nunca solo con color. El glass se midió sobre la página del tema; **la Fase D tiene que volver a medirlo sobre wallpapers reales** cuando la topbar y el rail lo usen.
+  Además hay claves derivadas que el diseño no define (líneas, anillo de foco, peligro, fallbacks opacos), elegidas por tema y testeadas igual. `sel` lima de OG (1.28:1 sobre blanco) no se ajusta: la selección también se marca con forma (borde), nunca solo con color. El glass se midió primero sobre la página del tema; la revisión de la Fase D lo volvió a medir sobre wallpapers reales (fila "revisión D", test en `uiTokens.test.ts`).
 - **Colores de marca:**
   - violeta `#6B4EFF`: selección y marco;
   - rosa `#FF5C9D`: Publicar y Agregar;
@@ -533,6 +537,23 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
     ubicación del botón) y el sheet deja libre la topbar; la geometría sigue con 44.
   - Pendiente de A resuelto: el diálogo "Link de la imagen" queda en oscuro neutral (`data-editor-theme="dark"`).
   - Pendiente de C resuelto: deshacer desde el botón de la topbar no registra el recentrado posterior.
+- **Revisión de cierre (2026-10-12):** correcciones aplicadas:
+  - **Táctil:** "Tu sala" desde el `+` no hacía nada (el host solo se montaba con `canInteract`); ahora se monta con
+    `canEdit` (`roomShown`). El inspector de la card sigue sin abrirse en táctil.
+  - **Contraste del vidrio (1.4.3):** alfas y `glassInk2` subidos (ver § 3, fila "revisión D"), con test sobre wallpapers.
+  - **Reflow (1.4.10):** por debajo de 1108px la topbar es compacta (pantalla 10): wordmark, Deshacer y Publicar de 44px y
+    "Más" (disclosure) con MY LAND/SOCIAL, Señales, Rehacer, Vista previa y Salir.
+  - **Chrome de objetos** (toolbars, candado, rotar, chip Link, opener de Music): se ubica por debajo de la topbar de 60px
+    y a la derecha del rail (`ChromeCanvas.left`). Solo ubicación; la geometría sigue en 44.
+- **Pendientes de la revisión (menores, a decidir por el usuario):**
+  - tests de `history.subscribe` y de la ventana de 1000ms del deshacer (o reemplazarla por un flag determinista);
+  - el rail tapa elementos con `x < 64` (solo se corrió la chrome); el panel de Señales arranca en `top: 52`;
+  - `aria-keyshortcuts` en Rehacer y sacar "L" de Capas hasta E; letras V/A/L visibles en el rail;
+  - en angosto, al cerrar "Tu sala" el foco vuelve al canvas (mejor: al `+`);
+  - forced colors: pestaña activa y Publicar deshabilitado de la barra completa;
+  - chip "click to place text" en inglés, 9px y 3.76:1; aviso táctil "requires desktop" encima del sheet de Tu sala;
+  - `/logo.png` de 1.48 MB en el rail (servir `myland-mark` o achicarlo); título del header 30px (diseño 34);
+  - numeración de secciones de Tu sala y miniatura del wallpaper del diseño.
 
 **Pendientes registrados en la Fase A (revisión r2):**
 - **Diálogo "Link de la imagen"** (`CanvasBoard.tsx`): la superficie es oscura literal, pero su `.mn-input` sigue el tema.

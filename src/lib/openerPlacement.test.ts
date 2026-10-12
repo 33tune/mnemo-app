@@ -68,3 +68,18 @@ test("LINK chip below the image clears the s handle (>12px), inside when no room
   assert.equal(chip.top - el.h, 14);
   assert.equal(resolveLinkChipTop({ x: 400, y: 700, w: 220, h: 100 }, C).where, "inside");
 });
+
+test("Phase D review: the chrome clears the editor's 60px topbar and the 64px rail", () => {
+  const E = { w: 1000, h: 800, topOffset: 60, left: 64 };
+  const el = { x: 40, y: 70, w: 200, h: 100 };
+  // "left" of an element at x=40 would land under the rail; "above" under the topbar.
+  assert.equal(isOnCanvas(sq(-40, -40), el, E), false);
+  assert.equal(isOnCanvas(sq(-38, 0), el, E), false);
+  for (const s of [resolveOpenerSpot(el, E), resolveSideSpot(el, E, 0), resolveSideSpot(el, E, 1)]) {
+    assert.ok(el.y + s.top >= 60, `${s.where}: clear of the topbar`);
+    if (s.where !== "inside") assert.ok(el.x + s.left >= 64, `${s.where}: clear of the rail`);
+  }
+  assert.ok(el.y + resolveToolbarTop(el, E).top >= 60, "toolbar clear of the topbar");
+  // Without `left` nothing changes (classic bar, visitors).
+  assert.equal(isOnCanvas(sq(0, -40), { x: 40, y: 300, w: 200, h: 100 }, C), true);
+});

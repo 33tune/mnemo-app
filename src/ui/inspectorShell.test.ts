@@ -163,7 +163,7 @@ test("Phase B: narrow viewport = bottom sheet below the element, 44px targets, c
   assert.match(css, /\.mn-panel\.mn-panel--sheet\[data-mnemo-editor\] \{[^}]*border-radius: var\(--ui-radius-sheet\)/);
   assert.ok(BOARD.includes("bottom:20+fabLift,right:20+fabShift"), "the FAB is never under the sheet");
   assert.ok(BOARD.includes("inspectorSheetOffset({ viewportH, topOffset: UIT.ui.size.editorTopbarH, sheetH, box })"));
-  assert.ok(CARD.includes("export const CANVAS_TOP_OFFSET = 44;") && BOARD.includes('import ProfileCard, { CANVAS_TOP_OFFSET } from "./ProfileCard";'),
+  assert.ok(CARD.includes("export const CANVAS_TOP_OFFSET = 44;") && /import ProfileCard, \{ CANVAS_TOP_OFFSET(, EDITOR_CHROME_TOP)? \} from "\.\/ProfileCard";/.test(BOARD),
     "R1: one topbar offset (44, unchanged), shared by the card and the sheet math");
 });
 

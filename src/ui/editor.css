@@ -169,6 +169,24 @@
 :where([data-mnemo-ui]) .mn-topbar__tab:focus-visible,
 :where([data-mnemo-ui]) .mn-topbar__btn:focus-visible,
 :where([data-mnemo-ui]) .mn-topbar__publish:focus-visible { box-shadow: var(--ui-shadow-ring); }
+/* Phase D review (1.4.10): compact editor topbar (narrow, design screen 10)
+   — 44px targets, the rest under "Más" in an opaque menu. */
+:where([data-mnemo-ui]) .mn-topbar__btn--touch { position: relative; width: 44px; height: 44px; border-radius: 12px; }
+:where([data-mnemo-ui]) .mn-topbar__publish--touch { height: 44px; margin: 0; }
+:where([data-mnemo-ui]) .mn-topbar__dot {
+  position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ui-accent-brand); box-shadow: 0 0 0 2px var(--ui-shell-glass-ink);
+}
+:where([data-mnemo-ui]) .mn-topbar__menu {
+  position: absolute; top: calc(100% + 4px); right: 8px; width: 220px; padding: 4px; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 2px; border-radius: 14px;
+  background: var(--ui-surface-panel); box-shadow: var(--ui-shadow-popover); color: var(--ui-text-primary);
+}
+:where([data-mnemo-ui]) .mn-topbar__menu .mn-menuitem { height: 44px; text-decoration: none; }
+:where([data-mnemo-ui]) .mn-topbar__menu .mn-menuitem[aria-pressed="true"] { color: var(--ui-text-primary); font-weight: 650; }
+:where([data-mnemo-ui]) .mn-topbar__menu .mn-menuitem[aria-disabled="true"] { opacity: var(--ui-opacity-disabled); cursor: default; }
+:where([data-mnemo-ui]) .mn-topbar__menu .mn-menuitem:focus-visible { outline: none; box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-ui]) .mn-topbar__keys { font-family: var(--ui-font-mono); font-size: 11px; color: var(--ui-text-tertiary); }
 @media (prefers-reduced-motion: reduce) {
   :where([data-mnemo-ui]) .mn-topbar__publish[data-state="publishing"] { animation: none; }
   :where([data-mnemo-ui]) .mn-topbar__btn:active, :where([data-mnemo-ui]) .mn-topbar__publish:active { transform: none; }
@@ -179,6 +197,9 @@
 @media (forced-colors: active) {
   .mn-topbar[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: Canvas; border-bottom: 1px solid CanvasText; }
   :where([data-mnemo-ui]) .mn-topbar__publish, :where([data-mnemo-ui]) .mn-topbar__btn--text { border: 1px solid ButtonText; }
+  :where([data-mnemo-ui]) .mn-topbar__menu { border: 1px solid CanvasText; }
+  :where([data-mnemo-ui]) .mn-topbar__menu .mn-menuitem[aria-pressed="true"] { border: 1px solid Highlight; }
+  :where([data-mnemo-ui]) .mn-topbar__dot { forced-color-adjust: none; background: Highlight; box-shadow: none; }
 }
 
 /* Editor v3 Phase D: the tool rail (EditorRail.tsx) — 44px buttons, radius

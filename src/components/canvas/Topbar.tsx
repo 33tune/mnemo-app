@@ -19,6 +19,9 @@ export interface EditorTopbarProps {
   previewHref?: string;
   undoKeys: string;
   redoKeys: string;
+  /** Narrow viewports (the bottom-sheet layout, design screen 10): wordmark,
+   * Deshacer and Publicar at 44px; everything else under "Más" (1.4.10). */
+  compact?: boolean;
 }
 
 const MONO = "'Space Mono', monospace";
@@ -457,6 +460,12 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
   onSignals?: () => void;
   onLogout?: () => Promise<void>;
 }) {
+  if (editor.compact) {
+    return (
+      <CompactEditorTopbar editor={editor} tabs={tabs} publishState={publishState} onPublish={onPublish}
+        unreadChats={unreadChats} unreadSignals={unreadSignals} onSignals={onSignals} onLogout={onLogout} />
+    );
+  }
   return (
     <header
       {...{ [EDITOR_UI_ATTR]: "" }}
@@ -520,6 +529,116 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
           <button type="button" className="mn-topbar__btn mn-topbar__btn--text" onClick={() => { void onLogout(); }}>Salir</button>
         )}
       </div>
+    </header>
+  );
+}
+
+// Phase D review (1.4.10 Reflow): the editor topbar on narrow viewports —
+// design screen 10 keeps the wordmark, Deshacer and Publicar (44px targets);
+// every other function of the full bar (MY LAND / SOCIAL, Señales, Rehacer,
+// Vista previa, Salir) stays one tap away under "Más", nothing is dropped.
+const MORE_MENU_ID = "mnemo-topbar-more";
+
+function CompactEditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unreadSignals, onSignals, onLogout }: {
+  editor: EditorTopbarProps;
+  tabs: { key: string; label: string; active: boolean; onClick: () => void }[];
+  publishState?: PublishState;
+  onPublish?: () => void;
+  unreadChats?: number;
+  unreadSignals?: number;
+  onSignals?: () => void;
+  onLogout?: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const unread = (unreadChats ?? 0) + (unreadSignals ?? 0);
+  const close = (refocus: boolean) => {
+    setOpen(false);
+    if (refocus) requestAnimationFrame(() => moreRef.current?.focus({ preventScroll: true }));
+  };
+  // A press outside the menu closes it (focus stays where the user went).
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!menuRef.current?.contains(t) && !moreRef.current?.contains(t)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [open]);
+  // Activating an item closes the menu and runs it.
+  const run = (fn?: () => void) => () => { close(false); fn?.(); };
+
+  return (
+    <header
+      {...{ [EDITOR_UI_ATTR]: "" }}
+      className="mn-topbar mn-topbar--compact"
+      style={{
+        position: "fixed", top: 0, left: editor.left, right: 0, height: T.ui.size.editorTopbarH, zIndex: 800,
+        display: "flex", alignItems: "center", gap: 4, padding: "0 8px 0 16px", boxSizing: "border-box",
+        fontFamily: T.uiFont.sans,
+      }}
+    >
+      <span className="mn-topbar__wordmark">myland</span>
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+        <button type="button" className="mn-topbar__btn mn-topbar__btn--touch" aria-label="Deshacer" title={`Deshacer ${editor.undoKeys}`}
+          aria-keyshortcuts={editor.undoKeys.replace("⌘", "Meta+")} aria-disabled={!editor.canUndo || undefined}
+          onClick={() => { if (editor.canUndo) editor.onUndo(); }}>
+          <Icon name="undo" size={18} />
+        </button>
+        {publishState !== undefined && (
+          <button type="button" className="mn-topbar__publish mn-topbar__publish--touch" data-state={publishState}
+            onClick={publishState === "pending" ? onPublish : undefined}
+            aria-disabled={publishState !== "pending" || undefined}
+            aria-live="polite">
+            {publishState === "success" && <Icon name="check" size={15} />}
+            {PUBLISH_LABEL[publishState]}
+          </button>
+        )}
+        <button ref={moreRef} type="button" className="mn-topbar__btn mn-topbar__btn--touch"
+          aria-label={unread > 0 ? `Más opciones, ${unread} sin leer` : "Más opciones"} title="Más opciones"
+          aria-expanded={open} aria-controls={open ? MORE_MENU_ID : undefined}
+          onKeyDown={e => { if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(false); } }}
+          onClick={() => setOpen(o => !o)}>
+          <Icon name="more" size={18} />
+          {unread > 0 && <span aria-hidden="true" className="mn-topbar__dot" />}
+        </button>
+      </div>
+
+      {open && (
+        <div ref={menuRef} id={MORE_MENU_ID} role="group" aria-label="Más opciones" className="mn-topbar__menu"
+          onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); } }}>
+          {tabs.map(tab => (
+            <button key={tab.key} type="button" className="mn-menuitem" aria-pressed={tab.active} onClick={run(tab.onClick)}>
+              <span>{tab.label}</span>
+              {tab.key === "chats" && (unreadChats ?? 0) > 0 && <span className="mn-topbar__count">{unreadChats}</span>}
+            </button>
+          ))}
+          {onSignals && (
+            <button type="button" className="mn-menuitem" onClick={run(onSignals)}
+              aria-label={(unreadSignals ?? 0) > 0 ? `Señales, ${unreadSignals} sin leer` : "Señales"}>
+              <span>Señales</span>
+              {(unreadSignals ?? 0) > 0 && <span className="mn-topbar__count">{unreadSignals}</span>}
+            </button>
+          )}
+          <button type="button" className="mn-menuitem" aria-disabled={!editor.canRedo || undefined}
+            onClick={() => { if (editor.canRedo) run(editor.onRedo)(); }}>
+            <span>Rehacer</span><span className="mn-topbar__keys">{editor.redoKeys}</span>
+          </button>
+          {editor.previewHref && (
+            <a className="mn-menuitem" href={editor.previewHref} target="_blank" rel="noopener noreferrer" onClick={() => close(false)}
+              aria-label="Vista previa (se abre en otra pestaña)">
+              <span>Vista previa</span><Icon name="eye" size={15} />
+            </a>
+          )}
+          {onLogout && (
+            <button type="button" className="mn-menuitem" onClick={run(() => { void onLogout(); })}>
+              <span>Salir</span>
+            </button>
+          )}
+        </div>
+      )}
     </header>
   );
 }

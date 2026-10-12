@@ -391,6 +391,11 @@ const lum = (c: RGBA) => {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 /** Contrast of `fg` on `bg`; a translucent `bg` is composited over `base`. */
+/** A translucent layer flattened over an opaque base, as a hex color. */
+function flat(layer: string, base: string): string {
+  const c = over(parse(layer), parse(base));
+  return "#" + c.slice(0, 3).map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+}
 function contrast(fg: string, bg: string, base = "#000000"): number {
   const b = over(parse(bg), parse(base));
   const f = over(parse(fg), b);
@@ -419,6 +424,15 @@ for (const t of EDITOR_THEME_NAMES) {
       // over real wallpapers when the topbar/rail ship).
       ["popInk on pop / black", P.popInk, P.pop, "#000000"], ["popInk on pop / white", P.popInk, P.pop, "#FFFFFF"],
       ["glassInk on glass / page", P.glassInk, P.glass, P.page], ["glassInk2 on glass / page", P.glassInk2, P.glass, P.page],
+      // Phase D review (1.4.3): the editor topbar's glass over REAL
+      // wallpapers — white, black and mid grey (the worst case for dark
+      // glass) — bare and under the glassBtn fill (tabs, idle Publicar).
+      ...(["#FFFFFF", "#000000", "#808080"] as const).flatMap(w => [
+        [`glassInk on glass / ${w}`, P.glassInk, P.glass, w],
+        [`glassInk2 on glass / ${w}`, P.glassInk2, P.glass, w],
+        [`glassInk on glassBtn / glass / ${w}`, P.glassInk, P.glassBtn, flat(P.glass, w)],
+        [`glassInk2 on glassBtn / glass / ${w}`, P.glassInk2, P.glassBtn, flat(P.glass, w)],
+      ] as Array<[string, string, string, string]>),
     ];
     for (const [name, fg, bg, base] of text) {
       const r = contrast(fg, bg, base);
