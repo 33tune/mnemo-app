@@ -10,7 +10,8 @@ import { snapValue, snapDragDelta, snapResizeDelta, snapNudgeDelta } from "./gri
 import { computeResize, resizeMinimums } from "./resizeMath";
 import { nudgeResize } from "./canvasNudge";
 
-const read = (f: string) => stripComments(readFileSync(join(process.cwd(), f), "utf8"));
+// CRLF-safe: a Windows checkout (core.autocrlf) must read the same source.
+const read = (f: string) => stripComments(readFileSync(join(process.cwd(), f), "utf8").replace(/\r\n/g, "\n"));
 const S = 24;
 const onGrid = (v: number) => Math.abs(v / S - Math.round(v / S)) < 1e-9;
 
