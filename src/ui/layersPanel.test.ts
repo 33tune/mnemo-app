@@ -32,11 +32,11 @@ test("bug fix: double click 'traer al frente' persists (no bare zCounter / local
   assert.ok(BOARD.includes("applyLayerPatches(bringToFront(layerItemsNow(),card.id))"));
 });
 
-test("toolbar layer / lock buttons now persist through the same writers", () => {
+test("lock buttons persist through the same writers; Phase G: the image / text layer toolbars are gone (Capas owns layer)", () => {
   assert.ok(!/\{\.\.\.e,layer:l\}/.test(BOARD) && !/\{\.\.\.e,locked:!e\.locked\}/.test(BOARD), "no local-only layer / lock writes");
-  assert.ok(BOARD.includes("applyLayerPatches(setElementLayer(layerItemsNow(),img.id,l))"));
-  assert.ok(BOARD.includes("applyLayerPatches(setElementLayer(layerItemsNow(),txt.id,l))"));
+  assert.ok(!BOARD.includes('aria-label="Opciones de imagen"') && !BOARD.includes('aria-label="Capa del texto"'));
   assert.ok(BOARD.includes('enqueueOp({type:"update_image",id:img.id,patch:{locked:!img.locked}})'));
+  assert.ok(BOARD.includes("updateText(txt.id,{locked:!txt.locked})"));
 });
 
 test("the list = exactly what the canvas renders, top = front", () => {

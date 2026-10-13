@@ -74,7 +74,14 @@
     con datos que cruzan de banda y el contraste del detalle en la fila seleccionada) y verificación de cierre de los
     dos. `npm test` 611/611, `tsc` limpio, `next build` 13/13.
   - **Sin QA en navegador real** (capturas del panel en el harness estático, no reemplazan la QA).
-- **NO empezadas:** las fases G, H e I. **La siguiente fase arranca solo con el OK del usuario.**
+- **Fase G (Texto, Imagen y Music en el dock, D8): TERMINADA (2026-10-12)** en `feature/myland-editor-v3`, commit
+  `feat: implement MYLAND editor v3 phase G (text, image and music inspectors)`. **No mergeada a `main`.** Detalle y
+  pendientes en § 6, Fase G.
+  - Revisión: Regresiones/Capacidades y Visual/UX/Accesibilidad dieron APPROVE WITH NOTES (1 MAYOR: el offset de vista
+    recentraba el elemento en cada movimiento); una ronda de correcciones y verificación de cierre: los dos **APPROVE**.
+    `npm test` 627/627, `tsc` limpio, `next build` 13/13.
+  - **Sin QA en navegador real** (capturas de los tres inspectores en el harness estático, no reemplazan la QA).
+- **NO empezadas:** las fases H e I. **La siguiente fase arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -84,8 +91,8 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Fases A, B, C, D, F y E cerradas.** Siguiente: QA en navegador de las Fases D, F y E, y **la Fase G** (§ 6, orden
-   `… F → E → G → H`) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
+6. **Fases A, B, C, D, F, E y G cerradas.** Siguiente: QA en navegador de las Fases D, F, E y G, y **la Fase H** (§ 6,
+   orden `… E → G → H`) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
 
 ---
 
@@ -717,6 +724,57 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
 - **Densidad:** la Fase A llevó los campos a 40px y los botones a 34px. En los paneles legacy de 272px, los labels largos pueden partirse; por ejemplo, "Interlineado de textos secundarios" con el chip de heredado al lado. Revisarlo en la QA del navegador.
 - **Archivos:** `CanvasBoard.tsx` (chrome de texto e imagen), `MusicCardWidget.tsx` y los nuevos `TextInspector`, `ImageInspector`, `MusicInspector`.
 - **Riesgo:** medio.
+
+- **Estado: TERMINADA (2026-10-12)**, ver § 1. Qué quedó:
+  - **Apertura:** botón "Editar" (lápiz, `CanvasChromeButton`) en Texto e Imagen; el de Music abre el dock. Mismo
+    contrato que el "Editar" de la card (abre; si ya está abierto, expande o lleva el foco al h2; nunca cierra). El
+    inspector se cierra si el elemento sale de la selección (semántica de B). `editorSelection`: `openElement`,
+    `elementTarget`, `elementInspectorId`, `elementEditButtonId`. `EditorHost` monta `TextInspector`, `ImageInspector`
+    y `MusicInspector` (mismo `InspectorShell`: dock y bottom sheet).
+  - **Texto** (pantalla 04, solo campos de `CanvasText`): 01 Contenido (TextArea + nota "también con doble click"),
+    02 Tipografía (`FontField`, Tamaño 10–300 — el mismo rango de los −/+ viejos y de Ctrl/⌘+flechas —, Interletrado en
+    px, Mayúsculas), 03 Color (Texto, Opacidad 5–100 %), 04 Objeto. Puntos de modificado contra los valores de creación
+    (`src/lib/canvasText.ts`, que ahora también usa el alta del texto).
+  - **Imagen** (pantalla 05): miniatura, Reemplazar (sube y escribe UN `update_image` en UN paso de deshacer: src, ruta
+    de storage, tamaño natural, transparencia y el alto que mantiene la proporción, sin pasarse de la sala) y Eliminar
+    imagen; 01 Forma (Esquinas: rectas / suaves / redondas / círculo, los mismos valores 0/8/20/999 de la toolbar),
+    02 Link, 03 Objeto.
+  - **Music** (pantalla 07): dejó su `MenuPanel` flotante (bloqueado en dark desde A7) y se edita en el dock con las
+    MISMAS escrituras (modelo de efecto, leer efectivo / escribir crudo, pausar en vez de borrar, O2 y O4 sin cambios):
+    01 Contenido, 02 Fondo (con Gradiente e Imagen de fondo), 03 Texto + filas Fuente / Efectos / Animar con un resumen
+    de lo encendido (`Collapsible` ganó `hint`), 04 Objeto. Sin `theme="dark"`; sus 8 `T.border.subtle` pasaron a
+    `uv("line-group")` (baseline legacy en 0). Vocabulario: "Music" en todo el editor (título, Editar, Eliminar, "+").
+  - **04/03 Objeto** (`ElementInspectorParts.tsx`, compartido): Capa (solo lectura) + "Ordenar en Capas" (abre Capas con
+    la misma selección; al cerrarlas, el foco vuelve al "Editar" del elemento), Bloquear (misma escritura que Capas, un
+    paso), **Medidas** (X/Y/Ancho/Alto/Rotación en imagen y Music, X/Y/Rotación en texto; los escritores del drag,
+    `setElementGeometry`, que ganó rotación para imagen y texto; nada en `space_mobile`) — cierra el hueco WCAG 2.5.7 de
+    imagen y texto libre —, Eliminar (el camino de la tecla Delete, un paso, foco al lienzo, anuncio).
+  - **Lienzo:** salieron la toolbar de imagen (capa + esquinas), el chip "Link" con su diálogo (`ImageLinkPortal`), la
+    toolbar de capa del texto y el popover de formato del texto. Quedan candado, rotar, resize y "Editar".
+  - **Vista:** el offset del dock / sheet usa la caja del elemento (texto: su caja renderizada). Para un elemento es el
+    **corrimiento mínimo que lo destapa y se conserva mientras siga a la vista** (`stickyElementOffset`, puro y
+    testeado; durante un gesto se usa el aplicado) — revisión G-R MAYOR 1: centrarlo deslizaba la sala en cada
+    movimiento. La card conserva su centrado.
+  - **Pendiente de B resuelto:** el rotate de imagen y de Music mide contra el centro del DOM (correcto con offset).
+  - Matriz de capacidades: Music apunta a `MusicInspector` / `ElementInspectorParts`; dueños nuevos `text` e `image`,
+    exhaustivos por tipo (`LeafPaths<CanvasText | CanvasImage>`). Ninguna capacidad perdida (revisión control por control
+    contra `dd3fe9b`). Ningún sistema protegido tocado (`useDragDrop` ya aceptaba el centro del DOM).
+- **Desvío consciente:** **sin Opacidad de imagen** (diseño 05): `CanvasImage` no tiene ese campo; agregarlo es modelo de
+  datos y un cambio del render público protegido (§ 8). Queda para una decisión del usuario.
+- **Pendientes (no bloquearon):**
+  - **QA en navegador:** los tres inspectores en Light/Dark/OG, dock y sheet (390/700/1000px); Editar → inspector y
+    vuelta del foco; Reemplazar imagen (y deshacer); esquinas, link, Medidas, Bloquear, Eliminar (y deshacer); texto:
+    contenido, fuente, tamaño, interletrado, mayúsculas; Music completo (subir MP3, fondo, gradiente, efectos, animar,
+    fuente); el offset al abrir con el elemento bajo el dock y al moverlo / escribir; rotate con el dock abierto;
+    "Ordenar en Capas" y vuelta; NVDA (hints de las filas, nombres), Windows High Contrast (esquinas), `space_mobile`.
+  - **Flujo:** para editar varios elementos seguidos hay que tocar "Editar" en cada uno (el inspector se cierra al cambiar
+    de selección, como el de la card); sin toolbars en el lienzo, verificar que el lápiz de 24px se encuentre. Con
+    selección múltiple (Shift) el inspector abierto sigue abierto (semántica de B).
+  - Botones de 34px en el sheet (como el inspector de la card; cumplen 2.5.8).
+  - **Previos a la fase, que G deja más a mano (no tocados):** "Eliminar imagen" usa el camino de Delete, que borra el
+    archivo del storage (deshacer devuelve una imagen rota, ya documentado en C); **el contenido del texto libre se
+    renderiza con `dangerouslySetInnerHTML`** (también para visitantes) — el TextArea hace trivial guardar HTML: es un
+    XSS almacenado que conviene tratar en un paso propio y con prioridad.
 
 ### Fase H: Navegación por partes (D4/D5)
 - **Click 1** selecciona la card. **Click 2** sobre una parte, sin arrastre, abre ese objeto:

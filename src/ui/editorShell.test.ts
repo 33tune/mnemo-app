@@ -118,9 +118,9 @@ test("the brand pink of Publicar has >= 4.5:1 with its ink in every theme (theme
   assert.ok(!T.ui.accent.brand.includes("var("), "fixed in every theme");
 });
 
-test("image link dialog stays neutral dark chrome (A6, pending from Phase A)", () => {
-  const i = BOARD.indexOf('aria-label="Link de la imagen"');
-  assert.ok(BOARD.slice(i - 200, i).includes('data-editor-theme="dark"'));
+test("Phase G: the image link moved to the image inspector (no canvas dialog / chip left)", () => {
+  assert.ok(!BOARD.includes('aria-label="Link de la imagen"') && !BOARD.includes("ImageLinkPortal"));
+  assert.ok(read("src/components/canvas/ImageInspector.tsx").includes("updateImage(img.id, { linkUrl: v || undefined })"));
 });
 
 test("Phase D: chrome and the sheet keep clear of the 60px editor topbar (view / chrome only, never geometry)", () => {
@@ -148,7 +148,8 @@ test("Phase D review: \"Tu sala\" opens on touch devices too (room settings were
   assert.ok(BOARD.includes("const roomShown = roomOpen && canEdit;"));
   assert.ok(BOARD.includes('{view === "canvas" && inspectorEnabled && (canInteract || roomShown) && ('));
   // Phase E: Capas joins the card's inspector on the canInteract side (no touch editing).
-  assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || layersOpen) && canInteract) || roomShown;"));
+  // Phase G: so do the text / image / Music inspectors.
+  assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen) && canInteract) || roomShown;"));
 });
 
 test("Phase D review: object chrome clears the 60px topbar and the rail (placement only, geometry keeps 44)", () => {

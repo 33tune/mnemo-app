@@ -54,7 +54,14 @@ planeado acá hasta confirmarlo.
 >   (2026-10-12)**, commiteada y pusheada en `feature/myland-editor-v3`. **No mergeada a `main`.** Revisión de cierre:
 >   Regresiones y Visual/UX/A11y. Sin QA en navegador real. Detalle en el plan (§ 1 y § 6, Fase E).
 >
-> **Siguiente acción:** QA en navegador de las Fases D, F y E; la Fase G solo con el OK del usuario.
+>
+> - **Fase G (Texto, Imagen y Music en el dock: "Editar" en texto e imagen, Music sin su panel flotante, Medidas para
+>   imagen y texto, toolbars del lienzo movidas al inspector; sin opacidad de imagen por falta del campo) TERMINADA
+>   (2026-10-12)**, commiteada y pusheada en `feature/myland-editor-v3`. **No mergeada a `main`.** Revisión de cierre:
+>   Regresiones y Visual/UX/A11y APPROVE. Sin QA en navegador real. **Ojo (previo, no tocado):** el contenido del texto
+>   libre se renderiza con `dangerouslySetInnerHTML` (XSS almacenado); tratarlo aparte. Detalle en el plan (§ 1 y § 6, Fase G).
+>
+> **Siguiente acción:** QA en navegador de las Fases D, F, E y G; la Fase H solo con el OK del usuario.
 >
 > **Dirección visual:** "Darkroom" (monocromo), descrita más abajo, quedó **SUPERADA**
 > por el diseño de Claude Design: colores de marca y modos Light/Dark/OG solo del editor.

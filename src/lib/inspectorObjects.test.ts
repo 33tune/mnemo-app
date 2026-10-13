@@ -185,7 +185,13 @@ test("every ProfileCard route names an inspector object whose files hold its evi
   const bad: string[] = [];
   for (const { owner, path, cap } of capabilityMatrix()) {
     if (cap.kind !== "route") continue;
-    if (owner === "music") { assert.ok(cap.ui.startsWith("Music") || cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith("handles de resize") || cap.ui.startsWith("Rotar"), `music:${path} → ${cap.ui}`); continue; }
+    // Music / free text / image (Phase G): their own inspector, the canvas or Capas.
+    const own = { music: "Music", text: "Texto", image: "Imagen" } as const;
+    if (owner !== "profile") {
+      const ok = [own[owner], LIENZO, CAPAS, "handles de resize", "Rotar", "candado del lienzo"].some(k => cap.ui.startsWith(k));
+      assert.ok(ok, `${owner}:${path} → ${cap.ui}`);
+      continue;
+    }
     // Phase E: Capas is room level, like the canvas (not an inspector object).
     if (cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS)) continue;
     const o = objectForRoute(cap.ui, P);

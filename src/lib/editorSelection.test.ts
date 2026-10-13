@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   editorSelectionReducer as reduce, INITIAL_EDITOR_SELECTION, createSelectionMemory, profileTargetId, targetId,
-  profileInspectorId, profileEditButtonId, type EditorSelectionState,
+  profileInspectorId, profileEditButtonId, elementTarget, elementInspectorId, elementEditButtonId, type EditorSelectionState,
 } from "./editorSelection";
 
 const sel = (...ids: string[]): EditorSelectionState => ({ selectedIds: new Set(ids), target: null });
@@ -71,4 +71,18 @@ test("session memory (absorbs inspectorSession): last object and scroll per card
 test("stable ids for the inspector and its 'Editar' opener", () => {
   assert.equal(profileInspectorId("x"), "mnemo-profile-editor-x");
   assert.equal(profileEditButtonId("x"), "mnemo-profile-edit-x");
+});
+
+test("Phase G: text / image / Music targets — open only when selected, close when deselected, never for Capas/room", () => {
+  const s1 = reduce(sel("t1"), { type: "open", target: { kind: "text", id: "t1" } });
+  assert.deepEqual(elementTarget(s1.target), { kind: "text", id: "t1" });
+  assert.equal(targetId(s1.target), "t1");
+  assert.equal(profileTargetId(s1.target), null);
+  assert.equal(reduce(sel("t1"), { type: "open", target: { kind: "image", id: "x" } }).target, null, "not selected: stays closed");
+  assert.equal(reduce(s1, { type: "select", ids: new Set(["m1"]) }).target, null, "another element selected: closes in the same update");
+  const m = reduce(sel("m1"), { type: "open", target: { kind: "music", id: "m1" } });
+  assert.equal(elementTarget(m.target)?.kind, "music");
+  assert.equal(elementTarget(reduce(sel(), { type: "open", target: { kind: "layers" } }).target), null);
+  assert.notEqual(elementInspectorId("a"), elementEditButtonId("a"));
+  assert.notEqual(elementInspectorId("a"), profileInspectorId("a"));
 });

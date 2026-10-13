@@ -2,19 +2,30 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import type { ProfileCardData } from "@/types";
-import { profileEditButtonId, profileInspectorId, type EditorTarget, type SelectionMemory } from "@/lib/editorSelection";
+import {
+  elementEditButtonId, elementInspectorId, elementTarget, profileEditButtonId, profileInspectorId, type EditorTarget, type SelectionMemory,
+} from "@/lib/editorSelection";
 import type { ObjectId } from "@/lib/inspectorObjects";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { cardBaseColor } from "@/lib/cardColors";
 import ProfileInspector from "./ProfileInspector";
 import RoomInspector from "./RoomInspector";
 import LayersPanel from "./LayersPanel";
+import TextInspector from "./TextInspector";
+import ImageInspector from "./ImageInspector";
+import MusicInspector from "./MusicInspector";
+import type { ElementShellProps } from "./ElementInspectorParts";
 
 type RoomProps = Omit<React.ComponentProps<typeof RoomInspector>,
   "onClose" | "returnFocusTo" | "top" | "width" | "mode" | "height" | "collapsed" | "onExpand" | "id">;
 
 type LayersProps = Omit<React.ComponentProps<typeof LayersPanel>,
   "onClose" | "returnFocusTo" | "top" | "width" | "mode" | "height" | "collapsed" | "onExpand" | "id">;
+
+type ShellKeys = keyof ElementShellProps;
+type TextProps = Omit<React.ComponentProps<typeof TextInspector>, ShellKeys>;
+type ImageProps = Omit<React.ComponentProps<typeof ImageInspector>, ShellKeys>;
+type MusicProps = Omit<React.ComponentProps<typeof MusicInspector>, ShellKeys>;
 
 /** id of the rail's "Tu sala" button (where focus returns when it closes). */
 export const RAIL_ROOM_BUTTON_ID = "mnemo-rail-room";
@@ -50,6 +61,11 @@ interface EditorHostProps {
   room?:     RoomProps;
   /** "Capas" (target kind "layers"): the stacking list + writers. */
   layers?:   LayersProps;
+  /** Editor v3 Phase G: the element inspectors (target kinds "text" /
+   * "image" / "music"); each is given only while its element is the target. */
+  text?:     TextProps;
+  image?:    ImageProps;
+  music?:    MusicProps;
   /** Where focus returns when Capas closes (the rail button, or "+"). */
   layersReturnFocus?: () => HTMLElement | null;
   canvas?:   { w: number; h: number; topOffset: number };
@@ -65,11 +81,10 @@ interface EditorHostProps {
 // Editor v3 Phase B (D2): the ONE place the inspector is mounted — at
 // CanvasBoard level, portaled to <body> (never inside the canvas wrapper,
 // whose view-offset transform would re-anchor a position:fixed box).
-// ProfileCard no longer mounts it. Phase B only hosts the ProfileCard
-// inspector; the other target kinds (Tu sala, Texto, Imagen, Music) arrive
-// in D/G — until then Music keeps its own floating MenuPanel.
+// ProfileCard no longer mounts it. Phase B hosted the ProfileCard inspector;
+// Tu sala (D), Capas (E) and Texto / Imagen / Música (G) joined it.
 export function EditorHost({
-  target, profile, facts, room, layers, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
+  target, profile, facts, room, layers, text, image, music, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
 }: EditorHostProps) {
   if (typeof document === "undefined") return null;
   // Editor v3 Phase D: "Tu sala" — the inspector with nothing selected.
@@ -91,6 +106,21 @@ export function EditorHost({
         collapsed={layout.collapsed} onExpand={onExpand} />,
       document.body,
     );
+  }
+  // Editor v3 Phase G: Texto / Imagen / Música (D8 — Music's floating panel
+  // is gone; the widgets legacy keep theirs, P4B).
+  const el = elementTarget(target);
+  if (el) {
+    const shell: ElementShellProps = {
+      id: elementInspectorId(el.id), onClose,
+      // "Editar" of that element; usePanelFocus falls back to the canvas.
+      returnFocusTo: () => document.getElementById(elementEditButtonId(el.id)),
+      top, width: layout.width, mode: layout.mode, height: layout.height, collapsed: layout.collapsed, onExpand,
+    };
+    if (el.kind === "text" && text?.text.id === el.id) return createPortal(<TextInspector key={el.id} {...text} {...shell} />, document.body);
+    if (el.kind === "image" && image?.image.id === el.id) return createPortal(<ImageInspector key={el.id} {...image} {...shell} />, document.body);
+    if (el.kind === "music" && music?.card.id === el.id) return createPortal(<MusicInspector key={el.id} {...music} {...shell} />, document.body);
+    return null;
   }
   if (target?.kind !== "profile" || !profile || profile.id !== target.id) return null;
 

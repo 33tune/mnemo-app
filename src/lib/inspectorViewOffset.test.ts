@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown,
+  inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown, stickyElementOffset,
   INSPECTOR_GUTTER, SHEET_MAX_SHARE, SHEET_MIN_PX, SHEET_MIN_SHARE, SHEET_OPENER_RESERVE,
 } from "./inspectorViewOffset";
 import { centerCardPosition, getFreeformCardBounds } from "./cardGeometry";
@@ -123,4 +123,20 @@ test("r2: a gesture freezes the view whenever an inspector is open — also when
   const frozen = shouldFreezeOnPointerDown(true, before);
   assert.equal(freezeViewOffset(before, during, frozen), before);
   assert.equal(freezeViewOffset(before, during, false), during, "recomputed after release");
+});
+
+test("Phase G (review G-R MAYOR 1): a free element gets the SMALLEST uncovering shift, kept while it still shows it", () => {
+  // Dock: visible 64..1064 (rail 64, dock 376 on a 1440 viewport).
+  const v = { visibleStart: 64, visibleEnd: 1064 };
+  assert.deepEqual(stickyElementOffset({ ...v, start: 300, size: 200 }), { d: 0, covered: false }, "already visible: nothing moves");
+  const first = stickyElementOffset({ ...v, start: 1000, size: 200 });
+  assert.equal(first.d, 1000 + 200 + 16 - 1064, "just enough to clear the dock (+ gutter), not centered");
+  assert.equal(first.covered, false);
+  // Moving it (nudge / Medidas / drag) inside the visible area keeps the offset: the room never slides.
+  assert.deepEqual(stickyElementOffset({ ...v, prev: first.d, start: 990, size: 200 }), { d: first.d, covered: false });
+  assert.deepEqual(stickyElementOffset({ ...v, prev: first.d, start: 1010, size: 220 }).d > first.d, true, "only when it would be covered again");
+  // Never pushes its left edge under the rail; too wide → covered.
+  const wide = stickyElementOffset({ ...v, start: 100, size: 1200 });
+  assert.equal(wide.d, 100 - 64 - 16);
+  assert.equal(wide.covered, true);
 });

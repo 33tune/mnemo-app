@@ -1,6 +1,5 @@
 "use client";
-import { useState, useRef, useMemo, useEffect, useId, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { CanvasImage as CanvasImageType, CanvasCard, CanvasText, CanvasGallery, ProfileCardData, CanvasMedia, GuestbookCardData, SocialCardData, MusicCardData, LinksCardData, StatsCardData, TextFont, CanvasState, CanvasMode, CanvasElement, PublishState, ProfileCardVariant, SpaceFont, SpaceCursor, SharedWidgetKind, Placement, HiddenMap, PlacementMap, CardFormat } from "@/types";
@@ -23,7 +22,7 @@ import CardMenu from "./CardMenu";
 import GalleryWidget from "./GalleryWidget";
 import ProfileCard, { CANVAS_TOP_OFFSET, EDITOR_CHROME_TOP } from "./ProfileCard";
 import { CanvasChromeButton } from "./CanvasChromeButton";
-import { resolveSideSpot, resolveToolbarTop, resolveLinkChipTop, type ChromeBox, type ChromeCanvas } from "@/lib/openerPlacement";
+import { resolveSideSpot, resolveOpenerSpot, type ChromeBox, type ChromeCanvas } from "@/lib/openerPlacement";
 import { renderContent, textColor, isLight } from "./CardContent";
 import { useParallax } from "@/hooks/useParallax";
 import { useDragDrop } from "@/hooks/useDragDrop";
@@ -52,8 +51,11 @@ import { shouldSkipCanvasShortcut, canvasShortcutAllowed, shouldFocusCanvasOnMou
 import { resolveNudgeKey, nudgeMove, nudgeResize, cycleSelection, isMacPlatform } from "@/lib/canvasNudge";
 import { T as UIT, Icon, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote, INSPECTOR_TITLE_ID } from "@/ui";
 import { INSPECTOR_COLLAPSED_W, INSPECTOR_SHEET_COLLAPSED_H, INSPECTOR_EXPAND_ID } from "@/ui/InspectorShell";
-import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown } from "@/lib/inspectorViewOffset";
-import { useEditorSelection, profileTargetId } from "@/lib/editorSelection";
+import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown, stickyElementOffset, SHEET_OPENER_RESERVE } from "@/lib/inspectorViewOffset";
+import { useEditorSelection, profileTargetId, targetId, elementTarget, elementEditButtonId, elementInspectorId, type ElementTargetKind } from "@/lib/editorSelection";
+import { resizeMinimums } from "@/lib/resizeMath";
+import { CANVAS_TEXT_DEFAULTS } from "@/lib/canvasText";
+import type { MeasureSpec } from "./ElementInspectorParts";
 import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANEL_ID } from "./EditorHost";
 import { toLayerItems, visualOrder, reorder as reorderLayers, moveWithinLayer, setLayer as setElementLayer, bringToFront, layerLabels, positionAfter, LAYER_NAMES as LAYER_TITLES, type LayerPatch } from "@/lib/layerOrder";
 import type { LayerRow } from "./LayersPanel";
@@ -84,8 +86,6 @@ function isEditingInput(e?: Event): boolean {
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB per image
 const LAYER_NAMES = ["Back", "Mid", "Front"] as const;
-// Iteration 0: Spanish layer names for the canvas toolbars (FO/ME/FR).
-const LAYER_LABELS_ES = ["Fondo", "Medio", "Frente"] as const;
 
 const CANVAS_H = 3000;
 /** Element kinds Ctrl+V / Ctrl+D create (unchanged since before Phase C). */
@@ -101,7 +101,6 @@ function isSpaceCanvas(mode: CanvasMode): boolean {
   return mode === "space" || mode === "space_mobile";
 }
 
-const TEXT_FONTS = CANVAS_FONTS;
 
 function getFontStyle(font: TextFont): string {
   return getCanvasFontStyle(font);
@@ -582,7 +581,6 @@ export default function CanvasBoard({
   // Block pointer interactions on touch-only devices — drag/resize/rotate require mouse
   const canInteract  = canEdit && !isMobile;
   const [isDragOver,  setIsDragOver]  = useState(false);
-  const [linkEditId,  setLinkEditId]  = useState<string | null>(null);
 
   // Mobile canvas uses a fixed 390px logical width; desktop uses the live viewport width
   const effectiveW = canvasMode === "space_mobile" ? MOBILE_CANVAS_W : viewportW;
@@ -654,7 +652,12 @@ export default function CanvasBoard({
   const inspectorCardId = profileTargetId(editorSel.target);
   const inspectorCardIdRef = useRef<string | null>(null);
   inspectorCardIdRef.current = inspectorCardId;
-  const { openProfile, openRoom, openLayers, closeInspector, setObject: setInspectorObject } = editorSel;
+  const { openProfile, openRoom, openLayers, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
+  /** Editor v3 Phase G: the element (card, text, image, Music) any inspector
+   * is editing — focus / collapse / view-freeze logic is the same for all. */
+  const inspectorTargetElId = targetId(editorSel.target);
+  const inspectorTargetElIdRef = useRef<string | null>(null);
+  inspectorTargetElIdRef.current = inspectorTargetElId;
   /** Any inspector (the card's or "Tu sala") is open — F6 / Esc layering. */
   const inspectorOpenRef = useRef(false);
   inspectorOpenRef.current = !!editorSel.target;
@@ -688,6 +691,17 @@ export default function CanvasBoard({
     if (inspectorCollapsedRef.current) { expandInspectorRef.current(); return; }
     document.getElementById(INSPECTOR_TITLE_ID)?.focus({ preventScroll: true });
   }, [openProfile]);
+  // Phase G: "Editar" of a free text / image / Music — same contract as the
+  // card's (opens; already open → expands / focuses the h2; never closes).
+  const handleElementEdit = useCallback((kind: ElementTargetKind, id: string) => {
+    if (inspectorTargetElIdRef.current !== id) {
+      setInspectorCollapseReq(false);
+      openElement(kind, id);
+      return;
+    }
+    if (inspectorCollapsedRef.current) { expandInspectorRef.current(); return; }
+    document.getElementById(INSPECTOR_TITLE_ID)?.focus({ preventScroll: true });
+  }, [openElement]);
   const handleInspectorClose = useCallback(() => {
     setInspectorCollapseReq(false);
     closeInspector();
@@ -702,7 +716,7 @@ export default function CanvasBoard({
   // (The inspector closes when its card leaves the selection inside the
   // selection reducer itself — no effect, no render with a stale inspector.)
   useEffect(() => {
-    if (!inspectorCardId) return;
+    if (!inspectorTargetElId) return;
     const onFocusIn = (e: FocusEvent) => {
       const t = e.target as HTMLElement | null;
       const wrapper = canvasWrapperRef.current;
@@ -714,13 +728,13 @@ export default function CanvasBoard({
       // A11y r2: focus anywhere INSIDE the canvas (wrapper, "Editar", a
       // toolbar, a link in a card) counts — the sheet must not cover it.
       if (!t || !wrapper?.contains(t)) return;
-      const sheetH = appliedViewRef.current.sheetH;
+      const sheetH = appliedViewRef.current?.sheetH ?? 0;
       const underSheet = t !== wrapper && sheetH > 0 && t.getBoundingClientRect().bottom > window.innerHeight - sheetH;
       setInspectorCollapseReq(underSheet ? "focus" : "card");
     };
     document.addEventListener("focusin", onFocusIn);
     return () => document.removeEventListener("focusin", onFocusIn);
-  }, [inspectorCardId]);
+  }, [inspectorTargetElId]);
 
   const inspectorEnabled = canEdit;
   // space_mobile edits a fixed 390px logical canvas (legacy, untouched): the
@@ -743,24 +757,67 @@ export default function CanvasBoard({
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
     : undefined;
   const sheetMode = inspLayout.mode === "sheet";
+  // Phase G: a text / image / Music inspector (only a rendered, editable one).
+  const inspectorElTarget = elementTarget(editorSel.target);
+  const inspectorElement = inspectorElTarget && inspectorEnabled && canInteract
+    ? elements.find(el => el.id === inspectorElTarget.id && el.elementType === inspectorElTarget.kind)
+    : undefined;
+  // The box the view offset keeps visible: the card, or the element (a free
+  // text has no stored size — its last rendered box, like its chrome).
+  const inspectorBox: { x: number; y: number; w: number; h: number } | undefined = inspectorProfile
+    ?? (inspectorElement
+      ? (inspectorElement.elementType === "text" ? textChromeBox(inspectorElement) : inspectorElement as { x: number; y: number; w: number; h: number })
+      : undefined);
   // Dock: translate LEFT (dx) so the card is centered beside the inspector.
   // Sheet (narrow): the sheet sits BELOW the card, never over it — as tall
   // as the room under the card allows — and the canvas moves UP (dy).
+  const elementOffsetRef = useRef<{ key: string; d: number } | null>(null);
+  // (Declared before computedView: the element offset reads them.)
+  const [viewGesture, setViewGesture] = useState(false);
+  const appliedViewRef = useRef<{ dx: number; dy: number; sheetH: number; covered: boolean } | null>(null);
   const computedView = (() => {
     // "Tu sala" moves nothing (it is about the whole room); as a sheet it
     // takes the max share of the viewport.
     // Phase E: Capas, like Tu sala, is about the whole room — nothing moves.
     if ((roomOpen || layersOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
-    if (!inspectorProfile) return { dx: 0, dy: 0, sheetH: 0, covered: false };
+    if (!inspectorBox) return { dx: 0, dy: 0, sheetH: 0, covered: false };
+    // Phase G (review G-R MAYOR 1): a free element moves — the smallest
+    // shift that uncovers it, KEPT while it still shows it (moving it, its
+    // Medidas, typing in a text never slide the room); the card keeps its
+    // constant centering offset below.
+    if (inspectorElement && !inspectorProfile) {
+      const key = `${inspectorElement.id}:${sheetMode ? "y" : "x"}`;
+      // Closure G-R (MENOR A): during a pointer gesture the view is frozen —
+      // the previous offset is the APPLIED one and nothing is remembered, so
+      // a drag that goes under the dock and comes back releases with no slide.
+      const applied = appliedViewRef.current;
+      const prev = viewGesture
+        ? (applied ? (sheetMode ? applied.dy : applied.dx) : undefined)
+        : elementOffsetRef.current?.key === key ? elementOffsetRef.current.d : undefined;
+      const remember = (d: number) => { if (!viewGesture) elementOffsetRef.current = { key, d }; };
+      if (!sheetMode) {
+        const o = viewOffsetEnabled
+          ? stickyElementOffset({ prev, start: inspectorBox.x, size: inspectorBox.w, visibleStart: railW, visibleEnd: viewportW - (inspLayout.width + UIT.ui.size.dockMargin) })
+          : { d: 0, covered: false };
+        remember(o.d);
+        return { dx: o.d, dy: 0, sheetH: 0, covered: o.covered };
+      }
+      const sheetH = inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: inspectorBox.h });
+      const o = viewOffsetEnabled
+        ? stickyElementOffset({ prev, start: inspectorBox.y, size: inspectorBox.h, visibleStart: UIT.ui.size.editorTopbarH + SHEET_OPENER_RESERVE, visibleEnd: viewportH - sheetH })
+        : { d: 0, covered: false };
+      remember(o.d);
+      return { dx: 0, dy: o.d, sheetH, covered: o.covered };
+    }
     if (!sheetMode) {
       const o = viewOffsetEnabled
         // Phase D: the visible area runs from the rail to the floating dock.
-        ? inspectorViewOffset({ viewportW, inspectorW: inspLayout.width + UIT.ui.size.dockMargin, left: railW, box: { x: inspectorProfile.x, w: inspectorProfile.w } })
+        ? inspectorViewOffset({ viewportW, inspectorW: inspLayout.width + UIT.ui.size.dockMargin, left: railW, box: { x: inspectorBox.x, w: inspectorBox.w } })
         : { dx: 0, covered: false };
       return { dx: o.dx, dy: 0, sheetH: 0, covered: o.covered };
     }
-    const sheetH = inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: inspectorProfile.h });
-    const box = { y: inspectorProfile.y, h: inspectorProfile.h };
+    const sheetH = inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: inspectorBox.h });
+    const box = { y: inspectorBox.y, h: inspectorBox.h };
     const o = viewOffsetEnabled
       ? inspectorSheetOffset({ viewportH, topOffset: UIT.ui.size.editorTopbarH, sheetH, box })
       // space_mobile: no offset and, as before, never "covered" (review B-R3).
@@ -771,13 +828,11 @@ export default function CanvasBoard({
   // pointer gesture (marquee, drag, resize, selecting another element):
   // recomputed — and animated — only after the pointer is released, so the
   // canvas never slides under a pressed pointer (shouldFreezeOnPointerDown).
-  const [viewGesture, setViewGesture] = useState(false);
-  const appliedViewRef = useRef(computedView);
-  const inspView = freezeViewOffset(appliedViewRef.current, computedView, viewGesture);
+  const inspView = freezeViewOffset(appliedViewRef.current ?? computedView, computedView, viewGesture);
   appliedViewRef.current = inspView;
   const viewDx = inspView.dx;
   const viewDy = inspView.dy;
-  const inspectorCollapsed = !!inspectorProfile && sheetMode
+  const inspectorCollapsed = !!inspectorBox && sheetMode
     && (inspectorCollapseReq === "focus" || (inspectorCollapseReq === "card" && inspView.covered));
   inspectorCollapsedRef.current = inspectorCollapsed;
   useEffect(() => {
@@ -789,7 +844,7 @@ export default function CanvasBoard({
     // when the gesture's mousedown handlers run.
     const down = () => {
       const applied = appliedViewRef.current;
-      if (!shouldFreezeOnPointerDown(!!inspectorCardIdRef.current, applied.dx + applied.dy)) return;
+      if (!shouldFreezeOnPointerDown(!!inspectorTargetElIdRef.current, applied ? applied.dx + applied.dy : 0)) return;
       canvasWrapperRef.current?.setAttribute("data-view-gesture", "");
       setViewGesture(true);
     };
@@ -815,7 +870,7 @@ export default function CanvasBoard({
   // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
-  const inspectorShown = ((!!inspectorProfile || layersOpen) && canInteract) || roomShown;
+  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen) && canInteract) || roomShown;
   const fabShift = inspectorShown && !sheetMode ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0;
   const fabLift = inspectorShown && sheetMode ? (inspectorCollapsed ? INSPECTOR_SHEET_COLLAPSED_H : inspView.sheetH) : 0;
   // Review B-UX-1: lifted above an EXPANDED sheet the FAB and its menus land
@@ -1053,6 +1108,93 @@ export default function CanvasBoard({
     announceRef.current?.(`${name}${detail ? ` ${detail}` : ""}: ${at.position} de ${at.count} en ${LAYER_TITLES[at.layer]}`);
   }
 
+  // ── Editor v3 Phase G: writers of the text / image / Music inspectors ─────
+  /** "Eliminar" / "Quitar" in an element inspector: the SAME path and undo as
+   * Delete (one history entry; undo re-adds it, selected). Focus goes to the
+   * canvas (the inspector unmounts with the element), where Ctrl/⌘+Z works. */
+  /** Capas opened from an element inspector: where its focus returns. */
+  const layersFromElementRef = useRef<string | null>(null);
+  // Closure G-V: once Capas is closed by ANY path (Cerrar / Esc consume it
+  // in layersReturnFocus first; another target replacing Capas does not),
+  // forget it — a later Capas from the rail returns focus to the rail.
+  useEffect(() => { if (!layersOpen) layersFromElementRef.current = null; }, [layersOpen]);
+  function deleteFromInspector(id: string) {
+    const el = elementsRef.current.find(e => e.id === id);
+    if (!el) return;
+    historyRef.current?.close();
+    enqueueOpRef.current(elementOps.remove(el.elementType, el.id));
+    historyRef.current?.close();
+    setSelectedIds(new Set());
+    canvasWrapperRef.current?.focus({ preventScroll: true });
+    const what = el.elementType === "music" ? "Music eliminado" : el.elementType === "image" ? "Imagen eliminada" : el.elementType === "text" ? "Texto eliminado" : "Elemento eliminado";
+    announceRef.current?.(`${what}. ${isMacPlatform() ? "⌘Z" : "Ctrl+Z"} para deshacer`);
+  }
+  /** Bloquear (inspector): persisted, one undo step — same write as Capas. */
+  function toggleLockFromInspector(id: string) {
+    const el = elementsRef.current.find(e => e.id === id);
+    if (!el || el.elementType === "profile") return;
+    ownHistoryStep(() => enqueueOpRef.current(elementOps.update(el.elementType, id, { locked: !(el as { locked?: boolean }).locked })));
+  }
+  /** Imagen › Reemplazar: uploads first, then ONE update_image (src, its
+   * storage path, natural size, transparency, and the height that keeps the
+   * new ratio at the same width) — one undo step that brings the old image
+   * back. The old file stays in storage (undo needs it). */
+  function replaceImage(id: string, file: File) {
+    if (file.size > MAX_FILE_BYTES) { announceRef.current?.("La imagen supera los 20 MB"); return; }
+    const localUrl = URL.createObjectURL(file);
+    const probe = new Image();
+    const fail = () => { URL.revokeObjectURL(localUrl); announceRef.current?.("No se pudo reemplazar la imagen"); };
+    probe.onerror = fail;
+    probe.onload = () => {
+      const nw = probe.naturalWidth, nh = probe.naturalHeight;
+      URL.revokeObjectURL(localUrl);
+      announceRef.current?.("Subiendo imagen…");
+      uploadToStorage(file).then(({ publicUrl, storagePath }) => {
+        const cur = elementsRef.current.find(e => e.id === id && e.elementType === "image") as (CanvasImageType & { elementType: "image" }) | undefined;
+        if (!publicUrl || !cur) { announceRef.current?.("No se pudo reemplazar la imagen"); return; }
+        // Same width, the new ratio — but never taller than the room below it
+        // (then narrower, same ratio).
+        const maxH = Math.max(resizeMinimums("image").minH, Math.round(effectiveH - cur.y));
+        let w = cur.w, h = nw > 0 && nh > 0 ? Math.max(resizeMinimums("image").minH, Math.round(cur.w * nh / nw)) : cur.h;
+        if (h > maxH && nh > 0) { h = maxH; w = Math.max(resizeMinimums("image").minW, Math.round(maxH * nw / nh)); }
+        ownHistoryStep(() => enqueueOpRef.current({ type: "update_image", id, patch: {
+          src: publicUrl, storage_path: storagePath, isLocal: false, naturalW: nw, naturalH: nh, isTransparent: file.type !== "image/jpeg", w, h,
+        } }));
+        announceRef.current?.("Imagen reemplazada");
+      }).catch(() => announceRef.current?.("No se pudo reemplazar la imagen"));
+    };
+    probe.src = localUrl;
+  }
+  /** Medidas of an element inspector: the real ranges (the bounds the drag
+   * clamps to — topOffset 44, R1) and the drag's own writers
+   * (setElementGeometry). A free text has position and rotation only (its
+   * size is the font size, in Tipografía). None in space_mobile (legacy). */
+  function measuresFor(el: CanvasElement): MeasureSpec | undefined {
+    if (canvasMode === "space_mobile") return undefined;
+    const top = CANVAS_TOP_OFFSET;
+    const isText = el.elementType === "text";
+    const box = isText ? textChromeBox(el) : el as { x: number; y: number; w: number; h: number };
+    const mins = resizeMinimums(el.elementType);
+    // The drag clamps a text by its stored size (none → 0, applyGroupDragDelta),
+    // so its X/Y range is the whole canvas — the same bounds, no false "ajustado".
+    const clampW = isText ? 0 : box.w, clampH = isText ? 0 : box.h;
+    return {
+      x: el.x, y: el.y, w: isText ? undefined : box.w, h: isText ? undefined : box.h,
+      rotation: (el as { rotation?: number }).rotation ?? 0,
+      range: {
+        maxX: Math.max(0, Math.round(effectiveW - clampW)), minY: top, maxY: Math.max(top, Math.round(effectiveH - clampH)),
+        minW: mins.minW, maxW: Math.round(effectiveW), minH: mins.minH, maxH: Math.round(effectiveH - top),
+      },
+      onGeometry: g => setElementGeometry(el.id, g),
+    };
+  }
+  /** "Ordenar en Capas": the selection stays — Capas opens on it. */
+  function openLayersFromInspector() {
+    layersFromElementRef.current = inspectorTargetElIdRef.current;
+    setMenuOpen(false);
+    openLayers();
+  }
+
   // Iteration 0: "+" menu / MyLand focus targets (Esc and item activation
   // return focus to their opener instead of <body>).
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -1240,8 +1382,9 @@ export default function CanvasBoard({
     if (!el || !canInteract) return;
     if ((el as { locked?: boolean }).locked) return;
     const bounds = { w: effectiveW, h: effectiveH, topOffset: 44 };
-    if (target.rotation !== undefined && el.elementType === "music") {
-      enqueueOp({ type: "update_music", id, patch: { rotation: target.rotation } });
+    if (target.rotation !== undefined && (el.elementType === "music" || el.elementType === "image" || el.elementType === "text")) {
+      // Phase G: Medidas of images and free texts write rotation like Music.
+      enqueueOpRef.current(elementOps.update(el.elementType, id, { rotation: target.rotation }));
       return;
     }
     if (target.x !== undefined || target.y !== undefined) {
@@ -1627,7 +1770,7 @@ export default function CanvasBoard({
     requestAnimationFrame(() => {
       const a = document.activeElement;
       if (a && a !== document.body) return;
-      const h2 = inspectorCardIdRef.current ? document.getElementById(INSPECTOR_TITLE_ID) : null;
+      const h2 = inspectorOpenRef.current ? document.getElementById(INSPECTOR_TITLE_ID) : null;
       (h2 ?? canvasWrapperRef.current)?.focus({ preventScroll: true });
     });
   }
@@ -1684,10 +1827,6 @@ export default function CanvasBoard({
   }
   enqueueOpRef.current = enqueueOp;
 
-  // Close link editor when its image is deselected
-  useEffect(() => {
-    if (linkEditId !== null && !selectedIds.has(linkEditId)) setLinkEditId(null);
-  }, [selectedIds, linkEditId]);
 
   // ── Keyboard shortcuts (DELETE / Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+Z) ──────────
   useEffect(() => {
@@ -2107,7 +2246,6 @@ export default function CanvasBoard({
       historyRef.current?.clear();
       gestureBaselineRef.current = null;
       canvasIdRef.current   = null;
-      setLinkEditId(null);
 
       // Read-only mode: load from initialState
       if (!canEdit) {
@@ -2964,8 +3102,9 @@ export default function CanvasBoard({
       const { x: tx, y: ty } = clampToViewport(cc.x, cc.y, 0, 0);
       const newText: CanvasText = {
         id:crypto.randomUUID(),x:tx,y:ty,zIndex:zCounter.current,
-        layer:1,depth:0.5,rotation:0,content:"text",font:"DM Sans",size:48,
-        color:"#ffffff",opacity:1,letterSpacing:0,uppercase:false,
+        layer:1,depth:0.5,rotation:0,
+        // Phase G: one source for a new text's values (the inspector's resets).
+        ...CANVAS_TEXT_DEFAULTS,
         isPublic:inSpace?true:undefined,
       };
       enqueueOp({ type: "add_text", text: newText });
@@ -3506,46 +3645,15 @@ export default function CanvasBoard({
 
             onDoubleClick={e=>{e.stopPropagation();/* Phase E: persisted, undoable — same reorder as Capas › Al frente. */applyLayerPatches(bringToFront(layerItemsNow(),img.id));}}>
             <img src={img.src} draggable={false} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:img.borderRadius??( img.isTransparent?0:8),outline:isSel?"1px solid rgba(255,255,255,0.3)":"none",filter:isSel?"drop-shadow(0 0 8px rgba(255,255,255,0.12))":"none"}} />
-            {/* Iteration 0: real <button>s (were 14px divs with English
-                tooltips), >=24px targets, Spanish names; [data-mnemo-ui] so
-                the canvas keyboard guard treats a focused one as UI. Moved
-                up to clear the n/nw/ne handles' 24px target circles. */}
-            {isSel&&canInteract&&(<div data-mnemo-ui="" role="group" aria-label="Opciones de imagen" tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();canvasWrapperRef.current?.focus({preventScroll:true});}}} style={{outline:"none",position:"absolute",top:resolveToolbarTop(img,chromeCanvas).top,left:"50%",transform:"translateX(-50%)",display:"flex",alignItems:"center",gap:2,padding:3,background:"rgba(0,0,0,0.72)",border:"1px solid rgba(255,255,255,0.14)",borderRadius:8,backdropFilter:"blur(6px)",zIndex:20}} onMouseDown={e=>e.stopPropagation()}>
-              {([0,1,2] as const).map(l=>(<button key={l} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--rect mn-canvas-btn--flat" aria-pressed={img.layer===l} aria-label={`Capa: ${LAYER_LABELS_ES[l]}`} title={`Capa: ${LAYER_LABELS_ES[l]}`} onClick={e=>{e.stopPropagation();applyLayerPatches(setElementLayer(layerItemsNow(),img.id,l));}} onMouseDown={e=>e.stopPropagation()}>{LAYER_LABELS_ES[l].slice(0,2).toUpperCase()}</button>))}
-              <div aria-hidden style={{width:1,height:14,background:"rgba(255,255,255,0.22)",margin:"0 2px",flexShrink:0}} />
-              {([0,8,20,999] as const).map(r=>{const cur=img.borderRadius??(img.isTransparent?0:8);const active=r===999?cur>=50:cur===r;const vr=r===0?"2px":r===8?"4px":r===20?"7px":"50%";const nm=r===0?"Esquinas rectas":r===8?"Esquinas suaves":r===20?"Esquinas redondeadas":"Círculo";return(<button key={r} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--flat" aria-pressed={active} aria-label={nm} title={nm} onClick={e=>{e.stopPropagation();setElements(p=>p.map(el=>el.elementType==="image"&&el.id===img.id?{...el,borderRadius:r}:el));enqueueOp({type:"update_image",id:img.id,patch:{borderRadius:r}});}} onMouseDown={e=>e.stopPropagation()}><span aria-hidden className="mn-canvas-btn__shape" style={{borderRadius:vr}} /></button>);})}
-            </div>)}
+            {/* Phase G: "Editar imagen" opens the image inspector (corners, link,
+                replace / remove — they used to be this toolbar and the "Link"
+                chip); the layer and its order live in Capas. */}
+            {isSel&&canInteract&&!multiSel&&(<CanvasChromeButton id={elementEditButtonId(img.id)} icon="pencil" label="Editar imagen"
+              expanded={inspectorTargetElId===img.id} controls={elementInspectorId(img.id)}
+              style={resolveOpenerSpot(img,chromeCanvas)} onActivate={()=>handleElementEdit("image",img.id)} />)}
             {isSel&&canInteract&&!multiSel&&(<LockBtn name="imagen" box={img} canvas={chromeCanvas} locked={!!img.locked} onClick={e=>{e.stopPropagation();enqueueOp({type:"update_image",id:img.id,patch:{locked:!img.locked}});}} />)}
             {isSel&&canInteract&&!multiSel&&!img.locked&&(<ResizeHandles onResizeMD={(h,e)=>startSingleResize(img.id,"image",h,e)} />)}
-            {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle name="imagen" box={img} canvas={chromeCanvas} onMouseDown={e=>{e.stopPropagation();startRotate(img.id,"image",e);}} onKeyRotate={()=>enqueueOp({type:"update_image",id:img.id,patch:{rotation:Math.round(((img.rotation??0)+15)%360)}})} />)}
-            {isSel&&canInteract&&!multiSel&&(<>
-              {/* Link toggle button */}
-              {/* Review r2: placed by resolveLinkChipTop (below, clear of the
-                  s handle's 24px target; inside when there's no room). */}
-              <span data-mnemo-ui="" style={{position:"absolute",top:resolveLinkChipTop(img,chromeCanvas).top,left:"50%",transform:"translateX(-50%)",zIndex:20,display:"inline-flex"}}>
-              <button type="button" id={`mnemo-img-link-${img.id}`} data-mnemo-chrome="" data-canvas-hot="" className="mn-canvas-btn--chip"
-                onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setLinkEditId(null);canvasWrapperRef.current?.focus({preventScroll:true});}}}
-                onMouseDown={e=>e.stopPropagation()}
-                onClick={e=>{e.stopPropagation();setLinkEditId(id=>id===img.id?null:img.id);}}
-                aria-label={img.linkUrl?"Editar link de la imagen":"Agregar link a la imagen"}
-                aria-expanded={linkEditId===img.id}
-                title={img.linkUrl?"Editar link":"Agregar link"}
-                style={{position:"relative",minHeight:24,font:"inherit",color:"inherit",display:"flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,cursor:"pointer",zIndex:20,background:linkEditId===img.id?"rgba(212,240,196,0.1)":"rgba(10,10,12,0.94)",border:`1px solid ${linkEditId===img.id?"rgba(212,240,196,0.3)":img.linkUrl?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.1)"}`,backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)"}}
-              >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={img.linkUrl||linkEditId===img.id?"rgba(212,240,196,0.8)":"rgba(255,255,255,0.35)"} strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                <span style={{fontFamily:MONO,fontSize:10,letterSpacing:1.5,color:img.linkUrl||linkEditId===img.id?"rgba(212,240,196,0.9)":"rgba(255,255,255,0.72)",textTransform:"uppercase" as const}}>Link</span>
-              </button>
-              </span>
-              {linkEditId===img.id&&(
-                <ImageLinkPortal
-                  imgEl={imgElRefs.current.get(img.id)??null}
-                  linkUrl={img.linkUrl}
-                  onChange={v=>enqueueOp({type:"update_image",id:img.id,patch:{linkUrl:v||undefined}})}
-                  onClose={()=>setLinkEditId(null)}
-                  openerId={`mnemo-img-link-${img.id}`}
-                />
-              )}
-            </>)}
+            {isSel&&canInteract&&!multiSel&&!img.locked&&(<RotateHandle name="imagen" box={img} canvas={chromeCanvas} onMouseDown={e=>{e.stopPropagation();const r=imgElRefs.current.get(img.id)?.getBoundingClientRect();if(r)startRotate(img.id,"image",e,r.left+r.width/2,r.top+r.height/2);else startRotate(img.id,"image",e);}} onKeyRotate={()=>enqueueOp({type:"update_image",id:img.id,patch:{rotation:Math.round(((img.rotation??0)+15)%360)}})} />)}
           </div>
         );
       })}
@@ -3578,41 +3686,16 @@ export default function CanvasBoard({
               dangerouslySetInnerHTML={isEdit ? undefined : { __html: txt.content }}
               ref={el=>{if(el&&isEdit&&el.innerText!==txt.content){el.innerText=txt.content;}}}
             />
-            {isSel&&canInteract&&!isEdit&&(<div data-mnemo-ui="" role="group" aria-label="Capa del texto" tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();canvasWrapperRef.current?.focus({preventScroll:true});}}} style={{outline:"none",position:"absolute",top:resolveToolbarTop(textChromeBox(txt),chromeCanvas).top,left:0,display:"flex",gap:2,padding:3,background:"rgba(0,0,0,0.72)",border:"1px solid rgba(255,255,255,0.14)",borderRadius:8,backdropFilter:"blur(6px)",zIndex:20}} onMouseDown={e=>e.stopPropagation()}>
-              {([0,1,2] as const).map(l=>(<button key={l} type="button" data-mnemo-chrome="" className="mn-canvas-btn mn-canvas-btn--rect mn-canvas-btn--flat" aria-pressed={txt.layer===l} aria-label={`Capa: ${LAYER_LABELS_ES[l]}`} title={`Capa: ${LAYER_LABELS_ES[l]}`} onClick={e=>{e.stopPropagation();applyLayerPatches(setElementLayer(layerItemsNow(),txt.id,l));}} onMouseDown={e=>e.stopPropagation()}>{LAYER_LABELS_ES[l].slice(0,2).toUpperCase()}</button>))}
-            </div>)}
+            {/* Phase G: "Editar texto" opens the text inspector (content, font,
+                size, letter spacing, uppercase, color, opacity — the old
+                floating format toolbar); the layer lives in Capas. Double
+                click still edits the text in place. */}
+            {isSel&&canInteract&&!isEdit&&!multiSel&&(<CanvasChromeButton id={elementEditButtonId(txt.id)} icon="pencil" label="Editar texto"
+              expanded={inspectorTargetElId===txt.id} controls={elementInspectorId(txt.id)}
+              style={resolveOpenerSpot(textChromeBox(txt),chromeCanvas)} onActivate={()=>handleElementEdit("text",txt.id)} />)}
             {isSel&&canInteract&&!isEdit&&(<LockBtn name="texto" box={textChromeBox(txt)} canvas={chromeCanvas} locked={!!txt.locked} onClick={e=>{e.stopPropagation();updateText(txt.id,{locked:!txt.locked});}} />)}
             {isSel&&canInteract&&!isEdit&&!txt.locked&&(<RotateHandle name="texto" box={textChromeBox(txt)} canvas={chromeCanvas} onMouseDown={e=>onRotateText(txt.id,e)} onKeyRotate={()=>updateText(txt.id,{rotation:Math.round(((txt.rotation??0)+15)%360)})} />)}
             {isSel&&canInteract&&!isEdit&&!txt.locked&&(<div onMouseDown={e=>{e.stopPropagation();startSingleResize(txt.id,"text","se",e);}} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.65)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",zIndex:10}} />)}
-            {isSel&&canInteract&&!isEdit&&(
-              <div data-mnemo-ui="" role="group" aria-label="Formato del texto" tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();canvasWrapperRef.current?.focus({preventScroll:true});}}} onMouseDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}
-                style={{position:"absolute",top:"calc(100% + 14px)",left:"50%",transform:"translateX(-50%)",background:"rgba(10,10,12,0.97)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"10px 12px",backdropFilter:"blur(40px)",WebkitBackdropFilter:"blur(40px)",zIndex:500,boxShadow:"0 12px 40px rgba(0,0,0,0.7)",display:"flex",flexDirection:"column",gap:10,whiteSpace:"nowrap",minWidth:220}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <select aria-label="Fuente del texto" value={txt.font} onChange={e=>updateText(txt.id,{font:e.target.value as TextFont})} onMouseDown={e=>e.stopPropagation()} style={{flex:1,padding:"4px 8px",borderRadius:7,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.8)",fontSize:12,fontFamily:getFontStyle(txt.font),cursor:"pointer",outline:"none"}}>
-                    {TEXT_FONTS.map(f=>(<option key={f.key} value={f.key} style={{fontFamily:f.style,background:"#0a0a0c"}}>{f.label}</option>))}
-                  </select>
-                  <button type="button" aria-label="Mayúsculas" aria-pressed={!!txt.uppercase} title="Mayúsculas" onClick={()=>updateText(txt.id,{uppercase:!txt.uppercase})} style={{padding:"4px 9px",borderRadius:7,border:"none",cursor:"pointer",background:txt.uppercase?"rgba(212,240,196,0.12)":"rgba(255,255,255,0.05)",color:txt.uppercase?"rgba(212,240,196,0.85)":"rgba(255,255,255,0.3)",fontFamily:MONO,fontSize:9,letterSpacing:1,outline:txt.uppercase?"1px solid rgba(212,240,196,0.2)":"none",flexShrink:0}}>AA</button>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
-                    <button type="button" aria-label="Achicar texto" title="Achicar texto" onClick={()=>updateText(txt.id,{size:Math.max(10,txt.size-8)})} style={{width:20,height:20,borderRadius:5,border:"none",background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                    <span style={{fontFamily:MONO,fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:32,textAlign:"center"}}>{txt.size}px</span>
-                    <button type="button" aria-label="Agrandar texto" title="Agrandar texto" onClick={()=>updateText(txt.id,{size:Math.min(300,txt.size+8)})} style={{width:20,height:20,borderRadius:5,border:"none",background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
-                  </div>
-                  <div style={{width:1,height:16,background:"rgba(255,255,255,0.08)",flexShrink:0}} />
-                  <div style={{width:24,height:24,borderRadius:7,overflow:"hidden",border:"1px solid rgba(255,255,255,0.12)",flexShrink:0}}>
-                    <input type="color" aria-label="Color del texto" value={txt.color.startsWith("#")?txt.color:"#ffffff"} onChange={e=>updateText(txt.id,{color:e.target.value})} style={{width:"100%",height:"100%",border:"none",cursor:"pointer",padding:2}} />
-                  </div>
-                  <div style={{width:1,height:16,background:"rgba(255,255,255,0.08)",flexShrink:0}} />
-                  <div style={{display:"flex",alignItems:"center",gap:5,flex:1}}>
-                    <span style={{fontFamily:MONO,fontSize:9,color:"rgba(255,255,255,0.25)",flexShrink:0}}>OP</span>
-                    <input type="range" aria-label="Opacidad del texto" aria-valuetext={`${Math.round(txt.opacity*100)}%`} min={5} max={100} value={Math.round(txt.opacity*100)} onChange={e=>updateText(txt.id,{opacity:Number(e.target.value)/100})} style={{flex:1,accentColor:"rgba(212,240,196,0.7)"}} />
-                    <span style={{fontFamily:MONO,fontSize:9,color:"rgba(255,255,255,0.35)",minWidth:24,textAlign:"right"}}>{Math.round(txt.opacity*100)}</span>
-                  </div>
-                </div>
-                <div style={{fontFamily:MONO,fontSize:8,color:"rgba(255,255,255,0.12)",letterSpacing:1,textAlign:"center"}}>doble click para editar · esquina para cambiar el tamaño</div>
-              </div>
-            )}
           </div>
         );
       })}
@@ -3747,25 +3830,15 @@ export default function CanvasBoard({
               onMouseDown={mc.locked ? e => e.stopPropagation() : e => onElementMouseDown(mc.id, "music", mc.x, mc.y, e)}
               onClick={e => handleElementClick(mc.id, e)}
               onResizeMD={mc.locked ? (_h: ResizeHandle, e: React.MouseEvent) => e.stopPropagation() : (h, e) => startSingleResize(mc.id, "music", h, e)}
-              onRotateMD={mc.locked ? e => e.stopPropagation() : e => startRotate(mc.id, "music", e, mc.x + mc.w / 2, mc.y + mc.h / 2)}
+              // Phase G (pending from Phase B): the DOM center — with the dock open
+              // the canvas is offset and canvas coordinates ≠ clientX/Y.
+              onRotateMD={mc.locked ? e => e.stopPropagation() : (e, c) => startRotate(mc.id, "music", e, c?.x ?? mc.x + mc.w / 2, c?.y ?? mc.y + mc.h / 2)}
               updateCard={updateMusicCard}
-              onGeometry={canvasMode === "space_mobile" ? undefined : g => setElementGeometry(mc.id, g)}
+              onEdit={() => handleElementEdit("music", mc.id)}
+              editing={inspectorTargetElId === mc.id}
               canvasBounds={chromeCanvas}
               onToggleLock={() => /* Phase E: persisted (Capas shows the same flag). */ updateMusicCard(mc.id, { locked: !mc.locked })}
               canInteract={canInteract}
-              onDelete={id => {
-                // Iteration 0: same undo as Backspace/Delete — Phase C: one
-                // history entry (undo re-adds it, selected; redo deletes it).
-                const existed = elementsRef.current.some(e => e.id === id && e.elementType === "music");
-                historyRef.current?.close();
-                enqueueOp({ type: "delete_music", id });
-                historyRef.current?.close();
-                setSelectedIds(new Set());
-                // Review C-6: the menu (and its button) unmount — focus goes to
-                // the canvas, where Ctrl/⌘+Z works, before announcing it.
-                canvasWrapperRef.current?.focus({ preventScroll: true });
-                if (existed) announceRef.current?.(`Music eliminado. ${isMacUi ? "⌘Z" : "Ctrl+Z"} para deshacer`);
-              }}
             />
           </WidgetBoundary>
         );
@@ -4100,7 +4173,40 @@ export default function CanvasBoard({
               },
             };
           })() : undefined}
-          layersReturnFocus={() => document.getElementById(RAIL_LAYERS_BUTTON_ID) ?? addBtnRef.current}
+          layersReturnFocus={() => {
+            // Phase G: opened with "Ordenar en Capas" → back to that element's
+            // "Editar" (still selected), else the rail / "+" as before.
+            const from = layersFromElementRef.current;
+            layersFromElementRef.current = null;
+            return (from ? document.getElementById(elementEditButtonId(from)) : null)
+              ?? document.getElementById(RAIL_LAYERS_BUTTON_ID) ?? addBtnRef.current;
+          }}
+          // Phase G: Texto / Imagen / Música — built only for the open target.
+          text={inspectorElement?.elementType === "text" ? {
+            text: inspectorElement, updateText,
+            onOpenLayers: openLayersFromInspector,
+            onToggleLock: () => toggleLockFromInspector(inspectorElement.id),
+            onDelete: () => deleteFromInspector(inspectorElement.id),
+            measures: measuresFor(inspectorElement),
+          } : undefined}
+          image={inspectorElement?.elementType === "image" ? {
+            image: inspectorElement,
+            updateImage: (id: string, patch: Partial<CanvasImageType>) => enqueueOp({ type: "update_image", id, patch }),
+            onReplace: (file: File) => replaceImage(inspectorElement.id, file),
+            onOpenLayers: openLayersFromInspector,
+            onToggleLock: () => toggleLockFromInspector(inspectorElement.id),
+            onDelete: () => deleteFromInspector(inspectorElement.id),
+            measures: measuresFor(inspectorElement),
+          } : undefined}
+          music={inspectorElement?.elementType === "music" ? {
+            // The card as rendered (stack style resolved), like MusicCardWidget.
+            card: resolveModuleStyle(inspectorElement),
+            updateCard: updateMusicCard,
+            onOpenLayers: openLayersFromInspector,
+            onToggleLock: () => toggleLockFromInspector(inspectorElement.id),
+            onDelete: () => deleteFromInspector(inspectorElement.id),
+            measures: measuresFor(inspectorElement),
+          } : undefined}
           memory={editorSel.memory}
           onSelectObject={setInspectorObject}
           updateProfile={updateProfile}
@@ -4347,104 +4453,5 @@ function RotateHandle({ onMouseDown, onKeyRotate, name = "elemento", box, canvas
       onMouseDown={onMouseDown}
       onActivate={e => { if (e.detail === 0) onKeyRotate?.(); }}
     />
-  );
-}
-
-// ── ImageLinkPortal ────────────────────────────────────────────────────────────
-// Portals the image link editor to document.body so it escapes the canvas
-// overflow:hidden wrapper and the canvas transform stacking context.
-function ImageLinkPortal({
-  imgEl, linkUrl, onChange, onClose, openerId,
-}: {
-  imgEl: HTMLDivElement | null;
-  linkUrl: string | undefined;
-  onChange: (v: string) => void;
-  onClose?: () => void;
-  /** Iteration 0: the "LINK" button — focus returns there on Esc. */
-  openerId?: string;
-}) {
-  const inputId = useId();
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const MONO_L = "'Space Mono', monospace";
-
-  useEffect(() => {
-    if (!imgEl) return;
-    const compute = () => {
-      const r   = imgEl.getBoundingClientRect();
-      const w   = 200;
-      const top = Math.min(r.bottom + 8, window.innerHeight - 80);
-      const left = Math.max(4, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 4));
-      setPos({ top, left });
-    };
-    compute();
-    window.addEventListener("scroll", compute, true);
-    window.addEventListener("resize", compute);
-    return () => {
-      window.removeEventListener("scroll", compute, true);
-      window.removeEventListener("resize", compute);
-    };
-  }, [imgEl]);
-
-  if (!pos) return null;
-
-  return createPortal(
-    <div
-      data-mnemo-ui=""
-      // Phase D (pending from Phase A, A6): canvas chrome stays neutral dark —
-      // its field must not follow the editor theme.
-      data-editor-theme="dark"
-      role="dialog"
-      aria-label="Link de la imagen"
-      tabIndex={-1}
-      onKeyDown={e => {
-        // Review r2 (A11y-8): Esc anywhere in the dialog closes it and
-        // returns focus to the "Link" chip that opened it.
-        if (e.key !== "Escape") return;
-        e.preventDefault(); e.stopPropagation();
-        onClose?.();
-        if (openerId) requestAnimationFrame(() => document.getElementById(openerId)?.focus({ preventScroll: true }));
-      }}
-      onMouseDown={e => e.stopPropagation()}
-      onClick={e => e.stopPropagation()}
-      style={{
-        outline:       "none",
-        position:      "fixed",
-        top:           pos.top,
-        left:          pos.left,
-        width:         200,
-        background:    "rgba(8,8,10,0.96)",
-        border:        "1px solid rgba(255,255,255,0.1)",
-        borderRadius:  7,
-        padding:       "8px 10px",
-        backdropFilter:"blur(32px)",
-        WebkitBackdropFilter:"blur(32px)",
-        zIndex:        999999,
-        display:       "flex",
-        flexDirection: "column",
-        gap:           5,
-        boxShadow:     "0 8px 32px rgba(0,0,0,0.65)",
-      }}
-    >
-      <label htmlFor={inputId} style={{fontFamily:MONO_L,fontSize:10,letterSpacing:1.5,color:"rgba(255,255,255,0.62)",textTransform:"uppercase" as const}}>Link de la imagen</label>
-      <input
-        id={inputId}
-        className="mn-input"
-        type="url"
-        value={linkUrl ?? ""}
-        placeholder="https://example.com"
-        onChange={e => onChange(e.target.value)}
-        onMouseDown={e => e.stopPropagation()}
-        onKeyDown={e => {
-          e.stopPropagation();
-          if (e.key === "Escape") {
-            onClose?.();
-            if (openerId) requestAnimationFrame(() => document.getElementById(openerId)?.focus({ preventScroll: true }));
-          }
-        }}
-        autoFocus
-        style={{height:28,padding:"0 8px",fontFamily:MONO_L,fontSize:11,letterSpacing:0.5,width:"100%",boxSizing:"border-box" as const}}
-      />
-    </div>,
-    document.body
   );
 }

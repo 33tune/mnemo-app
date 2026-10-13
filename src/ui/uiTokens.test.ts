@@ -139,14 +139,19 @@ const MENU_FILES = [
   "src/components/canvas/ProfileLogoMenu.tsx",
   "src/components/canvas/BlockStyleFields.tsx",
   "src/components/canvas/RoleTypographyFields.tsx",
-  "src/components/canvas/MusicCardWidget.tsx",
+  // Phase G: Music left its MenuPanel for the dock (MusicInspector); the
+  // free text / image inspectors and their shared parts.
+  "src/components/canvas/MusicInspector.tsx",
+  "src/components/canvas/TextInspector.tsx",
+  "src/components/canvas/ImageInspector.tsx",
+  "src/components/canvas/ElementInspectorParts.tsx",
   // Phase 2: the inspector's own canvas-side pieces.
   "src/components/canvas/ObjectList.tsx",
   "src/components/canvas/ProfileInspector.tsx",
 ];
 const MENU_LEGACY_BASELINE: Record<string, number> = {
   // v3 Phase A: Identity's 5 (avatar placeholder + name input) moved to uv().
-  "src/components/canvas/MusicCardWidget.tsx": 8,
+  // v3 Phase G: Music's 8 (T.border.subtle dividers) moved to uv("line-group").
 };
 
 test("editor menus: no literal colors; legacy tokens only within the shrinking baseline", () => {
@@ -300,7 +305,9 @@ test("the dark lock (legacy menus) outranks the html theme and every legacy widg
   const pop = stripComments(read("src/ui/ColorPopover.tsx"));
   assert.match(pop, /closest\("\[data-editor-theme\]"\)/);
   assert.match(pop, /data-editor-theme=\{anchorThemeLock\(anchor\)/);
-  for (const f of ["LinksCardWidget", "SocialCardWidget", "StatsCardWidget", "MusicCardWidget"]) {
+  // Phase G: MusicCardWidget has no MenuPanel any more (Music is in the dock).
+  assert.ok(!stripComments(read("src/components/canvas/MusicCardWidget.tsx")).includes("<MenuPanel"));
+  for (const f of ["LinksCardWidget", "SocialCardWidget", "StatsCardWidget"]) {
     const src = stripComments(read(`src/components/canvas/${f}.tsx`));
     const panels = src.match(/<MenuPanel\b[^>]*>/g) ?? [];
     assert.ok(panels.length >= 1, f);
@@ -336,8 +343,8 @@ test("theme-mapped tokens point at --ui-theme-* with the dark value as fallback;
 test("uv() names exist; no inline T.ui / T.theme COLOR values in src/ui or the editor menus", () => {
   assert.equal(uv("text-primary"), "var(--ui-text-primary)");
   const COLOR_GROUPS = /\bT\.(?:ui\.(?:text|surface|line|accent|shadow|picker|chrome|tone)|theme)\b/g;
-  // Legacy widgets (A7: dark-locked, untouched beyond the lock) keep theirs.
-  const EXEMPT = new Set(["src/components/canvas/MusicCardWidget.tsx"]);
+  // Phase G: no exemption left (Music's editor follows the theme now).
+  const EXEMPT = new Set<string>();
   const uiFiles = readdirSync(join(root, "src/ui"), { recursive: true, withFileTypes: true })
     .filter(e => e.isFile() && /\.(ts|tsx)$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) && e.name !== "tokens.ts")
     .map(e => join(e.parentPath, e.name).slice(root.length + 1).replace(/\\/g, "/"));

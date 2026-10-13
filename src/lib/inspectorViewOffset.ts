@@ -157,3 +157,21 @@ export function shouldFreezeOnPointerDown(inspectorOpen: boolean, appliedDx: num
 export function freezeViewOffset<V>(applied: V, computed: V, gestureActive: boolean): V {
   return gestureActive ? applied : computed;
 }
+
+/** Editor v3 Phase G (review G-R MAYOR 1) — the view offset for a free
+ * element (text / image / Music) on ONE axis. Unlike the ProfileCard (always
+ * centered, so centering it gives a constant offset), an element moves: the
+ * offset is the SMALLEST shift that uncovers it, and the previous one is
+ * KEPT while it still shows the element — so moving / resizing / typing
+ * never slides the room under it. `start..start+size` = the element on that
+ * axis (canvas coordinates); `visibleStart..visibleEnd` = what the rail /
+ * topbar and the dock / sheet leave visible (viewport coordinates). */
+export function stickyElementOffset({ prev, start, size, visibleStart, visibleEnd, gutter = INSPECTOR_GUTTER }: {
+  prev?: number; start: number; size: number; visibleStart: number; visibleEnd: number; gutter?: number;
+}): { d: number; covered: boolean } {
+  const fits = (d: number) => start - d >= visibleStart && start + size - d + gutter <= visibleEnd;
+  if (prev !== undefined && prev >= 0 && fits(prev)) return { d: prev, covered: false };
+  const max = Math.max(0, start - visibleStart - gutter);
+  const d = Math.min(Math.max(0, start + size + gutter - visibleEnd), max);
+  return { d, covered: start + size - d + gutter > visibleEnd };
+}

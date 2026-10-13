@@ -15,9 +15,8 @@
  *   A target whose element leaves the selection closes IN THE SAME UPDATE
  *   (no extra render with a stale inspector).
  *
- * Phase B only opens the inspector for the ProfileCard; the other kinds are
- * part of the model so the host (EditorHost) can grow into them (Tu sala in
- * D, Texto/Imagen/Music in G) without another selection system.
+ * Phase B opened the inspector for the ProfileCard; the other kinds grew
+ * into the same model: Tu sala (D), Capas (E), Texto/Imagen/Music (G).
  *
  * Session memory (absorbs the old inspectorSession.ts): per card, the last
  * active object and each object's body scroll — in memory only, gone on
@@ -59,6 +58,17 @@ export function targetId(target: EditorTarget | null): string | null {
  * "Editar" button's id (where focus returns when the inspector closes). */
 export const profileInspectorId = (cardId: string) => `mnemo-profile-editor-${cardId}`;
 export const profileEditButtonId = (cardId: string) => `mnemo-profile-edit-${cardId}`;
+
+/** Editor v3 Phase G: the inspector of a free text / image / Music
+ * ("Editar"'s aria-controls) and its "Editar" button (focus returns there). */
+export type ElementTargetKind = "text" | "image" | "music";
+export const elementInspectorId = (id: string) => `mnemo-element-editor-${id}`;
+export const elementEditButtonId = (id: string) => `mnemo-element-edit-${id}`;
+
+/** The text / image / Music whose inspector is open, if any. */
+export function elementTarget(target: EditorTarget | null): { kind: ElementTargetKind; id: string } | null {
+  return target && (target.kind === "text" || target.kind === "image" || target.kind === "music") ? target : null;
+}
 
 /** The ProfileCard whose inspector is open, if any. */
 export function profileTargetId(target: EditorTarget | null): string | null {
@@ -138,6 +148,9 @@ export interface EditorSelection {
   openRoom: () => void;
   /** Editor v3 Phase E: opens Capas (the selection stays as it is). */
   openLayers: () => void;
+  /** Editor v3 Phase G: opens the inspector of a selected text / image /
+   * Music (no-op if it is not selected). */
+  openElement: (kind: ElementTargetKind, id: string) => void;
   closeInspector: () => void;
   /** Switches the open ProfileCard inspector to another object (and
    * remembers it for the card). */
@@ -156,6 +169,7 @@ export function useEditorSelection(memory: SelectionMemory = selectionMemory): E
     dispatch({ type: "open", target: { kind: "room" } });
   }, []);
   const openLayers = useCallback(() => dispatch({ type: "open", target: { kind: "layers" } }), []);
+  const openElement = useCallback((kind: ElementTargetKind, id: string) => dispatch({ type: "open", target: { kind, id } }), []);
   const closeInspector = useCallback(() => dispatch({ type: "close" }), []);
   const profileId = profileTargetId(state.target);
   const setObject = useCallback((objectId: ObjectId) => {
@@ -164,6 +178,6 @@ export function useEditorSelection(memory: SelectionMemory = selectionMemory): E
   }, [memory, profileId]);
   return useMemo(() => ({
     selectedIds: state.selectedIds, target: state.target,
-    setSelectedIds, openProfile, openRoom, openLayers, closeInspector, setObject, memory,
-  }), [state, setSelectedIds, openProfile, openRoom, openLayers, closeInspector, setObject, memory]);
+    setSelectedIds, openProfile, openRoom, openLayers, openElement, closeInspector, setObject, memory,
+  }), [state, setSelectedIds, openProfile, openRoom, openLayers, openElement, closeInspector, setObject, memory]);
 }

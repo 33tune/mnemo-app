@@ -27,7 +27,7 @@
  * this file. When a phase moves a control (facets → object list → tiles),
  * it updates the route's `ui` and `evidence` here.
  */
-import type { BlockStyleKey, BlockStyleOverride, CardEffects, MusicCardData, ProfileCardData, RoleTextEffect, TextRole } from "@/types";
+import type { BlockStyleKey, BlockStyleOverride, CanvasImage, CanvasText, CardEffects, MusicCardData, ProfileCardData, RoleTextEffect, TextRole } from "@/types";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -53,6 +53,9 @@ export type RoleEffectLeaf = LeafPaths<RoleTextEffect>;
 /** effects/blockStyle have their own maps; `music` is one deprecated blob. */
 export type ProfileFieldPath = LeafPaths<Omit<ProfileCardData, "effects" | "blockStyle" | "blockStylePaused" | "music">> | "music";
 export type MusicFieldPath = LeafPaths<Omit<MusicCardData, "effects">>;
+/** Editor v3 Phase G: free texts and images (their inspectors in the dock). */
+export type TextFieldPath = LeafPaths<CanvasText>;
+export type ImageFieldPath = LeafPaths<CanvasImage>;
 
 // ── Builders ────────────────────────────────────────────────────────────────
 
@@ -75,7 +78,13 @@ const type     = at("ProfileTypographyMenu.tsx");
 const bgMenu   = at("ProfileBackgroundMenu.tsx");
 const fxMenu   = at("ProfileEffectsMenu.tsx");
 const card     = at("ProfileCard.tsx");
-const music    = at("MusicCardWidget.tsx");
+// Editor v3 Phase G (D8): Music is edited in the dock (MusicInspector), its
+// floating MenuPanel is gone; Medidas / Capa / Bloquear of every element
+// inspector share ElementInspectorParts.
+const music    = at("MusicInspector.tsx");
+const parts    = at("ElementInspectorParts.tsx");
+const textInsp = at("TextInspector.tsx");
+const imgInsp  = at("ImageInspector.tsx");
 
 // Menu redesign Phase 2: routes are OBJECT paths — "Card de presentación ›
 // <object caption> › <section> › <control>" (the object captions of
@@ -350,20 +359,20 @@ export const BLOCK_STYLE_CAPS: Record<BlockStyleKey, Record<keyof BlockStyleOver
 // ── Music ───────────────────────────────────────────────────────────────────
 
 const M = "Music";
-const MEDIDAS = `${M} › Medidas`;
+const MEDIDAS = `${M} › Objeto › Medidas`;
 
 export const MUSIC_CARD_CAPS: Record<MusicFieldPath, Capability> = {
   id: system("record identity, assigned on creation"),
-  x: music(`${LIENZO} · ${MEDIDAS} › X`, "onGeometry({ x: v })"),
-  y: music(`${LIENZO} · ${MEDIDAS} › Y`, "onGeometry({ y: v })"),
-  w: music(`handles de resize · ${MEDIDAS} › Ancho`, "onGeometry({ w: v })"),
-  h: music(`handles de resize · ${MEDIDAS} › Alto`, "onGeometry({ h: v })"),
-  rotation: music(`Rotar · ${MEDIDAS} › Rotación`, "onGeometry({ rotation: v })", "updateCard(card.id, { rotation:"),
+  x: parts(`${LIENZO} · ${MEDIDAS} › X`, "m.onGeometry({ x: v })"),
+  y: parts(`${LIENZO} · ${MEDIDAS} › Y`, "m.onGeometry({ y: v })"),
+  w: parts(`handles de resize · ${MEDIDAS} › Ancho`, "m.onGeometry({ w: v })"),
+  h: parts(`handles de resize · ${MEDIDAS} › Alto`, "m.onGeometry({ h: v })"),
+  rotation: route(`Rotar · ${MEDIDAS} › Rotación`, ev("ElementInspectorParts.tsx", "m.onGeometry({ rotation: v })"), ev("MusicCardWidget.tsx", "updateCard(card.id, { rotation:")),
   // Editor v3 Phase E: stacking is edited in Capas (rail › Capas), for every element.
   zIndex: route(`${CAPAS} › Orden (Al frente / Subir / Bajar / Al fondo, arrastrar)`, ev("CanvasBoard.tsx", "applyLayerChange(id, reorderLayers(layerItemsNow(), id, action))"), ev("LayersPanel.tsx", "p.onReorder(single.id, b.action)")),
   layer: route(`${CAPAS} › Capa (Fondo / Medio / Frente)`, ev("LayersPanel.tsx", "p.onSetLayer(single.id, Number(t.id) as LayerIndex)")),
   depth: system("parallax depth of the element"),
-  locked: route(`${M} › Bloquear (y Capas › Seleccionado › Bloquear)`, ev("CanvasBoard.tsx", "updateMusicCard(mc.id, { locked: !mc.locked })")),
+  locked: route(`candado del lienzo · ${M} › Objeto › Bloquear (y Capas › Seleccionado › Bloquear)`, ev("CanvasBoard.tsx", "updateMusicCard(mc.id, { locked: !mc.locked })"), ev("ElementInspectorParts.tsx", "onChange={() => onToggleLock()}")),
   isPublic: system("visibility per space, set on creation"), stackId: system("stack membership (canvas grouping)"),
   musicUrl: retired("legacy link preview (Spotify/YouTube/SoundCloud) — MP3 only now"),
   mood: retired("legacy link preview caption"),
@@ -383,7 +392,7 @@ export const MUSIC_CARD_CAPS: Record<MusicFieldPath, Capability> = {
   glowIntensity: by("effects.glow.intensity", "legacy field merged by getMusicCardEffects"),
   textColor: music(`${M} › Texto › Color`, "updateCard(card.id, { textColor: v })"),
   textSize: music(`${M} › Texto › Tamaño del texto`, "updateCard(card.id, { textSize: v })"),
-  font: music(`${M} › Texto › Fuente`, "updateCard(card.id, { font:"),
+  font: music(`${M} › Texto › Fuente`, "updateCard(card.id, { font: (v || undefined)"),
 };
 
 const PROFILE_ONLY = "ProfileCard-only (Music's text and layout are its own fields)";
@@ -410,7 +419,7 @@ export const MUSIC_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "glow.animation.enabled": unsupported(MUSIC_GAP),
   "glow.animation.speed": unsupported(MUSIC_GAP),
   "shadow.color": music(`${ME} › Sombra › Color`, "patchShadow({ color: v })"),
-  "shadow.intensity": music(`${ME} › Sombra › Activar · Intensidad`, 'fx.setEnabled("shadow", on)', "patchShadow({ intensity: v })"),
+  "shadow.intensity": music(`${ME} › Sombra · Intensidad`, 'fx.setEnabled("shadow", on)', "patchShadow({ intensity: v })"),
   "shadow.blur": unsupported(MUSIC_GAP),
   "shadow.offsetX": unsupported(MUSIC_GAP),
   "shadow.offsetY": unsupported(MUSIC_GAP),
@@ -449,9 +458,59 @@ export const MUSIC_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   padding: retired("never exposed: it would change the box the layout measures"),
 };
 
+// ── Free text / Image (Editor v3 Phase G) ───────────────────────────────────
+
+const TX = "Texto";
+const IM = "Imagen";
+const STACKING = (owner: string) => ({
+  zIndex: route(`${CAPAS} › Orden${owner === IM ? " (y doble click en la imagen: al frente)" : ""}`, ev("CanvasBoard.tsx", "applyLayerChange(id, reorderLayers(layerItemsNow(), id, action))"), ev("LayersPanel.tsx", "p.onReorder(single.id, b.action)")),
+  layer: route(`${CAPAS} › Capa (Fondo / Medio / Frente)`, ev("LayersPanel.tsx", "p.onSetLayer(single.id, Number(t.id) as LayerIndex)")),
+});
+
+export const TEXT_CAPS: Record<TextFieldPath, Capability> = {
+  id: system("record identity, assigned on creation"),
+  x: parts(`${LIENZO} · ${TX} › Objeto › Medidas › X`, "m.onGeometry({ x: v })"),
+  y: parts(`${LIENZO} · ${TX} › Objeto › Medidas › Y`, "m.onGeometry({ y: v })"),
+  rotation: route(`Rotar · ${TX} › Objeto › Medidas › Rotación`, ev("ElementInspectorParts.tsx", "m.onGeometry({ rotation: v })"), ev("CanvasBoard.tsx", "onKeyRotate={()=>updateText(txt.id,{rotation:")),
+  ...STACKING(TX),
+  depth: system("parallax depth of the element"),
+  content: route(`${TX} › Contenido (y doble click en el lienzo)`, ev("TextInspector.tsx", "set({ content: v })"), ev("CanvasBoard.tsx", "onBlur={canInteract ? (e=>{updateText(txt.id,{content:e.currentTarget.innerText})")),
+  font: textInsp(`${TX} › Tipografía › Fuente`, "onChange={v => set({ font: v as TextFont })}"),
+  size: route(`${TX} › Tipografía › Tamaño (y Ctrl/⌘+flechas, esquina del lienzo)`, ev("TextInspector.tsx", "onChange={v => set({ size: v })}")),
+  letterSpacing: textInsp(`${TX} › Tipografía › Interletrado`, "onChange={v => set({ letterSpacing: v })}"),
+  uppercase: textInsp(`${TX} › Tipografía › Mayúsculas`, "onChange={v => set({ uppercase: v })}"),
+  color: textInsp(`${TX} › Color › Texto`, "onChange={v => set({ color: v })}"),
+  opacity: textInsp(`${TX} › Color › Opacidad`, "onChange={v => set({ opacity: v })}"),
+  locked: route(`candado del lienzo · ${TX} › Objeto › Bloquear (y Capas)`, ev("CanvasBoard.tsx", "updateText(txt.id,{locked:!txt.locked})"), ev("ElementInspectorParts.tsx", "onChange={() => onToggleLock()}")),
+  isPublic: system("visibility per space, set on creation"),
+  pinCount: system("social counter, written by pins"),
+};
+
+export const IMAGE_CAPS: Record<ImageFieldPath, Capability> = {
+  id: system("record identity, assigned on creation"),
+  src: imgInsp(`${IM} › Reemplazar`, "onChange={e => { const f = e.target.files?.[0]; if (f) p.onReplace(f);"),
+  x: parts(`${LIENZO} · ${IM} › Objeto › Medidas › X`, "m.onGeometry({ x: v })"),
+  y: parts(`${LIENZO} · ${IM} › Objeto › Medidas › Y`, "m.onGeometry({ y: v })"),
+  w: parts(`handles de resize · ${IM} › Objeto › Medidas › Ancho`, "m.onGeometry({ w: v })"),
+  h: parts(`handles de resize · ${IM} › Objeto › Medidas › Alto`, "m.onGeometry({ h: v })"),
+  naturalW: system("intrinsic size of the file, read on upload / replace (keeps the ratio)"),
+  naturalH: system("intrinsic size of the file, read on upload / replace (keeps the ratio)"),
+  isTransparent: system("derived from the file type on upload / replace"),
+  ...STACKING(IM),
+  depth: system("parallax depth of the element"),
+  rotation: route(`Rotar · ${IM} › Objeto › Medidas › Rotación`, ev("ElementInspectorParts.tsx", "m.onGeometry({ rotation: v })"), ev("CanvasBoard.tsx", "onKeyRotate={()=>enqueueOp({type:\"update_image\",id:img.id,patch:{rotation:")),
+  borderRadius: imgInsp(`${IM} › Forma › Esquinas`, "updateImage(img.id, { borderRadius: c.value })"),
+  locked: route(`candado del lienzo · ${IM} › Objeto › Bloquear (y Capas)`, ev("CanvasBoard.tsx", "enqueueOp({type:\"update_image\",id:img.id,patch:{locked:!img.locked}})"), ev("ElementInspectorParts.tsx", "onChange={() => onToggleLock()}")),
+  isPublic: system("visibility per space, set on creation"),
+  pinCount: system("social counter, written by pins"),
+  storage_path: system("storage key of the uploaded file (upload / replace)"),
+  linkUrl: imgInsp(`${IM} › Link`, "updateImage(img.id, { linkUrl: v || undefined })"),
+  isLocal: system("temporary blob: URL while the upload runs"),
+};
+
 // ── Lookup ──────────────────────────────────────────────────────────────────
 
-export type CapabilityOwner = "profile" | "music";
+export type CapabilityOwner = "profile" | "music" | "text" | "image";
 
 /** Resolves a full path ("effects.bg.color", "blockStyle.links.iconColor",
  * "effects.textRoles.bio.shimmer.speed", "nameColor") for an owner. */
@@ -462,6 +521,7 @@ export function capabilityAt(owner: CapabilityOwner, path: string): Capability |
     return (ROLE_EFFECT_CAPS as Record<string, Record<string, Capability>>)[role]?.[rest.join(".")];
   }
   if (path.startsWith("effects.")) {
+    if (owner === "text" || owner === "image") return undefined;
     const map = (owner === "profile" ? PROFILE_EFFECT_CAPS : MUSIC_EFFECT_CAPS) as Record<string, Capability>;
     return map[path.slice("effects.".length)];
   }
@@ -470,7 +530,8 @@ export function capabilityAt(owner: CapabilityOwner, path: string): Capability |
     const [, block, key] = path.split(".");
     return (BLOCK_STYLE_CAPS as Record<string, Record<string, Capability>>)[block]?.[key];
   }
-  return ((owner === "profile" ? PROFILE_CARD_CAPS : MUSIC_CARD_CAPS) as Record<string, Capability>)[path];
+  const fields = owner === "profile" ? PROFILE_CARD_CAPS : owner === "music" ? MUSIC_CARD_CAPS : owner === "text" ? TEXT_CAPS : IMAGE_CAPS;
+  return (fields as Record<string, Capability>)[path];
 }
 
 /** Every (owner, path, capability) row of the matrix. */
@@ -485,5 +546,7 @@ export function capabilityMatrix(): Array<{ owner: CapabilityOwner; path: string
   for (const [block, map] of Object.entries(BLOCK_STYLE_CAPS)) push("profile", `blockStyle.${block}.`, map);
   push("music", "", MUSIC_CARD_CAPS);
   push("music", "effects.", MUSIC_EFFECT_CAPS);
+  push("text", "", TEXT_CAPS);
+  push("image", "", IMAGE_CAPS);
   return rows;
 }

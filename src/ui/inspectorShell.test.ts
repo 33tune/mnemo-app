@@ -80,7 +80,7 @@ test("Phase B: opening / closing the inspector never writes elements (card.x/y u
 
 test("CanvasBoard: the view offset is a translate of the canvas wrapper, frozen per gesture", () => {
   assert.ok(BOARD.includes("transform: !canEdit ? `scale(${viewerScale})` : (viewDx || viewDy) ? `translate3d(${-viewDx}px,${-viewDy}px,0)` : undefined"));
-  assert.ok(BOARD.includes("freezeViewOffset(appliedViewRef.current, computedView, viewGesture)"));
+  assert.ok(BOARD.includes("freezeViewOffset(appliedViewRef.current ?? computedView, computedView, viewGesture)"));
   assert.ok(BOARD.includes('window.addEventListener("pointerdown", down, true)') && BOARD.includes('window.addEventListener("pointerup", up, true)'));
 });
 
@@ -148,7 +148,8 @@ test("r2: widgets rendered inside the transformed wrapper keep position:fixed bo
 
 test("r2: a pointer gesture settles the offset transition at once and freezes whenever the inspector is open", () => {
   assert.ok(BOARD.includes('setAttribute("data-view-gesture", "")') && BOARD.includes('removeAttribute("data-view-gesture")'));
-  assert.ok(BOARD.includes("shouldFreezeOnPointerDown(!!inspectorCardIdRef.current, applied.dx + applied.dy)"));
+  // Phase G: any element inspector (card, text, image, Music) freezes it too.
+  assert.ok(BOARD.includes("shouldFreezeOnPointerDown(!!inspectorTargetElIdRef.current, applied ? applied.dx + applied.dy : 0)"));
   const css = read("src/ui/editor.css");
   assert.match(css, /\.mn-canvas\[data-mnemo-canvas\]\[data-view-gesture\]\s*\{\s*transition:\s*none/);
 });

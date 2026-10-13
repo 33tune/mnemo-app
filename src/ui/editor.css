@@ -392,6 +392,35 @@
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn[aria-disabled="true"] { color: GrayText; border-color: GrayText; }
 }
 
+/* Phase G — element inspectors (Texto / Imagen / Música, design screens 04/05/07). */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__hint {
+  min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--ui-font-sans); font-size: 12px; font-weight: 400; color: var(--ui-text-tertiary);
+}
+:where([data-mnemo-editor]) .mn-imgsource { display: flex; gap: 14px; align-items: flex-end; margin-bottom: 4px; }
+:where([data-mnemo-editor]) .mn-imgsource__thumb {
+  width: 96px; height: 120px; flex-shrink: 0; border-radius: 12px; overflow: hidden;
+  background: var(--ui-surface-group); box-shadow: inset 0 0 0 1px var(--ui-line-group);
+  display: grid; place-items: center;
+}
+:where([data-mnemo-editor]) .mn-imgsource__thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+:where([data-mnemo-editor]) .mn-imgsource__actions { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+:where([data-mnemo-editor]) .mn-shapeseg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; padding: 2px; border-radius: var(--ui-radius-seg-track); background: var(--ui-surface-group); }
+:where([data-mnemo-editor]) .mn-shapeseg__btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  min-height: 52px; padding: 6px 2px; margin: 0; border: none; border-radius: var(--ui-radius-seg-thumb); background: transparent; cursor: pointer;
+  font-family: var(--ui-font-sans); font-size: 12px; font-weight: 500; color: var(--ui-text-secondary);
+  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease;
+}
+:where([data-mnemo-editor]) .mn-shapeseg__btn:hover { color: var(--ui-text-primary); }
+:where([data-mnemo-editor]) .mn-shapeseg__btn[aria-pressed="true"] { background: var(--ui-surface-thumb); color: var(--ui-text-seg); font-weight: 650; box-shadow: var(--ui-shadow-thumb); }
+:where([data-mnemo-editor]) .mn-shapeseg__btn:focus-visible { outline: 2px solid transparent; box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor]) .mn-shapeseg__shape { width: 18px; height: 18px; border: 1.5px solid currentColor; box-sizing: border-box; }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor]) .mn-shapeseg__btn { border: 1px solid ButtonText; }
+  :where([data-mnemo-editor]) .mn-shapeseg__btn[aria-pressed="true"] { border: 2px solid Highlight; }
+}
+
 /* Phase F — font field (FontField.tsx, design screen 02): the family written
    in itself on a filled field; the native <select> covers it transparently. */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield {
