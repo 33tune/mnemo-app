@@ -56,13 +56,14 @@ import { useEditorSelection, profileTargetId, targetId, elementTarget, elementEd
 import { resizeMinimums } from "@/lib/resizeMath";
 import { CANVAS_TEXT_DEFAULTS } from "@/lib/canvasText";
 import { resolvePartClick, isPartRole, type PartClick, type PartRole } from "@/lib/partNavigation";
+import { snapNudgeDelta } from "@/lib/gridSnap";
 import { inspectorObject, chipLabel } from "@/lib/inspectorObjects";
 import type { MeasureSpec } from "./ElementInspectorParts";
 import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANEL_ID } from "./EditorHost";
 import { toLayerItems, visualOrder, reorder as reorderLayers, moveWithinLayer, setLayer as setElementLayer, bringToFront, layerLabels, positionAfter, LAYER_NAMES as LAYER_TITLES, type LayerPatch } from "@/lib/layerOrder";
 import type { LayerRow } from "./LayersPanel";
 import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail";
-import { CanvasGrid, useGridPreference } from "./CanvasGrid";
+import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from "./CanvasGrid";
 import type { RoomOp } from "./RoomInspector";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
@@ -897,6 +898,13 @@ export default function CanvasBoard({
   }, []);
   // Lienzo › Mostrar cuadrícula (local editor preference).
   const [gridOn, setGridOn] = useGridPreference();
+  // Editor v3 Phase I: Lienzo › Ajustar a la cuadrícula (local preference).
+  // Snaps drag / resize / nudge in the editor (gridSnap.ts); never in
+  // space_mobile (legacy 390px canvas) nor without pointer editing.
+  const [gridSnapOn, setGridSnapOn] = useGridSnapPreference();
+  const snapStep = gridSnapOn && canEdit && canInteract && canvasMode !== "space_mobile" ? GRID_STEP : 0;
+  const snapStepRef = useRef(snapStep);
+  snapStepRef.current = snapStep;
   // Rail tools from the keyboard (canvas focus only — see the key handler).
   const railKeyRef = useRef<((key: string) => boolean) | null>(null);
   railKeyRef.current = (key: string) => {
@@ -909,7 +917,13 @@ export default function CanvasBoard({
 
   const router = useRouter();
 
-  const { handleMouseMoveParallax, getParallaxStyle } = useParallax();
+  const { handleMouseMoveParallax, getParallaxStyle: parallaxStyleOf } = useParallax();
+  // Editor v3 Phase I (review I-R MAYOR 2): while the grid is shown or
+  // snapping is on, the editor drops the mouse parallax so what you see sits
+  // on the lines you snap to (useParallax untouched; the public view keeps it).
+  const parallaxNeutral = canEdit && (gridOn || gridSnapOn);
+  const getParallaxStyle: typeof parallaxStyleOf = (layer, depth) =>
+    parallaxNeutral ? { transform: "translate(0px, 0px)", willChange: "transform", transition: "none" } : parallaxStyleOf(layer, depth);
   const {
     dragging, resizing, rotating, overTrash, didDrag,
     startDrag, startGroupResize, startSingleResize, startRotate,
@@ -918,6 +932,7 @@ export default function CanvasBoard({
     elements, setElements,
     trashRef,
     canvasBounds: { w: effectiveW, h: effectiveH, topOffset: 44 },
+    snapStep,
   });
 
   // ── SpaceFont injection — load custom font into document.fonts when spaceFont changes ──
@@ -1327,7 +1342,17 @@ export default function CanvasBoard({
         announceRef.current?.(`La card de presentación está siempre centrada. ${isMac ? "⌘" : "Ctrl"} + flechas cambia su tamaño`);
         return true;
       }
-      const next = nudgeMove(els, ids, action.dx, action.dy, bounds);
+      // Phase I: with snapping on, an arrow goes to the next grid line (the
+      // first movable selected element leads; the group keeps its offsets).
+      // Shift + arrow keeps its free 10px step.
+      let { dx: mdx, dy: mdy } = action;
+      const lead = snapStepRef.current > 0 && !e.shiftKey
+        ? sel.find(el => el.elementType !== "profile" && !(el as { locked?: boolean }).locked) : undefined;
+      if (lead) {
+        if (mdx) mdx = snapNudgeDelta(lead.x, Math.sign(mdx), snapStepRef.current);
+        if (mdy) mdy = snapNudgeDelta(lead.y, Math.sign(mdy), snapStepRef.current);
+      }
+      const next = nudgeMove(els, ids, mdx, mdy, bounds);
       e.preventDefault();
       if (next === els) { announceRef.current?.("Elemento bloqueado"); return true; }
       const p = pendingNudgeRef.current;
@@ -1350,7 +1375,19 @@ export default function CanvasBoard({
     if (ids.size !== 1) { announceRef.current?.("Para cambiar el tamaño seleccioná un solo elemento"); return true; }
     const el = els.find(x => ids.has(x.id));
     if (!el) return true;
-    const r = nudgeResize(el as Parameters<typeof nudgeResize>[0], action.dx, action.dy, bounds);
+    // Phase I: with snapping on, Ctrl/⌘+arrow moves the right / bottom edge to
+    // the next grid line (not the ProfileCard — always centered — nor a
+    // text's font size). Shift keeps the free 10px step.
+    let rdx = action.dx, rdy = action.dy;
+    if (snapStepRef.current > 0 && !e.shiftKey && el.elementType !== "profile" && el.elementType !== "text") {
+      // Same width / height fallback as nudgeResize (80 × 60).
+      const box = el as { x: number; y: number; w?: number; h?: number };
+      const bw = Number.isFinite(box.w) && (box.w ?? 0) > 0 ? (box.w as number) : 80;
+      const bh = Number.isFinite(box.h) && (box.h ?? 0) > 0 ? (box.h as number) : 60;
+      if (rdx) rdx = snapNudgeDelta(box.x + bw, Math.sign(rdx), snapStepRef.current);
+      if (rdy) rdy = snapNudgeDelta(box.y + bh, Math.sign(rdy), snapStepRef.current);
+    }
+    const r = nudgeResize(el as Parameters<typeof nudgeResize>[0], rdx, rdy, bounds);
     if (!r) { announceRef.current?.("Elemento bloqueado"); return true; }
     const p = pendingNudgeRef.current;
     if (!p || p.kind !== "resize" || p.id !== el.id) flushNudgeRef.current?.();
@@ -3542,9 +3579,10 @@ export default function CanvasBoard({
           {/* Iteration 0: canvas keyboard help (aria-describedby of the
               canvas) and the polite status region for keyboard actions. */}
           <div id="mnemo-canvas-help" className="mn-sr-only">
-            {isMacUi
-              ? "Corchetes para recorrer los elementos, Enter selecciona la card de presentación, flechas mueven (Mayús ×10), ⌘ más flechas cambian el tamaño, Suprimir elimina, Escape deselecciona."
-              : "Corchetes para recorrer los elementos, Enter selecciona la card de presentación, flechas mueven (Mayús ×10), Ctrl más flechas cambian el tamaño, Suprimir elimina, Escape deselecciona."}
+            {/* Phase I (review I-V M1): the arrows' meaning follows the snapping mode. */}
+            {`Corchetes para recorrer los elementos, Enter selecciona la card de presentación, ${snapStep > 0
+              ? "con ajuste a la cuadrícula las flechas saltan a la próxima línea (Mayús más flechas mueve 10 px libre)"
+              : "flechas mueven (Mayús ×10)"}, ${isMacUi ? "⌘" : "Ctrl"} más flechas cambian el tamaño, Suprimir elimina, Escape deselecciona.`}
           </div>
           <div role="status" aria-live="polite" aria-atomic="true" className="mn-sr-only">{canvasStatus}</div>
         </>
@@ -4201,6 +4239,7 @@ export default function CanvasBoard({
             pickFont: () => spaceFontRef.current?.click(),
             pickCursor: () => spaceCursorRef.current?.click(),
             grid: gridOn, onGrid: setGridOn,
+            snap: gridSnapOn, onSnap: setGridSnapOn,
           }}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));

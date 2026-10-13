@@ -1,30 +1,42 @@
 "use client";
 import React, { useCallback, useSyncExternalStore } from "react";
 
-/** Grid step in canvas px. Snapping to it is Phase I (not here). */
+/** Grid step in canvas px (Phase I snaps to it — src/lib/gridSnap.ts). */
 export const GRID_STEP = 24;
 export const GRID_PREF_KEY = "myland.editorGrid";
+/** Editor v3 Phase I: "Ajustar a la cuadrícula". */
+export const GRID_SNAP_PREF_KEY = "myland.editorGridSnap";
 const GRID_EVENT = "myland:editor-grid";
 
-function read(): boolean {
-  try { return window.localStorage.getItem(GRID_PREF_KEY) === "1"; } catch { return false; }
+function readKey(key: string): boolean {
+  try { return window.localStorage.getItem(key) === "1"; } catch { return false; }
 }
-function subscribe(onChange: () => void): () => void {
-  const onStorage = (e: StorageEvent) => { if (e.key === null || e.key === GRID_PREF_KEY) onChange(); };
+function subscribeKey(key: string, onChange: () => void): () => void {
+  const onStorage = (e: StorageEvent) => { if (e.key === null || e.key === key) onChange(); };
   window.addEventListener("storage", onStorage);
   window.addEventListener(GRID_EVENT, onChange);
   return () => { window.removeEventListener("storage", onStorage); window.removeEventListener(GRID_EVENT, onChange); };
 }
 
-/** "Mostrar cuadrícula" — a LOCAL editor preference (per browser, off by
- * default; storage failures just mean "off"). Never persisted with the room. */
-export function useGridPreference(): [boolean, (on: boolean) => void] {
-  const on = useSyncExternalStore(subscribe, read, () => false);
+/** A LOCAL editor preference (per browser, off by default; storage failures
+ * just mean "off"). Never persisted with the room. */
+function useLocalFlag(key: string): [boolean, (on: boolean) => void] {
+  const subscribe = useCallback((onChange: () => void) => subscribeKey(key, onChange), [key]);
+  const on = useSyncExternalStore(subscribe, () => readKey(key), () => false);
   const set = useCallback((next: boolean) => {
-    try { window.localStorage.setItem(GRID_PREF_KEY, next ? "1" : "0"); } catch { /* storage blocked: session-only */ }
+    try { window.localStorage.setItem(key, next ? "1" : "0"); } catch { /* storage blocked: session-only */ }
     window.dispatchEvent(new Event(GRID_EVENT));
-  }, []);
+  }, [key]);
   return [on, set];
+}
+
+/** "Mostrar cuadrícula". */
+export function useGridPreference(): [boolean, (on: boolean) => void] {
+  return useLocalFlag(GRID_PREF_KEY);
+}
+/** Editor v3 Phase I: "Ajustar a la cuadrícula" — independent of showing it. */
+export function useGridSnapPreference(): [boolean, (on: boolean) => void] {
+  return useLocalFlag(GRID_SNAP_PREF_KEY);
 }
 
 // Editor v3 Phase D: the visual grid. Drawn INSIDE the canvas wrapper (it

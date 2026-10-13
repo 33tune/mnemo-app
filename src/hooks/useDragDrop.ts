@@ -4,6 +4,7 @@ import type { CanvasElement, CardFormat } from "@/types";
 import { getFreeformCardBounds, clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
 import { applyGroupDragDelta, filterTrashDeletion } from "@/lib/canvasSelectionGuards";
 import { computeResize, resizeMinimums, type ResizeHandle } from "@/lib/resizeMath";
+import { snapDragDelta, snapResizeDelta } from "@/lib/gridSnap";
 
 export type { ResizeHandle };
 
@@ -33,6 +34,11 @@ interface Options {
   setElements:    React.Dispatch<React.SetStateAction<CanvasElement[]>>;
   trashRef:       React.RefObject<HTMLDivElement>;
   canvasBounds?:  { w: number; h: number; topOffset: number };
+  /** Editor v3 Phase I: grid step for snapping (0 / absent = off). Only the
+   * INPUT delta of a drag / single resize is adjusted (gridSnap.ts) — every
+   * formula below is unchanged; the ProfileCard, text size and group resize
+   * are never snapped; Shift held during the move = free. */
+  snapStep?:      number;
 }
 
 function angleBetween(cx: number, cy: number, px: number, py: number): number {
@@ -43,6 +49,7 @@ export function useDragDrop({
   elements, setElements,
   trashRef,
   canvasBounds,
+  snapStep = 0,
 }: Options) {
   const [dragging,  setDragging]  = useState<DragTarget | null>(null);
   const [resizing,  setResizing]  = useState<ResizeTarget | null>(null);
@@ -158,7 +165,10 @@ export function useDragDrop({
       const ny = e.clientY - dragOffset.current.y;
       const sp = dragStartPos.current[dragging.id];
       if (!sp) return;
-      const dx = nx - sp.x, dy = ny - sp.y;
+      let dx = nx - sp.x, dy = ny - sp.y;
+      // Phase I: the dragged element's top-left lands on the grid (the group
+      // moves by the same delta). The ProfileCard never drags (see below).
+      if (snapStep > 0 && !e.shiftKey && dragging.type !== "profile") ({ dx, dy } = snapDragDelta(sp, dx, dy, snapStep));
       // The Presentation Card is a singleton anchor — it can end up with a
       // dragStartPos entry as a passenger in a multi-select drag (e.g. it was
       // swept into selectedIds by the marquee, then the user drags a
@@ -230,7 +240,13 @@ export function useDragDrop({
       // Minimums per element type
       const { minW, minH } = resizeMinimums(resizing.type);
 
-      const { nx, ny, nw, nh } = computeResize(handle, dx, dy, w, h, ex, ey, ratio, resizing.type === "image", minW, minH);
+      // Phase I: the moving edge lands on the grid — same computeResize, only
+      // its input delta changes (an image snaps its driving side, keeps ratio).
+      const isImage = resizing.type === "image";
+      const snapped = snapStep > 0 && !e.shiftKey
+        ? snapResizeDelta(handle, dx, dy, { x: ex, y: ey, w, h }, snapStep, isImage && ratio > 0)
+        : { dx, dy };
+      const { nx, ny, nw, nh } = computeResize(handle, snapped.dx, snapped.dy, w, h, ex, ey, ratio, isImage, minW, minH);
 
       lastResize.current = { w: nw, h: nh, x: nx, y: ny };
       setElements(p => p.map(el => {

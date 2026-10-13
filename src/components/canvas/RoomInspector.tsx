@@ -43,6 +43,9 @@ interface RoomInspectorProps {
   /** Lienzo › Mostrar cuadrícula (editor-only, local preference). */
   grid: boolean;
   onGrid: (on: boolean) => void;
+  /** Editor v3 Phase I: Lienzo › Ajustar a la cuadrícula (local preference). */
+  snap: boolean;
+  onSnap: (on: boolean) => void;
   // Shell
   onClose: () => void;
   returnFocusTo: () => HTMLElement | null;
@@ -149,10 +152,19 @@ export default function RoomInspector(p: RoomInspectorProps) {
       </MenuSection>
 
       <MenuSection label="Lienzo" num="02" tone={2}>
-        <MenuRow label="Mostrar cuadrícula">
+        <MenuRow label="Mostrar cuadrícula" hintId="mnemo-room-grid-note">
           <Toggle value={p.grid} onChange={v => p.onGrid(v)} />
         </MenuRow>
-        <MenuNote>Solo se ve mientras editás; nunca en tu perfil.</MenuNote>
+        <MenuNote id="mnemo-room-grid-note">Solo se ve mientras editás; nunca en tu perfil.</MenuNote>
+        {/* Editor v3 Phase I (review I-V/I-R): Mayús counts WHILE dragging —
+            pressed before the click it still toggles the selection. */}
+        <MenuRow label="Ajustar a la cuadrícula" hintId="mnemo-room-snap-note">
+          <Toggle value={p.snap} onChange={v => p.onSnap(v)} />
+        </MenuRow>
+        <MenuNote id="mnemo-room-snap-note">
+          Mover y cambiar el tamaño (también con flechas) se alinea a la cuadrícula. Mientras arrastrás, mantené Mayús para hacerlo libre. La tarjeta queda centrada.
+          {p.snap && !p.grid && " La cuadrícula está oculta: activá Mostrar cuadrícula para verla."}
+        </MenuNote>
       </MenuSection>
 
       <MenuSection label="Apariencia" num="03" tone={3}>

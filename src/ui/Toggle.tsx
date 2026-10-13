@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useFieldLabelId } from "./MenuRow";
+import { useFieldLabelId, useFieldDescId } from "./MenuRow";
 
 interface ToggleProps {
   value:     boolean;
@@ -18,6 +18,8 @@ interface ToggleProps {
 // every existing call site keeps working.
 export function Toggle({ value, onChange, label, disabled }: ToggleProps) {
   const labelledBy = useFieldLabelId();
+  // Editor v3 Phase I: the row's hint (MenuRow hintId) describes the switch.
+  const describedBy = useFieldDescId();
   return (
     <button
       type="button"
@@ -25,6 +27,7 @@ export function Toggle({ value, onChange, label, disabled }: ToggleProps) {
       aria-checked={value}
       aria-label={label}
       aria-labelledby={label ? undefined : labelledBy}
+      aria-describedby={describedBy}
       aria-disabled={disabled || undefined}
       className="mn-switch"
       onMouseDown={e => e.stopPropagation()}

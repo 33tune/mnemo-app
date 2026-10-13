@@ -89,7 +89,14 @@
   - **Sin QA en navegador real.**
 - **Merge a `main` (OK explícito del usuario, 2026-10-12):** las Fases 0 y A–H se integraron a `main` por fast-forward
   desde `feature/myland-editor-v3` (`main` = el commit de la Fase H). Validado sobre `main`: tests, `tsc` y build.
-- **NO empezada:** la fase I. **Arranca solo con el OK del usuario.**
+- **Fase I (ajuste a la cuadrícula): TERMINADA (2026-10-13)** en `feature/myland-editor-v3`, commit
+  `feat: implement MYLAND editor v3 phase I (grid snapping)`. Detalle y pendientes en § 6, Fase I.
+  - Revisión: Regresiones/Capacidades y Visual/UX/Accesibilidad dieron APPROVE WITH NOTES (MAYOR: la nota invitaba a
+    apretar Shift antes del click, que alterna la selección; el parallax del editor separaba los elementos de las
+    líneas; la ayuda del lienzo no describía el modo); una ronda de correcciones y verificación de cierre: los dos
+    **APPROVE**. `npm test` 645/645, `tsc` limpio, `next build` 13/13.
+  - Integrada a `main` por fast-forward con el OK explícito del usuario. **Sin QA en navegador real.**
+- **El plan v3 está completo (fases 0, A–I).** Cualquier trabajo nuevo arranca solo con el OK del usuario.
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -99,8 +106,8 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Fases A–H cerradas y en `main`.** Siguiente: QA en navegador de las Fases A–H; **la Fase I** (ajuste a la
-   cuadrícula) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
+6. **Fases A–I cerradas y en `main`: el plan v3 está completo.** Siguiente: QA en navegador de las Fases A–I. Nada
+   nuevo sin el OK del usuario; merge a `main` solo con OK explícito.
 
 ---
 
@@ -839,6 +846,42 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
 - **Función pura de ajuste** aplicada en los puntos donde ya se escribe la posición: drag, resize y nudge.
 - **No cambia fórmulas.** Excluye la ProfileCard, que siempre se recentra. Hay que definir si Shift lo desactiva.
 - **Toca sistemas protegidos** (`useDragDrop`, `resizeMath`, `canvasNudge`): antes hay que documentarlo según § 4.
+- **Estado: TERMINADA (2026-10-13)**, ver § 1.
+- **Sistemas protegidos (§ 4):**
+  1. **Motivo:** el ajuste tiene que actuar donde ya se escriben posición y tamaño.
+  2. **Archivos:** `useDragDrop.ts` (opción nueva `snapStep`; el drag y el resize de UN elemento ajustan su delta de
+     entrada); el nudge con teclado en `CanvasBoard.tsx`. `resizeMath.ts`, `canvasNudge.ts`, `canvasSelectionGuards.ts`,
+     `persistDragResult` y el magnetismo de stacks **no cambiaron**.
+  3. **Qué puede cambiar:** con el ajuste encendido, dónde termina un elemento al arrastrarlo / redimensionarlo / moverlo
+     con flechas. Apagado (por defecto) el comportamiento es idéntico.
+  4. **Riesgo y aislamiento:** solo se ajusta el delta que reciben las MISMAS funciones (`applyGroupDragDelta`,
+     `computeResize`, `nudgeMove` / `nudgeResize`), con funciones puras testeadas (`src/lib/gridSnap.ts`); las ramas de
+     la ProfileCard, el tamaño del texto y el resize de grupo quedan antes y sin ajuste (test).
+- **Qué quedó:**
+  - **`src/lib/gridSnap.ts`** (puro): `snapDragDelta` (la esquina superior izquierda del elemento arrastrado cae en la
+    línea; el grupo se mueve con el mismo delta), `snapResizeDelta` (el borde que mueve el handle cae en la línea; una
+    imagen ajusta solo el lado que manda y conserva la proporción), `snapNudgeDelta` (la flecha va a la próxima línea).
+  - **Interruptor** "Ajustar a la cuadrícula" en Tu sala › Lienzo: preferencia local (`myland.editorGridSnap`, apagada
+    por defecto), independiente de "Mostrar cuadrícula" (si está oculta, la nota lo avisa). Notas asociadas a sus
+    interruptores (`Toggle` toma `aria-describedby` de la fila).
+  - **Shift:** decisión — mantener Mayús **mientras se arrastra** desactiva el ajuste (antes del click sigue alternando la
+    selección, como siempre); Mayús + flechas conserva su paso libre de 10px. Ctrl/⌘ + flechas lleva el borde derecho /
+    inferior a la próxima línea.
+  - **No se ajustan:** la ProfileCard (siempre centrada), el tamaño de fuente del texto, el resize de grupo, la rotación,
+    los valores escritos en Medidas (exactos) y los bloques internos de la card. Tampoco en `space_mobile` ni en táctil.
+  - **Parallax:** mientras la cuadrícula está visible o el ajuste encendido, el editor anula el parallax del mouse para que
+    lo que se ve coincida con las líneas (`useParallax` intacto; la vista pública lo conserva).
+  - La ayuda del lienzo para lector de pantalla describe las flechas según el modo.
+- **Pendientes (no bloquearon):**
+  - **QA en navegador:** drag, resize (cada handle; imagen con proporción), flechas y Ctrl/⌘+flechas con el ajuste
+    encendido y apagado; Mayús durante el gesto; Mayús antes del click (alterna la selección); la cuadrícula visible
+    alineada con los elementos; NVDA (descripción del interruptor, ayuda del lienzo).
+  - **Quedan fuera de la línea, aceptado:** pegado a la topbar (y = 44) o al borde derecho (los clamps del lienzo), en los
+    tamaños mínimos, el lado que sigue a la proporción de una imagen y los stacks legacy (su magnetismo los realinea).
+  - Con el ajuste, combinar flechas (24px) y Mayús+flechas (10px) solo llega a posiciones pares; Medidas o apagar el
+    ajuste dan precisión de 1px.
+  - La ayuda del lienzo es un `aria-describedby` fijo: si el modo cambia con el foco en el lienzo, algunos lectores no la
+    releen hasta volver a entrar.
 
 ---
 
