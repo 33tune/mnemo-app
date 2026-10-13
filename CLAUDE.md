@@ -20,7 +20,8 @@ planeado acá hasta confirmarlo.
 > - riesgos y lo que queda fuera de alcance.
 >
 > **Estado:**
-> - `main` = `origin/main` = `44f4acc`, que incluye las Fases 1 y 2.
+> - `main` = `origin/main` = el commit de la Fase H del plan v3 (incluye las Fases 1 y 2 del rediseño y las Fases 0
+>   y A–H del plan v3). Antes del merge del 2026-10-12, `main` era `44f4acc`.
 > - Branch de trabajo: **`feature/myland-editor-v3`**. Se mergea a `main` por fase y
 >   solo con OK explícito del usuario.
 > - Fase 0 (docs) hecha con el commit del checkpoint (`b5d40e2`).
@@ -61,7 +62,15 @@ planeado acá hasta confirmarlo.
 >   Regresiones y Visual/UX/A11y APPROVE. Sin QA en navegador real. **Ojo (previo, no tocado):** el contenido del texto
 >   libre se renderiza con `dangerouslySetInnerHTML` (XSS almacenado); tratarlo aparte. Detalle en el plan (§ 1 y § 6, Fase G).
 >
-> **Siguiente acción:** QA en navegador de las Fases D, F, E y G; la Fase H solo con el OK del usuario.
+>
+> - **Fase H (navegación por partes: click 2 en una parte de la card abre ese objeto, contorno punteado y pastilla
+>   "Editando X · esc volver" solo en el editor) TERMINADA (2026-10-12).** Revisión de cierre: Regresiones y
+>   Visual/UX/A11y APPROVE. Sin QA en navegador real. Detalle en el plan (§ 1 y § 6, Fase H).
+> - **Merge a `main` (OK del usuario, 2026-10-12):** las Fases 0 y A–H están en `main` (fast-forward desde
+>   `feature/myland-editor-v3`). Las líneas de arriba que dicen "No mergeada a `main`" describen el estado al cerrar cada
+>   fase.
+>
+> **Siguiente acción:** QA en navegador de las Fases A–H; la Fase I solo con el OK del usuario.
 >
 > **Dirección visual:** "Darkroom" (monocromo), descrita más abajo, quedó **SUPERADA**
 > por el diseño de Claude Design: colores de marca y modos Light/Dark/OG solo del editor.

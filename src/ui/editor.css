@@ -392,6 +392,28 @@
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-btn[aria-disabled="true"] { color: GrayText; border-color: GrayText; }
 }
 
+/* Phase H — "Editando <parte> de la tarjeta · esc volver" (design screen 03).
+   Canvas chrome: neutral, fixed values (never the editor theme), visual only. */
+:where([data-mnemo-ui]).mn-partpill {
+  position: fixed; transform: translateX(-50%); z-index: 690; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 999px; white-space: nowrap;
+  background: var(--ui-chrome-bg); border: 1px solid var(--ui-chrome-line); box-shadow: var(--ui-chrome-shadow);
+  color: var(--ui-chrome-text-hover); font-family: var(--ui-font-sans); font-size: 13px; line-height: 1;
+}
+:where([data-mnemo-ui]) .mn-partpill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ui-chrome-part-mark); flex-shrink: 0; }
+:where([data-mnemo-ui]) .mn-partpill__what { font-weight: 600; }
+:where([data-mnemo-ui]) .mn-partpill__of { color: var(--ui-chrome-text); }
+:where([data-mnemo-ui]) .mn-partpill__key {
+  display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px;
+  background: var(--ui-chrome-tint); color: var(--ui-chrome-text-hover); font-size: 11px;
+}
+:where([data-mnemo-ui]) .mn-partpill__kbd { font-family: var(--ui-font-mono); }
+@media (forced-colors: active) {
+  :where([data-mnemo-ui]).mn-partpill { border: 1px solid CanvasText; background: Canvas; color: CanvasText; }
+  :where([data-mnemo-ui]) .mn-partpill__dot { background: Highlight; forced-color-adjust: none; }
+  :where([data-mnemo-ui]) .mn-partpill__key { border: 1px solid CanvasText; }
+}
+
 /* Phase G — element inspectors (Texto / Imagen / Música, design screens 04/05/07). */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-collapse__hint {
   min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

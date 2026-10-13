@@ -55,6 +55,8 @@ import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSh
 import { useEditorSelection, profileTargetId, targetId, elementTarget, elementEditButtonId, elementInspectorId, type ElementTargetKind } from "@/lib/editorSelection";
 import { resizeMinimums } from "@/lib/resizeMath";
 import { CANVAS_TEXT_DEFAULTS } from "@/lib/canvasText";
+import { resolvePartClick, isPartRole, type PartClick, type PartRole } from "@/lib/partNavigation";
+import { inspectorObject, chipLabel } from "@/lib/inspectorObjects";
 import type { MeasureSpec } from "./ElementInspectorParts";
 import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANEL_ID } from "./EditorHost";
 import { toLayerItems, visualOrder, reorder as reorderLayers, moveWithinLayer, setLayer as setElementLayer, bringToFront, layerLabels, positionAfter, LAYER_NAMES as LAYER_TITLES, type LayerPatch } from "@/lib/layerOrder";
@@ -3086,6 +3088,46 @@ export default function CanvasBoard({
     if (!clickThrough(id, e)) setSelectedIds(new Set([id]));
   }
 
+  // ── Editor v3 Phase H (D4): navigating the ProfileCard by its parts ──────
+  /** The part opened by a click on the canvas (review H-V M2: the pill is
+   * the answer to click 2, not a permanent layer while the card is edited). */
+  const [partNav, setPartNav] = useState<{ cardId: string; role: PartRole } | null>(null);
+  const partNavShown = !!partNav && editorSel.target?.kind === "profile"
+    && editorSel.target.id === partNav.cardId && editorSel.target.objectId === partNav.role;
+  useEffect(() => { if (partNav && !partNavShown) setPartNav(null); }, [partNav, partNavShown]);
+  /** Opens the card's inspector on `role` (or switches the open one). Opening
+   * moves focus to the inspector's h2 (it announces the part); switching
+   * keeps focus on the canvas, so the change is said by role=status.
+   * Either way the "Editando …" pill shows (partNav) until the part changes
+   * or the inspector closes. */
+  function openProfilePart(cardId: string, role: PartRole) {
+    setInspectorCollapseReq(false);
+    setPartNav({ cardId, role });
+    if (inspectorCardIdRef.current === cardId) {
+      setInspectorObject(role);
+      announceRef.current?.(`Editando ${chipLabel(inspectorObject(role))} de la tarjeta. Escape para volver.`);
+    } else { editorSel.memory.setActiveObject(cardId, role); openProfile(cardId); }
+  }
+  /** The card's click: click 2 on a part (card already the whole selection,
+   * no drag, no Shift) opens that part; the trailing click of a block drag
+   * does nothing; everything else keeps handleElementClick (select /
+   * click-through — the hit-stack is unchanged). */
+  function handleProfileClick(id: string, e: React.MouseEvent, part?: PartClick) {
+    // Review H-R MENOR-1: the CURRENT selection (ProfileCard's memo can hold
+    // an older closure of this handler).
+    const sel = selIdsRef.current;
+    const role = resolvePartClick({ click: part, canInteract: !!canInteract, shiftKey: e.shiftKey, soleSelected: sel.size === 1 && sel.has(id) });
+    if (role || (canInteract && part?.moved && part.wasSelected)) {
+      e.stopPropagation();
+      // Consume-and-clear, like every element click (dragClickGuard.ts).
+      didDrag.current = resolveClickAfterDrag(didDrag.current).nextDidDrag;
+      selChangedRef.current = false;
+      if (role) openProfilePart(id, role);
+      return;
+    }
+    handleElementClick(id, e);
+  }
+
   function onGlobalMouseMove(e: React.MouseEvent) {
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
     handleMouseMoveParallax(e);
@@ -3726,7 +3768,7 @@ export default function CanvasBoard({
         const _entry=!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms both`} as any:undefined;
         return (<ProfileCard key={prof.id} card={prof} isSel={selectedIds.has(prof.id)} draggingId={dragging?.id??null} parallaxTransform={ps.transform as string} entryAnimStyle={_entry}
           onMouseDown={e=>e.stopPropagation()}
-          onClick={e=>handleElementClick(prof.id,e)}
+          onClick={(e,part)=>handleProfileClick(prof.id,e,part)}
           onResizeMD={(h,e)=>startSingleResize(prof.id,"profile",h,e)}
           updateProfile={updateProfile}
           canInteract={canInteract}
@@ -3750,7 +3792,9 @@ export default function CanvasBoard({
           // the view offset and the FAB shift depend on it).
           inspectorOpen={inspectorEnabled && inspectorCardId===prof.id}
           onEditActivate={handleEditActivate}
-          onEditorFacts={handleEditorFacts} />);
+          onEditorFacts={handleEditorFacts}
+          // Phase H (D5): the open object's part gets the editor-only outline.
+          activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined} />);
       })}
 
 
@@ -4120,6 +4164,23 @@ export default function CanvasBoard({
       {/* ── Inspector host (Editor v3 Phase B, D2) ── the one place the
           inspector mounts: driven by the editor selection, outside the
           transformed canvas wrapper (portal to <body>). */}
+      {/* Phase H (D5): "Editando <parte> de la tarjeta · esc volver" — after a
+          part was opened by clicking it (partNav), until the part changes or
+          the inspector closes. Editor chrome (never public),
+          outside the canvas wrapper, centered in the visible area, above the
+          sheet; visual only (the change is announced by role=status). */}
+      {view === "canvas" && canInteract && !!inspectorProfile && partNavShown && editorSel.target?.kind === "profile" && isPartRole(editorSel.target.objectId) && !(sheetMode && !inspectorCollapsed) && (
+        <div data-mnemo-ui="" aria-hidden="true" className="mn-partpill"
+          style={{
+            left: sheetMode ? viewportW / 2 : railW + (viewportW - railW - (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin)) / 2,
+            bottom: sheetMode ? INSPECTOR_SHEET_COLLAPSED_H + 16 : 40,
+          }}>
+          <span className="mn-partpill__dot" />
+          <span className="mn-partpill__what">Editando {chipLabel(inspectorObject(editorSel.target.objectId))}</span>
+          <span className="mn-partpill__of">de la tarjeta</span>
+          <span className="mn-partpill__key"><span className="mn-partpill__kbd">esc</span> volver</span>
+        </div>
+      )}
       {view === "canvas" && inspectorEnabled && (canInteract || roomShown) && (
         <EditorHost
           target={editorSel.target}

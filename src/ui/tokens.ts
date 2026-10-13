@@ -358,6 +358,13 @@ export const T = {
       shapeFill:    "rgba(255,255,255,0.25)",
       shapeFillInk: "rgba(10,10,12,0.25)",
       shadow:      "0 2px 8px rgba(0,0,0,0.4)",
+      /** Editor v3 Phase H: the selection violet (design: frame + part
+       * outline) — the active part's dashed outline on the card and the dot
+       * of the "Editando …" pill. Fixed, like all chrome. */
+      partMark:    "#6B4EFF",
+      /** Under the dashed part outline (offset 4): dark 0–2.5px + light
+       * 2.5–4px — ≥ 3:1 against any card / wallpaper (review H-V M1). */
+      partRing:    "0 0 0 2.5px rgba(10,10,12,0.75), 0 0 0 4px rgba(255,255,255,0.85)",
       ring:        "0 0 0 2px rgba(20,20,23,1), 0 0 0 3.5px rgba(255,255,255,0.70)",
     },
   },

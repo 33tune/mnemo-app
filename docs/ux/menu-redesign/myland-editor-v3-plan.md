@@ -81,7 +81,15 @@
     recentraba el elemento en cada movimiento); una ronda de correcciones y verificación de cierre: los dos **APPROVE**.
     `npm test` 627/627, `tsc` limpio, `next build` 13/13.
   - **Sin QA en navegador real** (capturas de los tres inspectores en el harness estático, no reemplazan la QA).
-- **NO empezadas:** las fases H e I. **La siguiente fase arranca solo con el OK del usuario.**
+- **Fase H (navegación por partes, D4/D5): TERMINADA (2026-10-12)** en `feature/myland-editor-v3`, commit
+  `feat: implement MYLAND editor v3 phase H (part navigation)`. Detalle y pendientes en § 6, Fase H.
+  - Revisión: Regresiones/Capacidades y Visual/UX/Accesibilidad dieron APPROVE WITH NOTES (2 MAYOR visuales: contraste
+    del contorno y la pastilla siempre visible); una ronda de correcciones y verificación de cierre: los dos **APPROVE**.
+    `npm test` 637/637, `tsc` limpio, `next build` 13/13.
+  - **Sin QA en navegador real.**
+- **Merge a `main` (OK explícito del usuario, 2026-10-12):** las Fases 0 y A–H se integraron a `main` por fast-forward
+  desde `feature/myland-editor-v3` (`main` = el commit de la Fase H). Validado sobre `main`: tests, `tsc` y build.
+- **NO empezada:** la fase I. **Arranca solo con el OK del usuario.**
 
 **Siguiente acción exacta**
 1. Abrir una sesión nueva en `C:\Users\Nico\Desktop\mnemo.app`.
@@ -91,8 +99,8 @@
    - `git log --oneline -3`: arriba, el commit del checkpoint.
 4. Leer este documento y el checkpoint de `CLAUDE.md`.
 5. Verificar que el MCP `claude-design` esté conectado (`claude mcp list`). Si no, `/design-login`.
-6. **Fases A, B, C, D, F, E y G cerradas.** Siguiente: QA en navegador de las Fases D, F, E y G, y **la Fase H** (§ 6,
-   orden `… E → G → H`) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
+6. **Fases A–H cerradas y en `main`.** Siguiente: QA en navegador de las Fases A–H; **la Fase I** (ajuste a la
+   cuadrícula) solo con el OK del usuario, con el flujo de trabajo de § 9. Merge a `main` solo con OK explícito.
 
 ---
 
@@ -786,6 +794,46 @@ EXISTING PROFILE / CANVAS ENGINE    (PROTEGIDO, § 4)
 - **Resaltado punteado y pastilla glass "Editando X · esc volver"**: solo en el editor, nunca en el render público.
 - **Archivos:** `ProfileCard.tsx` (`data-role` + resaltado en modo editor) y `CanvasBoard.tsx` (puntero, **sensible**).
 - **Riesgo:** alto/medio.
+
+- **Estado: TERMINADA (2026-10-12)**, ver § 1. Qué quedó:
+  - **`src/lib/partNavigation.ts`** (puro, testeado): `PART_ROLES` (Foto, Nombre, @usuario, Frase, Ubicación, Bio,
+    Visitas, Links, Logo — objetos del inspector), `partFromTarget` (`closest("[data-role]")` dentro de la card),
+    `movedBeyondSlop` (4px) y `resolvePartClick`: abre una parte solo en el editor, en el click 2 de la card que es TODA
+    la selección, sin Shift y sin arrastre.
+  - **ProfileCard** (sistema protegido § 4 — motivo: el plan pide `data-role` y el resaltado; archivo `ProfileCard.tsx`;
+    qué cambia: atributos `data-role` en los wrappers de partes que ya renderizaba (compuesto y libre), un
+    `onMouseDownCapture` que solo registra dónde empezó el gesto y si la card ya estaba seleccionada, y el `onClick` que
+    además reporta la parte; aislamiento: el render público solo gana los atributos, el resaltado exige `menuOpen` =
+    inspector abierto + `canInteract`, y ningún drag cambió). **Resaltado (D5):** contorno punteado violeta
+    (`T.ui.chrome.partMark`) con offset 4 sobre un anillo oscuro + claro (`partRing`, ≥ 3:1 sobre cualquier fondo),
+    en la parte activa del inspector abierto. El memo compara `activePart`.
+  - **CanvasBoard:** `handleProfileClick` — click 2 en una parte abre el inspector en esa parte (o cambia la parte del
+    abierto); el click que cierra el arrastre de un bloque se descarta; todo lo demás sigue por `handleElementClick`
+    (seleccionar / click-through). Abrir lleva el foco al h2 (que nombra la parte); cambiar con el inspector abierto
+    deja el foco en el lienzo y anuncia "Editando X de la tarjeta. Escape para volver.". **Pastilla** "Editando X de la
+    tarjeta · esc volver" (pantalla 03): chrome del editor fuera del wrapper del lienzo, centrada en el área visible,
+    `aria-hidden` y sin eventos de puntero, solo después de abrir una parte con un click (hasta que cambia la parte o se
+    cierra el inspector); sobre el sheet colapsado y oculta con el sheet expandido.
+  - **Esc vuelve a la card** con el escalonado existente: el primer Esc cierra el inspector y la card queda seleccionada
+    (también desde dentro del inspector). No hay código nuevo de Esc.
+  - Hit-stack 3B.4, `useDragDrop`, composición y geometría sin cambios; los textos no se marcan "hot" (test).
+- **Cambios de comportamiento (documentados, aprobados en revisión):**
+  - El click 2 sobre una parte abre la parte en vez de ciclar al elemento de abajo (click-through). Sobre la superficie
+    de la card el ciclo sigue igual; Capas también llega a lo de abajo.
+  - El click que cierra el arrastre de un bloque interno ya no llega a `handleElementClick` (antes podía mandar la
+    selección a una imagen de abajo o sacar la card de una multi-selección).
+- **Desvíos:** la pastilla es chrome opaco (`--ui-chrome-*`, sin blur) en vez del vidrio del diseño, por la regla A6
+  (chrome neutro legible sobre cualquier wallpaper). El margen de 4px reemplaza al flag de arrastre de los bloques
+  (que reaccionan a 1px de temblor).
+- **Pendientes (no bloquearon):**
+  - **QA en navegador:** click 2 en cada parte (composición y layout libre, incluido el handle de escala), arrastre de
+    bloques de 1–4px y más, resize de la card, Shift, imagen encima de la card, vista pública idéntica, la pastilla en
+    dock y sheet, NVDA y Windows High Contrast.
+  - Links: los íconos `<a>` cortan el click (con el inspector cerrado, un click en un ícono navega, como antes); la parte
+    se abre clickeando entre íconos o desde el chip.
+  - El resaltado sobresale ~5.5px y se recorta en partes pegadas al borde de la card (capa con `overflow:hidden`); en las
+    líneas de identidad apiladas puede montarse sobre la vecina.
+  - Sin pista de hover que anuncie que el click 2 abre la parte (descubribilidad).
 
 ### Fase I (posterior): Ajuste a la cuadrícula
 - **Función pura de ajuste** aplicada en los puntos donde ya se escribe la posición: drag, resize y nudge.

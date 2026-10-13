@@ -30,6 +30,9 @@ import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveTextEffectStyle, resolveLetterEffectStyle } from "@/lib/textEffects";
 import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
 import { resolveBlockStyle } from "@/lib/blockStyle";
+import { PART_ATTR, partFromTarget, movedBeyondSlop, type PartClick, type PartRole } from "@/lib/partNavigation";
+import type { ObjectId } from "@/lib/inspectorObjects";
+import { T as UIT } from "@/ui/tokens";
 
 // ── Draggable block keys (Stage 3B.3-B) ─────────────────────────────────────
 // Identity = name+handle+descriptor+bio, moved as one block — see
@@ -197,7 +200,10 @@ interface Props {
   draggingId:        string | null;
   parallaxTransform: string;
   onMouseDown:       (e: React.MouseEvent) => void;
-  onClick:           (e: React.MouseEvent) => void;
+  /** Editor v3 Phase H: the click also reports which PART of the card it
+   * hit and whether the card was already selected / the pointer moved
+   * (partNavigation.ts) — CanvasBoard decides (click 2 opens that part). */
+  onClick:           (e: React.MouseEvent, part?: PartClick) => void;
   onResizeMD:        (handle: ResizeHandle, e: React.MouseEvent) => void;
   updateProfile:     (id: string, patch: Partial<ProfileCardData>) => void;
   canInteract?:      boolean;
@@ -232,6 +238,9 @@ interface Props {
    * reported while the inspector is open — the host never recomputes the
    * composition. */
   onEditorFacts?:    (cardId: string, facts: ProfileEditorFacts) => void;
+  /** Editor v3 Phase H (D5): the inspector's object while it is open — its
+   * part gets the editor-only dashed outline. Never set in the public view. */
+  activePart?:       ObjectId;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -257,12 +266,27 @@ function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
-  inspectorOpen = false, onEditActivate, onEditorFacts,
+  inspectorOpen = false, onEditActivate, onEditorFacts, activePart,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
   // Menu redesign Phase 2: "menu open" = this card's inspector is open.
   const menuOpen = inspectorOpen && !!canInteract;
+  // Editor v3 Phase H: where the press started and whether the card was
+  // selected then (click 2) — read by the click (partNavigation.ts). Capture
+  // phase, so the block drags' own mousedown handlers are not involved.
+  const partDownRef = useRef<{ x: number; y: number; wasSelected: boolean } | null>(null);
+  // D5: the active part's dashed outline — ONLY while this card's inspector
+  // is open in the editor (menuOpen implies canInteract): the public render
+  // never gets it. A plain style on the existing wrapper, no layout change.
+  // Review H-V M1: a violet dash alone falls under 3:1 on mid-tone / colored
+  // cards, so it rides on a dark + light ring (like the canvas chrome's
+  // ring): one of the two always contrasts with whatever is behind.
+  const partOutline = (role: PartRole): CSSProperties =>
+    menuOpen && activePart === role
+      ? { outline: `1.5px dashed ${UIT.ui.chrome.partMark}`, outlineOffset: 4, boxShadow: UIT.ui.chrome.partRing }
+      : {};
+  const partProps = (role: PartRole) => ({ [PART_ATTR]: role });
   const cardRef = useRef<HTMLDivElement>(null);
   const panelId = profileInspectorId(card.id);
   // Review r2: same resolver as every canvas chrome control (on-canvas, not
@@ -906,6 +930,7 @@ function ProfileCard({
     const isFreeDraggable = layout === "free" && canInteract;
     return (
       <div
+        {...partProps(elemKey as PartRole)}
         style={{
           position: "absolute",
           left: `${pos.x}%`,
@@ -914,6 +939,7 @@ function ProfileCard({
           cursor: isFreeDraggable ? "grab" : "default",
           zIndex: 3,
           userSelect: "none",
+          ...partOutline(elemKey as PartRole),
         }}
         onMouseDown={isFreeDraggable ? e => startFreeDrag(e, elemKey) : undefined}
       >
@@ -1211,6 +1237,7 @@ function ProfileCard({
     return (
       <div
         data-canvas-hot=""
+        {...partProps("logo")}
         style={{
           position: "absolute", left: rect.x, top: rect.y, width: rect.w, height: rect.h,
           transition: REFLOW_TRANSITION,
@@ -1221,6 +1248,7 @@ function ProfileCard({
           // this shared stacking context) — Logo is the only one with an
           // explicit z-index, so it alone can sit behind/in front of them.
           zIndex: card.logo.zIndex ?? 0,
+          ...partOutline("logo"),
           ...(isDraggingLogo.current ? { outline: `1px dashed ${withOpacity(baseColor, 0.35)}`, outlineOffset: 2 } : {}),
         }}
         onMouseDown={isAnchorDraggable ? startLogoDrag : undefined}
@@ -1282,9 +1310,11 @@ function ProfileCard({
         {pfpBox && (
           <div
             data-canvas-hot=""
+            {...partProps("photo")}
             style={{
               position: "absolute", left: pfpBox.x, top: pfpBox.y, width: pfpBox.w, height: pfpBox.h,
               cursor: isAnchorDraggable ? "grab" : "default",
+              ...partOutline("photo"),
             }}
             onMouseDown={isAnchorDraggable ? startAnchorDrag : undefined}
           >
@@ -1304,22 +1334,22 @@ function ProfileCard({
             onMouseDown={isAnchorDraggable ? startIdentityDrag : undefined}
           >
             {boxes.name && card.name && (
-              <div style={{ position: "absolute", left: boxes.name.x - identityRect.x, top: boxes.name.y - identityRect.y, width: boxes.name.w, height: boxes.name.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+              <div {...partProps("name")} style={{ position: "absolute", left: boxes.name.x - identityRect.x, top: boxes.name.y - identityRect.y, width: boxes.name.w, height: boxes.name.h, overflow: "hidden", transition: REFLOW_TRANSITION, ...partOutline("name") }}>
                 {NameLine({ style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } })}
               </div>
             )}
             {boxes.handle && card.handle && (
-              <div style={{ position: "absolute", left: boxes.handle.x - identityRect.x, top: boxes.handle.y - identityRect.y, width: boxes.handle.w, height: boxes.handle.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+              <div {...partProps("handle")} style={{ position: "absolute", left: boxes.handle.x - identityRect.x, top: boxes.handle.y - identityRect.y, width: boxes.handle.w, height: boxes.handle.h, overflow: "hidden", transition: REFLOW_TRANSITION, ...partOutline("handle") }}>
                 {HandleLine({ style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } })}
               </div>
             )}
             {boxes.descriptor && card.status && (
-              <div style={{ position: "absolute", left: boxes.descriptor.x - identityRect.x, top: boxes.descriptor.y - identityRect.y, width: boxes.descriptor.w, height: boxes.descriptor.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+              <div {...partProps("descriptor")} style={{ position: "absolute", left: boxes.descriptor.x - identityRect.x, top: boxes.descriptor.y - identityRect.y, width: boxes.descriptor.w, height: boxes.descriptor.h, overflow: "hidden", transition: REFLOW_TRANSITION, ...partOutline("descriptor") }}>
                 {DescriptorLine({ style: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } })}
               </div>
             )}
             {boxes.bio && card.bio && (
-              <div style={{ position: "absolute", left: boxes.bio.x - identityRect.x, top: boxes.bio.y - identityRect.y, width: boxes.bio.w, height: boxes.bio.h, overflow: "hidden", transition: REFLOW_TRANSITION }}>
+              <div {...partProps("bio")} style={{ position: "absolute", left: boxes.bio.x - identityRect.x, top: boxes.bio.y - identityRect.y, width: boxes.bio.w, height: boxes.bio.h, overflow: "hidden", transition: REFLOW_TRANSITION, ...partOutline("bio") }}>
                 {BioText({ style: {
                   display: "-webkit-box",
                   WebkitLineClamp: boxes.bio.lines ?? 1,
@@ -1332,10 +1362,12 @@ function ProfileCard({
         )}
         {boxes.location && card.location && (
           <div
+            {...partProps("location")}
             style={{
               position: "absolute", left: boxes.location.x, top: boxes.location.y, width: boxes.location.w, height: boxes.location.h,
               overflow: "hidden", transition: dragTransition("location"), cursor: isAnchorDraggable ? "grab" : "default",
               borderRadius: locationBlockStyle.radius, background: locationBlockStyle.bg,
+              ...partOutline("location"),
               ...dragOutline("location"),
             }}
             onMouseDown={isAnchorDraggable ? startLocationDrag : undefined}
@@ -1345,10 +1377,12 @@ function ProfileCard({
         )}
         {boxes.views && card.showViews && (
           <div
+            {...partProps("views")}
             style={{
               position: "absolute", left: boxes.views.x, top: boxes.views.y, width: boxes.views.w, height: boxes.views.h,
               overflow: "hidden", transition: dragTransition("views"), cursor: isAnchorDraggable ? "grab" : "default",
               borderRadius: viewsBlockStyle.radius, background: viewsBlockStyle.bg,
+              ...partOutline("views"),
               ...dragOutline("views"),
             }}
             onMouseDown={isAnchorDraggable ? startViewsDrag : undefined}
@@ -1359,12 +1393,14 @@ function ProfileCard({
         {boxes.links && contactLinks.length > 0 && blockFits(boxes.links) && (
           <div
             data-canvas-hot=""
+            {...partProps("links")}
             style={{
               position: "absolute", left: boxes.links.x, top: boxes.links.y, width: boxes.links.w, height: boxes.links.h,
               display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
               gap: CONTACT_LINK_GAP,
               transition: dragTransition("links"), cursor: isAnchorDraggable ? "grab" : "default",
               borderRadius: linksBlockStyle.radius, background: linksBlockStyle.bg,
+              ...partOutline("links"),
               ...dragOutline("links"),
             }}
             onMouseDown={isAnchorDraggable ? startLinksDrag : undefined}
@@ -1388,7 +1424,17 @@ function ProfileCard({
       <div
         ref={cardRef}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
-        onClick={onClick}
+        onMouseDownCapture={e => { partDownRef.current = { x: e.clientX, y: e.clientY, wasSelected: isSel }; }}
+        onClick={e => {
+          // Phase H: report the part (closest [data-role]) — CanvasBoard decides.
+          const down = partDownRef.current;
+          partDownRef.current = null;
+          onClick(e, {
+            role: partFromTarget(e.target, cardRef.current),
+            wasSelected: !!down?.wasSelected,
+            moved: movedBeyondSlop(down, { x: e.clientX, y: e.clientY }),
+          });
+        }}
         onMouseMove={handleInteractMove}
         onMouseOver={handleInteractOver}
         onMouseLeave={handleInteractLeave}
@@ -1475,7 +1521,9 @@ function areProfilePropsEqual(prev: Props, next: Props): boolean {
     // Phase B: the inspector's geometry (width / sheet / collapsed) no
     // longer reaches the card — only whether it is open, which changes the
     // card's own render. onEditActivate / onEditorFacts are stable.
-    prev.inspectorOpen     === next.inspectorOpen
+    prev.inspectorOpen     === next.inspectorOpen &&
+    // Phase H: the active part's editor outline.
+    prev.activePart        === next.activePart
   );
 }
 export default memo(ProfileCard, areProfilePropsEqual);
