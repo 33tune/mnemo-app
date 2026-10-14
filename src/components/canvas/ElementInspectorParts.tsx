@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { MenuSection, MenuNote, NumberField, Tabs, IconButton } from "@/ui";
+import { MenuSection, MenuNote, NumberField, IconButton } from "@/ui";
 import { LAYER_NAMES, type LayerIndex } from "@/lib/layerOrder";
 
 /** The dock / sheet props every element inspector forwards to InspectorShell. */
@@ -44,9 +44,9 @@ export function excerpt(text: string, max = 28): string {
  * while the element is locked. Writes through the drag's own writers. */
 export function MeasuresRow({ m, locked }: { m: MeasureSpec; locked: boolean }) {
   const r = m.range;
-  const parts = [`${Math.round(m.x)}, ${Math.round(m.y)}`, m.w !== undefined && m.h !== undefined ? `${Math.round(m.w)} × ${Math.round(m.h)}` : "", `${Math.round(normalizeRotation(m.rotation))}°`].filter(Boolean);
+  // DS summary: the first two fields ("196 × 520").
   return (
-    <MenuSection label="Medidas" icon="move" summary={parts.join(" · ")} defaultOpen={false}>
+    <MenuSection label="Medidas" icon="move" summary={`${Math.round(m.x)} × ${Math.round(m.y)}`} defaultOpen={false}>
       {locked && <MenuNote icon="lock">Bloqueado: desbloquealo para cambiar sus medidas</MenuNote>}
       <div className="mn-measures">
         <NumberField label="X" min={0} max={r.maxX} value={Math.round(m.x)} disabled={locked} onChange={v => m.onGeometry({ x: v })} />
@@ -64,7 +64,21 @@ export function MeasuresRow({ m, locked }: { m: MeasureSpec; locked: boolean }) 
   );
 }
 
-const LAYER_TABS = ([0, 1, 2] as const).map(l => ({ id: String(l), label: LAYER_NAMES[l], withText: true }));
+/** Fondo / Medio / Frente as three toggle buttons in the DS capsule. */
+export function LayerButtons({ layer, onSetLayer, sheet }: { layer: LayerIndex; onSetLayer: (l: LayerIndex) => void; sheet?: boolean }) {
+  return (
+    <div role="group" aria-label="Capa" className="mn-layerseg" data-sheet={sheet || undefined}>
+      <span aria-hidden className="mn-layerseg__thumb" style={{ transform: `translateX(${layer * 100}%)` }} />
+      {([0, 1, 2] as const).map(l => (
+        <button key={l} type="button" className="mn-layerseg__btn" aria-pressed={layer === l}
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); if (layer !== l) onSetLayer(l); }}>
+          {LAYER_NAMES[l]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface ElementFooterProps {
   /** The element's layer. */
@@ -88,8 +102,11 @@ export function ElementFooter({ layer, onSetLayer, onOpenLayers, locked, onToggl
   return (
     <>
       <div style={{ flex: 1, minWidth: 0 }} title="Capa">
+        {/* Review E-M1: toggle buttons (aria-pressed), never an
+            arrow-activated radiogroup — moving between them must not write
+            (and leave an undo step) per key. */}
         {onSetLayer
-          ? <Tabs tabs={LAYER_TABS} active={String(layer)} onChange={v => onSetLayer(Number(v) as LayerIndex)} label="Capa" />
+          ? <LayerButtons layer={layer} onSetLayer={onSetLayer} />
           : <span className="mn-label" style={{ paddingLeft: 6 }}>{LAYER_NAMES[layer]}</span>}
       </div>
       <IconButton icon="layers" aria-label="Ordenar en Capas" title="Ordenar en Capas   L" size={38} onClick={() => onOpenLayers()} />

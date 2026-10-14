@@ -1,7 +1,7 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import type { CanvasImage } from "@/types";
-import { InspectorShell, MenuSection, MenuNote, TextInput, UploadField } from "@/ui";
+import { Accordion, InspectorShell, MenuSection, MenuNote, TextInput, UploadField } from "@/ui";
 import type { LayerIndex } from "@/lib/layerOrder";
 import { ObjectSection, ElementFooter, type ElementShellProps, type MeasureSpec } from "./ElementInspectorParts";
 
@@ -43,6 +43,7 @@ interface ImageInspectorProps extends ElementShellProps {
 // No opacity: CanvasImage has no such field (it would be a new data field and
 // a change to the protected public render — plan § 8).
 export default function ImageInspector(p: ImageInspectorProps) {
+  const [openCard, setOpenCard] = useState<string | null>(null);
   const { image: img, updateImage } = p;
   const current = imageCornerValue(img);
   const isGif = /\.gif($|\?)/i.test(img.src);
@@ -64,6 +65,8 @@ export default function ImageInspector(p: ImageInspectorProps) {
       footer={<ElementFooter layer={img.layer as LayerIndex} onSetLayer={p.onSetLayer} onOpenLayers={p.onOpenLayers}
         locked={!!img.locked} onToggleLock={p.onToggleLock} noun="imagen" onDelete={p.onDelete} />}
     >
+      {/* DS accordion: every card starts closed; one open at a time. */}
+      <Accordion open={openCard} onOpenChange={setOpenCard}>
       <div className="mn-swap" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <MenuSection label="Imagen" pinned>
           <UploadField kind="cover" value={img.src || null} label="Reemplazar" caption={isGif ? "GIF" : "Imagen"} accept="image/*"
@@ -94,6 +97,7 @@ export default function ImageInspector(p: ImageInspectorProps) {
 
         <ObjectSection layer={img.layer as LayerIndex} locked={!!img.locked} measures={p.measures} />
       </div>
+      </Accordion>
     </InspectorShell>
   );
 }

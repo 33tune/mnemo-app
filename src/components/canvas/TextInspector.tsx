@@ -1,7 +1,7 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import type { CanvasText, TextFont } from "@/types";
-import { InspectorShell, MenuSection, MenuRow, MenuNote, SliderRow, ColorRow, TextArea, FontField, Tabs } from "@/ui";
+import { Accordion, InspectorShell, MenuSection, MenuRow, SliderRow, ColorRow, TextArea, FontField, Tabs } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
 import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
 import { CANVAS_TEXT_DEFAULTS as TEXT_DEFAULTS, CANVAS_TEXT_SIZE_RANGE as TEXT_SIZE_RANGE } from "@/lib/canvasText";
@@ -26,6 +26,7 @@ const CASE_TABS = [{ id: "aa", label: "Aa", withText: true }, { id: "AA", label:
 // holds the layer, Capas, Bloquear and Eliminar. ONLY the fields CanvasText
 // has, written through CanvasBoard.updateText (update_text).
 export default function TextInspector(p: TextInspectorProps) {
+  const [openCard, setOpenCard] = useState<string | null>(null);
   const { text: t, updateText } = p;
   const set = (patch: Partial<CanvasText>) => updateText(t.id, patch);
   const fontLabel = CANVAS_FONTS.find(f => f.key === t.font)?.label ?? t.font;
@@ -49,11 +50,15 @@ export default function TextInspector(p: TextInspectorProps) {
       footer={<ElementFooter layer={t.layer as LayerIndex} onSetLayer={p.onSetLayer} onOpenLayers={p.onOpenLayers}
         locked={!!t.locked} onToggleLock={p.onToggleLock} noun="texto" onDelete={p.onDelete} />}
     >
+      {/* DS accordion: every card starts closed; one open at a time. */}
+      <Accordion open={openCard} onOpenChange={setOpenCard}>
       <div className="mn-swap" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <MenuSection label="Contenido" pinned>
+          {/* DS: the in-place edit lives in the field's tooltip. */}
+          <div title="Doble click en la sala para editarlo ahí">
           <TextArea value={t.content} onChange={v => set({ content: v })} rows={3} placeholder="Escribí el texto"
             fontFamily={getFontStyle(t.font)} style={{ fontSize: 19, textTransform: t.uppercase ? "uppercase" : "none" }} />
-          <MenuNote icon="pointer">Doble click en la sala para editarlo ahí</MenuNote>
+          </div>
         </MenuSection>
 
         <MenuSection label="Tipografía" icon="case" summary={`${fontLabel} · ${Math.round(t.size)} px`} changed={typeChanged}
@@ -87,6 +92,7 @@ export default function TextInspector(p: TextInspectorProps) {
 
         <ObjectSection layer={t.layer as LayerIndex} locked={!!t.locked} measures={p.measures} />
       </div>
+      </Accordion>
     </InspectorShell>
   );
 }

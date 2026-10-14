@@ -94,7 +94,7 @@ test("CanvasBoard: a local preference, editor-only (never space_mobile / touch);
   const grid = read("src/components/canvas/CanvasGrid.tsx");
   assert.ok(grid.includes('export const GRID_SNAP_PREF_KEY = "myland.editorGridSnap";'));
   const room = read("src/components/canvas/RoomInspector.tsx");
-  assert.ok(room.includes('<MenuRow label="Ajustar a la cuadrícula" hintId="mnemo-room-snap-note">') && room.includes("onChange={v => p.onSnap(v)}"));
+  assert.ok(room.includes('<SwitchRow label="Ajustar a la cuadrícula" icon="move" value={p.snap} onChange={v => p.onSnap(v)} hintId="mnemo-room-snap-note" />'));
   // Typed Medidas are never snapped (an explicit value is kept).
   const geo = board.slice(board.indexOf("function setElementGeometryNow("), board.indexOf("const chromeCanvas: ChromeCanvas"));
   assert.ok(!geo.includes("snap"));
@@ -104,6 +104,7 @@ test("review I: Mayús counts while dragging (note), the canvas help follows the
   const room = read("src/components/canvas/RoomInspector.tsx");
   assert.ok(room.includes("Mientras arrastrás, mantené Mayús para hacerlo libre."));
   assert.ok(room.includes('hintId="mnemo-room-snap-note"') && room.includes('<MenuNote id="mnemo-room-snap-note">'), "the note describes the switch");
+  assert.ok(read("src/ui/Toggle.tsx").includes("<FieldDescProvider value={hintId}>"), "SwitchRow wires hintId to the switch");
   assert.ok(room.includes("{p.snap && !p.grid &&"), "a hint when snapping with the grid hidden");
   const board = read("src/components/canvas/CanvasBoard.tsx");
   assert.ok(board.includes("con ajuste a la cuadrícula las flechas saltan a la próxima línea (Mayús más flechas mueve 10 px libre)"));

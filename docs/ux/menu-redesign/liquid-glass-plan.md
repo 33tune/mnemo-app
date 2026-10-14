@@ -180,4 +180,13 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
   (las evidencias se actualizaron a los controles nuevos).
   - Adaptación A8: Hover de la tarjeta pasa de una fila con dos switches a dos tiles (Brillo, Escala) — mismas escrituras.
   - Adaptación A9: el texto de @usuario sigue siendo de solo lectura (se cambia desde la cuenta), como en el diseño.
-- **L4 (parcial — Texto, Imagen, Music):** las mismas cards del diseño + Medidas en grilla + pie fijo.
+- **L4 (Texto, Imagen, Music, Tu sala, Capas):** cards del diseño (todas cerradas al abrir, una abierta por vez),
+  Medidas en grilla dentro de su card, pie fijo; Capas con grupos Frente/Medio/Fondo y su conteo, filas de 56px con
+  candado, card de selección (capa + Al frente/Subir/Bajar/Al fondo); Tu sala con Fondo, Ambiente (subidas con los
+  selectores existentes), Lienzo y Apariencia del editor (Claro/Oscuro/OG con ícono).
+  - Adaptación A10: el selector de capa del pie y de Capas son botones conmutables (aria-pressed), no un radiogroup con
+    flechas (revisión E-M1: cada flecha escribiría y dejaría un paso de deshacer). Se ven igual que el IconTabs del DS.
+  - Adaptación A11: los campos de texto conservan la línea inferior de 1px en gris de borde (WCAG 1.4.11, revisiones
+    previas); el diseño no la tiene.
+  - Adaptación A12: el texto de ayuda del ajuste a la cuadrícula conserva la redacción revisada en la Fase I
+    ("Mientras arrastrás, mantené Mayús…").

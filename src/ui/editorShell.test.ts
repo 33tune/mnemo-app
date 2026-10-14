@@ -66,7 +66,8 @@ test("Tu sala: the room settings moved out of the + menu with IDENTICAL operatio
   ]) assert.ok(ROOM.includes(op), `Tu sala sends ${op}`);
   assert.ok(ROOM.includes('export const ROOM_DEFAULT_BG = "#0a0a0c";'));
   assert.ok(BOARD.includes("enqueue: (op: RoomOp) => enqueueOp(op as CanvasOp),"), "through the same enqueueOp (history, persistence)");
-  for (const s of ["Mostrar cuadrícula", "Tema del editor", "Tocá cualquier cosa de la sala para editarla."]) assert.ok(ROOM.includes(s));
+  // Liquid glass: the "Tocá algo para editarlo" hint lives on the canvas (L5).
+  for (const s of ["Mostrar cuadrícula", "Tema del editor", "Apariencia del editor"]) assert.ok(ROOM.includes(s));
   assert.ok(ROOM.includes("useEditorTheme()"), "Apariencia: Light / Dark / OG");
 });
 

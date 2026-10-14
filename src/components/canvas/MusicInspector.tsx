@@ -1,8 +1,8 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import type { MusicCardData, CardEffects } from "@/types";
 import {
-  T, InspectorShell, MenuSection, MenuRow, SliderRow, ColorRow, TextInput, MenuNote, FontField, Tabs, EffectList, EffectRow, UploadField,
+  T, Accordion, InspectorShell, MenuSection, MenuRow, SliderRow, ColorRow, TextInput, MenuNote, FontField, Tabs, EffectList, EffectRow, UploadField,
 } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
 import { uploadToStorage } from "@/lib/storage";
@@ -38,6 +38,7 @@ const GLOW_WHERE = [
 ];
 
 export default function MusicInspector(p: MusicInspectorProps) {
+  const [openCard, setOpenCard] = useState<string | null>(null);
   const { card, updateCard } = p;
   const idBase = `mnemo-music-${card.id}`;
 
@@ -125,11 +126,12 @@ export default function MusicInspector(p: MusicInspectorProps) {
       footer={<ElementFooter layer={card.layer as LayerIndex} onSetLayer={p.onSetLayer} onOpenLayers={p.onOpenLayers}
         locked={!!card.locked} onToggleLock={p.onToggleLock} noun="Music" onDelete={p.onDelete} />}
     >
+      {/* DS accordion: every card starts closed; one open at a time. */}
+      <Accordion open={openCard} onOpenChange={setOpenCard}>
       <div className="mn-swap" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {/* Self-hosted MP3 only (no URL field, no Spotify/YouTube). */}
         <MenuSection label="Canción" pinned>
           <UploadField kind="audio" value={card.audioUrl || null} label="Subir MP3" caption="MP3" accept="audio/mpeg,audio/mp3,.mp3"
-            name={card.title?.trim() || undefined}
             onFile={handleAudioFile} onRemove={() => updateCard(card.id, { audioUrl: "" })} />
           <label id={`${idBase}-title`} className="mn-label" style={{ padding: "0 2px" }}>Título</label>
           <TextInput value={card.title ?? ""} onChange={v => updateCard(card.id, { title: v })} labelledBy={`${idBase}-title`} placeholder="Título" />
@@ -174,6 +176,7 @@ export default function MusicInspector(p: MusicInspectorProps) {
         {/* O2: Tamaño and Fuente drive ProfileMusicPlayer. 8 = 100% = today's
             exact sizes (title 10, artist and times 8). */}
         <MenuSection label="Texto" icon="case" summary={`${fontLabel} · ${Math.round((textSize / MUSIC_TEXT_SIZE_DEFAULT) * 100)}%`}
+          swatch={card.textColor?.startsWith("#") ? card.textColor : MUSIC_DEFAULT_TEXT_COLOR}
           changed={[card.font, card.textSize].filter(v => v !== undefined).length}
           onReset={() => updateCard(card.id, { font: undefined, textSize: undefined })}>
           <FontField value={card.font ?? DEFAULT_FONT_KEY} fonts={MUSIC_FONTS} label={`Fuente: ${fontLabel}`}
@@ -253,6 +256,7 @@ export default function MusicInspector(p: MusicInspectorProps) {
 
         <ObjectSection layer={card.layer as LayerIndex} locked={!!card.locked} measures={p.measures} />
       </div>
+      </Accordion>
     </InspectorShell>
   );
 }

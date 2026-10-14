@@ -16,7 +16,10 @@ interface UploadFieldProps {
   /** Empty-state call to action ("Subir foto", "Subí tu logo"). */
   label:     string;
   accept:    string;
-  onFile:    (file: File) => void;
+  onFile?:   (file: File) => void;
+  /** Use an existing picker instead of this field's own input (e.g. Tu
+   * sala's hidden inputs in CanvasBoard); drop is then disabled. */
+  onPick?:   () => void;
   /** Absent = the file cannot be removed here (e.g. an image element). */
   onRemove?: () => void;
   /** Empty state as a compact 44px pill instead of the big drop zone. */
@@ -36,22 +39,22 @@ const fileName = (v: string) => (v.startsWith("blob:") || v.startsWith("data:") 
 // its name and kind, "Reemplazar" (upload) and "Quitar" (trash, danger);
 // empty — a dashed drop zone "Subir … o soltalo acá" (or a compact pill).
 // Files can be dropped on it. The real <input type=file> stays in the DOM.
-export function UploadField({ kind, value, name, caption, label, accept, onFile, onRemove, compact, ariaLabel, disabled }: UploadFieldProps) {
+export function UploadField({ kind, value, name, caption, label, accept, onFile, onPick, onRemove, compact, ariaLabel, disabled }: UploadFieldProps) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const has = !!value;
-  const pick = () => { if (!disabled) input.current?.click(); };
-  const take = (f: File | undefined | null) => { if (f && !disabled) onFile(f); };
+  const pick = () => { if (disabled) return; if (onPick) onPick(); else input.current?.click(); };
+  const take = (f: File | undefined | null) => { if (f && !disabled && onFile) onFile(f); };
   const image = has && (kind === "avatar" || kind === "cover" || kind === "logo" || kind === "cursor");
   const drop = {
-    onDragOver: (e: React.DragEvent) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); e.stopPropagation(); setOver(true); } },
+    onDragOver: (e: React.DragEvent) => { if (onFile && e.dataTransfer.types.includes("Files")) { e.preventDefault(); e.stopPropagation(); setOver(true); } },
     onDragLeave: () => setOver(false),
     onDrop: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setOver(false); take(e.dataTransfer.files?.[0]); },
   };
   return (
     <div className="mn-upload">
-      <input ref={input} type="file" accept={accept} hidden aria-label={ariaLabel ?? label}
-        onChange={e => { take(e.target.files?.[0]); e.target.value = ""; }} />
+      {!onPick && <input ref={input} type="file" accept={accept} hidden aria-label={ariaLabel ?? label}
+        onChange={e => { take(e.target.files?.[0]); e.target.value = ""; }} />}
       {has ? (
         <div className="mn-upload__row" {...drop} data-over={over || undefined}>
           <span className="mn-upload__thumb" data-kind={kind} aria-hidden>
@@ -88,7 +91,7 @@ export function UploadField({ kind, value, name, caption, label, accept, onFile,
           onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); pick(); }}>
           <span className="mn-drop__ico" aria-hidden><Icon name="upload" size={18} /></span>
           <span className="mn-drop__label">{label}</span>
-          <span>o soltalo acá</span>
+          {onFile && <span>o soltalo acá</span>}
         </button>
       )}
     </div>

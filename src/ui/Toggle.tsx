@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useFieldLabelId, useFieldDescId } from "./MenuRow";
+import { useFieldLabelId, useFieldDescId, FieldDescProvider } from "./MenuRow";
 import { Icon, type IconName } from "./icons";
 
 interface ToggleProps {
@@ -46,17 +46,21 @@ interface SwitchRowProps {
   icon?:     IconName;
   /** Tooltip / description (e.g. "Solo se ve mientras editás"). */
   hint?:     string;
+  /** id of a visible note that describes the switch (aria-describedby). */
+  hintId?:   string;
   disabled?: boolean;
 }
 
 /** Liquid glass (DS isSwitch row): glyph, label (14/500), the switch at the
  * end — a 44px row; the switch is named by the label. */
-export function SwitchRow({ label, value, onChange, icon, hint, disabled }: SwitchRowProps) {
+export function SwitchRow({ label, value, onChange, icon, hint, hintId, disabled }: SwitchRowProps) {
   return (
     <div className="mn-switchrow" title={hint}>
       {icon && <Icon name={icon} size={17} />}
       <span className="mn-switchrow__label">{label}</span>
-      <Toggle value={value} onChange={onChange} label={label} disabled={disabled} />
+      <FieldDescProvider value={hintId}>
+        <Toggle value={value} onChange={onChange} label={label} disabled={disabled} />
+      </FieldDescProvider>
     </div>
   );
 }
