@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeComposition, computeBlockLayout, type CompositionContentInput, type CompositionInput, type ElementBox, type BlockOverrides, type LinksBlockInput, type MusicBlockInput } from "./cardComposition";
+import { computeComposition, computeBlockLayout, type CompositionContentInput, type CompositionInput, type ElementBox, type BlockOverrides, type LinksBlockInput, type MusicBlockInput, type ButtonsBlockInput } from "./cardComposition";
+import { stackedLinksAnchorY } from "./linkButtons";
 
 function content(overrides: Partial<CompositionContentInput> = {}): CompositionContentInput {
   return {
@@ -852,4 +853,55 @@ test("with no overrides, the corrected bio width still produces byte-identical o
   const base = computeComposition(input);
   const layout = computeBlockLayout(input);
   assert.deepEqual(layout.boxes, base.boxes);
+});
+
+// ── Link buttons (2026-10-14): the 7th, lowest-priority block ─────────────
+
+const BUTTONS_3: ButtonsBlockInput = { size: { width: 280, height: 3 * 38 + 2 * 8 } };
+
+test("regression: without a buttons argument the output is byte-identical (every existing card)", () => {
+  const input = baseInput({ boxH: 520 });
+  for (const overrides of [undefined, { identity: { x: 0.1, y: 0.9 } }, { links: { x: 0.5, y: 0.2 } }] as (BlockOverrides | undefined)[]) {
+    for (const links of [undefined, LINKS_SMALL]) {
+      const before = computeBlockLayout(input, overrides, links);
+      const after = computeBlockLayout(input, overrides, links, undefined, undefined);
+      assert.deepEqual(after, before);
+      assert.equal(after.boxes.buttons, undefined);
+    }
+  }
+});
+
+test("buttons appear as their own box without moving any earlier block, and never overlap them", () => {
+  const input = baseInput({ boxH: 520 });
+  const without = computeBlockLayout(input, undefined, LINKS_SMALL);
+  const withButtons = computeBlockLayout(input, undefined, LINKS_SMALL, undefined, BUTTONS_3);
+  const b = withButtons.boxes.buttons!;
+  assert.equal(b.w, BUTTONS_3.size.width);
+  assert.equal(b.h, BUTTONS_3.size.height);
+  for (const role of ["pfp", "name", "handle", "descriptor", "bio", "location", "views", "links"] as const) {
+    assert.deepEqual(withButtons.boxes[role], without.boxes[role], `${role} moved`);
+    const o = withButtons.boxes[role];
+    if (o) assert.ok(!boxesOverlap(o, b), `buttons overlap ${role}`);
+  }
+  assert.ok(b.y + b.h <= input.boxH - input.padding + 0.5, "inside the padded card");
+});
+
+test("stacked: the icons row sits right above the buttons at the bottom (identity → icons → buttons)", () => {
+  const input = baseInput({ boxH: 520 });
+  const linksY = stackedLinksAnchorY({ boxH: input.boxH, padding: input.padding, linksH: LINKS_SMALL.size.height, buttonsH: BUTTONS_3.size.height });
+  const r = computeBlockLayout(input, undefined, { ...LINKS_SMALL, defaultAnchor: { x: 0.5, y: linksY } }, undefined, BUTTONS_3);
+  const links = r.boxes.links!, buttons = r.boxes.buttons!;
+  assert.ok(Math.abs(buttons.y + buttons.h - (input.boxH - input.padding)) < 0.5, "buttons at the bottom");
+  assert.ok(links.y + links.h <= buttons.y, "icons above the buttons");
+  assert.ok(buttons.y - (links.y + links.h) <= 12, "and right above them");
+});
+
+test("dragging the buttons onto other blocks displaces only the buttons", () => {
+  const input = baseInput({ boxH: 520 });
+  const target = { x: 0.5, y: 0.1 };
+  const without = computeBlockLayout(input, undefined, LINKS_SMALL);
+  const dragged = computeBlockLayout(input, { buttons: target }, LINKS_SMALL, undefined, BUTTONS_3);
+  for (const role of ["pfp", "name", "handle", "descriptor", "bio", "location", "views", "links"] as const) {
+    assert.deepEqual(dragged.boxes[role], without.boxes[role], `${role} moved`);
+  }
 });

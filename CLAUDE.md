@@ -81,6 +81,9 @@ planeado acá hasta confirmarlo.
 >   Selector de partes de la tarjeta por grupos Tarjeta / Perfil / Contenido, y efectos de texto (Sombra, Brillo,
 >   Pulso, Contorno, Desenfoque) por cada texto con `card.effects.text` como dato heredado (decisiones del usuario,
 >   2026-10-14). Temas nuevos del editor: Lima oscuro y Lima claro.
+>   Botones con link estilo Linktree (`card.linkButtons` + `card.linkButtonStyle`, parte "Botones" en Contenido):
+>   7.º bloque del motor, no estructural; render en `LinkButtonsBlock.tsx` + `src/lib/linkButtons.ts`, listos para
+>   montarse en mobile (hoy `space_mobile` no los muestra; no se tocó).
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

@@ -256,9 +256,27 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
     brillante es solo relleno (con texto negro); las marcas sobre el panel usan un verde oscuro (#446A00). El test de
     contraste pasó a medir las marcas reales (relleno del slider, punto de cambios, glifo, switch encendido).
 
+- **Botones con link estilo Linktree (decisión del usuario, 2026-10-14):** parte nueva **Botones** en Contenido (los
+  íconos de redes pasan a llamarse "Íconos"). Hasta 8 botones `{texto, link}` en `card.linkButtons` con un estilo
+  compartido en `card.linkButtonStyle`: Forma (Recta / Suave / Píldora), Relleno (Sólido / Contorno / Vidrio), color
+  del botón y del texto, fuente, tamaño (11–20 px), ícono de la red (sale del link), ancho (Completo / Ajustado),
+  separación y Al pasar el cursor (Elevar / Brillo / Invertir). La lista se reordena arrastrando el grip o con ↑ ↓.
+  - Motor: 7.º bloque de `computeBlockLayout`, el de menor prioridad, **no estructural** (como los íconos, la tarjeta
+    nunca crece sola: Stage 4.2-C.2.6). Si no entra, no se dibuja y el inspector lo dice, con "Agrandar la tarjeta
+    para que entren": una edición explícita, con deshacer, que agrega exactamente lo que falta. Agregar un botón
+    que no entra agranda la tarjeta en la misma escritura. Sin mover, los íconos se apilan justo arriba de los
+    botones (identidad → íconos → botones). Los botones se arrastran como bloque.
+  - Seguridad del editor: cada `<a>` lleva `draggable={false}` y el click que cierra un arrastre no navega
+    (`resolveClickAfterDrag`); con el inspector abierto no navegan.
+  - **Preparado para mobile:** `src/lib/linkButtons.ts` (puro: defaults, tamaño, estilo resuelto, CSS) y
+    `LinkButtonsBlock.tsx` (no sabe nada del lienzo ni del motor) son lo único que necesita el render de celular;
+    `MobilePublicCanvas.tsx` / `space_mobile` no se tocaron (regla de mobile legacy). En celular, hoy, los botones
+    no se ven.
+  - Sin dato = sin bloque: ninguna tarjeta existente cambia. `fontWeight` existe en el tipo sin control (600).
+
 ## 5. Verificaciones pendientes (QA en navegador real, con login)
 
-Todo se verificó con tests (`npm test` 654/654), `tsc`, `next build` y capturas del harness de Chromium (los
+Todo se verificó con tests (`npm test` 668/668), `tsc`, `next build` y capturas del harness de Chromium (los
 inspectores y el shell montados con datos de prueba, sin backend). **No se probó la app real con sesión iniciada.**
 Hay que probar en local:
 
@@ -282,3 +300,6 @@ Hay que probar en local:
    transparency; NVDA / VoiceOver en switches, tiles, part picker y acordeón.
 8. **Sin regresiones:** drag, resize, rotate, marquee, papelera, hit-stack, edición de texto libre, deshacer /
    rehacer global, guardar y recargar, perfil público y `space_mobile` sin cambios.
+9. **Botones:** agregar, editar, quitar y reordenar (grip y ↑ ↓); cada Forma, Relleno y hover; fuente y tamaño;
+   tarjeta corta → aviso y "Agrandar"; arrastrar el bloque sin navegar; en el perfil público abren el link en una
+   pestaña nueva; guardar y recargar; `space_mobile` sin cambios (ahí todavía no aparecen).

@@ -34,7 +34,7 @@ const chip = (id: ObjectId, c: ProfileCardData, viewCount?: number) => inspector
 
 test("objects: order and captions of design-direction.md §B", () => {
   assert.deepEqual(INSPECTOR_OBJECTS.map(o => o.caption), [
-    "Nombre", "@usuario", "Frase", "Ubicación", "Bio", "Visitas", "Foto", "Links", "Logo",
+    "Nombre", "@usuario", "Frase", "Ubicación", "Bio", "Visitas", "Foto", "Links", "Botones", "Logo",
     "Fondo de la card", "Efectos de la card", "Todos los textos",
   ]);
   assert.equal(new Set(OBJECT_IDS).size, OBJECT_IDS.length);
@@ -83,9 +83,9 @@ test("Links chip: up to 3 icons + 'N más' in its name", () => {
   assert.equal(d.links!.urls.length, 3);
   assert.equal(d.links!.more, 2);
   const label = (u: string) => u.split(".")[0];
-  assert.equal(chipAccessibleName(inspectorObject("links"), d, label), "Links: instagram, x, github y 2 más");
+  assert.equal(chipAccessibleName(inspectorObject("links"), d, label), "Íconos: instagram, x, github y 2 más");
   const two = chip("links", card({ contactLinks: links.slice(0, 2) }));
-  assert.equal(chipAccessibleName(inspectorObject("links"), two, label), "Links: instagram y x");
+  assert.equal(chipAccessibleName(inspectorObject("links"), two, label), "Íconos: instagram y x");
 });
 
 test("Efectos chip counts only VISIBLE card effects", () => {
@@ -277,7 +277,7 @@ test("r2: the unit check catches a mis-routed control", () => {
 
 test("r2: clusters — texts · blocks · card, contiguous and in that order", () => {
   const groups = INSPECTOR_OBJECTS.map(o => o.group);
-  assert.deepEqual(groups, ["text", "text", "text", "text", "text", "text", "block", "block", "block", "card", "card", "card"]);
+  assert.deepEqual(groups, ["text", "text", "text", "text", "text", "text", "block", "block", "block", "block", "card", "card", "card"]);
 });
 
 test("r2 (WCAG 2.5.3): every chip's accessible name contains its visible text", () => {

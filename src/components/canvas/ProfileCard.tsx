@@ -15,12 +15,14 @@ import { CanvasChromeButton } from "./CanvasChromeButton";
 import CardLayers from "./CardLayers";
 import { profileEditButtonId, profileInspectorId } from "@/lib/editorSelection";
 import type { ProfileEditorFacts } from "./EditorHost";
-import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides, type LinksBlockInput } from "@/lib/cardComposition";
+import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides, type LinksBlockInput, type ButtonsBlockInput } from "@/lib/cardComposition";
+import { resolveLinkButtonStyle, linkButtonsBlockSize, stackedLinksAnchorY, linkButtonsPlaced, linkButtonsShortfall, LINK_BUTTONS_MAX } from "@/lib/linkButtons";
+import { LinkButtonsBlock } from "./LinkButtonsBlock";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
   rectToAnchor, anchorToRect, snapAxis, snappedPoint, MAGNETIC_POINTS, centerAlignAnchor,
 } from "@/lib/blockConstraints";
-import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight, centerCardPosition, shouldApplyGrowth } from "@/lib/cardGeometry";
+import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight, centerCardPosition, shouldApplyGrowth, getFreeformCardBounds } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
 import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
@@ -47,15 +49,17 @@ import { T as UIT } from "@/ui/tokens";
 // internal block-drag system. musicAnchorX/Y stay in ProfileCardData for
 // backward compat (see that field's own deprecation comment) but nothing
 // here references them anymore.
-type BlockKey = "identity" | "location" | "views" | "links";
+// 2026-10-14: "buttons" (link buttons, Linktree-style) is the 5th key.
+type BlockKey = "identity" | "location" | "views" | "links" | "buttons";
 const BLOCK_ANCHOR_FIELDS: Record<BlockKey, readonly [
-  "identityAnchorX" | "locationAnchorX" | "viewsAnchorX" | "linksAnchorX",
-  "identityAnchorY" | "locationAnchorY" | "viewsAnchorY" | "linksAnchorY",
+  "identityAnchorX" | "locationAnchorX" | "viewsAnchorX" | "linksAnchorX" | "buttonsAnchorX",
+  "identityAnchorY" | "locationAnchorY" | "viewsAnchorY" | "linksAnchorY" | "buttonsAnchorY",
 ]> = {
   identity: ["identityAnchorX", "identityAnchorY"],
   location: ["locationAnchorX", "locationAnchorY"],
   views:    ["viewsAnchorX", "viewsAnchorY"],
   links:    ["linksAnchorX", "linksAnchorY"],
+  buttons:  ["buttonsAnchorX", "buttonsAnchorY"],
 };
 
 const SANS = "'DM Sans', sans-serif";
@@ -353,6 +357,7 @@ function ProfileCard({
     location: card.locationAnchorX != null && card.locationAnchorY != null ? { x: card.locationAnchorX, y: card.locationAnchorY } : undefined,
     views:    card.viewsAnchorX    != null && card.viewsAnchorY    != null ? { x: card.viewsAnchorX,    y: card.viewsAnchorY    } : undefined,
     links:    card.linksAnchorX    != null && card.linksAnchorY    != null ? { x: card.linksAnchorX,    y: card.linksAnchorY    } : undefined,
+    buttons:  card.buttonsAnchorX  != null && card.buttonsAnchorY  != null ? { x: card.buttonsAnchorX,  y: card.buttonsAnchorY  } : undefined,
   }));
   // Which block (if any) is actively being dragged right now — a ref (not
   // state) because its only two jobs are (a) guarding the sync-from-props
@@ -372,6 +377,8 @@ function ProfileCard({
   // "links" sets it true (in startBlockDrag's onMove) — identity/location/
   // views blocks contain no real <a> that navigation could leak into.
   const linksDidDragRef = useRef(false);
+  /** Same as linksDidDragRef, for the link buttons' <a>s. */
+  const buttonsDidDragRef = useRef(false);
 
   useEffect(() => {
     setBlockAnchors(prev => ({
@@ -383,8 +390,10 @@ function ProfileCard({
         : (card.viewsAnchorX != null && card.viewsAnchorY != null ? { x: card.viewsAnchorX, y: card.viewsAnchorY } : undefined),
       links: draggingBlockRef.current === "links" ? prev.links
         : (card.linksAnchorX != null && card.linksAnchorY != null ? { x: card.linksAnchorX, y: card.linksAnchorY } : undefined),
+      buttons: draggingBlockRef.current === "buttons" ? prev.buttons
+        : (card.buttonsAnchorX != null && card.buttonsAnchorY != null ? { x: card.buttonsAnchorX, y: card.buttonsAnchorY } : undefined),
     }));
-  }, [card.identityAnchorX, card.identityAnchorY, card.locationAnchorX, card.locationAnchorY, card.viewsAnchorX, card.viewsAnchorY, card.linksAnchorX, card.linksAnchorY]);
+  }, [card.identityAnchorX, card.identityAnchorY, card.locationAnchorX, card.locationAnchorY, card.viewsAnchorX, card.viewsAnchorY, card.linksAnchorX, card.linksAnchorY, card.buttonsAnchorX, card.buttonsAnchorY]);
 
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
@@ -743,6 +752,7 @@ function ProfileCard({
 
     draggingBlockRef.current = key;
     linksDidDragRef.current = false;
+    buttonsDidDragRef.current = false;
     const startMX = e.clientX, startMY = e.clientY;
     const rawAvailW = card.w - 2 * pad - blockW;
     const rawAvailH = card.h - 2 * pad - blockH;
@@ -755,6 +765,7 @@ function ProfileCard({
 
     const onMove = (ev: MouseEvent) => {
       if (key === "links") linksDidDragRef.current = true;
+      if (key === "buttons") buttonsDidDragRef.current = true;
       const rawX = nextAnchorAxis(startAnchor.x, ev.clientX - startMX, rawAvailW);
       const rawY = nextAnchorAxis(startAnchor.y, ev.clientY - startMY, rawAvailH);
       const nextX = snapAxis(rawX, snappedX, pointsX); snappedX = snappedPoint(nextX, pointsX);
@@ -1045,6 +1056,18 @@ function ProfileCard({
   const linksAvailWidth = Math.max(0, card.w - 2 * pad);
   const linksNaturalSize = contactLinksNaturalSize(contactLinks.length, linksAvailWidth, linksIconSize);
 
+  // ── Link buttons (Linktree-style, 2026-10-14) ─────────────────────────────
+  // Sizing / look from linkButtons.ts (the one source any renderer reads).
+  // No buttons = no `buttons` argument: computeBlockLayout takes the exact
+  // path it always did (regression test in cardComposition.test.ts).
+  const linkButtons = (card.linkButtons ?? []).filter(b => b.url);
+  const buttonStyle = resolveLinkButtonStyle(card.linkButtonStyle, baseColor);
+  /** px the card is short of for the buttons (exact, see below). */
+  const buttonsNeedRef = useRef(0);
+  /** px the card must grow for ONE more button (0 = it already fits). */
+  const buttonsNextRef = useRef(0);
+  const buttonsNaturalSize = linkButtonsBlockSize(linkButtons.length, buttonStyle, linksAvailWidth);
+
   // ── Composed layout (Stage 3B / 3B.3, extended in 4.2-B for Contact Links)
   // ──────────────────────────────────────────────────────────────────────
   // The user moves the PFP (startAnchorDrag → anchor) and, as of Stage 3B.3,
@@ -1077,10 +1100,19 @@ function ProfileCard({
       location: blockAnchors.location,
       views: blockAnchors.views,
       links: blockAnchors.links,
+      buttons: blockAnchors.buttons,
     };
-    const linksBlockInput: LinksBlockInput | undefined =
-      contactLinks.length > 0 ? { size: linksNaturalSize } : undefined;
-    const r = computeBlockLayout({
+    // With buttons and an icons row never dragged, the icons sit right ABOVE
+    // the buttons (identity → icons → buttons). Without buttons this stays
+    // exactly the old input (undefined defaultAnchor).
+    const linksInput = (stack: boolean): LinksBlockInput | undefined =>
+      contactLinks.length > 0 ? {
+        size: linksNaturalSize,
+        ...(stack ? { defaultAnchor: { x: 0.5, y: stackedLinksAnchorY({ boxH: card.h, padding: pad, linksH: linksNaturalSize.height, buttonsH: buttonsNaturalSize.height }) } } : {}),
+      } : undefined;
+    const buttonsBlockInput: ButtonsBlockInput | undefined =
+      linkButtons.length > 0 ? { size: buttonsNaturalSize } : undefined;
+    const layoutInput: Parameters<typeof computeBlockLayout>[0] = {
       format: card.format ?? "vertical",
       boxW: card.w,
       boxH: card.h,
@@ -1112,7 +1144,38 @@ function ProfileCard({
       },
       incumbent: incumbentRef.current,
       textAlign,
-    }, blockOverrides, linksBlockInput);
+    };
+    const stackIcons = linkButtons.length > 0 && !blockAnchors.links && !blockAnchors.buttons;
+    buttonsNeedRef.current = 0;
+    let r = computeBlockLayout(layoutInput, blockOverrides, linksInput(stackIcons), undefined, buttonsBlockInput);
+    // Buttons with no room (they would cover the content or fall off the
+    // card) are hidden — and then the icons row goes back to exactly where
+    // it is without buttons (one extra call, only in that case).
+    if (buttonsBlockInput && !linkButtonsPlaced(r, card.h, pad)) {
+      r = computeBlockLayout(layoutInput, blockOverrides, linksInput(false), undefined, buttonsBlockInput);
+    }
+    // Editor only: exactly how much taller the card must be for `count`
+    // buttons — the first height (10px steps, up to the max) where the
+    // engine places them. Growing re-flows the content, so no closed
+    // formula is exact. Feeds "Agrandar" (count = now) and adding a button
+    // (count + 1): one explicit, undoable edit each — never an effect.
+    buttonsNextRef.current = 0;
+    if (menuOpen) {
+      const needFor = (count: number): number => {
+        if (count <= 0) return 0;
+        const size = linkButtonsBlockSize(count, buttonStyle, linksAvailWidth);
+        const maxH = getFreeformCardBounds().maxH;
+        for (let h = card.h; h <= maxH; h += 10) {
+          const stacked = contactLinks.length > 0 && !blockAnchors.links && !blockAnchors.buttons
+            ? { size: linksNaturalSize, defaultAnchor: { x: 0.5, y: stackedLinksAnchorY({ boxH: h, padding: pad, linksH: linksNaturalSize.height, buttonsH: size.height }) } }
+            : linksInput(false);
+          if (linkButtonsPlaced(computeBlockLayout({ ...layoutInput, boxH: h }, blockOverrides, stacked, undefined, { size }), h, pad)) return h - card.h;
+        }
+        return Math.max(0, maxH - card.h);
+      };
+      if (buttonsBlockInput && !linkButtonsPlaced(r, card.h, pad)) buttonsNeedRef.current = needFor(linkButtons.length);
+      if (linkButtons.length < LINK_BUTTONS_MAX) buttonsNextRef.current = needFor(linkButtons.length + 1);
+    }
     incumbentRef.current = r.strategy;
     return r;
   })();
@@ -1220,6 +1283,17 @@ function ProfileCard({
   // applicable" (layout "free" doesn't use this engine, or Contact Links
   // at all), which the menu treats as "say nothing" — never as "doesn't fit".
   const linksFits = composedResult ? blockFits(composedResult.boxes.links) : undefined;
+  // Link buttons: same verdict, plus how many px the card is short of —
+  // the inspector offers to grow the card by exactly that (one explicit,
+  // undoable edit; the card never grows by itself — Stage 4.2-C.2.6).
+  const buttonsFits = composedResult && linkButtons.length > 0 ? linkButtonsPlaced(composedResult, card.h, pad) : undefined;
+  const buttonsOverflow = buttonsFits === false && composedResult
+    ? (buttonsNeedRef.current || linkButtonsShortfall({
+        contentBottom, linksH: contactLinks.length > 0 ? linksNaturalSize.height : 0,
+        buttonsH: buttonsNaturalSize.height, cardH: card.h, padding: pad,
+        box: composedResult.boxes.buttons,
+      }))
+    : 0;
 
   // Editor v3 Phase B: the inspector lives in EditorHost (CanvasBoard
   // level), so the render-time verdicts it shows travel up from here while
@@ -1227,8 +1301,8 @@ function ProfileCard({
   // Layout effect (review B-R4): reported before paint, so the host never
   // shows a frame with missing / previous facts.
   useLayoutEffect(() => {
-    if (menuOpen) onEditorFacts?.(card.id, { linksFits, viewCount });
-  }, [menuOpen, card.id, linksFits, viewCount, onEditorFacts]);
+    if (menuOpen) onEditorFacts?.(card.id, { linksFits, viewCount, buttonsFits, buttonsOverflow, buttonsGrowNext: buttonsNextRef.current });
+  }, [menuOpen, card.id, linksFits, viewCount, buttonsFits, buttonsOverflow, onEditorFacts, card.h, card.w, linkButtons.length]);
 
   // Logo (Product closeout) — layout-independent (renders the same whether
   // the card is composed or "free"), so it's a standalone function called
@@ -1306,6 +1380,11 @@ function ProfileCard({
       if (!boxes.links) return;
       const start = blockAnchors.links ?? rectToAnchor(boxes.links, boxes.links.w, boxes.links.h, card.w, card.h, pad);
       startBlockDrag(e, "links", start, boxes.links.w, boxes.links.h, pfpBox);
+    };
+    const startButtonsDrag = (e: React.MouseEvent) => {
+      if (!boxes.buttons) return;
+      const start = blockAnchors.buttons ?? rectToAnchor(boxes.buttons, boxes.buttons.w, boxes.buttons.h, card.w, card.h, pad);
+      startBlockDrag(e, "buttons", start, boxes.buttons.w, boxes.buttons.h, pfpBox);
     };
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 3, overflow: "hidden" }}>
@@ -1413,6 +1492,22 @@ function ProfileCard({
                 didDragRef={isAnchorDraggable ? linksDidDragRef : undefined}
               />
             ))}
+          </div>
+        )}
+        {boxes.buttons && linkButtons.length > 0 && buttonsFits && (
+          <div
+            data-canvas-hot=""
+            {...partProps("buttons")}
+            style={{
+              position: "absolute", left: boxes.buttons.x, top: boxes.buttons.y, width: boxes.buttons.w, height: boxes.buttons.h,
+              transition: dragTransition("buttons"), cursor: isAnchorDraggable ? "grab" : "default",
+              ...partOutline("buttons"),
+              ...dragOutline("buttons"),
+            }}
+            onMouseDown={isAnchorDraggable ? startButtonsDrag : undefined}
+          >
+            <LinkButtonsBlock buttons={linkButtons} style={buttonStyle} inert={menuOpen}
+              didDragRef={isAnchorDraggable ? buttonsDidDragRef : undefined} />
           </div>
         )}
       </div>

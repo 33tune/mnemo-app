@@ -70,6 +70,12 @@ export const SETTINGS_INDEX: Readonly<Record<SearchObject, readonly SettingsCard
     ["Íconos", "maximize", ["Tamaño"]],
     ["Estilo del bloque", "frame", []],
   ],
+  buttons: [
+    ["Botones", null, []],
+    ["Estilo", "palette", ["Forma", "Relleno", "Color del botón", "Color del texto", "Tamaño", "Ícono de la red"]],
+    ["Distribución", "spacing", ["Ancho", "Separación"]],
+    ["Al pasar el cursor", "pointer", ["Elevar", "Brillo", "Invertir"]],
+  ],
   logo: [
     ["Imagen", null, []],
     ["Tamaño y giro", "maximize", ["Ancho", "Alto", "Rotación", "Opacidad"]],

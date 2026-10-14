@@ -18,7 +18,7 @@ import { effectState } from "./effectBinding";
 import { isCardGlowFlagVisible } from "./effectEditorDefaults";
 import { getProfileCardEffects } from "./profileCardEffects";
 
-export type ObjectId = TextRole | "photo" | "links" | "logo" | "cardBg" | "cardFx" | "allText";
+export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText";
 
 export type ObjectKind = "role" | "block" | "card" | "all";
 /** Review r2: the list is a MAP of the card in three fixed clusters —
@@ -140,11 +140,19 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
     } },
   { id: "photo", caption: "Foto", placeholder: "Foto", kind: "block", group: "block",
     chip: ({ card }) => card.photo ? { text: "Foto", thumb: card.photo, spoken: "imagen" } : { text: "Foto", placeholder: true, emptyThumb: true } },
-  { id: "links", caption: "Links", placeholder: "Links", kind: "block", group: "block", blockKey: "links",
+  // 2026-10-14: the icons row is "Íconos" in the picker / dock (the new
+  // "Botones" are links too); the caption stays the route name.
+  { id: "links", caption: "Links", shortCaption: "Íconos", placeholder: "Links", kind: "block", group: "block", blockKey: "links",
     chip: ({ card }) => {
       const urls = (card.contactLinks ?? []).map(l => l.url).filter(Boolean);
       if (urls.length === 0) return { text: "Links", placeholder: true };
       return { text: "", links: { urls: urls.slice(0, 3), more: Math.max(0, urls.length - 3) } };
+    } },
+  // Link buttons (Linktree-style, 2026-10-14).
+  { id: "buttons", caption: "Botones", placeholder: "Botones", kind: "block", group: "block",
+    chip: ({ card }) => {
+      const n = (card.linkButtons ?? []).length;
+      return n ? { text: "Botones", spoken: n === 1 ? "1 botón" : `${n} botones` } : { text: "Botones", placeholder: true };
     } },
   { id: "logo", caption: "Logo", placeholder: "Logo", kind: "block", group: "block",
     chip: ({ card }) => card.logo?.url ? { text: "Logo", thumb: card.logo.url, spoken: "imagen" } : { text: "Logo", placeholder: true, emptyThumb: true } },
@@ -273,7 +281,7 @@ export interface PartGroup { id: PartGroupId; label: string; parts: readonly Obj
 export const PART_GROUPS: readonly PartGroup[] = [
   { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText"] },
   { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio"] },
-  { id: "content", label: "Contenido", parts: ["links", "logo", "views"] },
+  { id: "content", label: "Contenido", parts: ["links", "buttons", "logo", "views"] },
 ];
 export function partGroupOf(id: ObjectId): PartGroup {
   return PART_GROUPS.find(g => g.parts.includes(id)) ?? PART_GROUPS[0];
@@ -315,6 +323,7 @@ export const OBJECT_FILES: Record<ObjectId, readonly string[]> = {
   views:      [METADATA, TYPOGRAPHY],
   photo:      [IDENTITY],
   links:      [`${C}ProfileContactLinksMenu.tsx`],
+  buttons:    [`${C}ProfileLinkButtonsMenu.tsx`],
   logo:       [`${C}ProfileLogoMenu.tsx`],
   cardBg:     [`${C}ProfileBackgroundMenu.tsx`, EFFECTS, `${C}ProfileConfigMenu.tsx`],
   cardFx:     [EFFECTS],

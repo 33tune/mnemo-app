@@ -19,7 +19,7 @@
  * as undo steps happens once, downstream (enqueueOp → editorHistory.ts),
  * so no menu can forget it.
  */
-import type { CanvasElement, CardEffects, ContactLink, ProfileCardData } from "@/types";
+import type { LinkButton, LinkButtonStyle, CanvasElement, CardEffects, ContactLink, ProfileCardData } from "@/types";
 import { mergePatch } from "./effectPause";
 import { patchEffectGroup, setEffectEnabled } from "./effectBinding";
 import { GRADIENT_DEFAULT } from "./effectEditorDefaults";
@@ -200,5 +200,39 @@ export function linksController(links: ContactLink[], write: Write<Partial<Profi
     setIconSize: (v: number) => write({ linksIconSize: v }),
     /** Liquid glass "Restablecer card" (Íconos): deletes the raw key. */
     resetIconSize: () => write({ linksIconSize: undefined }),
+  };
+}
+
+/** Link buttons (Linktree-style, 2026-10-14): list + one shared style.
+ * `grow` = px the card gets taller with the edit (adding a row keeps the
+ * block fitting); the caller passes the already-clamped / centered geometry
+ * patch, so the list and the size land in ONE write (one undo step). */
+export function linkButtonsController(
+  buttons: LinkButton[], style: LinkButtonStyle | undefined, write: Write<Partial<ProfileCardData>>,
+  newId: () => string = () => crypto.randomUUID(),
+) {
+  const clean = (s: LinkButtonStyle): LinkButtonStyle | undefined => {
+    const out = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)) as LinkButtonStyle;
+    if (out.hover && !Object.values(out.hover).some(v => v !== undefined)) delete out.hover;
+    return Object.keys(out).length ? out : undefined;
+  };
+  return {
+    add: (label: string, url: string, geometry?: Partial<ProfileCardData>) =>
+      write({ linkButtons: [...buttons, { id: newId(), label, url }], ...geometry }),
+    update: (id: string, p: Partial<Omit<LinkButton, "id">>) =>
+      write({ linkButtons: buttons.map(b => b.id === id ? { ...b, ...p } : b) }),
+    remove: (id: string) => write({ linkButtons: buttons.filter(b => b.id !== id) }),
+    move: (from: number, to: number) => {
+      if (from === to || from < 0 || to < 0 || from >= buttons.length || to >= buttons.length) return;
+      const next = [...buttons];
+      const [b] = next.splice(from, 1);
+      next.splice(to, 0, b);
+      write({ linkButtons: next });
+    },
+    /** A style edit; `undefined` deletes that key (reset). */
+    setStyle: (p: Partial<LinkButtonStyle>) => write({ linkButtonStyle: clean({ ...style, ...p }) }),
+    setHover: (p: NonNullable<LinkButtonStyle["hover"]>) => write({ linkButtonStyle: clean({ ...style, hover: { ...style?.hover, ...p } }) }),
+    /** Grow the card (the fit note's action) — geometry only. */
+    resize: (geometry: Partial<ProfileCardData>) => write(geometry),
   };
 }

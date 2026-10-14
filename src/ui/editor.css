@@ -1483,6 +1483,14 @@
 :where([data-mnemo-editor]) .mn-linkrow__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 :where([data-mnemo-editor]) .mn-linkrow__name { font-family: var(--ui-font-sans); font-size: 13.5px; line-height: 18px; font-weight: 600; color: var(--ui-text-primary); }
 :where([data-mnemo-editor]) .mn-linkrow__url { font-family: var(--ui-font-mono); font-size: 12px; line-height: 16px; font-weight: 500; color: var(--ui-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where([data-mnemo-editor]) .mn-linkrow__grip {
+  flex: none; width: 24px; height: 36px; margin: 0; padding: 0; border: none; border-radius: 8px; display: grid; place-items: center;
+  background: transparent; color: var(--ui-text-tertiary); cursor: grab; touch-action: none;
+}
+:where([data-mnemo-editor]) .mn-linkrow__grip:active { cursor: grabbing; }
+:where([data-mnemo-editor]) .mn-linkrow__grip:hover { color: var(--ui-text-primary); }
+:where([data-mnemo-editor]) .mn-linkrow__grip:focus { outline: none; }
+:where([data-mnemo-editor]) .mn-linkrow__grip:focus-visible { box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor]) .mn-linkrow__count { padding: 0 4px; font-family: var(--ui-font-mono); font-size: 11.5px; line-height: 16px; font-weight: 500; color: var(--ui-text-tertiary); }
 
 /* ── Liquid glass (L3) — upload field (UploadField.tsx = DS upload) ───── */

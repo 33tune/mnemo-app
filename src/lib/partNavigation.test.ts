@@ -58,11 +58,12 @@ test("every part is an inspector object; no card-level object is a part", () => 
 
 test("ProfileCard: data-role on every part wrapper it already renders (composed and free), no new hot controls", () => {
   for (const r of ["name", "handle", "descriptor", "bio"]) assert.ok(CARD.includes(`<div {...partProps("${r}")} style={{ position: "absolute", left: boxes.`), r);
-  for (const r of ["photo", "location", "views", "links", "logo"]) assert.ok(CARD.includes(`{...partProps("${r}")}`), r);
+  for (const r of ["photo", "location", "views", "links", "buttons", "logo"]) assert.ok(CARD.includes(`{...partProps("${r}")}`), r);
   assert.ok(CARD.includes("{...partProps(elemKey as PartRole)}"), "free layout wrappers");
   // The hit-stack is unchanged: text lines are NOT marked hot (only the
-  // existing photo / links / logo / chrome markers).
-  assert.equal((CARD.match(/data-canvas-hot=""/g) ?? []).length, 3);
+  // existing photo / links / logo / chrome markers, plus the link buttons,
+  // which hold real <a>s exactly like the links row).
+  assert.equal((CARD.match(/data-canvas-hot=""/g) ?? []).length, 4);
 });
 
 test("D5: the outline is editor-only (menuOpen = inspector open AND canInteract) and the memo compares activePart", () => {

@@ -73,6 +73,7 @@ const content  = at("ProfileIdentityMenu.tsx");
 const meta     = at("ProfileMetadataMenu.tsx");
 const links    = at("ProfileContactLinksMenu.tsx");
 const logo     = at("ProfileLogoMenu.tsx");
+const btns     = at("ProfileLinkButtonsMenu.tsx");
 const config   = at("ProfileConfigMenu.tsx");
 const type     = at("ProfileTypographyMenu.tsx");
 const bgMenu   = at("ProfileBackgroundMenu.tsx");
@@ -95,6 +96,7 @@ const obj = (caption: string) => `${P} › ${caption}`;
 const NOMBRE = obj("Nombre"), USUARIO = obj("@usuario"), FRASE = obj("Frase"), UBICACION = obj("Ubicación");
 const BIO = obj("Bio"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS = obj("Links"), LOGO = obj("Logo");
 const FONDO = obj("Fondo de la card");
+const BOTONES = obj("Botones");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");
 const TIPO = "Tipografía";
@@ -135,6 +137,23 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   linksAnchorX: BLOCK_DRAG("links"), linksAnchorY: BLOCK_DRAG("links"),
   contactLinks: links(`${LINKS}`, "linksCtl.add(url)", "linksCtl.remove(id)"),
   linksIconSize: links(`${LINKS} › Tamaño de ícono`, "linksCtl.setIconSize(v)"),
+  // Link buttons (Linktree-style, 2026-10-14).
+  linkButtons: btns(`${BOTONES}`, "ctl.add(label.trim() || u.replace", "ctl.remove(id)", "ctl.move(from, to)", "ctl.update(editingId, { label: draft.label.trim()"),
+  "linkButtonStyle.shape": btns(`${BOTONES} › Estilo › Forma`, 'ctl.setStyle({ shape: v as LinkButtonStyle["shape"] })'),
+  "linkButtonStyle.fill": btns(`${BOTONES} › Estilo › Relleno`, 'ctl.setStyle({ fill: v as LinkButtonStyle["fill"] })'),
+  "linkButtonStyle.color": btns(`${BOTONES} › Estilo › Color del botón`, "ctl.setStyle({ color: v })"),
+  "linkButtonStyle.textColor": btns(`${BOTONES} › Estilo › Color del texto`, "ctl.setStyle({ textColor: v })"),
+  "linkButtonStyle.font": btns(`${BOTONES} › Estilo › Fuente`, "ctl.setStyle({ font: v })"),
+  "linkButtonStyle.fontSize": btns(`${BOTONES} › Estilo › Tamaño`, "ctl.setStyle({ fontSize: v })"),
+  "linkButtonStyle.fontWeight": unsupported("no control yet: the buttons use 600 (linkButtons.ts LINK_BUTTON_DEFAULT_WEIGHT)"),
+  "linkButtonStyle.showIcon": btns(`${BOTONES} › Estilo › Ícono de la red`, "ctl.setStyle({ showIcon: v ? undefined : false })"),
+  "linkButtonStyle.width": btns(`${BOTONES} › Distribución › Ancho`, 'ctl.setStyle({ width: v as LinkButtonStyle["width"] })'),
+  "linkButtonStyle.gap": btns(`${BOTONES} › Distribución › Separación`, "ctl.setStyle({ gap: v })"),
+  "linkButtonStyle.hover.lift": btns(`${BOTONES} › Al pasar el cursor › Elevar`, "ctl.setHover({ lift: v ? undefined : false })"),
+  "linkButtonStyle.hover.glow": btns(`${BOTONES} › Al pasar el cursor › Brillo`, "ctl.setHover({ glow: v || undefined })"),
+  "linkButtonStyle.hover.invert": btns(`${BOTONES} › Al pasar el cursor › Invertir`, "ctl.setHover({ invert: v || undefined })"),
+  buttonsAnchorX: card(`${LIENZO} › bloque buttons`, 'buttons:  ["buttonsAnchorX", "buttonsAnchorY"]', "[fx]: latest.x"),
+  buttonsAnchorY: card(`${LIENZO} › bloque buttons`, 'buttons:  ["buttonsAnchorX", "buttonsAnchorY"]', "[fx]: latest.x"),
   musicAnchorX: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   musicAnchorY: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   music: retired("Music is an independent canvas element now (MusicCardData)"),

@@ -7,6 +7,28 @@ export type CanvasMode = 'home' | 'space' | 'space_mobile';
 // that would change the box computeBlockLayout() measures (padding, border
 // width, size) — see that file's header for why.
 export type BlockStyleKey = "identity" | "location" | "views" | "links";
+
+/** A Linktree-style button inside ProfileCard (2026-10-14). The platform
+ * icon is derived from `url` on render (detectPlatform), never stored. */
+export interface LinkButton { id: string; label: string; url: string }
+/** Every field optional: absent = the default in linkButtons.ts. */
+export interface LinkButtonStyle {
+  shape?:      "square" | "soft" | "pill";
+  fill?:       "solid" | "outline" | "glass";
+  /** Button color (fill, or the outline in "outline"). Absent = the card's
+   * base text color. */
+  color?:      string;
+  /** Label color. Absent = black / white, whichever reads on `color`. */
+  textColor?:  string;
+  font?:       TextFont;
+  fontSize?:   number;
+  fontWeight?: number;
+  /** The platform icon before the label. Absent = shown. */
+  showIcon?:   boolean;
+  width?:      "full" | "fit";
+  gap?:        number;
+  hover?:      { lift?: boolean; glow?: boolean; invert?: boolean };
+}
 export interface BlockStyleOverride {
   bg?:        string;
   textColor?: string;
@@ -360,6 +382,16 @@ export type ProfileCardData = {
   // (contactLinksBlock.ts), same as before this field existed. Clamped to
   // CONTACT_LINK_ICON_SIZE_MIN/MAX at the menu input boundary.
   linksIconSize?:   number;
+  // Link buttons (Linktree-style, user decision 2026-10-14): a 7th internal
+  // block, after the Contact Links icons — see computeBlockLayout()'s
+  // ButtonsBlockInput and src/lib/linkButtons.ts (pure sizing / style, the
+  // ONE place any renderer — today ProfileCard, later mobile — reads them).
+  // Absent / empty = no block: every existing card renders exactly as before.
+  linkButtons?:     LinkButton[];
+  /** One style for every button (consistent, like Linktree). */
+  linkButtonStyle?: LinkButtonStyle;
+  buttonsAnchorX?:  number;
+  buttonsAnchorY?:  number;
   // DEPRECATED — Music left ProfileCard's internal composition (it's now an
   // independent canvas element, MusicCardData/MusicCardWidget.tsx, with its
   // own audioUrl/title/artist/volume). These 4 fields are kept ONLY for

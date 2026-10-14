@@ -117,7 +117,7 @@ export interface CompositionInput {
   textAlign?: TextAlign;
 }
 
-export type ElementRole = "pfp" | "name" | "handle" | "bio" | "descriptor" | "location" | "views" | "links" | "music";
+export type ElementRole = "pfp" | "name" | "handle" | "bio" | "descriptor" | "location" | "views" | "links" | "music" | "buttons";
 
 export interface ElementBox {
   x: number;
@@ -647,6 +647,8 @@ export interface BlockOverrides {
   /** Stage 4.2-C.1: overrides the Music block's position — same
    * normalized-anchor contract as the others. See MusicBlockInput. */
   music?: { x: number; y: number };
+  /** 2026-10-14: the link buttons block (Linktree-style). See ButtonsBlockInput. */
+  buttons?: { x: number; y: number };
 }
 
 /**
@@ -676,6 +678,18 @@ export interface MusicBlockInput {
   size: { width: number; height: number };
   /** Normalized anchor used only when no drag override is set — same
    * anchorToRect contract as every other block. Defaults to bottom-center. */
+  defaultAnchor?: { x: number; y: number };
+}
+
+/**
+ * Link buttons (Linktree-style, 2026-10-14): natural size (px) of the 7th,
+ * lowest-priority block — same contract as LinksBlockInput / MusicBlockInput.
+ * Omitting it leaves computeBlockLayout's output unchanged (see the "no
+ * buttons block" regression test). Sizing lives in linkButtons.ts.
+ */
+export interface ButtonsBlockInput {
+  size: { width: number; height: number };
+  /** Defaults to bottom-center, like the other appended blocks. */
   defaultAnchor?: { x: number; y: number };
 }
 
@@ -748,7 +762,7 @@ export interface BlockLayoutResult extends CompositionResult {
   identityRect?: ElementBox;
 }
 
-export function computeBlockLayout(input: CompositionInput, overrides?: BlockOverrides, links?: LinksBlockInput, music?: MusicBlockInput): BlockLayoutResult {
+export function computeBlockLayout(input: CompositionInput, overrides?: BlockOverrides, links?: LinksBlockInput, music?: MusicBlockInput, buttons?: ButtonsBlockInput): BlockLayoutResult {
   const { boxW, boxH, padding } = input;
   const base = computeComposition(input);
   const identityBase = unionBox(
@@ -838,6 +852,24 @@ export function computeBlockLayout(input: CompositionInput, overrides?: BlockOve
     const baseRect = anchorToRect(defaultAnchor.x, defaultAnchor.y, music.size.width, music.size.height, boxW, boxH, padding);
     const resolvedMusic = resolveBlock(baseRect, overrides?.music, obstacles, boxW, boxH, padding);
     result = { ...result, boxes: { ...result.boxes, music: { x: resolvedMusic.x, y: resolvedMusic.y, w: music.size.width, h: music.size.height } } };
+  }
+
+  // ── Buttons — 7th, lowest-priority block (link buttons, 2026-10-14) ──────
+  // Same cascade: every earlier block's FINAL rect is an obstacle. No
+  // `buttons` param: skip entirely, `result` unchanged.
+  if (buttons) {
+    const obstacles: Rect[] = [];
+    if (result.boxes.pfp) obstacles.push(result.boxes.pfp);
+    if (result.identityRect) obstacles.push(result.identityRect);
+    if (result.boxes.location) obstacles.push(result.boxes.location);
+    if (result.boxes.views) obstacles.push(result.boxes.views);
+    if (result.boxes.links) obstacles.push(result.boxes.links);
+    if (result.boxes.music) obstacles.push(result.boxes.music);
+
+    const defaultAnchor = buttons.defaultAnchor ?? { x: 0.5, y: 1 };
+    const baseRect = anchorToRect(defaultAnchor.x, defaultAnchor.y, buttons.size.width, buttons.size.height, boxW, boxH, padding);
+    const resolvedButtons = resolveBlock(baseRect, overrides?.buttons, obstacles, boxW, boxH, padding);
+    result = { ...result, boxes: { ...result.boxes, buttons: { x: resolvedButtons.x, y: resolvedButtons.y, w: buttons.size.width, h: buttons.size.height } } };
   }
 
   return result;

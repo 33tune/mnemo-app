@@ -8,6 +8,7 @@ import type { ObjectId } from "@/lib/inspectorObjects";
 import ProfileIdentityMenu, { type IdentityPart } from "./ProfileIdentityMenu";
 import ProfileMetadataMenu, { type MetadataPart } from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
+import ProfileLinkButtonsMenu from "./ProfileLinkButtonsMenu";
 import ProfileLogoMenu from "./ProfileLogoMenu";
 import { RoleTextSection, GlobalTextSection } from "./ProfileTypographyMenu";
 import ProfileBackgroundMenu from "./ProfileBackgroundMenu";
@@ -34,6 +35,10 @@ export interface SectionContext {
   /** Stage 4.2-C.2.7: render-time verdict from ProfileCard's blockFits() —
    * only an explicit `false` warns. */
   linksFits?: boolean;
+  /** Link buttons (2026-10-14): fit verdict + px short (ProfileCard). */
+  buttonsFits?: boolean;
+  buttonsOverflow?: number;
+  buttonsGrowNext?: number;
   /** Iteration 0 (O1 "Medidas"): the canvas the card is centered in.
    * Absent (space_mobile) = no Medidas. */
   canvas?:   { w: number; h: number; topOffset: number };
@@ -128,6 +133,10 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
   ],
   links: [
     { key: "links", num: N1, render: c => <ProfileContactLinksMenu card={c.card} fitsInCard={c.linksFits} onChange={c.onChange} /> },
+  ],
+  buttons: [
+    { key: "buttons", num: N1, render: c => <ProfileLinkButtonsMenu card={c.card} baseColor={c.baseColor} fits={c.buttonsFits}
+      overflow={c.buttonsOverflow} growNext={c.buttonsGrowNext} canvas={c.canvas} onChange={c.onChange} /> },
   ],
   logo: [
     { key: "logo", num: N1, render: c => <ProfileLogoMenu logo={c.card.logo} onChange={c.onChange} /> },
