@@ -72,7 +72,7 @@ test("Tu sala: the room settings moved out of the + menu with IDENTICAL operatio
 });
 
 test("Tu sala opens on demand from the rail (user decision) and only with nothing selected", () => {
-  assert.ok(RAIL.includes('<RailButton icon="room" label="Tu sala" id={RAIL_ROOM_BUTTON_ID} expanded={roomOpen}'));
+  assert.ok(RAIL.includes('<RailButton icon="gear" label="Tu sala" tip="Ajustes de tu sala" id={RAIL_ROOM_BUTTON_ID} expanded={roomOpen}'));
   assert.ok(BOARD.includes("onRoom={() => { if (roomOpen) closeInspector(); else { setMenuOpen(false); openRoom(); } }}"));
   // openRoom = clear the selection, then open the room target.
   const s1 = reduce({ selectedIds: new Set(["a"]), target: null }, { type: "select", ids: new Set() });
@@ -157,4 +157,28 @@ test("Phase D review: \"Tu sala\" opens on touch devices too (room settings were
 
 test("Phase D review: object chrome clears the 60px topbar and the rail (placement only, geometry keeps 44)", () => {
   assert.ok(BOARD.includes("topOffset: editorShell ? EDITOR_CHROME_TOP : 44, left: railW"));
+});
+
+test("Liquid glass L5: the wide editor topbar is two floating capsules; nothing of the old bar is dropped", () => {
+  const ed = TOPBAR.slice(TOPBAR.indexOf("function EditorTopbar("), TOPBAR.indexOf("function CompactEditorTopbar("));
+  for (const k of ['className="mn-capsule mn-capsule--brand"', 'className="mn-capsule mn-capsule--actions"', "myLand", "editor.path"]) assert.ok(ed.includes(k), k);
+  assert.ok(ed.includes("right: editor.right ?? T.ui.size.dockMargin"), "the actions capsule clears the dock");
+  assert.ok(BOARD.includes("right: UIT.ui.size.dockMargin + fabShift,"));
+  // "Más" keeps MY LAND / SOCIAL, Señales and Salir; Esc returns focus to it.
+  const menu = ed.slice(ed.indexOf("{open && ("));
+  for (const k of ["tabs.map(", "onSignals &&", "onLogout &&"]) assert.ok(menu.includes(k), `"Más" keeps ${k}`);
+  assert.ok(ed.includes("moreRef.current?.focus"));
+  // The editor theme toggle cycles the three themes (Tu sala › Apariencia stays).
+  assert.ok(ed.includes("EDITOR_THEMES[(EDITOR_THEMES.indexOf(theme) + 1) % EDITOR_THEMES.length]"));
+  // Status is a dot, never a count of unpublished changes.
+  assert.ok(ed.includes('className="mn-capsule__status" data-dirty={dirty || undefined}'));
+});
+
+test("Liquid glass L5: floating rail capsule, dock 16px from the top, Agregar menu and the empty-canvas hint", () => {
+  assert.equal(T.ui.size.railW, 16 + 56, "margin + capsule (44 + 2 x 6)");
+  assert.ok(T.ui.size.railW + 16 + getFreeformCardBounds().maxW + 16 + T.ui.size.inspectorW + T.ui.size.dockMargin <= T.ui.breakpoint.inspectorSheet);
+  assert.ok(RAIL.includes('className="mn-rail__ind"') && RAIL.includes("translateY(${active * RAIL_STEP}px)"));
+  assert.ok(BOARD.includes("top={editorShell ? (sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin) : CANVAS_TOP_OFFSET}"));
+  for (const k of ['label:"Texto"', 'label:"Imagen"', 'label:"Music"', 'label:"Card de presentación"', 'className="mn-addmenu__well"']) assert.ok(BOARD.includes(k), k);
+  assert.ok(BOARD.includes("{railShown && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && ("), "the hint only with nothing selected");
 });

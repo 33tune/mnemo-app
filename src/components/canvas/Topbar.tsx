@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import type { CanvasMode, PublishState } from "@/types";
-import { T, Icon } from "@/ui";
+import { T, Icon, type IconName } from "@/ui";
+import { useEditorTheme } from "@/lib/useEditorTheme";
+import { EDITOR_THEMES, type EditorTheme } from "@/lib/editorTheme";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
 
 /** Editor v3 Phase D: what the EDITOR variant of the topbar needs (only the
@@ -22,6 +24,9 @@ export interface EditorTopbarProps {
   /** Narrow viewports (the bottom-sheet layout, design screen 10): wordmark,
    * Deshacer and Publicar at 44px; everything else under "Más" (1.4.10). */
   compact?: boolean;
+  /** Liquid glass (L5): the actions capsule's right edge — clears the
+   * floating dock while it is open (16 otherwise). */
+  right?: number;
 }
 
 const MONO = "'Space Mono', monospace";
@@ -460,64 +465,86 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
   onSignals?: () => void;
   onLogout?: () => Promise<void>;
 }) {
+  const [theme, setTheme] = useEditorTheme();
+  const [open, setOpen] = useState(false);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!menuRef.current?.contains(t) && !moreRef.current?.contains(t)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [open]);
+
   if (editor.compact) {
     return (
       <CompactEditorTopbar editor={editor} tabs={tabs} publishState={publishState} onPublish={onPublish}
         unreadChats={unreadChats} unreadSignals={unreadSignals} onSignals={onSignals} onLogout={onLogout} />
     );
   }
+  const unread = (unreadChats ?? 0) + (unreadSignals ?? 0);
+  const close = (refocus: boolean) => {
+    setOpen(false);
+    if (refocus) requestAnimationFrame(() => moreRef.current?.focus({ preventScroll: true }));
+  };
+  const run = (fn?: () => void) => () => { close(false); fn?.(); };
+  const nextTheme = EDITOR_THEMES[(EDITOR_THEMES.indexOf(theme) + 1) % EDITOR_THEMES.length];
+  const themeTip = `Tema del editor: ${THEME_LABEL[theme]} · cambiar a ${THEME_LABEL[nextTheme]}`;
+  const dirty = publishState === "pending";
+
+  // Liquid glass (L5, DS Editor shell): no full-width bar — two floating
+  // glass capsules over the canvas. Left, the brand (logo, myLand, the route,
+  // a publish-status dot: accent = cambios para publicar, success = al día —
+  // a dot, never a count). Right, the actions (Deshacer, Rehacer, the editor
+  // theme, Vista previa, "Más", Publicar); it slides left while the dock is
+  // open so it never sits under it. MY LAND / SOCIAL, Señales and Salir live
+  // under "Más" (the same disclosure as the compact bar) — nothing dropped.
   return (
-    <header
-      {...{ [EDITOR_UI_ATTR]: "" }}
-      className="mn-topbar"
-      style={{
-        position: "fixed", top: 0, left: editor.left, right: 0, height: T.ui.size.editorTopbarH, zIndex: 800,
-        display: "flex", alignItems: "center", gap: 12, padding: "0 14px 0 20px", boxSizing: "border-box",
-        fontFamily: T.uiFont.sans,
-      }}
-    >
-      <span className="mn-topbar__wordmark">myland</span>
-      <span className="mn-topbar__path">{editor.path}</span>
-
-      {tabs.length > 0 && (
-        <div role="group" aria-label="Sección" className="mn-topbar__tabs">
-          {tabs.map(tab => (
-            <button key={tab.key} type="button" className="mn-topbar__tab" aria-pressed={tab.active} onClick={tab.onClick}>
-              {tab.label}
-              {tab.key === "chats" && (unreadChats ?? 0) > 0 && <span className="mn-topbar__count">{unreadChats}</span>}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-        {onSignals && (
-          <button type="button" className="mn-topbar__btn mn-topbar__btn--text" onClick={onSignals}
-            aria-label={(unreadSignals ?? 0) > 0 ? `Señales, ${unreadSignals} sin leer` : "Señales"}>
-            Señales
-            {(unreadSignals ?? 0) > 0 && <span className="mn-topbar__count">{unreadSignals}</span>}
-          </button>
+    <header {...{ [EDITOR_UI_ATTR]: "" }} className="mn-shellbar" style={{ fontFamily: T.uiFont.sans }}>
+      <div className="mn-capsule mn-capsule--brand" style={{ left: T.ui.size.dockMargin }}>
+        <img src="/logo.png" alt="" width={34} height={27} draggable={false} className="mn-capsule__logo" />
+        <span className="mn-capsule__name">myLand</span>
+        <span className="mn-capsule__path">{editor.path}</span>
+        {publishState !== undefined && (
+          <span className="mn-capsule__status" data-dirty={dirty || undefined}
+            title={dirty ? "Hay cambios para publicar" : "Todo publicado"} aria-hidden="true" />
         )}
-        <div style={{ display: "flex", gap: 2, marginLeft: 6 }}>
-          <button type="button" className="mn-topbar__btn" aria-label="Deshacer" title={`Deshacer ${editor.undoKeys}`}
-            aria-keyshortcuts={editor.undoKeys.replace("⌘", "Meta+")} aria-disabled={!editor.canUndo || undefined}
-            onClick={() => { if (editor.canUndo) editor.onUndo(); }}>
-            <Icon name="undo" size={16} />
-          </button>
-          <button type="button" className="mn-topbar__btn" aria-label="Rehacer" title={`Rehacer ${editor.redoKeys}`}
-            aria-disabled={!editor.canRedo || undefined}
-            onClick={() => { if (editor.canRedo) editor.onRedo(); }}>
-            <Icon name="redo" size={16} />
-          </button>
-        </div>
+      </div>
+
+      <div className="mn-capsule mn-capsule--actions" style={{ right: editor.right ?? T.ui.size.dockMargin }}>
+        <button type="button" className="mn-gbtn mn-tip" data-tip-side="bottom" data-tip={`Deshacer   ${editor.undoKeys}`}
+          aria-label="Deshacer" aria-keyshortcuts={editor.undoKeys.replace("⌘", "Meta+")} aria-disabled={!editor.canUndo || undefined}
+          onClick={() => { if (editor.canUndo) editor.onUndo(); }}>
+          <Icon name="undo" size={17} />
+        </button>
+        <button type="button" className="mn-gbtn mn-tip" data-tip-side="bottom" data-tip={`Rehacer   ${editor.redoKeys}`}
+          aria-label="Rehacer" aria-disabled={!editor.canRedo || undefined}
+          onClick={() => { if (editor.canRedo) editor.onRedo(); }}>
+          <Icon name="redo" size={17} />
+        </button>
+        <button type="button" className="mn-gbtn mn-tip" data-tip-side="bottom" data-tip={themeTip}
+          aria-label={themeTip} onClick={() => setTheme(nextTheme)}>
+          <Icon name={THEME_ICON[theme]} size={17} />
+        </button>
         {editor.previewHref && (
-          <a className="mn-topbar__btn mn-topbar__btn--text mn-topbar__btn--filled" href={editor.previewHref} target="_blank" rel="noopener noreferrer"
+          <a className="mn-gbtn mn-tip" data-tip-side="bottom" data-tip="Vista previa" href={editor.previewHref} target="_blank" rel="noopener noreferrer"
             aria-label="Vista previa (se abre en otra pestaña)">
-            <Icon name="eye" size={15} /> Vista previa
+            <Icon name="eye" size={17} />
           </a>
         )}
+        <button ref={moreRef} type="button" className="mn-gbtn mn-tip" data-tip-side="bottom" data-tip="Más opciones"
+          aria-label={unread > 0 ? `Más opciones, ${unread} sin leer` : "Más opciones"}
+          aria-expanded={open} aria-controls={open ? WIDE_MORE_MENU_ID : undefined}
+          onKeyDown={e => { if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(false); } }}
+          onClick={() => setOpen(o => !o)}>
+          <Icon name="more" size={17} />
+          {unread > 0 && <span aria-hidden="true" className="mn-topbar__dot" />}
+        </button>
         {publishState !== undefined && (
-          <button type="button" className="mn-topbar__publish" data-state={publishState}
+          <button type="button" className="mn-pill mn-pill--brand" data-state={publishState}
             onClick={publishState === "pending" ? onPublish : undefined}
             aria-disabled={publishState !== "pending" || undefined}
             aria-live="polite">
@@ -525,13 +552,38 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
             {PUBLISH_LABEL[publishState]}
           </button>
         )}
-        {onLogout && (
-          <button type="button" className="mn-topbar__btn mn-topbar__btn--text" onClick={() => { void onLogout(); }}>Salir</button>
+
+        {open && (
+          <div ref={menuRef} id={WIDE_MORE_MENU_ID} role="group" aria-label="Más opciones" className="mn-glassmenu mn-glassmenu--more"
+            onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); } }}>
+            {tabs.map(tab => (
+              <button key={tab.key} type="button" className="mn-glassmenu__item" aria-pressed={tab.active} onClick={run(tab.onClick)}>
+                <span>{tab.label}</span>
+                {tab.key === "chats" && (unreadChats ?? 0) > 0 && <span className="mn-topbar__count">{unreadChats}</span>}
+              </button>
+            ))}
+            {onSignals && (
+              <button type="button" className="mn-glassmenu__item" onClick={run(onSignals)}
+                aria-label={(unreadSignals ?? 0) > 0 ? `Señales, ${unreadSignals} sin leer` : "Señales"}>
+                <span>Señales</span>
+                {(unreadSignals ?? 0) > 0 && <span className="mn-topbar__count">{unreadSignals}</span>}
+              </button>
+            )}
+            {onLogout && (
+              <button type="button" className="mn-glassmenu__item" onClick={run(() => { void onLogout(); })}>
+                <span>Salir</span>
+              </button>
+            )}
+          </div>
         )}
       </div>
     </header>
   );
 }
+
+const WIDE_MORE_MENU_ID = "mnemo-shell-more";
+const THEME_LABEL: Record<EditorTheme, string> = { dark: "Oscuro", light: "Claro", og: "OG" };
+const THEME_ICON: Record<EditorTheme, IconName> = { dark: "moon", light: "sun", og: "sparkles" };
 
 // Phase D review (1.4.10 Reflow): the editor topbar on narrow viewports —
 // design screen 10 keeps the wordmark, Deshacer and Publicar (44px targets);

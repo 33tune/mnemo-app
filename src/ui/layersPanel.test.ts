@@ -48,7 +48,7 @@ test("the list = exactly what the canvas renders, top = front", () => {
 test("opens from the rail (Capas, L — canvas focus only) and from the narrow '+' menu; hosted in the dock", () => {
   assert.ok(RAIL.includes("onClick={onLayers}") && !RAIL.includes("Capas · próximamente"));
   assert.ok(BOARD.includes('if (key === "l")'));
-  assert.ok(BOARD.includes("openLayers();}}>Capas</button>"));
+  assert.ok(BOARD.includes("openLayers();}}><Icon name=\"layers\" size={16} />Capas</button>"));
   assert.ok(HOST.includes('target?.kind === "layers" && layers') && HOST.includes("<LayersPanel"));
   assert.ok(BOARD.includes("if ((roomOpen || layersOpen) && sheetMode)"), "the canvas does not move for Capas");
 });

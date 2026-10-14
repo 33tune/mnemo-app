@@ -49,7 +49,7 @@ import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
 import { shouldSkipCanvasShortcut, canvasShortcutAllowed, shouldFocusCanvasOnMouseDown, isEventFromNode, CANVAS_ATTR, CHROME_ATTR, type GuardElement } from "@/lib/editorGuards";
 import { resolveNudgeKey, nudgeMove, nudgeResize, cycleSelection, isMacPlatform } from "@/lib/canvasNudge";
-import { T as UIT, Icon, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote, INSPECTOR_TITLE_ID } from "@/ui";
+import { T as UIT, Icon, type IconName, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote, INSPECTOR_TITLE_ID } from "@/ui";
 import { INSPECTOR_COLLAPSED_W, INSPECTOR_SHEET_COLLAPSED_H, INSPECTOR_EXPAND_ID } from "@/ui/InspectorShell";
 import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown, stickyElementOffset, SHEET_OPENER_RESERVE } from "@/lib/inspectorViewOffset";
 import { useEditorSelection, profileTargetId, targetId, elementTarget, elementEditButtonId, elementInspectorId, type ElementTargetKind } from "@/lib/editorSelection";
@@ -3515,6 +3515,7 @@ export default function CanvasBoard({
           previewHref: userHandle ? `/${userHandle}` : undefined,
           undoKeys: isMacUi ? "⌘Z" : "Ctrl+Z", redoKeys: isMacUi ? "⇧⌘Z" : "Ctrl+Y",
           compact: inspLayout.mode === "sheet",
+          right: UIT.ui.size.dockMargin + fabShift,
         } : undefined}
       />
 
@@ -3533,6 +3534,17 @@ export default function CanvasBoard({
           addMenuId="mnemo-add-menu"
           roomInspectorId="mnemo-room-inspector"
         />
+      )}
+
+      {/* Liquid glass (L5, DS .lg-hint): with nothing selected, a pill at
+          the bottom says how to start. Visual only (the canvas already has
+          its keyboard help in aria-describedby); never in a public render. */}
+      {railShown && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && (
+        <div data-mnemo-ui="" aria-hidden="true" className="mn-hint"
+          style={{ left: railW + (viewportW - railW) / 2 }}>
+          <span className="mn-hint__well"><Icon name="pointer" size={14} /></span>
+          Tocá algo para editarlo<kbd>A</kbd>agregar
+        </div>
       )}
 
       {view==="canvas"&&(creatingCard||rotating||addingText)&&(
@@ -4227,7 +4239,9 @@ export default function CanvasBoard({
           facts={profileFacts?.id === inspectorCardId ? profileFacts.facts : undefined}
           canvas={canvasMode === "space_mobile" ? undefined : { w: viewportW, h: viewportH, topOffset: CANVAS_TOP_OFFSET }}
           // Phase D: the floating dock starts under the editor topbar.
-          top={editorShell ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : CANVAS_TOP_OFFSET}
+          // Liquid glass (L5): with the capsules (no full bar) it floats 16px
+          // from the top; the narrow layout keeps the compact bar above it.
+          top={editorShell ? (sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin) : CANVAS_TOP_OFFSET}
           layout={inspectorHostLayout}
           room={{
             bgColor, wallpaper, wallpaperBlur, wallpaperBrightness, wallpaperVignette, spaceMusic, spaceFont, spaceCursor,
@@ -4352,9 +4366,10 @@ export default function CanvasBoard({
         // closes it and returns focus to "+".
         <div data-mnemo-ui="" id="mnemo-add-menu" role="group" aria-label="Agregar elemento" tabIndex={-1}
           onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();closeAddMenu();}}}
-          onClick={e=>e.stopPropagation()} style={{outline:"none",...mylandMenuSurface(railShown
-            ? {position:"fixed",left:RAIL_ADD_MENU_POS.left,top:RAIL_ADD_MENU_POS.top,padding:4,zIndex:1000,width:180,boxSizing:"border-box"}
-            : {position:"fixed",bottom:66+fabLift,right:20+fabShift,padding:4,zIndex:1000,width:180,boxSizing:"border-box"})}}>
+          onClick={e=>e.stopPropagation()} className="mn-glassmenu mn-addmenu" data-side={railShown ? "rail" : "fab"}
+          style={railShown
+            ? {position:"fixed",left:RAIL_ADD_MENU_POS.left,top:RAIL_ADD_MENU_POS.top,zIndex:1000}
+            : {position:"fixed",bottom:66+fabLift,right:20+fabShift,zIndex:1000}}>
           {[
             // Stage 4.2-C.2.1: "New Card" (generic standalone CanvasCard),
             // "Links", "Media" and "Guestbook" were removed from here —
@@ -4368,24 +4383,28 @@ export default function CanvasBoard({
             // Block 1: "Gallery" removed too — Gallery is out of the roadmap
             // (see CLAUDE.md). Same Phase-A-only approach: addGallery() and
             // the gallery render/replay paths stay for pre-existing data.
-            // Iteration 0: Spanish labels; activating an item closes the menu
-            // and returns focus to "+" (it used to drop to <body>). "Card de
+            // Iteration 0: activating an item closes the menu and returns
+            // focus to "+" (it used to drop to <body>). "Card de
             // presentación" is hidden once the singleton exists (addProfile
             // was a silent no-op then).
-            {label:"Texto libre",   fn:()=>{setAddingText(true);      closeAddMenu();}},
-            {label:"Imagen / GIF",  fn:()=>{imageRef.current?.click();closeAddMenu();}},
-            {label:"Music",         fn:()=>{addMusicCard();           closeAddMenu();}},
-            ...(profiles.length === 0 ? [{label:"Card de presentación", fn:()=>{addProfile(); closeAddMenu();}}] : []),
+            // Liquid glass (L5, DS add menu): 60px items — icon well, the
+            // element's name (the same names its dock uses) and a one-line
+            // hint. Same handlers.
+            {label:"Texto",  sub:"Título, frase, lo que quieras", icon:"text" as IconName,  fn:()=>{setAddingText(true);      closeAddMenu();}},
+            {label:"Imagen", sub:"Foto, logo o GIF",              icon:"image" as IconName, fn:()=>{imageRef.current?.click();closeAddMenu();}},
+            {label:"Music",  sub:"Un reproductor con tu canción", icon:"music" as IconName, fn:()=>{addMusicCard();           closeAddMenu();}},
+            ...(profiles.length === 0 ? [{label:"Card de presentación", sub:"Tu tarjeta: foto, nombre y links", icon:"card" as IconName, fn:()=>{addProfile(); closeAddMenu();}}] : []),
           ].map(item=>(
-            <button key={item.label} type="button" className="mn-menuitem" onClick={item.fn}>
-              {item.label}
+            <button key={item.label} type="button" className="mn-glassmenu__item mn-addmenu__item" onClick={item.fn}>
+              <span className="mn-addmenu__well" aria-hidden><Icon name={item.icon} size={18} /></span>
+              <span className="mn-addmenu__text"><span className="mn-addmenu__label">{item.label}</span><span className="mn-addmenu__sub">{item.sub}</span></span>
             </button>
           ))}
           {!railShown && (
             <>
-              <div aria-hidden style={{height:1,background:UIT.ui.line.group,margin:"4px 6px"}} />
-              <button type="button" className="mn-menuitem" onClick={()=>{setMenuOpen(false);openRoom();}}>Tu sala</button>
-              {canInteract && <button type="button" className="mn-menuitem" onClick={()=>{setMenuOpen(false);openLayers();}}>Capas</button>}
+              <div aria-hidden className="mn-glassmenu__sep" />
+              <button type="button" className="mn-glassmenu__item" onClick={()=>{setMenuOpen(false);openRoom();}}><Icon name="gear" size={16} />Tu sala</button>
+              {canInteract && <button type="button" className="mn-glassmenu__item" onClick={()=>{setMenuOpen(false);openLayers();}}><Icon name="layers" size={16} />Capas</button>}
             </>
           )}
         </div>
@@ -4500,17 +4519,6 @@ export default function CanvasBoard({
 // Same signatures/operations as before; `defaultValue` and `danger` are new.
 /** L1-like surface for the "+" menu and the MyLand settings submenu (no
  * blur: the editor body is solid; Block 4 gives the chrome its own L0). */
-function mylandMenuSurface(extra: React.CSSProperties): React.CSSProperties {
-  return {
-    background: UIT.ui.surface.panel,
-    border: `0.5px solid ${UIT.ui.line.panel}`,
-    borderRadius: UIT.ui.radius.group,
-    boxShadow: UIT.ui.shadow.panel,
-    color: UIT.ui.text.primary,
-    ...extra,
-  };
-}
-
 function TBtn({children,onClick,active,title}:{children:React.ReactNode;onClick:()=>void;active?:boolean;title?:string}) {
   return (
     <button onClick={onClick} title={title} style={{width:30,height:30,borderRadius:8,border:"none",background:active?"rgba(212,240,196,0.1)":"transparent",color:active?"rgba(212,240,196,0.8)":"rgba(255,255,255,0.38)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.12s"}}

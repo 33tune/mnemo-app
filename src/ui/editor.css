@@ -202,29 +202,159 @@
   :where([data-mnemo-ui]) .mn-topbar__dot { forced-color-adjust: none; background: Highlight; box-shadow: none; }
 }
 
-/* Editor v3 Phase D: the tool rail (EditorRail.tsx) — 44px buttons, radius
-   13 (design screen 01); the active tool on railSel; hover = a tint of the
-   rail ink (currentColor, no literal colors). */
+/* Editor v3 Phase D: the tool rail (EditorRail.tsx). Liquid glass (L5, DS
+   .lg-rail): a floating vertical glass capsule (padding 6, 44px round
+   buttons, gap 4); the active tool sits on an indicator that glides between
+   them on the spring (railSel = the theme's "on" ink; OG keeps its violet
+   rail and lime selection). */
+.mn-rail[data-mnemo-ui] {
+  position: relative; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 999px;
+  background: var(--ui-shell-rail); color: var(--ui-shell-rail-ink);
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur);
+  box-shadow: var(--ui-shadow-panel);
+}
+:where([data-mnemo-ui]) .mn-rail__ind {
+  position: absolute; left: 6px; top: 6px; width: 44px; height: 44px; border-radius: 999px; pointer-events: none;
+  background: var(--ui-shell-rail-sel); box-shadow: 0 4px 14px var(--ui-accent-glow);
+  transition: transform 520ms var(--ui-motion-spring-soft);
+}
 :where([data-mnemo-ui]) .mn-rail__btn {
-  position: relative; width: 44px; height: 44px; margin: 0; padding: 0; border: none; border-radius: 13px;
+  position: relative; width: 44px; height: 44px; margin: 0; padding: 0; border: none; border-radius: 999px;
   display: grid; place-items: center; cursor: pointer;
   background: transparent; color: var(--ui-shell-rail-ink);
-  transition: background-color var(--ui-motion-fast) var(--ui-motion-ease), transform 200ms var(--ui-motion-spring);
+  transition: color 260ms var(--ui-motion-ease), background-color var(--ui-motion-fast) var(--ui-motion-ease), transform 280ms var(--ui-motion-spring);
 }
-:where([data-mnemo-ui]) .mn-rail__btn:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
-:where([data-mnemo-ui]) .mn-rail__btn:active { transform: scale(0.94); }
-:where([data-mnemo-ui]) .mn-rail__btn[data-active] { background: var(--ui-shell-rail-sel); color: var(--ui-shell-rail-sel-ink); }
+:where([data-mnemo-ui]) .mn-rail__btn:hover { background: color-mix(in srgb, currentColor 12%, transparent); color: var(--ui-shell-glass-ink); }
+:where([data-mnemo-ui]) .mn-rail__btn:active { transform: scale(0.86); }
+:where([data-mnemo-ui]) .mn-rail__btn[data-active] { background: transparent; color: var(--ui-shell-rail-sel-ink); }
 :where([data-mnemo-ui]) .mn-rail__btn[aria-disabled="true"] { opacity: var(--ui-opacity-disabled); cursor: default; }
 :where([data-mnemo-ui]) .mn-rail__btn[aria-disabled="true"]:hover { background: transparent; }
 :where([data-mnemo-ui]) .mn-rail__btn:focus { outline: none; }
 :where([data-mnemo-ui]) .mn-rail__btn:focus-visible { box-shadow: var(--ui-shadow-ring); }
 @media (prefers-reduced-motion: reduce) {
-  :where([data-mnemo-ui]) .mn-rail__btn { transition: none; }
+  :where([data-mnemo-ui]) .mn-rail__btn, :where([data-mnemo-ui]) .mn-rail__ind { transition: none; }
   :where([data-mnemo-ui]) .mn-rail__btn:active { transform: none; }
 }
+@media (prefers-reduced-transparency: reduce) {
+  .mn-rail[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ui-surface-panel-opaque); }
+}
 @media (forced-colors: active) {
-  .mn-rail[data-mnemo-ui] { border-right: 1px solid CanvasText; }
-  :where([data-mnemo-ui]) .mn-rail__btn[data-active] { border: 2px solid Highlight; }
+  .mn-rail[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: Canvas; border: 1px solid CanvasText; }
+  :where([data-mnemo-ui]) .mn-rail__ind { forced-color-adjust: none; background: Highlight; box-shadow: none; }
+  :where([data-mnemo-ui]) .mn-rail__btn[data-active] { color: HighlightText; }
+}
+
+/* Liquid glass (L5, DS Editor shell): the editor topbar as two floating
+   glass capsules (Topbar.tsx, wide). The header is a click-through strip;
+   only the capsules take the pointer. The actions capsule slides on the
+   spring when the dock opens / closes (its `right` changes). */
+.mn-shellbar[data-mnemo-ui] { position: fixed; top: 16px; left: 0; right: 0; height: 52px; z-index: 800; pointer-events: none; }
+:where([data-mnemo-ui]) .mn-capsule {
+  position: absolute; top: 0; height: 52px; box-sizing: border-box; border-radius: 999px; pointer-events: auto;
+  display: flex; align-items: center;
+  background: var(--ui-shell-glass); color: var(--ui-shell-glass-ink);
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur);
+  box-shadow: var(--ui-shadow-panel);
+}
+:where([data-mnemo-ui]) .mn-capsule--brand { gap: 10px; padding: 0 18px 0 8px; max-width: 40vw; }
+:where([data-mnemo-ui]) .mn-capsule--actions { gap: 2px; padding: 6px; transition: right 520ms var(--ui-motion-spring-soft); }
+:where([data-mnemo-ui]) .mn-capsule__logo { width: 34px; height: auto; margin-left: 4px; flex: none; }
+:where([data-mnemo-ui]) .mn-capsule__name { font-family: var(--ui-font-display); font-weight: 800; font-size: 19px; line-height: 1; letter-spacing: -0.055em; white-space: nowrap; }
+:where([data-mnemo-ui]) .mn-capsule__path { font-size: 13px; color: var(--ui-shell-glass-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+:where([data-mnemo-ui]) .mn-capsule__status {
+  width: 7px; height: 7px; border-radius: 99px; margin-left: 2px; flex: none;
+  background: var(--ui-accent-success); transition: background-color 300ms var(--ui-motion-ease);
+}
+:where([data-mnemo-ui]) .mn-capsule__status[data-dirty] { background: var(--ui-accent-main); }
+/* DS GlassButton (40px, round, transparent; well on hover). */
+:where([data-mnemo-ui]) .mn-gbtn {
+  position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px; margin: 0; padding: 0;
+  border: none; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; text-decoration: none;
+  transition: background-color var(--ui-motion-fast) var(--ui-motion-ease), transform 280ms var(--ui-motion-spring);
+}
+:where([data-mnemo-ui]) .mn-gbtn .mn-topbar__dot { top: 7px; right: 7px; width: 7px; height: 7px; }
+:where([data-mnemo-ui]) .mn-gbtn:hover { background: var(--ui-shell-glass-btn); }
+:where([data-mnemo-ui]) .mn-gbtn:active { transform: scale(0.88); }
+:where([data-mnemo-ui]) .mn-gbtn[aria-expanded="true"] { background: var(--ui-shell-glass-btn); }
+:where([data-mnemo-ui]) .mn-gbtn[aria-disabled="true"] { opacity: 0.32; cursor: not-allowed; }
+:where([data-mnemo-ui]) .mn-gbtn[aria-disabled="true"]:hover { background: transparent; }
+:where([data-mnemo-ui]) .mn-gbtn[aria-disabled="true"]:active { transform: none; }
+:where([data-mnemo-ui]) .mn-gbtn:focus { outline: none; }
+:where([data-mnemo-ui]) .mn-gbtn:focus-visible { box-shadow: var(--ui-shadow-ring); }
+/* DS .lg-pill--brand: Publicar. */
+:where([data-mnemo-ui]) .mn-pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; min-width: 112px; padding: 0 18px; margin: 0 0 0 4px;
+  border: none; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  font-family: var(--ui-font-sans); font-size: 14px; font-weight: 600;
+  transition: transform 280ms var(--ui-motion-spring), background-color 200ms var(--ui-motion-ease), box-shadow 300ms var(--ui-motion-ease), filter 160ms var(--ui-motion-ease);
+}
+:where([data-mnemo-ui]) .mn-pill--brand { background: var(--ui-accent-main); color: var(--ui-accent-ink); box-shadow: 0 6px 18px -6px var(--ui-accent-glow); }
+:where([data-mnemo-ui]) .mn-pill--brand:hover { filter: brightness(1.06); }
+:where([data-mnemo-ui]) .mn-pill--brand:active { transform: scale(0.94); }
+/* Nothing to publish / publishing / just published: the DS [data-done]
+   look (the theme's "on" ink), not the call to action. */
+:where([data-mnemo-ui]) .mn-pill--brand[aria-disabled="true"] { background: var(--ui-accent-on); color: var(--ui-accent-on-ink); box-shadow: none; cursor: default; filter: none; }
+:where([data-mnemo-ui]) .mn-pill--brand[aria-disabled="true"]:active { transform: none; }
+:where([data-mnemo-ui]) .mn-pill--brand[data-state="publishing"] { animation: mn-pub-pulse 1.1s ease-in-out infinite; }
+:where([data-mnemo-ui]) .mn-pill:focus { outline: none; }
+:where([data-mnemo-ui]) .mn-pill:focus-visible { box-shadow: var(--ui-shadow-ring); }
+/* DS .lg-menu in glass (the "Más" disclosure and the Agregar menu). */
+:where([data-mnemo-ui]).mn-glassmenu, :where([data-mnemo-ui]) .mn-glassmenu {
+  box-sizing: border-box; padding: 6px; display: flex; flex-direction: column; gap: 1px; border-radius: 22px;
+  background: var(--ui-surface-panel); color: var(--ui-text-primary); font-family: var(--ui-font-sans);
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur);
+  box-shadow: var(--ui-shadow-panel);
+  animation: mn-menu-in 320ms var(--ui-motion-spring-soft) both;
+}
+@keyframes mn-menu-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+:where([data-mnemo-ui]) .mn-glassmenu--more { position: absolute; top: calc(100% + 8px); right: 0; width: 232px; transform-origin: top right; }
+:where([data-mnemo-ui]) .mn-glassmenu__item {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; margin: 0; border: none; border-radius: 12px;
+  background: transparent; color: inherit; cursor: pointer; text-align: left; width: 100%; box-sizing: border-box; text-decoration: none;
+  font-family: var(--ui-font-sans); font-size: 14px; font-weight: 500;
+  transition: background-color 120ms var(--ui-motion-ease);
+}
+:where([data-mnemo-ui]) .mn-glassmenu__item > span:first-child { flex: 1; min-width: 0; }
+:where([data-mnemo-ui]) .mn-glassmenu__item:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-ui]) .mn-glassmenu__item[aria-pressed="true"] { font-weight: 650; }
+:where([data-mnemo-ui]) .mn-glassmenu__item[aria-pressed="true"]::after { content: ""; width: 7px; height: 7px; border-radius: 99px; background: var(--ui-accent-main); }
+:where([data-mnemo-ui]) .mn-glassmenu__item:focus { outline: none; }
+:where([data-mnemo-ui]) .mn-glassmenu__item:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-ui]) .mn-glassmenu__sep { height: 1px; margin: 4px 8px; background: var(--ui-line-group); }
+/* The Agregar menu (DS add menu): 280px, 60px items with an icon well. */
+:where([data-mnemo-ui]).mn-addmenu { width: 280px; padding: 8px; gap: 4px; transform-origin: left center; }
+:where([data-mnemo-ui]).mn-addmenu[data-side="fab"] { transform-origin: bottom right; }
+:where([data-mnemo-ui]) .mn-addmenu__item { height: 60px; gap: 12px; padding: 0 10px; }
+:where([data-mnemo-ui]) .mn-addmenu__well { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; flex: none !important; background: var(--ui-surface-control); }
+:where([data-mnemo-ui]) .mn-addmenu__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+:where([data-mnemo-ui]) .mn-addmenu__label { font-weight: 600; }
+:where([data-mnemo-ui]) .mn-addmenu__sub { font-size: 12px; color: var(--ui-text-secondary); }
+/* DS .lg-hint: "Tocá algo para editarlo" at the bottom of the canvas. */
+:where([data-mnemo-ui]).mn-hint {
+  position: fixed; bottom: 24px; transform: translateX(-50%); z-index: 700; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 18px 0 8px; box-sizing: border-box; border-radius: 999px; white-space: nowrap;
+  background: var(--ui-shell-glass); color: var(--ui-shell-glass-ink2); font-family: var(--ui-font-sans); font-size: 14px;
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur);
+  box-shadow: var(--ui-shadow-panel);
+  animation: mn-hint-in 500ms var(--ui-motion-spring-soft) both;
+}
+@keyframes mn-hint-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translateX(-50%); } }
+:where([data-mnemo-ui]) .mn-hint__well { width: 28px; height: 28px; border-radius: 99px; display: grid; place-items: center; background: var(--ui-shell-glass-btn); color: var(--ui-shell-glass-ink); }
+:where([data-mnemo-ui]).mn-hint kbd { font: 500 12px var(--ui-font-mono); padding: 3px 7px; border-radius: 7px; background: var(--ui-shell-glass-btn); color: var(--ui-shell-glass-ink); }
+@media (prefers-reduced-motion: reduce) {
+  :where([data-mnemo-ui]) .mn-capsule--actions, :where([data-mnemo-ui]) .mn-gbtn, :where([data-mnemo-ui]) .mn-pill { transition: none; }
+  :where([data-mnemo-ui]) .mn-gbtn:active, :where([data-mnemo-ui]) .mn-pill--brand:active { transform: none; }
+  :where([data-mnemo-ui]) .mn-glassmenu, :where([data-mnemo-ui]).mn-glassmenu, :where([data-mnemo-ui]).mn-hint { animation: none; }
+  :where([data-mnemo-ui]) .mn-pill--brand[data-state="publishing"] { animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :where([data-mnemo-ui]) .mn-capsule, :where([data-mnemo-ui]) .mn-glassmenu, :where([data-mnemo-ui]).mn-glassmenu, :where([data-mnemo-ui]).mn-hint { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ui-surface-panel-opaque); }
+}
+@media (forced-colors: active) {
+  :where([data-mnemo-ui]) .mn-capsule, :where([data-mnemo-ui]) .mn-glassmenu, :where([data-mnemo-ui]).mn-glassmenu, :where([data-mnemo-ui]).mn-hint { -webkit-backdrop-filter: none; backdrop-filter: none; background: Canvas; border: 1px solid CanvasText; }
+  :where([data-mnemo-ui]) .mn-pill { border: 1px solid ButtonText; }
+  :where([data-mnemo-ui]) .mn-capsule__status { forced-color-adjust: none; border: 1px solid CanvasText; }
+  :where([data-mnemo-ui]) .mn-glassmenu__item[aria-pressed="true"] { border: 1px solid Highlight; }
 }
 
 /* Liquid glass (L2) — the part picker (ObjectList.tsx = DS PartPicker): a

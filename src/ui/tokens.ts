@@ -316,8 +316,10 @@ export const T = {
       inspectorW: 344,
       dockMargin: 16,
       /** The tool rail (left) and the editor topbar. The topbar OVERLAYS the
-       * canvas (glass): CANVAS_TOP_OFFSET stays 44 (R1). */
-      railW: 64,
+       * canvas (glass): CANVAS_TOP_OFFSET stays 44 (R1).
+       * Liquid glass (L5): the space the floating rail capsule takes from the
+       * left edge — 16 margin + 56 capsule (44 buttons + 2 x 6 padding). */
+      railW: 72,
       editorTopbarH: 60,
       /** Part picker button (DS --glass-h-part). */
       objChip: 44,
@@ -329,7 +331,7 @@ export const T = {
      * has none). The design says "under ~900px"; the value comes from the rule
      * that the widest ProfileCard fits between the rail and the dock — see
      * uiTokens.test.ts (railW + 16 + maxW 640 + 16 + inspectorW + dockMargin).
-     * Liquid glass: 64 + 16 + 640 + 16 + 344 + 16 = 1096 (kept at 1108). */
+     * Liquid glass: 72 + 16 + 640 + 16 + 344 + 16 = 1104 (kept at 1108). */
     breakpoint: { inspectorSheet: 1108 },
     shadow: {
       panel:   th("panelShadow"),

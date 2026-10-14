@@ -190,3 +190,20 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
     previas); el diseño no la tiene.
   - Adaptación A12: el texto de ayuda del ajuste a la cuadrícula conserva la redacción revisada en la Fase I
     ("Mientras arrastrás, mantené Mayús…").
+- **L5 (shell):** la topbar ancha deja de ser una barra: dos cápsulas de vidrio flotantes (`Topbar.tsx`). Izquierda,
+  la marca (logo, "myLand", la ruta `@usuario / my land`, punto de estado: acento = hay cambios para publicar, verde =
+  todo publicado; un punto, nunca un conteo). Derecha, Deshacer, Rehacer, tema del editor (alterna Oscuro → OG →
+  Claro…; Tu sala › Apariencia sigue igual), Vista previa, "Más" y Publicar (pastilla de acento del DS); se corre a la
+  izquierda con el spring mientras el dock está abierto (`right = 16 + ancho ocupado por el dock`). Rail = cápsula
+  vertical centrada a la izquierda con indicador que se desliza y tooltips a la derecha (`railW` = 16 + 56 = 72). Dock
+  a 16px del borde superior (en el layout angosto sigue debajo de la barra compacta). Menú Agregar del DS (280px,
+  ítems de 60px con pozo de ícono y bajada). Pastilla inferior "Tocá algo para editarlo · A agregar" cuando no hay nada
+  seleccionado (solo visual; la ayuda de teclado del lienzo sigue en `aria-describedby`).
+  - Adaptación A13: MY LAND / SOCIAL, Señales y Salir no tienen lugar en las cápsulas del diseño: pasan al menú "Más"
+    de la cápsula de acciones (el mismo patrón de divulgación que la barra compacta, revisada en la Fase D). El punto
+    del botón "Más" avisa chats o señales sin leer. No se pierde ninguna función.
+  - Adaptación A14: el botón de tema alterna los TRES temas (el diseño alterna dos); Vista previa se agrega como botón
+    redondo (el diseño no la muestra y el repo la tiene).
+  - Adaptación A15: el ítem del menú Agregar se llama "Music" (vocabulario del producto), no "Música"; "Card de
+    presentación" sigue apareciendo solo si la tarjeta no existe.
+  - Verificación: capturas lado a lado contra el prototipo (vacío, Agregar abierto, dock abierto, Claro, OG).
