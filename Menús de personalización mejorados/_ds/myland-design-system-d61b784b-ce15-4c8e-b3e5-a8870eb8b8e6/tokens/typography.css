@@ -1,0 +1,13 @@
+/* Type. Geist does the work; Bricolage only for the wordmark; mono only for numbers. Canvas faces never enter chrome. */
+:root{
+--font-display:'Bricolage Grotesque',system-ui,sans-serif;
+--font-sans:'Geist',system-ui,sans-serif;
+--font-mono:'Geist Mono',ui-monospace,monospace;
+--canvas-font-sans:'DM Sans',sans-serif;--canvas-font-mono:'Space Mono',monospace;--canvas-font-serif:'Newsreader',Georgia,serif;
+--fs-caption:12px;--fs-label:13px;--fs-body:15px;--fs-control:14px;--fs-title:19px;--fs-wordmark:19px;--fs-value:13px;
+--fw-regular:450; /* @kind font */
+--fw-medium:550; /* @kind font */
+--fw-semibold:650; /* @kind font */
+--fw-wordmark:800; /* @kind font */
+--ls-title:-0.02em;--ls-wordmark:-0.055em;--ls-body:-0.005em;
+}

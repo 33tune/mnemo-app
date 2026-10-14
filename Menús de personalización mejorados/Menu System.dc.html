@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/colors.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/typography.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/motion.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/components/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/styles.css">
+<script src="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/_ds_bundle.js"></script>
+<script src="menu-schema.js"></script>
+<style>
+html,body{margin:0;background:#0E0C12}
+a{color:#FF4F94;text-decoration:none}a:hover{text-decoration:underline}
+</style>
+</helmet>
+<div class="lg" data-editor-theme="dark" style="min-height:100vh;background:radial-gradient(70% 40% at 20% 0%,rgba(255,79,148,.16),transparent 70%),#0E0C12;color:var(--glass-ink);padding:56px clamp(20px,5vw,72px) 96px;box-sizing:border-box">
+<div style="max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:64px">
+
+<header style="display:flex;flex-direction:column;gap:14px;max-width:760px">
+  <div style="display:flex;align-items:center;gap:10px"><img src="assets/logo.png" alt="" style="width:36px"><span style="font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-0.055em">myLand</span><span style="font:500 12px var(--font-mono);color:var(--glass-ink-3)">sistema de menús · v1</span></div>
+  <h1 style="margin:0;font-size:clamp(34px,5vw,52px);font-weight:700;letter-spacing:-0.035em;line-height:1.02;text-wrap:balance">Personalización por cards: un objeto, un panel, todo a mano.</h1>
+  <p style="margin:0;font-size:16px;line-height:1.5;color:var(--glass-ink-2);text-wrap:pretty">Liquid glass del Design System + la granularidad completa del repo. Nada se pierde: cada opción, rango y paso de los inspectores actuales vive en una card, un tile o un "Avanzado". Abrí el <a href="Editor.dc.html">prototipo interactivo</a> para tocarlo.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <sc-for list="{{ stats }}" as="st" hint-placeholder-count="4">
+      <span style="display:inline-flex;align-items:baseline;gap:6px;height:34px;padding:0 14px;border-radius:999px;background:var(--glass-well);font-size:13px;color:var(--glass-ink-2);align-items:center"><b style="font:600 14px var(--font-mono);color:var(--glass-ink)">{{ st.n }}</b>{{ st.label }}</span>
+    </sc-for>
+  </div>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px var(--font-mono);color:var(--glass-accent)">01</span><h2 style="margin:0;font-size:24px;font-weight:650;letter-spacing:-0.02em">Anatomía del dock</h2></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px;align-items:start">
+    <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge),var(--glass-shadow);width:344px;max-width:100%;border-radius:30px;padding:16px 14px 14px 18px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="width:36px;height:36px;border-radius:12px;background:var(--glass-well);display:grid;place-items:center"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="text" size="{{ 17 }}" hint-size="17px,17px"></x-import></span>
+        <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:19px;font-weight:650;letter-spacing:-0.02em">Nombre</span><span style="font:500 11.5px var(--font-mono);color:var(--glass-ink-3)">tarjeta / nombre</span></div>
+        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="search" tip="Buscar ajuste   /" filled="{{ true }}" size="{{ 36 }}" hint-size="36px,36px"></x-import>
+        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="close" tip="Cerrar" filled="{{ true }}" size="{{ 36 }}" icon-size="{{ 14 }}" hint-size="36px,36px"></x-import>
+      </div>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.PartPicker" parts="{{ demo.parts }}" value="name" hint-size="100%,48px"></x-import>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ demo.tabs }}" value="style" hint-size="100%,44px"></x-import>
+      <section style="border-radius:24px;box-shadow:inset 0 0 0 1px var(--glass-line);padding:4px 10px 12px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px;min-height:52px">
+          <span style="width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:var(--glass-accent-soft);color:var(--glass-accent)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="case" size="{{ 16 }}" hint-size="16px,16px"></x-import></span>
+          <span style="flex:1;display:flex;flex-direction:column"><span style="font-size:14px;font-weight:600">Tipografía</span><span style="font-size:12px;color:var(--glass-ink-3)">2 cambios</span></span>
+          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="Restablecer card" size="{{ 32 }}" icon-size="{{ 14 }}" hint-size="32px,32px"></x-import>
+        </div>
+        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="maximize" label="Tamaño" value="{{ 28 }}" min="{{ 10 }}" max="{{ 32 }}" fmt="{{ demo.px }}" hint-size="100%,44px"></x-import>
+        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="spacing" label="Interletrado" value="{{ -0.6 }}" min="{{ -1 }}" max="{{ 4 }}" step="{{ 0.1 }}" fmt="{{ demo.px }}" hint-size="100%,44px"></x-import>
+      </section>
+      <section style="border-radius:24px;background:var(--glass-well);padding:4px 10px;display:flex;align-items:center;gap:10px;min-height:56px">
+        <span style="width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:var(--glass-well)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="palette" size="{{ 16 }}" hint-size="16px,16px"></x-import></span>
+        <span style="flex:1;display:flex;flex-direction:column"><span style="font-size:14px;font-weight:600">Color</span><span style="font-size:12px;color:var(--glass-ink-3)">Sin cambios</span></span>
+        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="{{ 14 }}" hint-size="14px,14px"></x-import>
+      </section>
+    </div>
+    <ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px">
+      <sc-for list="{{ anatomy }}" as="an" hint-placeholder-count="6">
+        <li style="display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start">
+          <span style="width:28px;height:28px;border-radius:99px;display:grid;place-items:center;background:var(--glass-well);font:600 12px var(--font-mono)">{{ an.n }}</span>
+          <span style="display:flex;flex-direction:column;gap:3px"><b style="font-size:15px;font-weight:600">{{ an.title }}</b><span style="font-size:14px;line-height:1.45;color:var(--glass-ink-2);text-wrap:pretty">{{ an.body }}</span></span>
+        </li>
+      </sc-for>
+    </ol>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px var(--font-mono);color:var(--glass-accent)">02</span><h2 style="margin:0;font-size:24px;font-weight:650;letter-spacing:-0.02em">Componentes, variantes y estados</h2></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px">
+
+    <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div style="font:600 12px var(--font-mono);color:var(--glass-ink-3)">LiquidSlider + reset</div>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="sun" label="Intensidad" value="{{ 0.5 }}" min="{{ 0.01 }}" max="{{ 1 }}" step="{{ 0.01 }}" fmt="{{ demo.pct }}" hint-size="100%,44px"></x-import>
+      <div style="display:flex;gap:6px;align-items:center"><div style="flex:1"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="maximize" label="Tamaño" value="{{ 104 }}" min="{{ 48 }}" max="{{ 160 }}" fmt="{{ demo.px }}" hint-size="100%,44px"></x-import></div><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="Restablecer" size="{{ 32 }}" icon-size="{{ 14 }}" hint-size="32px,32px"></x-import></div>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="height" label="Interlineado secundario" value="{{ 1.5 }}" min="{{ 0.9 }}" max="{{ 2 }}" step="{{ 0.05 }}" fmt="{{ demo.normal }}" hint-size="100%,44px"></x-import>
+      <p style="margin:0;font-size:12.5px;line-height:1.45;color:var(--glass-ink-2)">Default · modificado (aparece ↺ con pop) · sin valor guardado ("normal"). Arrastre relativo, tap salta, doble click vuelve al default, flechas ±paso, Mayús ×10.</p>
+    </div>
+
+    <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div style="font:600 12px var(--font-mono);color:var(--glass-ink-3)">ColorField · herencia</div>
+      <div style="display:flex;align-items:center;gap:8px"><span class="lg-label" style="color:var(--glass-ink)">Color</span><span style="height:22px;padding:0 9px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:550;color:var(--glass-ink-2);box-shadow:inset 0 0 0 1px var(--glass-line)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="link" size="{{ 11 }}" hint-size="11px,11px"></x-import>Todos los textos</span><span style="margin-left:auto;font:500 12px var(--font-mono);color:var(--glass-ink-2)">#2A1630</span></div>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorRibbon" value="#2A1630" colors="{{ demo.colors }}" on-more="{{ demo.noop }}" hint-size="100%,32px"></x-import>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span class="lg-label" style="color:var(--glass-ink)">Color</span><span style="margin-left:auto;font:500 12px var(--font-mono);color:var(--glass-ink-2)">#8E5E86</span><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="Volver a heredar" size="{{ 28 }}" icon-size="{{ 13 }}" hint-size="28px,28px"></x-import></div>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorRibbon" value="#8E5E86" colors="{{ demo.colors }}" on-more="{{ demo.noop }}" hint-size="100%,32px"></x-import>
+      <p style="margin:0;font-size:12.5px;line-height:1.45;color:var(--glass-ink-2)">Heredado = chip con la fuente ("Todos los textos", "Automático"). Propio = hex + ↺ "Volver a heredar". Bloqueado por gradiente = 40% + candado + "Lo reemplaza el gradiente".</p>
+    </div>
+
+    <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div style="font:600 12px var(--font-mono);color:var(--glass-ink-3)">Effect tile · 4 estados</div>
+      <div class="lg-tiles">
+        <sc-for list="{{ tileDemo }}" as="t" hint-placeholder-count="4">
+          <div class="lg-tile" data-on="{{ t.on }}" data-open="{{ t.open }}">
+            <span class="lg-tile__ico"><span style="{{ t.pv }}">Aa</span></span>
+            <span><div class="lg-tile__name">{{ t.label }}</div><div class="lg-tile__state" style="{{ t.stateStyle }}">{{ t.state }}</div></span>
+            <span class="lg-tile__more"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="{{ 14 }}" hint-size="14px,14px"></x-import></span>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin:0;font-size:12.5px;line-height:1.45;color:var(--glass-ink-2)">Tap = prende/apaga con onda desde el dedo. Chevron = ajustes debajo del par, en un pozo con "Restablecer". Apagar no borra: si hay ajustes guardados el tile dice <b>Pausado</b>. La miniatura muestra el efecto real.</p>
+    </div>
+
+    <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div style="font:600 12px var(--font-mono);color:var(--glass-ink-3)">MenuCard · variantes</div>
+      <sc-for list="{{ cardDemo }}" as="c" hint-placeholder-count="4">
+        <div style="{{ c.style }}">
+          <span style="{{ c.icoStyle }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ c.icon }}" size="{{ 15 }}" hint-size="15px,15px"></x-import></span>
+          <span style="flex:1;display:flex;flex-direction:column"><span style="font-size:13.5px;font-weight:600">{{ c.title }}</span><span style="font-size:11.5px;color:var(--glass-ink-3)">{{ c.sub }}</span></span>
+          <sc-if value="{{ c.switch }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSwitch" value="{{ c.on }}" hint-size="51px,31px"></x-import></sc-if>
+          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="{{ 13 }}" hint-size="13px,13px"></x-import>
+        </div>
+      </sc-for>
+      <p style="margin:0;font-size:12.5px;line-height:1.45;color:var(--glass-ink-2)">Abierta (contorno) · cerrada (pozo + resumen vivo) · con switch en cabecera (Estilo del bloque: apagada = hereda) · inactiva hasta tener contenido (Logo).</p>
+    </div>
+
+    <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div style="font:600 12px var(--font-mono);color:var(--glass-ink-3)">Selectores visuales</div>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ demo.align }}" value="center" hint-size="100%,44px"></x-import>
+      <div style="display:flex;gap:6px">
+        <sc-for list="{{ weightDemo }}" as="w" hint-placeholder-count="3"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" tip="{{ w.tip }}" filled="{{ true }}" pressed="{{ w.on }}" size="{{ 44 }}" hint-size="52px,44px"><span style="{{ w.style }}">Aa</span></x-import></sc-for>
+      </div>
+      <div style="display:flex;gap:8px">
+        <sc-for list="{{ cornerDemo }}" as="c" hint-placeholder-count="4"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" tip="{{ c.label }}" filled="{{ true }}" pressed="{{ c.on }}" size="{{ 52 }}" hint-size="52px,52px"><span style="{{ c.shape }}"></span></x-import></sc-for>
+      </div>
+      <p style="margin:0;font-size:12.5px;line-height:1.45;color:var(--glass-ink-2)">Peso = "Aa" en la fuente real, solo los pesos que carga (los no cargados: "sintético", al 50%). Esquinas de imagen = la forma, no la palabra.</p>
+    </div>
+
+    <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div style="font:600 12px var(--font-mono);color:var(--glass-ink-3)">Controles avanzados</div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="position:relative;width:96px;height:96px;border-radius:20px;background:var(--glass-well);flex:none"><div style="position:absolute;left:50%;top:10px;bottom:10px;width:1px;background:var(--glass-line)"></div><div style="position:absolute;top:50%;left:10px;right:10px;height:1px;background:var(--glass-line)"></div><div style="position:absolute;left:52%;top:66%;width:18px;height:18px;margin:-9px;border-radius:99px;background:var(--glass-accent);box-shadow:0 0 0 3px var(--glass-accent-soft)"></div></div>
+        <div style="flex:1;font-size:12.5px;line-height:1.45;color:var(--glass-ink-2)"><b style="color:var(--glass-ink)">Offset pad.</b> Arrastrá el punto para X/Y de la sombra; sliders X e Y al lado para precisión; doble click centra.</div>
+      </div>
+      <div style="height:28px;border-radius:12px;background:linear-gradient(100deg,#FF4F94,#7C5CFF,#FFB340)"></div>
+      <div style="font-size:12.5px;line-height:1.45;color:var(--glass-ink-2)"><b style="color:var(--glass-ink)">Gradiente.</b> Barra = resultado; 2–6 paradas como swatches; tocás una para editarla, + agrega, papelera quita.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><span style="height:40px;border-radius:14px;background:var(--glass-well);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:500 13px var(--font-mono)"><span style="font:600 12px var(--font-sans);color:var(--glass-ink-2)">Ancho</span>320</span><span style="height:40px;border-radius:14px;background:var(--glass-well);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:500 13px var(--font-mono)"><span style="font:600 12px var(--font-sans);color:var(--glass-ink-2)">Alto</span>470</span></div>
+      <div style="font-size:12.5px;line-height:1.45;color:var(--glass-ink-2)"><b style="color:var(--glass-ink)">Medidas.</b> Alternativa numérica al arrastre (WCAG 2.5.7), cerrada por defecto; deshabilitada con motivo si está bloqueado.</div>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px var(--font-mono);color:var(--glass-accent)">03</span><h2 style="margin:0;font-size:24px;font-weight:650;letter-spacing:-0.02em">Movimiento y feedback</h2></div>
+  <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;overflow:hidden">
+    <sc-for list="{{ motion }}" as="m" hint-placeholder-count="8">
+      <div style="display:grid;grid-template-columns:minmax(160px,1.1fr) minmax(0,2fr) minmax(140px,1fr);gap:16px;padding:14px 20px;border-top:1px solid var(--glass-line);align-items:baseline">
+        <b style="font-size:14px;font-weight:600">{{ m.what }}</b>
+        <span style="font-size:13.5px;line-height:1.45;color:var(--glass-ink-2)">{{ m.how }}</span>
+        <span style="font:500 12px var(--font-mono);color:var(--glass-ink-3)">{{ m.token }}</span>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px var(--font-mono);color:var(--glass-accent)">04</span><h2 style="margin:0;font-size:24px;font-weight:650;letter-spacing:-0.02em">Del repo al sistema nuevo</h2></div>
+  <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;overflow:hidden">
+    <div style="display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) minmax(0,2fr);gap:16px;padding:12px 20px;font:600 11.5px var(--font-mono);color:var(--glass-ink-3)"><span>HOY (src/ui)</span><span>NUEVO</span><span>NOTA DE IMPLEMENTACIÓN</span></div>
+    <sc-for list="{{ mapping }}" as="m" hint-placeholder-count="10">
+      <div style="display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) minmax(0,2fr);gap:16px;padding:12px 20px;border-top:1px solid var(--glass-line);align-items:baseline">
+        <span style="font:500 13px var(--font-mono);color:var(--glass-ink-2)">{{ m.from }}</span>
+        <b style="font-size:14px;font-weight:600">{{ m.to }}</b>
+        <span style="font-size:13px;line-height:1.45;color:var(--glass-ink-2)">{{ m.note }}</span>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><span style="font:600 12px var(--font-mono);color:var(--glass-accent)">05</span><h2 style="margin:0;font-size:24px;font-weight:650;letter-spacing:-0.02em">Mapa de capacidades</h2><span style="font-size:13px;color:var(--glass-ink-3)">Generado desde menu-schema.js — es la checklist de "no se pierde nada"</span></div>
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <sc-for list="{{ capObjs }}" as="o" hint-placeholder-count="6">
+      <div style="background:var(--glass-fill-solid);box-shadow:var(--glass-edge);border-radius:24px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer" onClick="{{ o.onToggle }}">
+          <span style="width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--glass-well)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ o.icon }}" size="{{ 16 }}" hint-size="16px,16px"></x-import></span>
+          <b style="font-size:16px;font-weight:600;flex:1">{{ o.label }}</b>
+          <span style="font:500 12px var(--font-mono);color:var(--glass-ink-3)">{{ o.count }}</span>
+        <span style="{{ o.chev }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="{{ 14 }}" hint-size="14px,14px"></x-import></span></div>
+        <sc-for list="{{ o.rows }}" as="r" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:minmax(120px,1fr) minmax(140px,1.3fr) 80px minmax(110px,1fr) minmax(0,1.6fr);gap:12px;padding:9px 20px;border-top:1px solid var(--glass-line);align-items:baseline;font-size:13px">
+            <span style="color:var(--glass-ink-3)">{{ r.card }}</span>
+            <span style="font-weight:550">{{ r.label }}</span>
+            <span style="font:500 11.5px var(--font-mono);color:var(--glass-ink-2)">{{ r.type }}</span>
+            <span style="font:500 12px var(--font-mono);color:var(--glass-ink)">{{ r.range }}</span>
+            <span style="font:500 11.5px var(--font-mono);color:var(--glass-ink-3);word-break:break-word">{{ r.src }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { ready: !!window.MYLAND_MENU, openCap: { photo: true } };
+  componentDidMount() { const t = () => (window.MYLAND_MENU ? this.setState({ ready: true }) : (this._t = setTimeout(t, 40))); t(); }
+  componentWillUnmount() { clearTimeout(this._t); }
+  renderVals() {
+    const M = window.MYLAND_MENU;
+    const TYPE = { slider: "slider", color: "color", switch: "switch", seg: "segment", font: "fuente", weight: "peso", text: "campo", readonly: "lectura", upload: "archivo", tile: "tile", offset: "pad x/y", stops: "paradas", links: "lista", corners: "formas", measures: "números", action: "acción" };
+    const capObjs = [], tally = { n: 0, tiles: 0, sliders: 0 };
+    if (M) Object.values(M.OBJECTS).forEach((o, oi) => {
+      const rows = [];
+      o.cards.forEach(cd => {
+        if (cd.toggle) rows.push({ card: cd.title, label: "Personalizar este bloque", type: "switch", range: "on / off", src: cd.toggleSrc || "" });
+        const walk = (list, pre) => (list || []).forEach(c => {
+          if (!c) return;
+          if (c.t === "tiles") return c.items.forEach(t => { tally.tiles++; rows.push({ card: cd.title, label: `${t.label}`, type: "tile", range: "on / off", src: t.src || "" }); walk(t.controls, `${t.label} › `); });
+          if (c.t === "more") return walk(c.controls, `${pre || ""}${c.label} › `);
+          if (!TYPE[c.t]) return;
+          let range = "";
+          if (c.t === "slider") { tally.sliders++; range = `${c.min} – ${c.max} · ${c.step}`; }
+          if (c.t === "seg") range = c.options.map(x => x.label || x.id).join(" / ");
+          if (c.t === "offset") range = `${c.min} – ${c.max} px`;
+          if (c.t === "text" && c.max) range = `máx ${c.max}`;
+          if (c.t === "links") range = `máx ${c.max}`;
+          if (c.t === "corners") range = "0 / 8 / 20 / 999";
+          if (c.t === "measures") range = c.fields.map(f => f[1]).join(" · ");
+          if (c.t === "color") range = c.alpha ? "hex + alfa" : c.inherit ? "hereda" : c.auto ? "automático" : "hex";
+          if (c.t === "font") range = c.fonts === "music" ? "Predet. + 9 + Google" : "9 + Google + propia";
+          if (c.t === "weight") range = "pesos de la fuente";
+          rows.push({ card: cd.title, label: `${pre || ""}${c.label || cd.title}`, type: TYPE[c.t], range, src: c.src || "" });
+        });
+        walk(cd.controls);
+      });
+      tally.n += rows.length;
+      capObjs.push({ label: o.label === "Textos" ? "Todos los textos" : o.family === "card" && !["cardBg", "cardFx", "allText"].includes(o.id) ? `Tarjeta · ${o.label}` : o.id === "cardBg" ? "Tarjeta · Fondo" : o.id === "cardFx" ? "Tarjeta · Efectos" : o.label,
+        icon: o.icon, rows: (this.state.openCap || {})[o.id] ? rows : [], count: `${rows.length} opciones`, onToggle: () => this.setState(s => ({ openCap: { ...(s.openCap || {}), [o.id]: !(s.openCap || {})[o.id] } })), chev: { display: 'inline-flex', color: 'var(--glass-ink-3)', transform: (this.state.openCap || {})[o.id] ? 'rotate(180deg)' : 'none', transition: 'transform 360ms var(--glass-spring)' } });
+    });
+    const swPv = { fontSize: 16, fontWeight: 800, lineHeight: 1 };
+    return {
+      stats: [{ n: String(tally.n || "…"), label: "opciones mapeadas" }, { n: String(tally.sliders), label: "sliders con rango del repo" }, { n: String(tally.tiles), label: "efectos en tiles" }, { n: "0", label: "capacidades perdidas" }],
+      demo: {
+        px: v => `${String(Math.round(v * 10) / 10).replace(".", ",")} px`, pct: v => `${Math.round(v * 100)}%`, normal: () => "normal", noop: () => {},
+        colors: ["#FFFFFF", "#2A1630", "#FF4F94", "#7C5CFF", "#FFB340"],
+        parts: [{ id: "photo", label: "Foto", thumb: "assets/ld-card-user.png" }, { id: "name", label: "Nombre", icon: "text", modified: true }, { id: "handle", label: "@usuario", icon: "at" }, { id: "descriptor", label: "Frase", icon: "quote" }, "sep", { id: "bg", label: "Fondo", swatch: "#FFF7FB" }],
+        tabs: [{ id: "style", icon: "text", label: "Estilo" }, { id: "fx", icon: "sparkles", label: "Efectos" }],
+        align: [{ id: "left", icon: "align-left" }, { id: "center", icon: "align-center" }, { id: "right", icon: "align-right" }],
+      },
+      anatomy: [
+        { n: "1", title: "Cabecera", body: "Ícono del objeto, nombre y ruta en mono. Buscar ajuste (/ o ⌘K) salta a cualquier control de la tarjeta y lo ilumina. Cerrar con esc." },
+        { n: "2", title: "Part picker", body: "Todas las partes de la ProfileCard en una fila con indicador que se desliza; foto y fondo se ven como miniatura; punto Rosa = tiene cambios. Separado: Fondo, Efectos y Todos los textos." },
+        { n: "3", title: "Tabs (solo si hay dos trabajos)", body: "Textos: Estilo / Efectos. Music: Pista / Estilo / Efectos. El resto no tiene tabs: todo en cards." },
+        { n: "4", title: "Cards", body: "Una por tarea (Contenido, Tipografía, Color, Efectos…). Cabecera con ícono que se tiñe si hay cambios, resumen vivo y ↺ de toda la card. Colapsable; recuerda su estado." },
+        { n: "5", title: "Controles", body: "Pozos planos dentro de la card. Cada valor tocado muestra ↺; los heredados muestran de dónde vienen. Lo avanzado espera en ‘Avanzado’ o en el chevron de cada tile." },
+        { n: "6", title: "Barra de objeto", body: "En Texto, Imagen y Music: capa Fondo/Medio/Frente, abrir Capas, bloquear y eliminar (con Deshacer en el toast)." },
+      ],
+      tileDemo: [
+        { label: "Sombra", state: "Apagado", pv: { ...swPv, textShadow: "0 2px 3px rgba(0,0,0,.65)" } },
+        { label: "Brillo", state: "62%", on: "", pv: { ...swPv, textShadow: "0 0 6px #fff" } },
+        { label: "Contorno", state: "Pausado", stateStyle: { opacity: 0.9, fontWeight: 600 }, pv: { ...swPv, color: "transparent", WebkitTextStroke: "1.2px currentColor" } },
+        { label: "Gradiente", state: "3 colores", on: "", open: "", pv: { ...swPv, backgroundImage: "linear-gradient(90deg,#fff,#2A1630)", WebkitBackgroundClip: "text", color: "transparent" } },
+      ],
+      cardDemo: [
+        { title: "Tipografía", sub: "5 cambios", icon: "case", style: { display: "flex", alignItems: "center", gap: 10, minHeight: 52, padding: "0 12px 0 8px", borderRadius: 20, boxShadow: "inset 0 0 0 1px var(--glass-line)" }, icoStyle: { width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: "var(--glass-accent-soft)", color: "var(--glass-accent)" } },
+        { title: "Color", sub: "Sin cambios", icon: "palette", style: { display: "flex", alignItems: "center", gap: 10, minHeight: 52, padding: "0 12px 0 8px", borderRadius: 20, background: "var(--glass-well)" }, icoStyle: { width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: "var(--glass-well)" } },
+        { title: "Estilo del bloque", sub: "Hereda de la tarjeta", icon: "frame", switch: true, on: false, style: { display: "flex", alignItems: "center", gap: 10, minHeight: 52, padding: "0 12px 0 8px", borderRadius: 20, background: "var(--glass-well)" }, icoStyle: { width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: "var(--glass-well)" } },
+        { title: "Tamaño y giro", sub: "Subí un logo para ajustarlo", icon: "maximize", style: { display: "flex", alignItems: "center", gap: 10, minHeight: 52, padding: "0 12px 0 8px", borderRadius: 20, background: "var(--glass-well)", opacity: 0.4 }, icoStyle: { width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: "var(--glass-well)" } },
+      ],
+      weightDemo: [400, 600, 800].map(w => ({ tip: String(w), on: w === 800, style: { fontFamily: '"Syne",sans-serif', fontWeight: w, fontSize: 16 } })),
+      cornerDemo: [[2, "Rectas"], [5, "Suaves"], [9, "Redondas"], [99, "Círculo"]].map(([r, label], i) => ({ label, on: i === 2, shape: { width: 22, height: 22, border: "2px solid currentColor", borderRadius: r, display: "block" } })),
+      motion: [
+        { what: "Tocar cualquier control", how: "Encogimiento con resorte (0.86–0.95) y vuelta elástica.", token: "--glass-spring · 280ms" },
+        { what: "Cambiar de parte / tab", how: "Indicador compartido que se desliza; el cuerpo entra desde el lado hacia el que te moviste, cards en cascada de 30ms.", token: "520ms spring · 320ms ease" },
+        { what: "Abrir / cerrar card", how: "Chevron gira con resorte, contenido aparece con fade + 6px; el resumen hace tick al cambiar.", token: "360ms spring · 260ms ease" },
+        { what: "Prender un efecto", how: "Onda de luz desde el punto de contacto, ícono pop, se abre su detalle sola la primera vez.", token: "lg-ripple 560ms · lg-pop 420ms" },
+        { what: "Arrastrar un slider", how: "Knob crece y brilla, el valor hace tick en cada paso, banda elástica al pasarse del extremo.", token: "lg-tick 180ms · scaleX ≤1.045" },
+        { what: "Valor modificado", how: "Aparece ↺ con pop; el ícono de la card se tiñe de Rosa; punto Rosa en el part picker.", token: "lg-pop 380ms" },
+        { what: "Buscar y saltar", how: "Va al objeto, abre card/tile/avanzado, hace scroll suave y el control late dos veces.", token: "ml-flash 1400ms ×2" },
+        { what: "Deshacer / Bloquear / Eliminar", how: "Toast HUD abajo al centro con acción Deshacer inline; desaparece solo.", token: "--motion-toast 2400ms" },
+        { what: "Dock abre / cierra", how: "La sala se desplaza para que el dock nunca tape la tarjeta; acciones de arriba se corren con él.", token: "560ms spring-soft" },
+        { what: "Movimiento reducido", how: "Todo instantáneo; transparencia reducida → rellenos sólidos.", token: "prefers-reduced-*" },
+      ],
+      mapping: [
+        { from: "InspectorShell", to: "GlassPanel dock 344", note: "Mismo docked/sheet, header nuevo con búsqueda. Mantener scroll por objeto (SelectionMemory)." },
+        { from: "ObjectList", to: "PartPicker", note: "Mismos ObjectId; modified = algún campo del objeto ≠ default (inspectorObjects)." },
+        { from: "MenuSection + num/tone", to: "MenuCard", note: "Sin números 01/02: ícono + título + resumen vivo + reset de card. open/closed por objeto en SelectionMemory." },
+        { from: "SliderRow", to: "LiquidSlider + ↺", note: "min/max/step/fmt/displayScale idénticos; state=modified → ↺; defaultValue para doble click." },
+        { from: "ColorRow", to: "ColorField", note: "ColorRibbon + ColorPopover (alpha = keepAlpha). state inherited → chip con inheritedLabel." },
+        { from: "EffectList / EffectRow", to: "ControlTiles + detalle", note: "on/onToggle → tile; active sin switch (Borde, Desenfoque) → switch que pausa/reanuda vía effectBinding.setEffectEnabled." },
+        { from: "Collapsible “Avanzado”", to: "More (disclosure)", note: "Mismo contenido; muestra cuántos cambios hay adentro cuando está cerrado." },
+        { from: "Toggle + MenuRow", to: "LiquidSwitch row", note: "Glow Exterior/Interior → segmento Exterior / Interior / Ambos (escribe outer/inner igual)." },
+        { from: "Tabs (peso)", to: "Weight “Aa”", note: "weightOptions(font, weight) igual; sintético visible al 50%." },
+        { from: "FontField", to: "FontSelect", note: "CANVAS_FONTS + Google + subida propia; sample = el texto del usuario." },
+        { from: "OffsetRow", to: "Offset pad + X/Y", note: "Mismos rangos (−40…40 tarjeta, −20…20 texto)." },
+        { from: "GradientStops", to: "Stops + barra", note: "2–6 paradas, GRADIENT_NEW_STOP_FALLBACK al agregar." },
+        { from: "BlockStyleFields", to: "MenuCard con switch", note: "Switch en la cabecera = Personalizar este bloque (blockStyle ↔ blockStylePaused)." },
+        { from: "ObjectSection", to: "Barra de objeto", note: "Capa editable desde el footer + atajo a Capas; Medidas como card cerrada." },
+        { from: "ObjectLink (goTo)", to: "Fila “ir a”", note: "Mismo goTo + foco al h2 del nuevo objeto." },
+        { from: "MenuNote", to: "tooltip / hint corto", note: "Las notas largas pasan a tooltip; quedan solo avisos de estado (gradiente reemplaza color, cuadrícula oculta)." },
+      ],
+      capObjs,
+    };
+  }
+}
+</script>
+</body>
+</html>

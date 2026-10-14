@@ -1,0 +1,314 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/core/**",
+              "components/glass/**",
+              "ui_kits/editor/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Bricolage Grotesque|Geist|Geist Mono|Instrument Serif|DM Sans|Space Mono|Newsreader|Playfair Display|Bebas Neue|Syne|Archivo|Pacifico|Great Vibes))/i]",
+        "message": "Font not provided by the design system. Available: Bricolage Grotesque, Geist, Geist Mono, Instrument Serif, DM Sans, Space Mono, Newsreader, Playfair Display, Bebas Neue, Syne, Archivo, Pacifico, Great Vibes."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ColorPopover'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|onChange|onClose|alpha|swatches|label|style|key|ref|className|style|children)$/]",
+        "message": "<ColorPopover> doesn't accept that prop. Declared props: value, onChange, onClose, alpha, swatches, label, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ContextMenuItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:icon|label|keys|tone|disabled|onSelect|key|ref|className|style|children)$/]",
+        "message": "<ContextMenuItem> doesn't accept that prop. Declared props: icon, label, keys, tone, disabled, onSelect."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ContextMenuItem'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:danger)$/]",
+        "message": "<ContextMenuItem> tone must be one of 'danger'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FontOption'] > JSXAttribute > JSXIdentifier[name!=/^(?:key|label|family|category|key|ref|className|style|children)$/]",
+        "message": "<FontOption> doesn't accept that prop. Declared props: key, label, family, category."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FontOption'] > JSXAttribute[name.name='category'] > Literal[value!=/^(?:sans|serif|display|mono|script|custom)$/]",
+        "message": "<FontOption> category must be one of 'sans' | 'serif' | 'display' | 'mono' | 'script' | 'custom'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='GlassPanel'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|style|className|key|ref|className|style|children)$/]",
+        "message": "<GlassPanel> doesn't accept that prop. Declared props: children, style, className."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Icon'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|size|style|title|key|ref|className|style|children)$/]",
+        "message": "<Icon> doesn't accept that prop. Declared props: name, size, style, title."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "ColorPopover": {
+        "replaces": []
+      },
+      "ContextMenuItem": {
+        "replaces": []
+      },
+      "FontOption": {
+        "replaces": []
+      },
+      "GlassPanel": {
+        "replaces": []
+      },
+      "Icon": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--brand-blush",
+      "--brand-haze",
+      "--brand-lilac",
+      "--brand-logo",
+      "--brand-plum",
+      "--brand-rosa",
+      "--brand-rosa-deep",
+      "--brand-rosa-ink",
+      "--brand-violet",
+      "--canvas-font-mono",
+      "--canvas-font-sans",
+      "--canvas-font-serif",
+      "--font-display",
+      "--font-mono",
+      "--font-sans",
+      "--fs-body",
+      "--fs-caption",
+      "--fs-control",
+      "--fs-label",
+      "--fs-title",
+      "--fs-value",
+      "--fs-wordmark",
+      "--fw-medium",
+      "--fw-regular",
+      "--fw-semibold",
+      "--fw-wordmark",
+      "--glass-accent",
+      "--glass-accent-glow",
+      "--glass-accent-ink",
+      "--glass-accent-soft",
+      "--glass-blur",
+      "--glass-danger",
+      "--glass-danger-soft",
+      "--glass-ease",
+      "--glass-edge",
+      "--glass-fill",
+      "--glass-fill-solid",
+      "--glass-fill-strong",
+      "--glass-focus",
+      "--glass-gap-edge",
+      "--glass-h-button",
+      "--glass-h-control",
+      "--glass-h-part",
+      "--glass-ink",
+      "--glass-ink-2",
+      "--glass-ink-3",
+      "--glass-line",
+      "--glass-on",
+      "--glass-on-ink",
+      "--glass-page",
+      "--glass-radius-chip",
+      "--glass-radius-control",
+      "--glass-radius-field",
+      "--glass-radius-panel",
+      "--glass-radius-tile",
+      "--glass-ring",
+      "--glass-shadow",
+      "--glass-spring",
+      "--glass-spring-soft",
+      "--glass-success",
+      "--glass-w-dock",
+      "--glass-well",
+      "--glass-well-hover",
+      "--glass-well-press",
+      "--graphite-100",
+      "--graphite-300",
+      "--graphite-50",
+      "--graphite-500",
+      "--graphite-700",
+      "--graphite-800",
+      "--graphite-850",
+      "--graphite-900",
+      "--graphite-950",
+      "--ls-body",
+      "--ls-title",
+      "--ls-wordmark",
+      "--motion-panel",
+      "--motion-swap",
+      "--motion-tap",
+      "--motion-toast",
+      "--size-button",
+      "--size-icon",
+      "--size-swatch",
+      "--size-switch-h",
+      "--size-switch-w",
+      "--size-tile-h",
+      "--size-touch",
+      "--space-1",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-8",
+      "--z-canvas-chrome",
+      "--z-dock",
+      "--z-menu"
+    ],
+    "tokenKinds": {
+      "--brand-rosa": "color",
+      "--brand-rosa-deep": "color",
+      "--brand-rosa-ink": "color",
+      "--brand-logo": "color",
+      "--brand-lilac": "color",
+      "--brand-violet": "color",
+      "--brand-blush": "color",
+      "--brand-haze": "color",
+      "--brand-plum": "color",
+      "--graphite-950": "color",
+      "--graphite-900": "color",
+      "--graphite-850": "color",
+      "--graphite-800": "color",
+      "--graphite-700": "color",
+      "--graphite-500": "color",
+      "--graphite-300": "color",
+      "--graphite-100": "color",
+      "--graphite-50": "color",
+      "--glass-fill": "color",
+      "--glass-fill-strong": "color",
+      "--glass-fill-solid": "color",
+      "--glass-blur": "other",
+      "--glass-edge": "shadow",
+      "--glass-shadow": "shadow",
+      "--glass-ink": "color",
+      "--glass-ink-2": "color",
+      "--glass-ink-3": "color",
+      "--glass-well": "color",
+      "--glass-well-hover": "color",
+      "--glass-well-press": "color",
+      "--glass-line": "color",
+      "--glass-on": "color",
+      "--glass-on-ink": "color",
+      "--glass-accent": "color",
+      "--glass-accent-ink": "color",
+      "--glass-accent-soft": "color",
+      "--glass-accent-glow": "color",
+      "--glass-focus": "color",
+      "--glass-ring": "shadow",
+      "--glass-danger": "color",
+      "--glass-danger-soft": "color",
+      "--glass-success": "color",
+      "--glass-page": "color",
+      "--glass-radius-panel": "radius",
+      "--glass-radius-tile": "radius",
+      "--glass-radius-control": "radius",
+      "--glass-radius-field": "radius",
+      "--glass-radius-chip": "radius",
+      "--glass-h-control": "spacing",
+      "--glass-h-button": "spacing",
+      "--glass-h-part": "spacing",
+      "--glass-w-dock": "spacing",
+      "--glass-gap-edge": "spacing",
+      "--font-display": "font",
+      "--font-sans": "font",
+      "--font-mono": "font",
+      "--canvas-font-sans": "font",
+      "--canvas-font-mono": "font",
+      "--canvas-font-serif": "font",
+      "--fs-caption": "spacing",
+      "--fs-label": "spacing",
+      "--fs-body": "spacing",
+      "--fs-control": "spacing",
+      "--fs-title": "spacing",
+      "--fs-wordmark": "spacing",
+      "--fs-value": "spacing",
+      "--fw-regular": "font",
+      "--fw-medium": "font",
+      "--fw-semibold": "font",
+      "--fw-wordmark": "font",
+      "--ls-title": "spacing",
+      "--ls-wordmark": "spacing",
+      "--ls-body": "spacing",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-8": "spacing",
+      "--size-touch": "spacing",
+      "--size-button": "spacing",
+      "--size-icon": "spacing",
+      "--size-swatch": "spacing",
+      "--size-switch-w": "spacing",
+      "--size-switch-h": "spacing",
+      "--size-tile-h": "spacing",
+      "--glass-spring": "other",
+      "--glass-spring-soft": "other",
+      "--glass-ease": "other",
+      "--motion-tap": "other",
+      "--motion-swap": "other",
+      "--motion-panel": "other",
+      "--motion-toast": "other",
+      "--z-canvas-chrome": "other",
+      "--z-dock": "other",
+      "--z-menu": "other"
+    },
+    "fontFamilies": [
+      "Archivo",
+      "Bebas Neue",
+      "Bricolage Grotesque",
+      "DM Sans",
+      "Geist",
+      "Geist Mono",
+      "Great Vibes",
+      "Instrument Serif",
+      "Newsreader",
+      "Pacifico",
+      "Playfair Display",
+      "Space Mono",
+      "Syne"
+    ]
+  }
+}

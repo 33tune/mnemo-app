@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/colors.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/typography.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/motion.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/components/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/styles.css">
+<script src="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/_ds_bundle.js"></script>
+<script src="menu-schema.js"></script>
+<style>
+html,body{margin:0;height:100%;background:#0E0C12;overflow:hidden}
+a{color:var(--glass-accent);text-decoration:none}a:hover{text-decoration:underline}
+@keyframes ml-float{0%,100%{transform:translateY(0)}50%{transform:translateY(var(--ml-float,-8px))}}
+@keyframes ml-pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18) saturate(1.2)}}
+@keyframes ml-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes ml-flicker{0%,100%{opacity:0}7%{opacity:1}9%{opacity:.2}12%{opacity:.9}40%{opacity:0}}
+@keyframes ml-flash{0%{box-shadow:0 0 0 0 var(--glass-accent-glow)}30%{box-shadow:0 0 0 6px var(--glass-accent-soft)}100%{box-shadow:0 0 0 0 transparent}}
+@keyframes ml-ring{0%{opacity:0;transform:scale(.96)}100%{opacity:1;transform:none}}
+.ml-dock textarea.lg-input{display:block}
+.ml-part{cursor:pointer;border-radius:8px;transition:outline-offset 320ms var(--glass-spring),box-shadow 320ms}
+.ml-part:hover{outline:1px dashed rgba(255,79,148,.55);outline-offset:4px}
+.ml-el{cursor:pointer}
+.ml-el:hover{outline:1px dashed rgba(255,79,148,.6);outline-offset:6px}
+.ml-num::-webkit-inner-spin-button{opacity:.4}
+.ml-dock .lg-parts__ind{display:none}
+.ml-dock .lg-part{transition:transform 320ms var(--glass-spring),background-color 260ms var(--glass-ease),color 260ms,box-shadow 300ms}
+.ml-dock .lg-part[aria-selected="true"]{background:var(--glass-on);color:var(--glass-on-ink);box-shadow:0 4px 14px rgba(0,0,0,.22);animation:lg-pop 380ms var(--glass-spring)}
+</style>
+</helmet>
+<div class="lg" data-editor-theme="{{ theme }}" style="{{ rootStyle }}" onClick="{{ onBackdrop }}">
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+
+<div style="{{ wallStyle }}"></div>
+<div style="{{ vignetteStyle }}"></div>
+<sc-if value="{{ showGrid }}"><div style="position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:24px 24px"></div></sc-if>
+<div style="{{ salaStyle }}">
+
+  <sc-if value="{{ el.image.show }}" hint-placeholder-val="{{ false }}">
+    <div class="ml-el" style="{{ el.image.style }}" onClick="{{ el.image.onClick }}">
+      <div style="{{ el.image.imgStyle }}"></div>
+    </div>
+  </sc-if>
+
+  <div style="{{ cardWrapStyle }}">
+    <div style="{{ cardStyle }}" onClick="{{ pc.cardBg }}">
+      <sc-if value="{{ fxo.spot }}"><div style="{{ fxo.spotStyle }}"></div></sc-if>
+      <div style="{{ contentStyle }}">
+        <div class="ml-part" style="{{ ps.photo }}" onClick="{{ pc.photo }}"><div style="{{ photoStyle }}"></div></div>
+        <div style="{{ identityStyle }}">
+          <div class="ml-part" style="{{ ps.name }}" onClick="{{ pc.name }}"><div style="{{ ts.name }}">{{ txt.name }}</div></div>
+          <div class="ml-part" style="{{ ps.handle }}" onClick="{{ pc.handle }}"><div style="{{ ts.handle }}">@{{ txt.handle }}</div></div>
+          <div class="ml-part" style="{{ ps.descriptor }}" onClick="{{ pc.descriptor }}"><div style="{{ ts.descriptor }}">{{ txt.descriptor }}</div></div>
+          <div class="ml-part" style="{{ ps.bio }}" onClick="{{ pc.bio }}"><div style="{{ ts.bio }}">{{ txt.bio }}</div></div>
+        </div>
+        <div class="ml-part" style="{{ ps.location }}" onClick="{{ pc.location }}">
+          <div style="{{ locationStyle }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="pin" size="{{ 12 }}" hint-size="12px,12px"></x-import><span style="{{ ts.location }}">{{ txt.location }}</span></div>
+        </div>
+        <div style="flex:1"></div>
+        <sc-if value="{{ txt.showViews }}">
+          <div class="ml-part" style="{{ ps.views }}" onClick="{{ pc.views }}"><div style="{{ viewsStyle }}"><span style="{{ ts.views }}">{{ txt.views }}</span></div></div>
+        </sc-if>
+        <div class="ml-part" style="{{ ps.links }}" onClick="{{ pc.links }}">
+          <div style="{{ linksStyle }}">
+            <sc-for list="{{ linkIcons }}" as="li" hint-placeholder-count="3">
+              <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ li.icon }}" size="{{ li.size }}" hint-size="20px,20px"></x-import>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ logo.show }}" hint-placeholder-val="{{ false }}"><div class="ml-part" style="{{ logo.style }}" onClick="{{ pc.logo }}"></div></sc-if>
+      <sc-if value="{{ fxo.scan }}"><div style="{{ fxo.scanStyle }}"></div></sc-if>
+      <sc-if value="{{ fxo.noise }}"><div style="{{ fxo.noiseStyle }}"></div></sc-if>
+      <sc-if value="{{ fxo.flick }}"><div style="{{ fxo.flickStyle }}"></div></sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ el.music.show }}" hint-placeholder-val="{{ false }}">
+    <div class="ml-el" style="{{ el.music.style }}" onClick="{{ el.music.onClick }}">
+      <div style="{{ el.music.artStyle }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="disc" size="{{ 22 }}" hint-size="22px,22px"></x-import></div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+        <div style="{{ el.music.titleStyle }}">{{ el.music.title }}</div>
+        <div style="{{ el.music.artistStyle }}">{{ el.music.artist }}</div>
+        <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.18);overflow:hidden"><div style="{{ el.music.barStyle }}"></div></div>
+      </div>
+      <div style="width:34px;height:34px;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.14);flex:none" onClick="{{ el.music.onPlay }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ el.music.playIcon }}" size="{{ 14 }}" hint-size="14px,14px"></x-import></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ el.text.show }}" hint-placeholder-val="{{ false }}">
+    <div class="ml-el" style="{{ el.text.style }}" onClick="{{ el.text.onClick }}">{{ el.text.content }}</div>
+  </sc-if>
+</div>
+
+<div style="position:absolute;left:16px;top:16px;z-index:800;height:52px;padding:0 18px 0 8px;border-radius:999px;display:flex;align-items:center;gap:10px" class="lg-glass">
+  <img src="assets/logo.png" alt="" style="width:34px;margin-left:4px">
+  <span style="font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-0.055em">myLand</span>
+  <span style="font-size:13px;color:var(--glass-ink-2)">@mara</span>
+  <span title="{{ statusTip }}" style="{{ statusDot }}"></span>
+</div>
+
+<div class="lg-glass" style="{{ actionsStyle }}">
+  <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="undo" tip="Deshacer   ⌘Z" tip-side="bottom" size="{{ 40 }}" disabled="{{ cantUndo }}" on-click="{{ undo }}" hint-size="40px,40px"></x-import>
+  <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="redo" tip="Rehacer   ⇧⌘Z" tip-side="bottom" size="{{ 40 }}" disabled="{{ cantRedo }}" on-click="{{ redo }}" hint-size="40px,40px"></x-import>
+  <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="{{ themeIcon }}" tip="{{ themeTip }}" tip-side="bottom" size="{{ 40 }}" on-click="{{ toggleTheme }}" hint-size="40px,40px"></x-import>
+  <button type="button" class="lg-pill lg-pill--brand" data-done="{{ pubDone }}" style="margin-left:4px;min-width:112px;justify-content:center" onClick="{{ publish }}">
+    <sc-if value="{{ pubDone }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="check" size="{{ 15 }}" hint-size="15px,15px"></x-import><span class="lg-swap">Publicado</span></sc-if>
+    <sc-if value="{{ pubIdle }}"><span>Publicar</span><sc-if value="{{ pending }}"><span class="lg-badge">{{ pending }}</span></sc-if></sc-if>
+  </button>
+</div>
+
+<div style="position:absolute;left:16px;top:50%;transform:translateY(-50%);z-index:801" onClick="{{ stop }}">
+  <nav class="lg lg-glass lg-rail" aria-label="Herramientas">
+    <span class="lg-rail__ind" style="{{ railInd }}"></span>
+    <sc-for list="{{ railItems }}" as="ri" hint-placeholder-count="4">
+      <button type="button" class="lg-rail__btn lg-tip" data-tip="{{ ri.tip }}" data-tip-side="right" aria-label="{{ ri.tip }}" aria-pressed="{{ ri.on }}" onClick="{{ ri.onClick }}">
+        <sc-if value="{{ ri.icon }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ ri.icon }}" size="{{ 19 }}" hint-size="19px,19px"></x-import></sc-if>
+        <sc-if value="{{ ri.gear }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path vector-effect="non-scaling-stroke" d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle vector-effect="non-scaling-stroke" cx="12" cy="12" r="3"></circle></svg></sc-if>
+      </button>
+    </sc-for>
+  </nav>
+</div>
+
+<sc-if value="{{ addOpen }}">
+  <div class="lg lg-glass lg-pop lg-menu" style="position:absolute;left:84px;top:calc(50% - 96px);width:280px;z-index:9000;padding:8px;gap:4px;transform-origin:left center" onClick="{{ stop }}">
+    <sc-for list="{{ addItems }}" as="a" hint-placeholder-count="3">
+      <button type="button" class="lg-menu__item" style="height:60px;gap:12px" onClick="{{ a.onClick }}">
+        <span style="width:40px;height:40px;border-radius:14px;display:grid;place-items:center;background:var(--glass-well);flex:none"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ a.icon }}" size="{{ 18 }}" hint-size="18px,18px"></x-import></span>
+        <span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:600">{{ a.label }}</span><span style="font-size:12px;color:var(--glass-ink-2)">{{ a.sub }}</span></span>
+      </button>
+    </sc-for>
+  </div>
+</sc-if>
+
+<sc-if value="{{ showHint }}">
+  <div class="lg lg-glass lg-hint" style="position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:700">
+    <span style="width:28px;height:28px;border-radius:99px;display:grid;place-items:center;background:var(--glass-well)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="pointer" size="{{ 14 }}" hint-size="14px,14px"></x-import></span>
+    Tocá algo para editarlo<kbd>A</kbd>agregar<kbd>/</kbd>buscar
+  </div>
+</sc-if>
+
+<sc-if value="{{ dockOpen }}">
+<div class="ml-dock" style="position:absolute;right:16px;top:16px;bottom:16px;z-index:900;width:344px;display:flex" onClick="{{ stop }}">
+<div class="lg lg-glass lg-panel" style="width:344px;height:100%">
+
+  <div style="padding:16px 14px 12px 18px;display:flex;flex-direction:column;gap:14px;flex:none">
+    <sc-if value="{{ dk.searchClosed }}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="lg-swap" style="width:36px;height:36px;border-radius:12px;background:var(--glass-well);display:grid;place-items:center;flex:none"><sc-if value="{{ dk.iconName }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ dk.iconName }}" size="{{ 17 }}" hint-size="17px,17px"></x-import></sc-if><sc-if value="{{ dk.gear }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path vector-effect="non-scaling-stroke" d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle vector-effect="non-scaling-stroke" cx="12" cy="12" r="3"></circle></svg></sc-if></span>
+        <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+          <h2 class="lg-swap" style="margin:0;font-size:19px;font-weight:650;letter-spacing:-0.02em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ dk.title }}</h2>
+          <span style="font:500 11.5px var(--font-mono);color:var(--glass-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ dk.path }}</span>
+        </div>
+        <sc-if value="{{ dk.canSearch }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="search" tip="Buscar ajuste   /" filled="{{ true }}" size="{{ 36 }}" icon-size="{{ 16 }}" on-click="{{ dk.openSearch }}" hint-size="36px,36px"></x-import></sc-if>
+        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="close" tip="Cerrar   esc" filled="{{ true }}" size="{{ 36 }}" icon-size="{{ 14 }}" on-click="{{ closeDock }}" hint-size="36px,36px"></x-import>
+      </div>
+    </sc-if>
+    <sc-if value="{{ dk.searchOpen }}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="lg-fsel__search" style="height:44px;border-radius:16px;background:var(--glass-well)">
+          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="search" size="{{ 16 }}" hint-size="16px,16px"></x-import>
+          <input ref="{{ searchRef }}" value="{{ dk.query }}" onInput="{{ dk.onQuery }}" onKeyDown="{{ dk.onSearchKey }}" placeholder="{{ dk.searchPlaceholder }}" aria-label="Buscar ajuste">
+        </div>
+        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="close" tip="Cerrar búsqueda   esc" filled="{{ true }}" size="{{ 44 }}" icon-size="{{ 14 }}" on-click="{{ dk.closeSearch }}" hint-size="44px,44px"></x-import>
+      </div>
+    </sc-if>
+    <sc-if value="{{ dk.hasParts }}">
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.PartPicker" parts="{{ dk.parts }}" value="{{ dk.pickerValue }}" on-change="{{ dk.onPart }}" hint-size="100%,48px"></x-import>
+    </sc-if>
+    <sc-if value="{{ dk.hasTabs }}">
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ dk.tabs }}" value="{{ dk.tab }}" on-change="{{ dk.onTab }}" hint-size="100%,44px"></x-import>
+    </sc-if>
+  </div>
+
+  <div class="lg-scroll" ref="{{ bodyRef }}" style="flex:1;min-height:0">
+
+    <sc-if value="{{ dk.showResults }}">
+      <div class="lg-swap" style="padding:2px 14px 24px;display:flex;flex-direction:column;gap:2px">
+        <div class="lg-label" style="padding:4px 6px 8px">{{ dk.resultsLabel }}</div>
+        <sc-for list="{{ dk.results }}" as="res" hint-placeholder-count="4">
+          <button type="button" class="lg-menu__item" style="height:52px;gap:12px;border-radius:14px" onClick="{{ res.onGo }}">
+            <span style="width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--glass-well);flex:none"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ res.icon }}" size="{{ 16 }}" hint-size="16px,16px"></x-import></span>
+            <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1"><span style="font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ res.label }}</span><span style="font-size:12px;color:var(--glass-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ res.path }}</span></span>
+            <sc-if value="{{ res.modified }}"><span style="width:7px;height:7px;border-radius:99px;background:var(--glass-accent);flex:none"></span></sc-if>
+            <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-right" size="{{ 14 }}" hint-size="14px,14px"></x-import>
+          </button>
+        </sc-for>
+        <sc-if value="{{ dk.noResults }}"><div style="padding:28px 10px;text-align:center;font-size:13px;color:var(--glass-ink-2)">Nada con ese nombre en este objeto</div></sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ dk.showLayers }}">
+      <div class="lg-swap" style="padding:4px 14px 24px;display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ ly.groups }}" as="g" hint-placeholder-count="3">
+          <section style="display:flex;flex-direction:column;gap:4px">
+            <div class="lg-label" style="padding:0 6px">{{ g.name }}<span style="margin-left:auto;font:500 11px var(--font-mono);color:var(--glass-ink-3)">{{ g.count }}</span></div>
+            <sc-for list="{{ g.rows }}" as="row" hint-placeholder-count="2">
+              <div data-layer-row="{{ row.id }}" style="{{ row.style }}" onClick="{{ row.onClick }}">
+                <span style="{{ row.gripStyle }}" title="Arrastrá para reordenar" onPointerDown="{{ row.onGripDown }}" onPointerMove="{{ ly.onGripMove }}" onPointerUp="{{ ly.onGripUp }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="grip" size="{{ 14 }}" hint-size="14px,14px"></x-import></span>
+                <span style="{{ row.thumbStyle }}"><sc-if value="{{ row.icon }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ row.icon }}" size="{{ 16 }}" hint-size="16px,16px"></x-import></sc-if></span>
+                <span style="display:flex;flex-direction:column;min-width:0;flex:1"><span style="font-size:14px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ row.name }}</span><span style="font-size:12px;opacity:.6">{{ row.detail }}</span></span>
+                <sc-if value="{{ row.lockable }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="{{ row.lockIcon }}" tip="{{ row.lockTip }}" size="{{ 32 }}" icon-size="{{ 14 }}" on-click="{{ row.onLock }}" hint-size="32px,32px"></x-import></sc-if>
+              </div>
+            </sc-for>
+          </section>
+        </sc-for>
+        <sc-if value="{{ ly.hasSel }}">
+          <section class="lg-swap" style="border-radius:24px;box-shadow:inset 0 0 0 1px var(--glass-line);padding:14px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-size:14px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ly.selName }}</span><span style="font:500 11px var(--font-mono);color:var(--glass-ink-3)">{{ ly.selDetail }}</span></div>
+            <sc-if value="{{ ly.canLayer }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ ly.layerTabs }}" value="{{ ly.layer }}" on-change="{{ ly.onLayer }}" hint-size="100%,44px"></x-import></sc-if>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+              <sc-for list="{{ ly.order }}" as="ob" hint-placeholder-count="4">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="{{ ob.icon }}" tip="{{ ob.tip }}" filled="{{ true }}" size="{{ 48 }}" disabled="{{ ob.disabled }}" on-click="{{ ob.onClick }}" hint-size="48px,48px"></x-import>
+                  <span style="font-size:11.5px;color:var(--glass-ink-2)">{{ ob.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:12px;color:var(--glass-ink-3);display:flex;gap:6px;align-items:center"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="layers" size="{{ 13 }}" hint-size="13px,13px"></x-import>Mientras está seleccionado se dibuja encima</div>
+          </section>
+        </sc-if>
+        <sc-if value="{{ ly.noSel }}"><div style="font-size:13px;color:var(--glass-ink-2);padding:6px">Tocá un objeto para ordenarlo · Mayús suma a la selección</div></sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ dk.showCards }}">
+      <div class="lg-swap" data-dir="{{ dk.dir }}" style="padding:2px 14px 28px;display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ cards }}" as="cd" hint-placeholder-count="3">
+          <section data-card="{{ cd.id }}" style="{{ cd.style }}">
+            <sc-if value="{{ cd.pinLabel }}"><div class="lg-label" style="padding:0 4px">{{ cd.pinLabel }}</div></sc-if>
+            <sc-if value="{{ cd.hasHeader }}">
+            <div style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;cursor:pointer" onClick="{{ cd.onToggleOpen }}">
+              <span style="{{ cd.iconStyle }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ cd.icon }}" size="{{ 16 }}" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;min-width:0;flex:1;gap:1px">
+                <span style="font-size:14px;font-weight:600;letter-spacing:-0.01em;display:flex;align-items:center;gap:6px">{{ cd.title }}<sc-if value="{{ cd.modified }}"><span title="Tiene cambios" style="width:6px;height:6px;border-radius:99px;background:var(--glass-accent)"></span></sc-if></span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><sc-if value="{{ cd.swatchStyle }}"><span style="{{ cd.swatchStyle }}"></span></sc-if><span key="{{ cd.summary }}" style="font-size:12px;color:var(--glass-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:lg-tick 220ms var(--glass-spring)">{{ cd.summary }}</span></span>
+              </span>
+              <sc-if value="{{ cd.modified }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="Restablecer card" size="{{ 32 }}" icon-size="{{ 14 }}" on-click="{{ cd.onReset }}" hint-size="32px,32px"></x-import></sc-if>
+              <sc-if value="{{ cd.hasToggle }}"><span onClick="{{ stop }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSwitch" value="{{ cd.toggleOn }}" on-change="{{ cd.onToggleSwitch }}" label="{{ cd.title }}" hint-size="51px,31px"></x-import></span></sc-if>
+              <span style="{{ cd.chevStyle }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="{{ 14 }}" hint-size="14px,14px"></x-import></span>
+            </div>
+            </sc-if>
+            <sc-if value="{{ cd.showBody }}">
+              <div class="lg-swap" style="{{ cd.bodyStyle }}">
+                <sc-if value="{{ cd.offNote }}"><div style="font-size:13px;color:var(--glass-ink-2);padding:2px 4px 6px">{{ cd.offNote }}</div></sc-if>
+                <sc-if value="{{ cd.needsNote }}"><div style="font-size:13px;color:var(--glass-ink-2);padding:2px 4px 8px">{{ cd.needsNote }}</div></sc-if>
+                <sc-for list="{{ cd.rows }}" as="r" hint-placeholder-count="3">
+                  <div data-k="{{ r.k }}" style="{{ r.wrap }}">
+
+                    <sc-if value="{{ r.isSlider }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <div style="flex:1;min-width:0" title="{{ r.tip }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="{{ r.icon }}" label="{{ r.label }}" value="{{ r.value }}" min="{{ r.min }}" max="{{ r.max }}" step="{{ r.step }}" fmt="{{ r.fmt }}" on-change="{{ r.onChange }}" default-value="{{ r.def }}" hint-size="100%,44px"></x-import></div>
+                        <sc-if value="{{ r.modified }}"><span style="animation:lg-pop 380ms var(--glass-spring);display:inline-flex"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="Restablecer" size="{{ 32 }}" icon-size="{{ 14 }}" on-click="{{ r.onReset }}" hint-size="32px,32px"></x-import></span></sc-if>
+                      </div>
+                      <sc-if value="{{ r.warn }}"><div style="font-size:12px;color:var(--glass-ink-2);padding:0 4px;display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:9px;background:var(--glass-accent)"></span>{{ r.warn }}</div></sc-if>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isColor }}" hint-placeholder-val="{{ false }}">
+                      <div style="{{ r.lockStyle }}">
+                        <div style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 2px">
+                          <button type="button" class="lg-tip" data-tip="Elegir cualquier color" aria-label="Elegir cualquier color" style="{{ r.curStyle }}" onClick="{{ r.onMore }}"></button>
+                          <span style="display:flex;flex-direction:column;min-width:0;flex:1;gap:2px">
+                            <span style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:550">{{ r.label }}</span><sc-if value="{{ r.chip }}"><span style="height:20px;padding:0 8px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:550;color:var(--glass-ink-2);box-shadow:inset 0 0 0 1px var(--glass-line)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="link" size="{{ 10 }}" hint-size="10px,10px"></x-import>{{ r.chip }}</span></sc-if></span>
+                            <span style="font:500 12px var(--font-mono);color:var(--glass-ink-2);text-transform:uppercase">{{ r.hex }}</span>
+                          </span>
+                          <sc-if value="{{ r.modified }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="{{ r.resetTip }}" size="{{ 32 }}" icon-size="{{ 14 }}" on-click="{{ r.onReset }}" hint-size="32px,32px"></x-import></sc-if>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;padding:0 2px">
+                          <span style="font-size:11.5px;font-weight:600;color:var(--glass-ink-3);white-space:nowrap">Tu tarjeta</span>
+                          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorRibbon" value="{{ r.value }}" colors="{{ r.colors }}" on-change="{{ r.onChange }}" hint-size="100%,32px"></x-import>
+                        </div>
+                        <sc-if value="{{ r.popOpen }}"><div style="margin-top:4px"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorPopover" value="{{ r.value }}" alpha="{{ r.alpha }}" swatches="{{ r.colors }}" on-change="{{ r.onChange }}" on-close="{{ r.onClosePop }}" label="{{ r.label }}" hint-size="272px,300px"></x-import></div></sc-if>
+                      </div>
+                      <sc-if value="{{ r.lockedNote }}"><div style="font-size:12px;color:var(--glass-ink-2);padding:0 2px;display:flex;align-items:center;gap:6px"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="lock" size="{{ 12 }}" hint-size="12px,12px"></x-import>{{ r.lockedNote }}</div></sc-if>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isSwitch }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 2px 0 4px" title="{{ r.tip }}">
+                        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ r.icon }}" size="{{ 17 }}" hint-size="17px,17px"></x-import>
+                        <span style="font-size:14px;font-weight:500;flex:1">{{ r.label }}</span>
+                        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSwitch" value="{{ r.value }}" on-change="{{ r.onChange }}" label="{{ r.label }}" hint-size="51px,31px"></x-import>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isSeg }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:10px">
+                        <span class="lg-label" style="color:var(--glass-ink);min-width:76px">{{ r.label }}</span>
+                        <div style="flex:1;min-width:0"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ r.tabs }}" value="{{ r.value }}" on-change="{{ r.onChange }}" hint-size="100%,44px"></x-import></div>
+                        <sc-if value="{{ r.modified }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="Restablecer" size="{{ 28 }}" icon-size="{{ 13 }}" on-click="{{ r.onReset }}" hint-size="28px,28px"></x-import></sc-if>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isFont }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:flex-start;gap:6px">
+                        <div style="flex:1;min-width:0"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.FontSelect" fonts="{{ r.fonts }}" value="{{ r.value }}" sample="{{ r.sample }}" on-change="{{ r.onChange }}" label="{{ r.label }}" hint-size="100%,56px"></x-import></div>
+                        <sc-if value="{{ r.modified }}"><div style="padding-top:12px"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="Fuente predeterminada" size="{{ 32 }}" icon-size="{{ 14 }}" on-click="{{ r.onReset }}" hint-size="32px,32px"></x-import></div></sc-if>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isWeight }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:8px;padding:0 2px">
+                        <span class="lg-label" style="color:var(--glass-ink)">Peso</span>
+                        <span style="font-size:11.5px;color:var(--glass-ink-3)">{{ r.note }}</span>
+                        <span style="margin-left:auto;font:500 12px var(--font-mono);color:var(--glass-ink-2)">{{ r.valueLabel }}</span>
+                        <sc-if value="{{ r.modified }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="reset" tip="Restablecer" size="{{ 28 }}" icon-size="{{ 13 }}" on-click="{{ r.onReset }}" hint-size="28px,28px"></x-import></sc-if>
+                      </div>
+                      <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <sc-for list="{{ r.weights }}" as="w" hint-placeholder-count="3">
+                          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" tip="{{ w.tip }}" filled="{{ true }}" pressed="{{ w.on }}" size="{{ 44 }}" on-click="{{ w.onClick }}" hint-size="52px,44px"><span style="{{ w.style }}">Aa</span></x-import>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isText }}" hint-placeholder-val="{{ false }}">
+                      <sc-if value="{{ r.label }}"><span class="lg-label" style="padding:0 2px">{{ r.label }}</span></sc-if>
+                      <div style="position:relative" title="{{ r.tip }}">
+                        <sc-if value="{{ r.area }}"><textarea class="lg-input" rows="3" value="{{ r.value }}" placeholder="{{ r.placeholder }}" maxlength="{{ r.max }}" onInput="{{ r.onInput }}" style="{{ r.inputStyle }}"></textarea></sc-if>
+                        <sc-if value="{{ r.single }}"><input class="lg-input" value="{{ r.value }}" placeholder="{{ r.placeholder }}" maxlength="{{ r.max }}" onInput="{{ r.onInput }}" style="{{ r.inputStyle }}"></sc-if>
+                        <sc-if value="{{ r.counter }}"><span style="position:absolute;right:12px;bottom:8px;font:500 11px var(--font-mono);color:var(--glass-ink-3);pointer-events:none">{{ r.counter }}</span></sc-if>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isReadonly }}" hint-placeholder-val="{{ false }}">
+                      <div class="lg-input" style="{{ r.inputStyle }}" title="{{ r.note }}"><span style="flex:1">{{ r.value }}</span><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="lock" size="{{ 14 }}" hint-size="14px,14px"></x-import></div>
+                      <div style="font-size:12px;color:var(--glass-ink-3);padding:0 4px">{{ r.note }}</div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isUpload }}" hint-placeholder-val="{{ false }}">
+                      <sc-if value="{{ r.has }}">
+                        <div style="display:flex;align-items:center;gap:12px;padding:8px 8px 8px 8px;border-radius:20px;background:var(--glass-well)" title="{{ r.tip }}">
+                          <div style="{{ r.thumbStyle }}"><sc-if value="{{ r.thumbIcon }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ r.thumbIcon }}" size="{{ 20 }}" hint-size="20px,20px"></x-import></sc-if><sc-if value="{{ r.thumbText }}">{{ r.thumbText }}</sc-if></div>
+                          <span style="display:flex;flex-direction:column;min-width:0;flex:1"><span style="font-size:14px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span><span style="font-size:12px;color:var(--glass-ink-3)">{{ r.caption }}</span></span>
+                          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="upload" tip="Reemplazar" filled="{{ true }}" size="{{ 40 }}" on-click="{{ r.onPick }}" hint-size="40px,40px"></x-import>
+                          <sc-if value="{{ r.removable }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="trash" tip="Quitar" tone="danger" size="{{ 40 }}" on-click="{{ r.onRemove }}" hint-size="40px,40px"></x-import></sc-if>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ r.emptyBig }}">
+                        <div class="lg-drop" role="button" tabindex="0" data-over="{{ r.over }}" onClick="{{ r.onPick }}" onDragOver="{{ r.onDragOver }}" onDragLeave="{{ r.onDragLeave }}" onDrop="{{ r.onDrop }}" style="min-height:112px">
+                          <span style="width:40px;height:40px;border-radius:99px;display:grid;place-items:center;background:var(--glass-well-hover)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="upload" size="{{ 18 }}" hint-size="18px,18px"></x-import></span>
+                          <span style="font-weight:600;color:var(--glass-ink)">{{ r.label }}</span><span>o soltalo acá</span>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ r.emptySmall }}">
+                        <button type="button" class="lg-pill lg-pill--well" style="justify-content:center;width:100%;height:44px" onClick="{{ r.onPick }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="upload" size="{{ 15 }}" hint-size="15px,15px"></x-import>{{ r.label }}</button>
+                      </sc-if>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isTiles }}" hint-placeholder-val="{{ false }}">
+                      <div class="lg-tiles">
+                        <sc-for list="{{ r.tiles }}" as="t" hint-placeholder-count="2">
+                          <div class="lg-tile" role="switch" tabindex="0" aria-checked="{{ t.on }}" aria-label="{{ t.label }}" data-on="{{ t.dataOn }}" data-open="{{ t.dataOpen }}" onClick="{{ t.onTap }}" onKeyDown="{{ t.onKey }}">
+                            <sc-if value="{{ t.hasRipple }}"><span class="lg-tile__ripple" style="{{ t.rippleStyle }}"></span></sc-if>
+                            <span class="lg-tile__ico">
+                              <sc-if value="{{ t.pvText }}"><span style="{{ t.pvStyle }}">Aa</span></sc-if>
+                              <sc-if value="{{ t.pvChip }}"><span style="{{ t.pvStyle }}"></span></sc-if>
+                              <sc-if value="{{ t.pvIcon }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ t.icon }}" size="{{ 17 }}" hint-size="17px,17px"></x-import></sc-if>
+                            </span>
+                            <span><div class="lg-tile__name">{{ t.label }}</div><div class="lg-tile__state" style="{{ t.stateStyle }}">{{ t.state }}</div></span>
+                            <sc-if value="{{ t.hasDetail }}"><button type="button" class="lg-tile__more" aria-label="{{ t.moreLabel }}" aria-expanded="{{ t.isOpen }}" onClick="{{ t.onMore }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="{{ 14 }}" hint-size="14px,14px"></x-import></button></sc-if>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isDetailHead }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:8px;padding:0 2px">
+                        <span style="font-size:12px;font-weight:600;color:var(--glass-ink-2)">{{ r.label }}</span>
+                        <span style="font-size:11.5px;color:var(--glass-ink-3)">{{ r.state }}</span>
+                        <span style="margin-left:auto"></span>
+                        <sc-if value="{{ r.modified }}"><button type="button" class="lg-chip" style="height:26px" onClick="{{ r.onReset }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="reset" size="{{ 12 }}" hint-size="12px,12px"></x-import>Restablecer</button></sc-if>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isOffset }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;gap:12px;align-items:center">
+                        <div style="position:relative;width:104px;height:104px;border-radius:20px;background:var(--glass-well);touch-action:none;cursor:crosshair;flex:none;overflow:hidden" onPointerDown="{{ r.onPadDown }}" onPointerMove="{{ r.onPadMove }}" onPointerUp="{{ r.onPadUp }}" title="Arrastrá para mover la sombra · doble click centra" onDoubleClick="{{ r.onPadReset }}">
+                          <div style="position:absolute;left:50%;top:10px;bottom:10px;width:1px;background:var(--glass-line)"></div>
+                          <div style="position:absolute;top:50%;left:10px;right:10px;height:1px;background:var(--glass-line)"></div>
+                          <div style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:9px;background:var(--glass-ink-3)"></div>
+                          <div style="{{ r.dotStyle }}"></div>
+                        </div>
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+                          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" label="X" value="{{ r.x }}" min="{{ r.min }}" max="{{ r.max }}" step="{{ 1 }}" fmt="{{ r.fmt }}" on-change="{{ r.onX }}" default-value="{{ r.dx }}" hint-size="100%,44px"></x-import>
+                          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" label="Y" value="{{ r.y }}" min="{{ r.min }}" max="{{ r.max }}" step="{{ 1 }}" fmt="{{ r.fmt }}" on-change="{{ r.onY }}" default-value="{{ r.dy }}" hint-size="100%,44px"></x-import>
+                        </div>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isStops }}" hint-placeholder-val="{{ false }}">
+                      <div style="{{ r.barStyle }}"></div>
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <sc-for list="{{ r.stops }}" as="st" hint-placeholder-count="2">
+                          <button type="button" class="lg-color" role="radio" aria-checked="{{ st.on }}" aria-label="{{ st.label }}" style="{{ st.style }}" onClick="{{ st.onClick }}"></button>
+                        </sc-for>
+                        <sc-if value="{{ r.canAdd }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="plus" tip="Agregar color" filled="{{ true }}" size="{{ 32 }}" icon-size="{{ 14 }}" on-click="{{ r.onAdd }}" hint-size="32px,32px"></x-import></sc-if>
+                        <span style="margin-left:auto"></span>
+                        <sc-if value="{{ r.canRemove }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="trash" tip="Quitar este color" tone="danger" size="{{ 32 }}" icon-size="{{ 14 }}" on-click="{{ r.onRemove }}" hint-size="32px,32px"></x-import></sc-if>
+                      </div>
+                      <sc-if value="{{ r.popOpen }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorPopover" value="{{ r.popValue }}" on-change="{{ r.onStop }}" on-close="{{ r.onClosePop }}" label="Color del gradiente" hint-size="272px,300px"></x-import></sc-if>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isLinks }}" hint-placeholder-val="{{ false }}">
+                      <sc-for list="{{ r.items }}" as="lk" hint-placeholder-count="3">
+                        <div style="display:flex;align-items:center;gap:8px;min-height:52px;padding:4px 4px 4px 6px;border-radius:18px;background:var(--glass-well)">
+                          <span style="width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--glass-well-hover);flex:none"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ lk.icon }}" size="{{ 16 }}" hint-size="16px,16px"></x-import></span>
+                          <sc-if value="{{ lk.editing }}"><input class="lg-input" value="{{ lk.draft }}" onInput="{{ lk.onDraft }}" onKeyDown="{{ lk.onKey }}" style="min-height:40px;padding:8px 10px;font:500 13px var(--font-mono);flex:1;min-width:0" aria-label="Editar URL"></sc-if>
+                          <sc-if value="{{ lk.idle }}"><span style="display:flex;flex-direction:column;min-width:0;flex:1"><span style="font-size:13.5px;font-weight:600">{{ lk.platform }}</span><span style="font:500 12px var(--font-mono);color:var(--glass-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ lk.url }}</span></span></sc-if>
+                          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="{{ lk.editIcon }}" tip="{{ lk.editTip }}" size="{{ 34 }}" icon-size="{{ 15 }}" on-click="{{ lk.onEdit }}" hint-size="34px,34px"></x-import>
+                          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="trash" tip="Quitar link" tone="danger" size="{{ 34 }}" icon-size="{{ 15 }}" on-click="{{ lk.onRemove }}" hint-size="34px,34px"></x-import>
+                        </div>
+                      </sc-for>
+                      <sc-if value="{{ r.canAdd }}">
+                        <div style="display:flex;gap:8px;align-items:center">
+                          <input class="lg-input" value="{{ r.draft }}" onInput="{{ r.onDraft }}" onKeyDown="{{ r.onDraftKey }}" placeholder="instagram.com/usuario…" aria-label="URL del link nuevo" style="font:500 13px var(--font-mono);flex:1;min-width:0">
+                          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="plus" tip="Agregar link" accent="{{ r.draftReady }}" filled="{{ true }}" size="{{ 44 }}" on-click="{{ r.onAdd }}" hint-size="44px,44px"></x-import>
+                        </div>
+                      </sc-if>
+                      <div style="font:500 11.5px var(--font-mono);color:var(--glass-ink-3);padding:0 4px">{{ r.count }}</div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isCorners }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+                        <sc-for list="{{ r.options }}" as="op" hint-placeholder-count="4">
+                          <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+                            <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" tip="{{ op.label }}" filled="{{ true }}" pressed="{{ op.on }}" size="{{ 56 }}" on-click="{{ op.onClick }}" hint-size="56px,56px"><span style="{{ op.shape }}"></span></x-import>
+                            <span style="font-size:12px;color:var(--glass-ink-2)">{{ op.label }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isMeasures }}" hint-placeholder-val="{{ false }}">
+                      <sc-if value="{{ r.lockedNote }}"><div style="font-size:12px;color:var(--glass-ink-2);display:flex;gap:6px;align-items:center"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="lock" size="{{ 12 }}" hint-size="12px,12px"></x-import>{{ r.lockedNote }}</div></sc-if>
+                      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px">
+                        <sc-for list="{{ r.fields }}" as="fd" hint-placeholder-count="2">
+                          <label style="display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:16px;background:var(--glass-well)">
+                            <span style="font-size:12px;font-weight:600;color:var(--glass-ink-2);min-width:16px">{{ fd.label }}</span>
+                            <input class="ml-num" type="number" value="{{ fd.value }}" min="{{ fd.min }}" max="{{ fd.max }}" disabled="{{ fd.disabled }}" onInput="{{ fd.onInput }}" style="flex:1;min-width:0;border:none;background:transparent;color:var(--glass-ink);font:500 14px var(--font-mono);text-align:right;outline:none">
+                          </label>
+                        </sc-for>
+                      </div>
+                      <sc-if value="{{ r.note }}"><div style="font-size:12px;color:var(--glass-ink-3);padding:0 4px">{{ r.note }}</div></sc-if>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isGoto }}" hint-placeholder-val="{{ false }}">
+                      <button type="button" class="lg-menu__item" style="height:44px;border-radius:14px;gap:10px;background:transparent;box-shadow:inset 0 0 0 1px var(--glass-line)" onClick="{{ r.onGo }}">
+                        <span style="flex:1;font-size:13.5px">{{ r.label }}</span>
+                        <span style="font-size:12px;color:var(--glass-ink-3)">{{ r.hint }}</span>
+                        <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-right" size="{{ 14 }}" hint-size="14px,14px"></x-import>
+                      </button>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isMore }}" hint-placeholder-val="{{ false }}">
+                      <button type="button" style="display:flex;align-items:center;gap:8px;height:36px;padding:0 4px;border:none;background:transparent;cursor:pointer;color:var(--glass-ink-2);font-size:13px;font-weight:600" onClick="{{ r.onToggle }}">
+                        <span style="{{ r.chevStyle }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-right" size="{{ 13 }}" hint-size="13px,13px"></x-import></span>{{ r.label }}<span style="font-weight:500;color:var(--glass-ink-3)">{{ r.summary }}</span>
+                      </button>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isHint }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--glass-ink-2);padding:2px 4px"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ r.icon }}" size="{{ 14 }}" hint-size="14px,14px"></x-import>{{ r.text }}</div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isWarn }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--glass-ink-2);padding:2px 4px"><span style="width:6px;height:6px;border-radius:9px;background:var(--glass-accent)"></span>{{ r.text }}</div>
+                    </sc-if>
+
+                    <sc-if value="{{ r.isAction }}" hint-placeholder-val="{{ false }}">
+                      <button type="button" class="lg-pill lg-pill--well" style="justify-content:center;width:100%;height:44px" onClick="{{ r.onClick }}"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ r.icon }}" size="{{ 15 }}" hint-size="15px,15px"></x-import>{{ r.label }}</button>
+                    </sc-if>
+
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </section>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{ ft.show }}">
+    <div style="display:flex;align-items:center;gap:6px;padding:10px 12px 12px;border-top:1px solid var(--glass-line);flex:none">
+      <div style="flex:1;min-width:0" title="Capa"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ ft.layerTabs }}" value="{{ ft.layer }}" on-change="{{ ft.onLayer }}" hint-size="100%,44px"></x-import></div>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="layers" tip="Ordenar en Capas   L" size="{{ 38 }}" on-click="{{ ft.onLayers }}" hint-size="38px,38px"></x-import>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="{{ ft.lockIcon }}" tip="{{ ft.lockTip }}" pressed="{{ ft.locked }}" size="{{ 38 }}" on-click="{{ ft.onLock }}" hint-size="38px,38px"></x-import>
+      <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassButton" icon="trash" tip="{{ ft.deleteTip }}" tone="danger" size="{{ 38 }}" on-click="{{ ft.onDelete }}" hint-size="38px,38px"></x-import>
+    </div>
+  </sc-if>
+</div>
+</div>
+</sc-if>
+
+<x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassToast" toast="{{ toast }}" on-action="{{ undo }}" hint-size="0px,0px"></x-import>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;\&quot;dark\&quot; | \&quot;light\&quot;&quot;},&quot;initial&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;name&quot;,&quot;photo&quot;,&quot;bio&quot;,&quot;links&quot;,&quot;logo&quot;,&quot;cardBg&quot;,&quot;cardFx&quot;,&quot;allText&quot;,&quot;text&quot;,&quot;image&quot;,&quot;music&quot;,&quot;layers&quot;,&quot;room&quot;],&quot;default&quot;:&quot;name&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Arranque&quot;}}">
+class Component extends DCLogic {
+  state = { ready: false, v: null, sel: null, part: "name", panel: null, tab: {}, open: {}, tileOpen: {}, moreOpen: {}, pop: null, stopSel: null,
+    search: null, flash: null, toast: null, hist: [], fut: [], pubAt: 0, pubDone: false, ripple: null, addOpen: false, playing: false,
+    linkDraft: "", linkEdit: null, drop: null, z: ["image", "card", "music", "text"], dir: undefined, drag: null };
+  bodyRef = React.createRef();
+  searchRef = React.createRef();
+
+  componentDidMount() {
+    const boot = () => {
+      const M = window.MYLAND_MENU;
+      if (!M || !window.MYLANDDesignSystem_d61b78 || !window.MYLANDDesignSystem_d61b78.LiquidSlider) { this._boot = setTimeout(boot, 40); return; }
+      const init = this.props.initial || "name";
+      const v = { ...M.D, ...M.SAMPLE, "room.theme": this.props.theme || "dark" };
+      const st = { ready: true, v };
+      if (["text", "image", "music"].includes(init)) Object.assign(st, { sel: { kind: init }, panel: "inspector" });
+      else if (init === "layers" || init === "room") Object.assign(st, { panel: init, sel: init === "layers" ? { kind: "text" } : null });
+      else Object.assign(st, { sel: { kind: "card" }, part: init, panel: "inspector" });
+      this.setState(st);
+    };
+    boot();
+    this._key = e => this.onKey(e);
+    window.addEventListener("keydown", this._key);
+    this._rs = () => this.setState({ vw: window.innerWidth, vh: window.innerHeight });
+    window.addEventListener("resize", this._rs);
+  }
+  componentWillUnmount() { clearTimeout(this._boot); clearTimeout(this._pk); clearTimeout(this._pk2); window.removeEventListener("resize", this._rs); clearTimeout(this._tt); window.removeEventListener("keydown", this._key); }
+  componentDidUpdate(prev, prevState) {
+    if (prev.theme !== this.props.theme && this.state.v && this.props.theme) this.set("room.theme", this.props.theme, true);
+    if (this.state.flash && this.state.flash !== prevState.flash) {
+      requestAnimationFrame(() => {
+        const b = this.bodyRef.current, el = b && b.querySelector(`[data-k="${this.state.flash}"]`);
+        if (b && el) b.scrollTo({ top: el.getBoundingClientRect().top - b.getBoundingClientRect().top + b.scrollTop - 80, behavior: "smooth" });
+      });
+    }
+    if (this.state.search !== null && prevState.search === null) setTimeout(() => this.searchRef.current && this.searchRef.current.focus(), 30);
+  }
+
+  // ── state helpers ───────────────────────────────────────────────
+  get M() { return window.MYLAND_MENU; }
+  eq(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+  mod(k) { return k && !this.eq(this.state.v[k], this.M.D[k]); }
+  set(k, val, silent) {
+    this.setState(s => {
+      const now = Date.now(), coalesce = s.lastK === k && now - s.lastT < 800;
+      return { v: { ...s.v, [k]: val }, hist: coalesce || silent ? s.hist : [...s.hist.slice(-120), s.v], fut: [], lastK: k, lastT: now };
+    });
+  }
+  setMany(patch) { this.setState(s => ({ v: { ...s.v, ...patch }, hist: [...s.hist.slice(-120), s.v], fut: [], lastK: null })); }
+  reset(k) { this.set(k, this.M.D[k]); this.state.lastK = null; }
+  toast(text, icon, action) {
+    clearTimeout(this._tt);
+    this.setState({ toast: { k: Date.now(), text, icon, action } });
+    this._tt = setTimeout(() => this.setState({ toast: null }), 2500);
+  }
+  undo = () => this.setState(s => s.hist.length ? { v: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1), fut: [s.v, ...s.fut], lastK: null, toast: { k: Date.now(), icon: "undo", text: "Deshecho" } } : null);
+  redo = () => this.setState(s => s.fut.length ? { v: s.fut[0], fut: s.fut.slice(1), hist: [...s.hist, s.v], lastK: null } : null);
+  onKey(e) {
+    const tag = (e.target.tagName || "").toLowerCase(), typing = tag === "input" || tag === "textarea";
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); return; }
+    if (e.key === "Escape") {
+      if (this.state.search !== null) this.setState({ search: null });
+      else if (this.state.pop) this.setState({ pop: null });
+      else if (this.state.addOpen) this.setState({ addOpen: false });
+      else this.setState({ panel: null });
+      return;
+    }
+    if (typing) return;
+    if (e.key === "/" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")) { if (this.curObj()) { e.preventDefault(); this.setState({ search: "" }); } }
+    else if (e.key.toLowerCase() === "l") this.setState(s => ({ panel: s.panel === "layers" ? null : "layers", addOpen: false }));
+    else if (e.key.toLowerCase() === "a") this.setState(s => ({ addOpen: !s.addOpen }));
+    else if (e.key.toLowerCase() === "v") this.setState({ addOpen: false });
+  }
+  curObj() {
+    const s = this.state;
+    if (s.panel === "room") return "room";
+    if (s.panel === "layers") return "layers";
+    if (s.panel === "inspector" && s.sel) return s.sel.kind === "card" ? s.part : s.sel.kind;
+    return null;
+  }
+  goPart(id, extra) {
+    const order = this.M.CARD_PARTS.filter(p => p !== "|");
+    const s = this.state, dir = s.sel && s.sel.kind === "card" ? (order.indexOf(id) > order.indexOf(s.part) ? "r" : "l") : undefined;
+    this.setState({ sel: { kind: "card" }, part: id, panel: "inspector", dir, pop: null, addOpen: false, ...extra });
+  }
+  selectEl(kind) { this.setState({ sel: { kind }, panel: this.state.panel === "layers" ? "layers" : "inspector", pop: null, dir: undefined, addOpen: false }); }
+
+  // ── colours ─────────────────────────────────────────────────────
+  rgba(c, a = 1) {
+    if (!c) return `rgba(0,0,0,0)`;
+    if (c.startsWith("rgb")) { const m = c.match(/[\d.]+/g).map(Number); return `rgba(${m[0]},${m[1]},${m[2]},${(m[3] ?? 1) * a})`; }
+    const h = c.replace("#", ""), f = h.length === 3 ? h.split("").map(x => x + x).join("") : h.slice(0, 6);
+    const n = parseInt(f, 16), al = h.length === 8 ? parseInt(h.slice(6), 16) / 255 : 1;
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${al * a})`;
+  }
+  hexLabel(c) {
+    if (!c) return "—";
+    if (c.startsWith("rgb")) { const m = c.match(/[\d.]+/g).map(Number); const hx = "#" + m.slice(0, 3).map(x => Math.round(x).toString(16).padStart(2, "0")).join(""); return m[3] != null && m[3] < 1 ? `${hx} · ${Math.round(m[3] * 100)}%` : hx; }
+    return c;
+  }
+  lum(c) { const m = this.rgba(c).match(/[\d.]+/g).map(Number); return (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255; }
+  autoText(v) { return this.lum(v["cardBg.color"]) > 0.55 && v["cardBg.op"] > 0.4 ? "#2A1630" : "#F6F3F8"; }
+  base(v) { return v["allText.color"] || this.autoText(v); }
+  colorOf(c, v) {
+    const raw = v[c.k];
+    if (raw) return raw;
+    if (c.auto) return this.autoText(v);
+    if (c.inherit) return v[c.inherit] || this.base(v);
+    if (c.k.startsWith("photo.")) return this.base(v);
+    return this.M.D[c.k] || "";
+  }
+
+  // ── schema → rows ───────────────────────────────────────────────
+  keysOf(list, out = []) {
+    (list || []).forEach(c => {
+      if (!c) return;
+      ["k", "kx", "ky", "on", "toggle"].forEach(f => c[f] && typeof c[f] === "string" && out.push(c[f]));
+      if (c.items) this.keysOf(c.items, out);
+      if (c.controls) this.keysOf(c.controls, out);
+    });
+    return out;
+  }
+  objKeys(objId) { const o = this.M.OBJECTS[objId]; return o ? o.cards.flatMap(cd => this.keysOf(cd.controls, cd.toggle ? [cd.toggle] : [])) : []; }
+
+  PV = {
+    "t-shadow": { textShadow: "0 2px 3px rgba(0,0,0,.65)" }, "t-glow": { textShadow: "0 0 6px #FF4F94,0 0 12px #FF4F94" },
+    "t-stroke": { color: "transparent", WebkitTextStroke: "1.2px currentColor" }, "t-blur": { filter: "blur(1.3px)" },
+    "t-shim": { backgroundImage: "linear-gradient(100deg,#9a8fa3 25%,#fff 50%,#9a8fa3 75%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" },
+    "t-let": { display: "inline-block", transform: "translateY(-2px) rotate(-8deg)" },
+    "c-border": { boxShadow: "inset 0 0 0 2px currentColor", background: "transparent" }, "c-shadow": { boxShadow: "0 5px 6px -1px rgba(0,0,0,.55)" },
+    "c-glow": { boxShadow: "0 0 9px 2px #FF4F94" }, "c-pulse": { boxShadow: "0 0 0 3px rgba(255,79,148,.35),0 0 0 6px rgba(255,79,148,.15)" },
+    "c-grad": { background: "linear-gradient(135deg,#FF4F94,#7C5CFF)" }, "c-glass": { background: "rgba(255,255,255,.3)", boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,.7)" },
+    "c-blur": { filter: "blur(2.2px)" }, "c-float": { transform: "translateY(-3px)", boxShadow: "0 7px 4px -4px rgba(0,0,0,.45)" },
+    "c-tilt": { transform: "perspective(40px) rotateY(32deg)" }, "c-spot": { background: "radial-gradient(circle at 35% 35%,#fff,rgba(255,255,255,0) 72%)" },
+    "c-scan": { background: "repeating-linear-gradient(0deg,currentColor 0 1.5px,transparent 1.5px 3.5px)" },
+    "c-noise": { background: "radial-gradient(currentColor 0.8px,transparent 1px) 0 0/3px 3px", opacity: 0.85 },
+    "c-flick": { opacity: 0.45 }, "c-chroma": { background: "transparent", boxShadow: "inset 0 0 0 2px currentColor,-2.5px 0 0 #ff3b6b,2.5px 0 0 #3be0ff" },
+  };
+  pvFor(t, v) {
+    const p = t.pv || "";
+    if (p.startsWith("t-")) {
+      let st = this.PV[p] || {};
+      if (p === "t-grad") { const stops = v[t.on.replace(".on", ".stops")] || ["#FF4F94", "#7C5CFF"]; st = { backgroundImage: `linear-gradient(90deg,${stops.join(",")})`, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }; }
+      return { pvText: true, pvStyle: { fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1, ...st } };
+    }
+    if (this.PV[p]) return { pvChip: true, pvStyle: { width: 16, height: 16, borderRadius: 5, background: "currentColor", ...this.PV[p] } };
+    return { pvIcon: true };
+  }
+
+  rowsForCard(objId, card) {
+    const s = this.state, v = s.v, rows = [], ck = `${objId}.${card.id}`;
+    const push = (r, o) => rows.push({ ...r, inDetail: !!o.inDetail, k: r.k || r.key });
+    const walk = (list, o) => (list || []).forEach((c, i) => {
+      if (!c || (c.when && !c.when(v))) return;
+      if (c.t === "tiles") {
+        for (let j = 0; j < c.items.length; j += 2) {
+          const pair = c.items.slice(j, j + 2);
+          const openId = s.tileOpen[ck];
+          push({ key: `${ck}.tiles${j}`, isTiles: true, tiles: pair.map(t => this.tileVM(t, ck, v)) }, o);
+          const ot = pair.find(t => t.id === openId && t.controls.length);
+          if (ot) {
+            const tk = this.keysOf(ot.controls), m = tk.some(k => this.mod(k));
+            push({ key: `${ck}.${ot.id}.head`, isDetailHead: true, label: `Ajustes de ${ot.label}`, state: v[ot.on] ? "" : "Apagado · se guardan", modified: m,
+              onReset: () => { this.setMany(Object.fromEntries(tk.filter(k => k !== ot.on).map(k => [k, this.M.D[k]]))); this.toast(`${ot.label} restablecido`, "reset", "Deshacer"); } }, { inDetail: true });
+            walk(ot.controls, { inDetail: true });
+          }
+        }
+        return;
+      }
+      if (c.t === "more") {
+        const mk = `${ck}.${c.label}`, op = !!s.moreOpen[mk], n = this.keysOf(c.controls).filter(k => this.mod(k)).length;
+        push({ key: mk, isMore: true, label: c.label, summary: n ? `· ${n} cambio${n > 1 ? "s" : ""}` : "", chevStyle: { display: "inline-flex", transform: op ? "rotate(90deg)" : "none", transition: "transform 320ms var(--glass-spring)" },
+          onToggle: () => this.setState(st => ({ moreOpen: { ...st.moreOpen, [mk]: !op } })) }, o);
+        if (op) walk(c.controls, o);
+        return;
+      }
+      const vm = this.ctlVM(c, objId, ck, i);
+      if (vm) push(vm, o);
+    });
+    walk(card.controls, {});
+    // detail grouping + spacing
+    rows.forEach((r, i) => {
+      const prev = rows[i - 1], next = rows[i + 1];
+      const first = r.inDetail && !(prev && prev.inDetail), last = r.inDetail && !(next && next.inDetail);
+      const wrap = { display: "flex", flexDirection: "column", gap: 8, marginTop: i === 0 ? 0 : (r.inDetail && !first ? 0 : 10) };
+      if (r.inDetail) Object.assign(wrap, { background: "var(--glass-well)", padding: `${first ? 12 : 5}px 10px ${last ? 12 : 5}px`, borderRadius: first && last ? 20 : first ? "20px 20px 0 0" : last ? "0 0 20px 20px" : 0, animation: "lg-fade 300ms var(--glass-ease) both" });
+      if (s.flash && r.k === s.flash) Object.assign(wrap, { animation: "ml-flash 1400ms var(--glass-ease) 2", borderRadius: wrap.borderRadius || 18 });
+      r.wrap = wrap;
+    });
+    return rows;
+  }
+
+  tileVM(t, ck, v) {
+    const s = this.state, on = !!v[t.on], tk = this.keysOf(t.controls), paused = !on && tk.some(k => this.mod(k));
+    const isOpen = s.tileOpen[ck] === t.id, rp = s.ripple && s.ripple.id === `${ck}.${t.id}` ? s.ripple : null;
+    const tap = e => {
+      e.stopPropagation();
+      const r = e.currentTarget.getBoundingClientRect();
+      this.setState({ ripple: { id: `${ck}.${t.id}`, x: (e.clientX || r.left + r.width / 2) - r.left, y: (e.clientY || r.top + r.height / 2) - r.top, k: Date.now() } });
+      setTimeout(() => this.setState(st => (st.ripple && st.ripple.id === `${ck}.${t.id}` ? { ripple: null } : null)), 600);
+      this.set(t.on, !on); this.state.lastK = null;
+      if (!on && t.controls.length) this.setState(st => ({ tileOpen: { ...st.tileOpen, [ck]: t.id } }));
+      if (on && isOpen) this.setState(st => ({ tileOpen: { ...st.tileOpen, [ck]: null } }));
+    };
+    return {
+      label: t.label, icon: t.icon, on, dataOn: on ? "" : undefined, dataOpen: isOpen ? "" : undefined, isOpen, moreLabel: `Ajustes de ${t.label}`,
+      state: on ? (t.state ? t.state(v) : "Activado") : paused ? "Pausado" : (t.offState || "Apagado"),
+      stateStyle: paused ? { opacity: 0.9, fontWeight: 600 } : undefined,
+      hasDetail: t.controls.length > 0, ...this.pvFor(t, v),
+      hasRipple: !!rp, rippleStyle: rp ? { left: rp.x, top: rp.y } : undefined,
+      onTap: tap, onKey: e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); tap(e); } },
+      onMore: e => { e.stopPropagation(); this.setState(st => ({ tileOpen: { ...st.tileOpen, [ck]: isOpen ? null : t.id } })); },
+    };
+  }
+
+  ctlVM(c, objId, ck, i) {
+    const s = this.state, v = s.v, M = this.M, k = c.k, mod = this.mod(k);
+    const onReset = () => { this.reset(k); };
+    const palette = ["#FFFFFF", "#2A1630", "#FF4F94", "#7C5CFF", "#FFB340", "#5BE49B"];
+    switch (c.t) {
+      case "slider": {
+        const raw = v[k], isNull = raw == null, val = isNull ? 1.5 : raw;
+        return { isSlider: true, k, icon: c.icon, label: c.label, value: val, min: c.min, max: c.max, step: c.step, tip: c.tip,
+          fmt: isNull && c.nullLabel ? () => c.nullLabel : c.fmt, def: typeof M.D[k] === "number" ? M.D[k] : undefined,
+          onChange: x => this.set(k, x), modified: mod, onReset, warn: c.warnWhen && c.warnWhen(v) ? c.warn : null };
+      }
+      case "color": {
+        const val = this.colorOf(c, v), inheritedNow = v[k] == null && (c.inherit || c.auto || c.clearable);
+        const locked = c.lockedBy && v[c.lockedBy];
+        const colors = this.palette(v);
+        return { isColor: true, k, label: c.label, value: val || "#FFFFFF", hex: inheritedNow && !val ? "—" : this.hexLabel(val), colors, alpha: !!c.alpha,
+          chip: inheritedNow ? (c.inheritLabel || "Predeterminado") : "", modified: mod, resetTip: c.inherit ? "Volver a heredar" : c.auto ? "Automático" : "Restablecer",
+          curStyle: { width: 36, height: 36, borderRadius: 12, flex: "none", border: "none", padding: 0, cursor: "pointer", background: val ? val : "repeating-conic-gradient(rgba(127,127,127,.35) 0 25%,transparent 0 50%) 0 0/10px 10px",
+            boxShadow: s.pop === k ? "inset 0 0 0 1px rgba(127,127,127,.35),0 0 0 2.5px var(--glass-fill-solid),0 0 0 4.5px var(--glass-ink)" : "inset 0 0 0 1px rgba(127,127,127,.35)", transition: "box-shadow 220ms, transform 300ms var(--glass-spring)" },
+          onReset, onChange: x => this.set(k, x), popOpen: s.pop === k, onMore: () => this.setState(st => ({ pop: st.pop === k ? null : k })), onClosePop: () => this.setState({ pop: null }),
+          lockStyle: { display: "flex", flexDirection: "column", gap: 8, opacity: locked ? 0.4 : 1, pointerEvents: locked ? "none" : "auto", transition: "opacity 260ms" },
+          lockedNote: locked ? c.lockedNote : "" };
+      }
+      case "switch":
+        return { isSwitch: true, k, icon: c.icon, label: c.label, tip: c.tip, value: !!v[k], onChange: x => { this.set(k, x); this.state.lastK = null; } };
+      case "seg":
+        return { isSeg: true, k, label: c.label, value: String(v[k]), modified: mod, onReset,
+          tabs: c.options.map(o => ({ id: String(o.id), label: o.label, icon: o.icon, tip: o.label })),
+          onChange: id => { const o = c.options.find(x => String(x.id) === id); this.set(k, o.id); this.state.lastK = null; } };
+      case "font": {
+        const fonts = c.fonts === "music" ? M.MUSIC_FONTS : M.FONTS;
+        return { isFont: true, k, label: c.label, fonts, value: v[k], sample: (c.sample && v[c.sample]) || "Aa", modified: mod, onReset, onChange: x => { this.set(k, x); this.state.lastK = null; } };
+      }
+      case "weight": {
+        const f = M.FONTS.find(x => x.key === v[c.fontKey]) || M.FONTS[0], cur = v[k];
+        const list = [...new Set([...f.w, cur])].sort((a, b) => a - b);
+        return { isWeight: true, k, modified: mod, onReset, valueLabel: String(cur), note: f.w.includes(cur) ? `${f.w.length} ${f.w.length === 1 ? "peso" : "pesos"}` : "sintético",
+          weights: list.map(w => ({ tip: f.w.includes(w) ? String(w) : `${w} · sintético`, on: w === cur, onClick: () => { this.set(k, w); this.state.lastK = null; },
+            style: { fontFamily: f.family, fontWeight: w, fontSize: 16, opacity: f.w.includes(w) ? 1 : 0.5 } })) };
+      }
+      case "text": {
+        const f = c.fontKey && (M.FONTS.find(x => x.key === v[c.fontKey]));
+        const val = v[k] || "";
+        return { isText: true, k, label: c.label || "", area: !!c.area, single: !c.area, value: val, placeholder: c.placeholder, max: c.max, tip: c.tip,
+          counter: c.max ? `${val.length}/${c.max}` : "", onInput: e => this.set(k, e.target.value),
+          inputStyle: { fontFamily: c.mono ? "var(--font-mono)" : f ? f.family : undefined, fontSize: c.mono ? 13 : c.big ? 19 : 15, paddingRight: c.max ? 52 : 14, textTransform: objId === "text" && v["text.upper"] ? "uppercase" : "none" } };
+      }
+      case "readonly": {
+        const f = M.FONTS.find(x => x.key === v[`${objId}.font`]);
+        return { isReadonly: true, k, value: `${c.prefix || ""}${v[k]}`, note: c.note, inputStyle: { display: "flex", alignItems: "center", gap: 8, color: "var(--glass-ink-2)", fontFamily: f ? f.family : undefined } };
+      }
+      case "upload": {
+        const val = v[k], has = !!val, img = has && /^(blob:|assets\/|http)/.test(val);
+        const nm = !has ? "" : val.startsWith("blob:") ? "Imagen subida" : val.split("/").pop();
+        const base = { width: 56, height: 56, flex: "none", display: "grid", placeItems: "center", overflow: "hidden", background: "var(--glass-well-hover)", backgroundSize: "cover", backgroundPosition: "center" };
+        let thumbStyle = { ...base, borderRadius: 16 }, thumbIcon = "", thumbText = "", caption = "";
+        if (c.kind === "avatar") { thumbStyle = { ...base, borderRadius: 999, backgroundImage: `url(${val})`, backgroundSize: "460%", backgroundPosition: "50% 31%" }; caption = "Foto de perfil"; }
+        if (c.kind === "cover") { thumbStyle = { ...base, width: 72, borderRadius: 14, backgroundImage: img ? `url(${val})` : undefined }; caption = /\.gif/i.test(val) ? "GIF" : "Imagen"; }
+        if (c.kind === "logo") { thumbStyle = { ...base, borderRadius: 14, backgroundImage: `url(${val})`, backgroundSize: "contain", backgroundRepeat: "no-repeat" }; caption = "Logo"; }
+        if (c.kind === "audio") { thumbStyle = { ...base, borderRadius: 16, background: "linear-gradient(135deg,var(--glass-accent),#2A1630)", color: "#fff" }; thumbIcon = "disc"; caption = "MP3"; }
+        if (c.kind === "font") { thumbStyle = { ...base, borderRadius: 16, fontSize: 20, fontWeight: 700 }; thumbText = "Aa"; caption = "Fuente propia"; }
+        if (c.kind === "cursor") { thumbStyle = { ...base, borderRadius: 16 }; thumbIcon = "pointer"; caption = "Cursor PNG"; }
+        const take = f => { if (!f) return; this.set(k, ["audio", "font"].includes(c.kind) ? f.name : URL.createObjectURL(f)); this.state.lastK = null; this.toast(has ? "Reemplazado" : "Subido", "upload"); };
+        return { isUpload: true, k, has, emptyBig: !has && !c.compact, emptySmall: !has && !!c.compact, label: c.label, name: nm, caption, tip: c.tip, removable: !c.noRemove,
+          thumbStyle, thumbIcon, thumbText, over: s.drop === k ? "" : undefined,
+          onPick: () => { const inp = document.createElement("input"); inp.type = "file"; inp.accept = c.accept; inp.onchange = () => take(inp.files[0]); inp.click(); },
+          onRemove: () => { this.set(k, null); this.state.lastK = null; this.toast(`${c.caption || caption || "Archivo"} quitado`, "trash", "Deshacer"); },
+          onDragOver: e => { e.preventDefault(); if (s.drop !== k) this.setState({ drop: k }); }, onDragLeave: () => this.setState({ drop: null }),
+          onDrop: e => { e.preventDefault(); this.setState({ drop: null }); take(e.dataTransfer.files[0]); } };
+      }
+      case "offset": {
+        const x = v[c.kx], y = v[c.ky], span = c.max - c.min;
+        const fromPt = e => { const r = e.currentTarget.getBoundingClientRect(); const cl = q => Math.round(Math.max(c.min, Math.min(c.max, q))); return [cl(c.min + ((e.clientX - r.left - 10) / (r.width - 20)) * span), cl(c.min + ((e.clientY - r.top - 10) / (r.height - 20)) * span)]; };
+        const apply = e => { const [nx, ny] = fromPt(e); this.setState(st => ({ v: { ...st.v, [c.kx]: nx, [c.ky]: ny } })); };
+        return { isOffset: true, k: c.kx, x, y, min: c.min, max: c.max, fmt: q => `${q} px`, dx: M.D[c.kx], dy: M.D[c.ky],
+          onX: q => this.set(c.kx, q), onY: q => this.set(c.ky, q),
+          onPadDown: e => { e.currentTarget.setPointerCapture(e.pointerId); this._pad = true; this.setState(st => ({ hist: [...st.hist, st.v], fut: [] })); apply(e); },
+          onPadMove: e => { if (this._pad) apply(e); }, onPadUp: () => { this._pad = false; },
+          onPadReset: () => this.setMany({ [c.kx]: M.D[c.kx], [c.ky]: M.D[c.ky] }),
+          dotStyle: { position: "absolute", width: 18, height: 18, margin: -9, borderRadius: 99, background: "var(--glass-accent)", boxShadow: "0 0 0 3px var(--glass-accent-soft),0 4px 10px rgba(0,0,0,.35)",
+            left: `calc(10px + ${((x - c.min) / span) * 100}% - ${((x - c.min) / span) * 20}px)`, top: `calc(10px + ${((y - c.min) / span) * 100}% - ${((y - c.min) / span) * 20}px)`,
+            transition: this._pad ? "none" : "left 380ms var(--glass-spring),top 380ms var(--glass-spring)" } };
+      }
+      case "stops": {
+        const stops = v[k] || [], sel = s.stopSel && s.stopSel.k === k ? s.stopSel.i : -1;
+        const angle = v[k.replace(".stops", ".angle")] ?? 90;
+        return { isStops: true, k, stops: stops.map((col, j) => ({ on: j === sel, label: `Color ${j + 1}`, style: { background: col }, onClick: () => this.setState({ stopSel: sel === j ? null : { k, i: j } }) })),
+          barStyle: { height: 30, borderRadius: 12, background: `linear-gradient(${angle}deg,${stops.join(",")})`, boxShadow: "inset 0 0 0 1px rgba(127,127,127,.3)", transition: "background 200ms" },
+          canAdd: stops.length < 6, canRemove: sel >= 0 && stops.length > 2, popOpen: sel >= 0, popValue: stops[sel] || "#FFFFFF",
+          onAdd: () => { this.set(k, [...stops, "#8a8a96"]); this.state.lastK = null; this.setState({ stopSel: { k, i: stops.length } }); },
+          onRemove: () => { this.set(k, stops.filter((_, j) => j !== sel)); this.state.lastK = null; this.setState({ stopSel: null }); },
+          onStop: col => this.set(k, stops.map((x, j) => (j === sel ? col : x))), onClosePop: () => this.setState({ stopSel: null }) };
+      }
+      case "links": {
+        const items = v[k] || [];
+        const iconOf = p => ({ Instagram: "at", SoundCloud: "music", Spotify: "music", YouTube: "play", Web: "globe" })[p] || "link";
+        const add = () => { const u = s.linkDraft.trim(); if (!u || items.length >= c.max) return; this.set(k, [...items, { id: "l" + Date.now(), url: u }]); this.state.lastK = null; this.setState({ linkDraft: "" }); this.toast("Link agregado", "link"); };
+        return { isLinks: true, k, canAdd: items.length < c.max, draft: s.linkDraft, draftReady: !!s.linkDraft.trim(), count: `${items.length}/${c.max} · la plataforma se detecta sola`,
+          onDraft: e => this.setState({ linkDraft: e.target.value }), onDraftKey: e => { if (e.key === "Enter") add(); }, onAdd: add,
+          items: items.map(it => {
+            const p = M.detectPlatform(it.url), editing = s.linkEdit && s.linkEdit.id === it.id;
+            const commit = () => { const u = s.linkEdit.draft.trim(); if (u) this.set(k, items.map(x => (x.id === it.id ? { ...x, url: u } : x))); this.state.lastK = null; this.setState({ linkEdit: null }); };
+            return { platform: p, url: it.url, icon: iconOf(p), editing, idle: !editing, draft: editing ? s.linkEdit.draft : "", editIcon: editing ? "check" : "pencil", editTip: editing ? "Confirmar" : "Editar",
+              onDraft: e => this.setState({ linkEdit: { id: it.id, draft: e.target.value } }), onKey: e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { e.stopPropagation(); this.setState({ linkEdit: null }); } },
+              onEdit: () => (editing ? commit() : this.setState({ linkEdit: { id: it.id, draft: it.url } })),
+              onRemove: () => { this.set(k, items.filter(x => x.id !== it.id)); this.state.lastK = null; this.toast(`${p} quitado`, "trash", "Deshacer"); } };
+          }) };
+      }
+      case "corners": {
+        const cur = v[k], opts = [[0, "Rectas", 2], [8, "Suaves", 5], [20, "Redondas", 9], [999, "Círculo", 99]];
+        return { isCorners: true, k, options: opts.map(([val, label, r]) => ({ label, on: val === 999 ? cur >= 50 : cur === val,
+          shape: { width: 22, height: 22, border: "2px solid currentColor", borderRadius: r, display: "block" }, onClick: () => { this.set(k, val); this.state.lastK = null; } })) };
+      }
+      case "measures": {
+        const locked = !!v[`${objId}.locked`];
+        return { isMeasures: true, k: c.fields[0][0], note: c.note, lockedNote: locked ? "Bloqueado: desbloquealo para cambiar sus medidas" : "",
+          fields: c.fields.map(([fk, label, min, max]) => ({ label, value: Math.round(v[fk]), min, max, disabled: locked,
+            onInput: e => { const n = Number(e.target.value); if (!isNaN(n)) this.set(fk, Math.max(min, Math.min(max, n))); } })) };
+      }
+      case "goto":
+        return { isGoto: true, key: `${ck}.goto${i}`, label: c.label, hint: c.hint, onGo: () => this.goPart(c.to) };
+      case "hint": return { isHint: true, key: `${ck}.hint${i}`, icon: c.icon || "pointer", text: c.text };
+      case "warn": return { isWarn: true, key: `${ck}.warn${i}`, text: c.text };
+      case "action":
+        return { isAction: true, key: `${ck}.act${i}`, label: c.label, icon: c.icon, onClick: () => {
+          if (c.act === "resetRoom") { this.setMany({ "room.wall": null, "room.bg": "#0a0a0c", "room.blur": 0, "room.bright": 100, "room.vig": 0 }); this.toast("Fondo restablecido", "reset", "Deshacer"); }
+        } };
+    }
+    return null;
+  }
+
+  cardsVM(objId) {
+    const s = this.state, v = s.v, o = this.M.OBJECTS[objId];
+    if (!o) return [];
+    const tab = o.tabs ? (s.tab[objId] || o.tabs[0].id) : null;
+    return o.cards.filter(cd => !o.tabs || !cd.tab || cd.tab === tab).map(cd => {
+      const ck = `${objId}.${cd.id}`, keys = this.keysOf(cd.controls, cd.toggle ? [cd.toggle] : []);
+      const contentKeys = cd.controls.filter(c => c && (c.t === "text" || c.t === "readonly" || c.t === "links")).map(c => c.k);
+      const nMod = keys.filter(k => this.mod(k) && k !== cd.toggle && !contentKeys.includes(k)).length;
+      const tilesOn = cd.controls.filter(c => c && c.t === "tiles").flatMap(c => c.items).filter(t => v[t.on]).length;
+      const pinned = !!cd.pinned, open = pinned || (s.acc || {})[objId] === cd.id;
+      const peek = this.peekOf(cd, v);
+      const toggleOn = cd.toggle ? !!v[cd.toggle] : true;
+      const blocked = cd.needs && !v[cd.needs];
+      const summary = cd.toggle && !toggleOn ? "Hereda de la tarjeta" : blocked ? "Subí un logo primero" : peek.text || (cd.sub || "");
+      const setAcc = id => this.setState(st => ({ acc: { ...(st.acc || {}), [objId]: id } }));
+      return {
+        id: cd.id, title: cd.title, icon: cd.icon, summary, modified: nMod > 0 && !pinned, hasHeader: !pinned, pinLabel: pinned ? cd.title : "",
+        swatchStyle: peek.swatch && !(cd.toggle && !toggleOn) ? { width: 12, height: 12, borderRadius: 99, flex: "none", background: peek.swatch, boxShadow: "inset 0 0 0 1px rgba(127,127,127,.4)" } : null,
+        hasToggle: !!cd.toggle, toggleOn, onToggleSwitch: x => { this.set(cd.toggle, x); this.state.lastK = null; if (x) setAcc(cd.id); },
+        showBody: open, offNote: cd.toggle && !toggleOn ? cd.offNote : "", needsNote: blocked ? "Subí un logo para ajustarlo" : "",
+        rows: open && toggleOn ? this.rowsForCard(objId, cd) : [],
+        bodyStyle: { display: "flex", flexDirection: "column", padding: "0 0 4px", opacity: blocked ? 0.35 : 1, pointerEvents: blocked ? "none" : "auto" },
+        onToggleOpen: () => { if (!pinned) setAcc(open ? null : cd.id); },
+        onReset: e => { const patch = Object.fromEntries(keys.map(k => [k, this.M.D[k]])); this.setMany(patch); this.toast(`${cd.title} restablecido`, "reset", "Deshacer"); },
+        style: pinned ? { padding: "2px 2px 6px", display: "flex", flexDirection: "column", gap: 8 }
+          : { borderRadius: 22, boxShadow: open ? "inset 0 0 0 1px var(--glass-line)" : "inset 0 0 0 1px transparent", background: open ? "transparent" : "var(--glass-well)", padding: open ? "2px 10px 10px" : "0 10px", transition: "background-color 260ms, box-shadow 260ms, padding 260ms" },
+        iconStyle: { width: 32, height: 32, borderRadius: 11, display: "grid", placeItems: "center", flex: "none", background: nMod || tilesOn ? "var(--glass-accent-soft)" : "var(--glass-well)", color: nMod || tilesOn ? "var(--glass-accent)" : "inherit", transition: "background-color 260ms,color 260ms" },
+        chevStyle: { display: "inline-flex", color: "var(--glass-ink-3)", transform: open ? "rotate(180deg)" : "none", transition: "transform 360ms var(--glass-spring)", padding: 6 },
+      };
+    });
+  }
+
+  peekOf(cd, v) {
+    const M = this.M, out = []; let swatch = null;
+    const walk = list => (list || []).forEach(c => {
+      if (!c || out.length >= 3 || (c.when && !c.when(v))) return;
+      switch (c.t) {
+        case "font": { const f = [...M.FONTS, ...M.MUSIC_FONTS].find(x => x.key === v[c.k]); out.push(f ? f.label : "Predeterminada"); break; }
+        case "slider": out.push(v[c.k] == null && c.nullLabel ? c.nullLabel : c.fmt(v[c.k])); break;
+        case "weight": out.push(String(v[c.k])); break;
+        case "color": if (!swatch) swatch = this.colorOf(c, v); if (!out.length && (cd.controls.length === 1 || c === cd.controls[0])) out.push(v[c.k] == null && (c.inherit || c.auto) ? (c.inheritLabel || "Heredado") : this.hexLabel(swatch)); break;
+        case "seg": { const o = c.options.find(x => x.id === v[c.k]); if (o) out.push(o.label || (o.id === "left" ? "Izquierda" : o.id === "center" ? "Centro" : o.id === "right" ? "Derecha" : String(o.id))); break; }
+        case "switch": out.push(`${c.label}: ${v[c.k] ? "sí" : "no"}`); break;
+        case "tiles": { const on = c.items.filter(t => v[t.on]).map(t => t.label); out.push(on.length ? on.join(", ") : "Ninguno activo"); break; }
+        case "upload": out.push(v[c.k] ? (["audio", "font"].includes(c.kind) ? v[c.k] : "Cargada") : "Vacía"); break;
+        case "measures": out.push(c.fields.slice(0, 2).map(f => Math.round(v[f[0]])).join(" × ")); break;
+        case "corners": { const r = v[c.k]; out.push(r >= 50 ? "Círculo" : r >= 20 ? "Redondas" : r >= 8 ? "Suaves" : "Rectas"); break; }
+        case "text": if (v[c.k]) out.push(v[c.k].length > 22 ? v[c.k].slice(0, 21) + "…" : v[c.k]); else out.push("Sin link"); break;
+        case "links": out.push(`${(v[c.k] || []).length} links`); break;
+      }
+    });
+    walk(cd.controls);
+    return { text: out.join(" · "), swatch };
+  }
+  palette(v) {
+    const hex = c => { const m = this.rgba(c).match(/[\d.]+/g).map(Number); return "#" + m.slice(0, 3).map(x => Math.round(x).toString(16).padStart(2, "0")).join("").toUpperCase(); };
+    const raw = [v["cardBg.color"], this.base(v), v["name.color"], v["handle.color"], v["descriptor.color"], v["bio.color"], ...(v["name.grad.on"] ? v["name.grad.stops"] : []),
+      v["cardBg.grad.on"] && v["cardBg.grad.a"], v["cardBg.grad.on"] && v["cardBg.grad.b"], v["photo.glow.on"] && v["photo.glow.color"], v["fx.glow.on"] && v["fx.glow.color"],
+      v["fx.border.on"] && v["fx.border.color"], v["fx.shadow.on"] && v["fx.shadow.color"], v["photo.border.color"], v["block.links.icon"]].filter(Boolean);
+    const out = [];
+    const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+    raw.forEach(c => { const h = hex(c), a = rgb(h); if (!out.some(o => { const b = rgb(o); return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 36; })) out.push(h); });
+    return out.slice(0, 5);
+  }
+  searchVM(objId) {
+    const s = this.state, v = s.v, M = this.M, q = (s.search || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const fam = M.OBJECTS[objId] ? M.OBJECTS[objId].family : null;
+    const scope = fam === "card" ? M.CARD_PARTS.filter(p => p !== "|") : [objId];
+    const out = [];
+    const norm = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    scope.forEach(oid => {
+      const o = M.OBJECTS[oid];
+      o.cards.forEach(cd => {
+        const visit = (list, tile, more) => (list || []).forEach(c => {
+          if (!c) return;
+          if (c.t === "tiles") return c.items.forEach(t => { out.push({ oid, o, cd, label: t.label, k: t.on, icon: t.icon, tile: t }); visit(t.controls, t, more); });
+          if (c.t === "more") return visit(c.controls, tile, c);
+          if (!c.label && !c.k) return;
+          const label = c.label || (c.t === "upload" ? c.label : cd.title);
+          out.push({ oid, o, cd, label: label || cd.title, k: c.k || c.kx, icon: c.icon || cd.icon, tile, more, ctl: c });
+        });
+        visit(cd.controls);
+      });
+    });
+    const res = out.filter(r => !q || norm(`${r.label} ${r.cd.title} ${r.o.label} ${r.tile ? r.tile.label : ""}`).includes(q)).slice(0, 40);
+    return res.map(r => ({
+      label: r.tile && r.tile.label !== r.label ? `${r.label} · ${r.tile.label}` : r.label, icon: r.icon || "sliders", modified: this.mod(r.k),
+      path: `${r.o.label} › ${r.cd.title}`,
+      onGo: () => {
+        const ck = `${r.oid}.${r.cd.id}`, patch = { search: null, flash: r.k, acc: { ...(s.acc || {}), [r.oid]: r.cd.id } };
+        if (r.tile) patch.tileOpen = { ...s.tileOpen, [ck]: r.tile.id };
+        if (r.more) patch.moreOpen = { ...s.moreOpen, [`${ck}.${r.more.label}`]: true };
+        if (r.cd.tab) patch.tab = { ...s.tab, [r.oid]: r.cd.tab };
+        if (r.cd.toggle && !v[r.cd.toggle]) { /* keep off; card shows offNote */ }
+        if (r.o.family === "card") this.goPart(r.oid, patch); else this.setState(patch);
+        setTimeout(() => this.setState({ flash: null }), 3000);
+      },
+    }));
+  }
+
+  layersVM() {
+    const s = this.state, v = s.v, M = this.M;
+    const els = [
+      { id: "text", name: v["text.content"] || "Texto vacío", detail: "Texto", icon: "text", layer: v["text.layer"], lockable: true },
+      { id: "image", name: "Imagen", detail: "Imagen", thumb: v["image.src"], layer: v["image.layer"], lockable: true },
+      { id: "music", name: v["music.title"] || "Music", detail: "Music", icon: "music", layer: v["music.layer"], lockable: true },
+      { id: "card", name: v["name.text"] || "Tarjeta", detail: "Tarjeta · fija", icon: "card", layer: 1, lockable: false },
+    ].filter(e => !v[`${e.id}.deleted`]);
+    const rank = e => e.layer * 100 + s.z.indexOf(e.id);
+    const sorted = els.sort((a, b) => rank(b) - rank(a));
+    const selId = s.sel ? s.sel.kind : null;
+    const groups = [2, 1, 0].map(l => {
+      const rows = sorted.filter(e => e.layer === l);
+      return { name: M.LAYER_NAMES[l], count: rows.length ? String(rows.length) : "vacía", rows: rows.map(e => {
+        const on = selId === e.id, drop = s.drag && s.drag.over === e.id && s.drag.id !== e.id;
+        return { id: e.id, name: e.name, detail: e.detail + (v[`${e.id}.locked`] ? " · bloqueado" : ""), icon: e.thumb ? "" : e.icon, lockable: e.lockable,
+          lockIcon: v[`${e.id}.locked`] ? "lock" : "unlock", lockTip: v[`${e.id}.locked`] ? "Desbloquear" : "Bloquear",
+          onLock: () => { this.set(`${e.id}.locked`, !v[`${e.id}.locked`]); this.state.lastK = null; this.toast(v[`${e.id}.locked`] ? "Desbloqueado" : "Bloqueado", "lock"); },
+          onClick: () => this.setState({ sel: { kind: e.id }, panel: "layers" }),
+          onGripDown: ev => { ev.stopPropagation(); ev.currentTarget.setPointerCapture(ev.pointerId); this.setState({ drag: { id: e.id, layer: e.layer, over: e.id } }); },
+          style: { display: "flex", alignItems: "center", gap: 8, height: 56, padding: "0 6px 0 4px", borderRadius: 18, cursor: "pointer",
+            background: on ? "var(--glass-on)" : "var(--glass-well)", color: on ? "var(--glass-on-ink)" : "inherit",
+            boxShadow: drop ? "inset 0 2px 0 var(--glass-accent)" : "none", opacity: s.drag && s.drag.id === e.id ? 0.6 : 1,
+            transform: s.drag && s.drag.id === e.id ? "scale(1.02)" : "none", transition: "background-color 220ms,color 220ms,transform 300ms var(--glass-spring)" },
+          gripStyle: { width: 24, height: 40, display: "grid", placeItems: "center", cursor: e.lockable ? "grab" : "default", opacity: e.lockable ? 0.55 : 0.15, touchAction: "none" },
+          thumbStyle: { width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center", flex: "none", background: on ? "rgba(0,0,0,.08)" : "var(--glass-well-hover)", backgroundImage: e.thumb ? `url(${e.thumb})` : undefined, backgroundSize: "cover", backgroundPosition: "center" } };
+      }) };
+    });
+    const sel = els.find(e => e.id === selId);
+    const same = sel ? sorted.filter(e => e.layer === sel.layer) : [];
+    const idx = sel ? same.findIndex(e => e.id === sel.id) : -1;
+    const move = act => {
+      const ids = same.map(e => e.id).reverse(); // back → front
+      let i = ids.indexOf(sel.id); ids.splice(i, 1);
+      i = act === "front" ? ids.length : act === "back" ? 0 : act === "forward" ? i + 1 : Math.max(0, i - 1);
+      ids.splice(i, 0, sel.id);
+      const z = s.z.filter(x => !ids.includes(x)); this.setState({ z: [...z, ...ids] });
+      this.toast({ front: "Al frente", back: "Al fondo", forward: "Subido", backward: "Bajado" }[act], "layers");
+    };
+    const canUp = sel && sel.lockable && idx > 0, canDown = sel && sel.lockable && idx < same.length - 1;
+    return {
+      groups, hasSel: !!sel, noSel: !sel, selName: sel ? sel.name : "", selDetail: sel ? `${M.LAYER_NAMES[sel.layer]} · ${idx + 1} de ${same.length}` : "",
+      canLayer: !!(sel && sel.lockable), layer: sel ? String(sel.layer) : "1", layerTabs: [{ id: "0", label: "Fondo" }, { id: "1", label: "Medio" }, { id: "2", label: "Frente" }],
+      onLayer: id => { this.set(`${sel.id}.layer`, Number(id)); this.state.lastK = null; this.toast(`A ${M.LAYER_NAMES[Number(id)]}`, "layers"); },
+      order: [["front", "bring-front", "Al frente", canUp], ["forward", "arrow-up", "Subir", canUp], ["backward", "arrow-down", "Bajar", canDown], ["back", "send-back", "Al fondo", canDown]]
+        .map(([act, icon, label, ok]) => ({ icon, label, tip: label, disabled: !ok, onClick: () => ok && move(act) })),
+      onGripMove: ev => {
+        if (!s.drag) return;
+        const el = document.elementFromPoint(ev.clientX, ev.clientY), row = el && el.closest("[data-layer-row]"), id = row && row.getAttribute("data-layer-row");
+        const t = id && els.find(e => e.id === id);
+        if (t && t.layer === s.drag.layer && s.drag.over !== id) this.setState({ drag: { ...s.drag, over: id } });
+      },
+      onGripUp: () => {
+        const d = s.drag; this.setState({ drag: null });
+        if (!d || d.over === d.id) return;
+        const z = s.z.filter(x => x !== d.id), at = z.indexOf(d.over);
+        z.splice(at + 1, 0, d.id); this.setState({ z }); this.toast("Reordenado", "layers");
+      },
+    };
+  }
+
+  canvasVM() {
+    const s = this.state, v = s.v, M = this.M, F = (k) => M.FONTS.find(f => f.key === v[k]) || M.FONTS[0];
+    const base = this.base(v), rc = id => v[`${id}.color`] || base;
+    const curObj = this.curObj(), cardSel = s.sel && s.sel.kind === "card" && s.panel === "inspector";
+    const tfx = [];
+    if (v["allText.shadow.on"]) tfx.push(`${v["allText.shadow.x"]}px ${v["allText.shadow.y"]}px ${v["allText.shadow.blur"]}px ${this.rgba(v["allText.shadow.color"], v["allText.shadow.op"])}`);
+    if (v["allText.glow.on"]) tfx.push(`0 0 ${v["allText.glow.r"]}px ${this.rgba(v["allText.glow.color"], v["allText.glow.int"])}`, `0 0 ${v["allText.glow.r"] / 2}px ${this.rgba(v["allText.glow.color"], v["allText.glow.int"])}`);
+    if (v["fx.chroma.on"]) { const d = 0.5 + v["fx.chroma.int"] * 2; tfx.push(`${-d}px 0 rgba(255,40,90,.55)`, `${d}px 0 rgba(40,220,255,.55)`); }
+    const roleStyle = (id, extra) => {
+      const f = F(`${id}.font`), st = { fontFamily: f.family, fontSize: v[`${id}.size`], fontWeight: v[`${id}.weight`], letterSpacing: v[`${id}.ls`] != null ? v[`${id}.ls`] : 0,
+        lineHeight: v[`${id}.lh`] != null ? v[`${id}.lh`] : (["handle", "descriptor", "location", "views"].includes(id) && v["allText.monoLh"] != null ? v["allText.monoLh"] : "normal"),
+        color: rc(id), margin: 0, textShadow: tfx.join(",") || undefined, filter: v["allText.blur.on"] && v["allText.blur"] ? `blur(${v["allText.blur"]}px)` : undefined,
+        WebkitTextStroke: v["allText.stroke.on"] ? `${v["allText.stroke.w"]}px ${v["allText.stroke.color"]}` : undefined, transition: "color 300ms, font-size 200ms", ...extra };
+      if (v[`${id}.grad.on`]) Object.assign(st, { backgroundImage: `linear-gradient(${v[`${id}.grad.angle`]}deg,${v[`${id}.grad.stops`].join(",")})`, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" });
+      if (v[`${id}.shim.on`]) {
+        const band = `linear-gradient(100deg,transparent 35%,rgba(255,255,255,${0.3 + v[`${id}.shim.int`] * 0.7}) 50%,transparent 65%)`;
+        Object.assign(st, { backgroundImage: [band, st.backgroundImage || `linear-gradient(${st.color},${st.color})`].join(","), backgroundSize: "250% 100%,100% 100%", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", animation: `ml-shimmer ${3 / v[`${id}.shim.speed`]}s linear infinite` });
+      }
+      return st;
+    };
+    const blockStyle = key => v[`block.${key}.on`] ? { background: v[`block.${key}.bg`] || "transparent", borderRadius: v[`block.${key}.radius`], padding: v[`block.${key}.bg`] ? "8px 12px" : 0 } : {};
+    const sh = [];
+    if (v["fx.border.on"]) sh.push(`inset 0 0 0 ${v["fx.border.w"]}px ${this.rgba(v["fx.border.color"], v["fx.border.op"])}`);
+    sh.push(v["fx.shadow.on"] ? `${v["fx.shadow.x"]}px ${v["fx.shadow.y"]}px ${v["fx.shadow.blur"]}px ${this.rgba(v["fx.shadow.color"], Math.min(1, v["fx.shadow.op"] * v["fx.shadow.int"] * 2))}` : "0 4px 20px rgba(0,0,0,0.2)");
+    if (v["fx.glow.on"] && v["fx.glow.mode"] !== "inner") sh.push(`0 0 ${v["fx.glow.r"]}px ${this.rgba(v["fx.glow.color"], v["fx.glow.int"])}`);
+    if (v["fx.glow.on"] && v["fx.glow.mode"] !== "outer") sh.push(`inset 0 0 ${v["fx.glow.r"]}px ${this.rgba(v["fx.glow.color"], v["fx.glow.int"])}`);
+    const bgs = [];
+    if (v["cardBg.img"]) bgs.push(`url(${v["cardBg.img"]}) center/cover`);
+    if (v["cardBg.grad.on"]) bgs.push(`linear-gradient(${v["cardBg.grad.angle"]}deg,${this.rgba(v["cardBg.grad.a"], v["cardBg.grad.op"])},${this.rgba(v["cardBg.grad.b"], v["cardBg.grad.op"])})`);
+    bgs.push(`linear-gradient(${this.rgba(v["cardBg.color"], v["cardBg.op"])},${this.rgba(v["cardBg.color"], v["cardBg.op"])})`);
+    const bf = Math.max(v["cardBg.glass"] ? 14 : 0, v["cardBg.blur.on"] ? v["cardBg.blur"] : 0);
+    const W = v["card.w"], H = v["card.h"], align = v["allText.align"], items = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+    const outline = id => (cardSel && s.part === id ? { outline: "2px solid var(--glass-accent)", outlineOffset: 5, boxShadow: "0 0 0 9px var(--glass-accent-soft)" } : {});
+    const pc = {}; M.CARD_PARTS.filter(p => p !== "|").forEach(p => (pc[p] = e => { e.stopPropagation(); this.goPart(p); }));
+    const ps = {}; ["photo", "name", "handle", "descriptor", "location", "bio", "views", "links"].forEach(p => (ps[p] = { ...outline(p), maxWidth: "100%" }));
+    ps.photo.alignSelf = "center"; ps.photo.marginBottom = 12; ps.photo.borderRadius = "50%"; ps.links.alignSelf = "center"; ps.links.marginTop = 12; ps.views.alignSelf = "center"; ps.location.marginTop = 6;
+    const pr = v["photo.size"], psh = [];
+    if (v["photo.border.on"]) psh.push(`0 0 0 ${v["photo.border.w"]}px ${this.rgba(v["photo.border.color"] || base, v["photo.border.color"] ? v["photo.border.op"] : 0.14 * v["photo.border.op"])}`);
+    if (v["photo.shadow.on"]) psh.push(`0 10px 26px ${this.rgba(v["photo.shadow.color"] || base, v["photo.shadow.int"] * 0.7)}`);
+    if (v["photo.glow.on"]) psh.push(`0 0 ${v["photo.glow.r"]}px ${this.rgba(v["photo.glow.color"], v["photo.glow.int"])}`);
+    const cardAnims = [], wrapAnims = [];
+    if (v["fx.float.on"]) wrapAnims.push(`ml-float ${v["fx.float.s"]}s ease-in-out infinite`);
+    if (v["fx.pulse.on"] && v["fx.glow.on"]) cardAnims.push(`ml-pulse ${2 / v["fx.pulse.speed"]}s ease-in-out infinite`);
+    const roomBg = v["room.bg"];
+    const dockOpen = !!curObj;
+    const elSel = k => s.sel && s.sel.kind === k && (s.panel === "inspector" || s.panel === "layers");
+    const elOutline = k => (elSel(k) ? { outline: "2px solid var(--glass-accent)", outlineOffset: 6 } : {});
+    const z = id => v[`${id}.layer`] * 100 + s.z.indexOf(id) + (elSel(id) ? 1000 : 0);
+    const cx = 720 - W / 2, cy = 450 - H / 2;
+    const mus = v["music.text.size"] / 8, mf = (M.MUSIC_FONTS.find(f => f.key === v["music.font"]) || M.MUSIC_FONTS[0]).family;
+    const msh = [];
+    if (v["music.border.on"]) msh.push(`inset 0 0 0 ${v["music.border.w"]}px ${this.rgba(v["music.border.color"])}`);
+    msh.push(v["music.shadow.on"] ? `0 14px 30px ${this.rgba(v["music.shadow.color"], v["music.shadow.int"])}` : "0 4px 20px rgba(0,0,0,.2)");
+    if (v["music.glow.on"] && v["music.glow.mode"] !== "inner") msh.push(`0 0 22px ${this.rgba(v["music.glow.color"], v["music.glow.int"])}`);
+    if (v["music.glow.on"] && v["music.glow.mode"] !== "outer") msh.push(`inset 0 0 18px ${this.rgba(v["music.glow.color"], v["music.glow.int"])}`);
+    const mbg = [v["music.bg.img"] ? `url(${v["music.bg.img"]}) center/cover` : null, v["music.grad.on"] ? `linear-gradient(${v["music.grad.angle"]}deg,${this.rgba(v["music.grad.a"], v["music.grad.op"])},${this.rgba(v["music.grad.b"], v["music.grad.op"])})` : null, `linear-gradient(${this.rgba(v["music.bg.color"], v["music.bg.op"])},${this.rgba(v["music.bg.color"], v["music.bg.op"])})`].filter(Boolean).join(",");
+    const iconOf = p => ({ Instagram: "at", SoundCloud: "music", Spotify: "music", YouTube: "play", Web: "globe" })[p] || "link";
+    return {
+      rootStyle: { position: "fixed", inset: 0, overflow: "hidden", background: roomBg, transition: "background-color 400ms" },
+      salaStyle: (() => {
+        const vw = s.vw || window.innerWidth, vh = s.vh || window.innerHeight, right = dockOpen ? 376 : 0, availW = vw - right - 96, availH = vh - 88;
+        const sc = Math.min(1, availW / 1060, availH / 760), cxv = 88 + availW / 2;
+        return { position: "absolute", left: 0, top: 0, width: 1440, height: 900, transformOrigin: "720px 450px", transform: `translate(${cxv - 720}px,${76 + availH / 2 - 450}px) scale(${sc})`, transition: "transform 560ms var(--glass-spring-soft)" };
+      })(),
+      wallStyle: { position: "absolute", inset: -80, backgroundImage: v["room.wall"] ? `url(${v["room.wall"]})` : "radial-gradient(60% 50% at 30% 30%,rgba(255,79,148,.28),transparent 70%),radial-gradient(50% 50% at 75% 70%,rgba(124,92,255,.28),transparent 70%)", backgroundSize: "cover", filter: `blur(${v["room.blur"]}px) brightness(${v["room.bright"] / 100})`, pointerEvents: "none", transition: "filter 300ms" },
+      vignetteStyle: { position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,${v["room.vig"] / 100}) 100%)` },
+      showGrid: v["room.grid"],
+      cardWrapStyle: { position: "absolute", left: cx, top: cy, width: W, height: H, zIndex: 100 + s.z.indexOf("card"), "--ml-float": `-${v["fx.float.h"]}px`, animation: wrapAnims.join(",") || undefined },
+      cardStyle: { position: "relative", width: "100%", height: "100%", borderRadius: v["cardBg.radius"], background: bgs.join(","), boxShadow: sh.join(","), overflow: "hidden",
+        backdropFilter: bf ? `blur(${bf}px) saturate(140%)` : undefined, WebkitBackdropFilter: bf ? `blur(${bf}px) saturate(140%)` : undefined,
+        transform: v["fx.tilt.on"] ? `perspective(1000px) rotateY(${-v["fx.tilt.int"] / 2}deg) rotateX(${v["fx.tilt.int"] / 3}deg)` : "none",
+        animation: cardAnims.join(",") || undefined, cursor: "pointer", transition: "border-radius 300ms var(--glass-spring),box-shadow 300ms,transform 500ms var(--glass-spring)",
+        outline: cardSel && (s.part === "cardBg" || s.part === "cardFx") ? "2px solid var(--glass-accent)" : "none", outlineOffset: 6 },
+      contentStyle: { position: "relative", height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: items, textAlign: align, padding: "32px 26px 24px", gap: 4,
+        outline: cardSel && s.part === "allText" ? "1.5px dashed var(--glass-accent)" : "none", outlineOffset: -10, borderRadius: v["cardBg.radius"] },
+      identityStyle: { display: "flex", flexDirection: "column", alignItems: items, gap: 4, maxWidth: "100%", ...blockStyle("identity") },
+      locationStyle: { display: "flex", alignItems: "center", gap: 5, color: rc("location"), ...blockStyle("location") },
+      viewsStyle: { padding: "6px 14px", borderRadius: v["block.views.on"] ? v["block.views.radius"] : 999, background: v["block.views.on"] && v["block.views.bg"] ? v["block.views.bg"] : this.rgba(base, 0.08) },
+      linksStyle: { display: "flex", gap: 14, padding: v["block.links.on"] && v["block.links.bg"] ? "8px 14px" : 0, borderRadius: v["block.links.on"] ? v["block.links.radius"] : 0,
+        background: v["block.links.on"] ? v["block.links.bg"] || "transparent" : "transparent", color: (v["block.links.on"] && v["block.links.icon"]) || base },
+      linkIcons: (v["links.items"] || []).map(l => ({ icon: iconOf(M.detectPlatform(l.url)), size: v["links.size"] })),
+      photoStyle: { width: pr, height: pr, borderRadius: `${v["photo.radius"] / 2}%`, backgroundColor: "rgba(127,127,127,.2)", backgroundImage: v["photo.src"] ? `url(${v["photo.src"]})` : undefined,
+        backgroundSize: v["photo.src"] && v["photo.src"].startsWith("assets/") ? "460%" : "cover", backgroundPosition: v["photo.src"] && v["photo.src"].startsWith("assets/") ? "50% 31%" : "center",
+        boxShadow: psh.join(",") || undefined, animation: v["photo.glow.on"] && v["photo.glow.pulse"] ? `ml-pulse ${2 / v["photo.glow.speed"]}s ease-in-out infinite` : undefined, transition: "width 220ms var(--glass-spring),height 220ms var(--glass-spring),border-radius 300ms" },
+      ts: { name: roleStyle("name"), handle: roleStyle("handle"), descriptor: roleStyle("descriptor", { marginTop: 6 }), location: roleStyle("location", { color: rc("location") }), bio: roleStyle("bio", { marginTop: 8, maxWidth: 250 }), views: roleStyle("views") },
+      txt: { name: v["name.text"] || "nombre", handle: v["handle.text"], descriptor: v["descriptor.text"], location: v["location.text"], bio: v["bio.text"], showViews: v["views.show"], views: v["views.label"] },
+      pc, ps,
+      logo: { show: !!v["logo.src"], src: v["logo.src"], style: { position: "absolute", top: 18, right: 18, width: v["logo.w"], height: v["logo.h"], opacity: v["logo.op"], transform: `rotate(${v["logo.rot"]}deg)`, backgroundImage: `url(${v["logo.src"]})`, backgroundSize: "contain", backgroundRepeat: "no-repeat", backgroundPosition: "center", zIndex: v["logo.z"] < 0 ? 0 : 2 + v["logo.z"], ...outline("logo") } },
+      fxo: {
+        spot: v["fx.spot.on"], spotStyle: { position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 30% 18%,${this.rgba(v["fx.spot.color"], 2.6)},transparent ${v["fx.spot.size"]}%)` },
+        scan: v["fx.scan.on"], scanStyle: { position: "absolute", inset: 0, pointerEvents: "none", opacity: v["fx.scan.int"] * 0.55, background: "repeating-linear-gradient(0deg,rgba(0,0,0,.6) 0 1px,transparent 1px 3px)", zIndex: 5 },
+        noise: v["fx.noise.on"], noiseStyle: { position: "absolute", inset: 0, pointerEvents: "none", opacity: v["fx.noise.int"] * 0.4, mixBlendMode: "overlay", zIndex: 5, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")" },
+        flick: v["fx.flick.on"], flickStyle: { position: "absolute", inset: 0, pointerEvents: "none", background: `rgba(255,255,255,${v["fx.flick.int"] * 0.25})`, zIndex: 5, animation: `ml-flicker ${2.4 / v["fx.flick.speed"]}s steps(1) infinite` },
+      },
+      el: {
+        text: { show: !v["text.deleted"], content: v["text.content"], onClick: e => { e.stopPropagation(); this.selectEl("text"); },
+          style: { position: "absolute", left: v["text.x"], top: v["text.y"], zIndex: z("text"), fontFamily: F("text.font").family, fontSize: v["text.size"], letterSpacing: v["text.ls"], color: v["text.color"], opacity: v["text.op"],
+            textTransform: v["text.upper"] ? "uppercase" : "none", transform: `rotate(${v["text.rot"]}deg)`, whiteSpace: "pre", lineHeight: 1.1, textShadow: "0 4px 24px rgba(0,0,0,.25)", transition: "font-size 200ms, color 300ms", ...elOutline("text") } },
+        image: { show: !v["image.deleted"] && !!v["image.src"], src: v["image.src"], onClick: e => { e.stopPropagation(); this.selectEl("image"); },
+          style: { position: "absolute", left: v["image.x"], top: v["image.y"], width: v["image.w"], height: v["image.h"], zIndex: z("image"), transform: `rotate(${v["image.rot"]}deg)`, borderRadius: v["image.radius"] >= 50 ? "50%" : v["image.radius"], ...elOutline("image"), transition: "border-radius 320ms var(--glass-spring)" },
+          imgStyle: { width: "100%", height: "100%", backgroundImage: `url(${v["image.src"]})`, backgroundSize: (v["image.src"] || "").startsWith("assets/") ? "380%" : "cover", backgroundPosition: (v["image.src"] || "").startsWith("assets/") ? "50% 30%" : "center", borderRadius: v["image.radius"] >= 50 ? "50%" : v["image.radius"], display: "block", boxShadow: "0 16px 40px rgba(0,0,0,.35)", transition: "border-radius 320ms var(--glass-spring)" } },
+        music: { show: !v["music.deleted"], title: v["music.title"] || "Sin título", artist: v["music.artist"] || "—", playIcon: s.playing ? "pause" : "play",
+          onClick: e => { e.stopPropagation(); this.selectEl("music"); }, onPlay: e => { e.stopPropagation(); this.setState({ playing: !s.playing }); },
+          style: { position: "absolute", left: v["music.x"], top: v["music.y"], width: v["music.w"], minHeight: v["music.h"], boxSizing: "border-box", zIndex: z("music"), display: "flex", alignItems: "center", gap: 12, padding: 12,
+            borderRadius: v["music.border.r"], background: mbg, boxShadow: msh.join(","), color: v["music.text.color"], fontFamily: mf, transform: `rotate(${v["music.rot"]}deg)`,
+            backdropFilter: v["music.glass"] || v["music.blur.on"] ? `blur(${Math.max(v["music.glass"] ? 12 : 0, v["music.blur"])}px)` : undefined,
+            animation: v["music.float.on"] ? `ml-float ${v["music.float.s"]}s ease-in-out infinite` : undefined, "--ml-float": `-${v["music.float.h"]}px`, ...elOutline("music") },
+          artStyle: { width: 52, height: 52, borderRadius: Math.max(8, v["music.border.r"] - 8), flex: "none", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#FF4F94,#2A1630)", color: "#fff", animation: s.playing ? "lg-spin 4s linear infinite" : undefined },
+          titleStyle: { fontSize: 10 * mus * 1.3, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+          artistStyle: { fontSize: 8 * mus * 1.3, opacity: 0.7, fontFamily: v["music.font"] ? mf : '"Space Mono",monospace', whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+          barStyle: { width: s.playing ? "62%" : "34%", height: "100%", background: "currentColor", transition: "width 8s linear" } },
+      },
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    if (!s.ready || !this.M) return { ready: false };
+    const M = this.M, v = s.v, objId = this.curObj(), o = M.OBJECTS[objId];
+    const theme = v["room.theme"] === "light" ? "light" : "dark";
+    const pending = Math.max(0, s.hist.length - s.pubAt);
+    const fam = o ? o.family : objId === "layers" ? "layers" : null;
+    const searchOpen = s.search !== null && !!o;
+    const results = searchOpen ? this.searchVM(objId) : [];
+    const cardMod = id => this.objKeys(id).some(k => this.mod(k));
+    const parts = fam === "card" ? M.CARD_PARTS.map(p => p === "|" ? "sep" : ({
+      id: p, label: M.OBJECTS[p].label, modified: cardMod(p),
+      ...(p === "photo" && v["photo.src"] ? { thumb: v["photo.src"] } : p === "cardBg" ? { swatch: v["cardBg.grad.on"] ? `linear-gradient(135deg,${v["cardBg.grad.a"]},${v["cardBg.grad.b"]})` : v["cardBg.color"] } : { icon: M.OBJECTS[p].icon }),
+    })) : [];
+    const elKind = s.sel && ["text", "image", "music"].includes(s.sel.kind) && s.panel === "inspector" ? s.sel.kind : null;
+    const pathMap = { card: `tarjeta / ${o ? o.label.toLowerCase() : ""}`, el: `${o ? o.label.toLowerCase() : ""} / suelto en la sala`, room: "sala · nada seleccionado", layers: "sala / capas · arriba = frente" };
+    const nObjs = ["text", "image", "music"].filter(k => !v[`${k}.deleted`]).length + 1;
+    return {
+      ready: true, theme, ...this.canvasVM(),
+      onBackdrop: () => this.setState({ panel: null, sel: null, addOpen: false, pop: null }),
+      stop: e => e.stopPropagation(),
+      statusTip: pending ? "Cambios sin publicar" : "Todo publicado",
+      statusDot: { width: 7, height: 7, borderRadius: 99, background: pending ? "var(--glass-accent)" : "var(--glass-success)", transition: "background 300ms", marginLeft: 2 },
+      actionsStyle: { position: "absolute", right: objId ? 376 : 16, top: 16, zIndex: 800, height: 52, padding: 6, borderRadius: 999, display: "flex", alignItems: "center", gap: 2, transition: "right 520ms var(--glass-spring)" },
+      cantUndo: !s.hist.length, cantRedo: !s.fut.length, undo: this.undo, redo: this.redo,
+      themeIcon: theme === "dark" ? "moon" : "sun", themeTip: `Tema del editor: ${theme === "dark" ? "Oscuro" : "Claro"}`,
+      toggleTheme: () => { this.set("room.theme", theme === "dark" ? "light" : "dark", true); },
+      pending: pending || "", pubDone: s.pubDone ? "" : undefined, pubIdle: !s.pubDone,
+      publish: () => { if (!pending) { this.toast("Todo está publicado", "check"); return; } this.setState({ pubAt: s.hist.length, pubDone: true }); this.toast("Publicado en tu perfil", "check"); setTimeout(() => this.setState({ pubDone: false }), 1800); },
+      ...(() => {
+        const rv = s.addOpen ? "add" : s.panel === "layers" ? "layers" : s.panel === "room" ? "room" : "select";
+        const items = [{ id: "select", icon: "pointer", tip: "Seleccionar   V" }, { id: "add", icon: "plus", tip: "Agregar   A" }, { id: "layers", icon: "layers", tip: "Capas   L" }, { id: "room", gear: true, tip: "Ajustes de tu sala" }];
+        const onRail = id => {
+          if (id === "add") this.setState({ addOpen: !s.addOpen });
+          else if (id === "select") this.setState({ addOpen: false, panel: s.sel ? "inspector" : null });
+          else this.setState({ addOpen: false, panel: s.panel === id ? null : id, search: null });
+        };
+        return { railInd: { transform: `translateY(${items.findIndex(i => i.id === rv) * 48}px)` },
+          railItems: items.map(i => ({ ...i, icon: i.icon || "", gear: !!i.gear, on: i.id === rv, onClick: e => { e.stopPropagation(); onRail(i.id); } })) };
+      })(),
+      addOpen: s.addOpen,
+      addItems: [["text", "text", "Texto", "Título, frase, lo que quieras"], ["image", "image", "Imagen", "Foto, logo o GIF"], ["music", "music", "Música", "Un reproductor con tu canción"]].map(([k, icon, label, sub]) => ({ icon, label, sub,
+        onClick: () => { if (v[`${k}.deleted`]) this.set(`${k}.deleted`, false); this.selectEl(k); this.toast(`${label} en tu sala`, icon); } })),
+      showHint: !objId && !s.addOpen,
+      dockOpen: !!objId,
+      closeDock: () => this.setState({ panel: null, search: null }),
+      bodyRef: this.bodyRef, searchRef: this.searchRef,
+      dk: {
+        iconName: objId === "layers" ? "layers" : o && o.icon !== "gear" ? o.icon : "", gear: !!(o && o.icon === "gear"), title: objId === "layers" ? "Capas" : o ? (fam === "card" ? o.label : o.label) : "",
+        path: fam === "layers" ? `${pathMap.layers} · ${nObjs} objetos` : pathMap[fam] || "",
+        searchClosed: !searchOpen, searchOpen, canSearch: !!o, query: s.search || "", searchPlaceholder: fam === "card" ? "Buscar en la tarjeta…" : `Buscar en ${o ? o.label : ""}…`,
+        openSearch: () => this.setState({ search: "" }), closeSearch: () => this.setState({ search: null }),
+        onQuery: e => this.setState({ search: e.target.value }), onSearchKey: e => { if (e.key === "Enter" && results[0]) results[0].onGo(); if (e.key === "Escape") { e.stopPropagation(); this.setState({ search: null }); } },
+        hasParts: fam === "card" && !searchOpen, parts, pickerValue: s.part, part: s.part, onPart: id => this.goPart(id),
+        hasTabs: !!(o && o.tabs) && !searchOpen, tabs: o && o.tabs ? o.tabs : [], tab: o && o.tabs ? s.tab[objId] || o.tabs[0].id : "",
+        onTab: id => this.setState({ tab: { ...s.tab, [objId]: id }, dir: o.tabs.findIndex(t => t.id === id) > o.tabs.findIndex(t => t.id === (s.tab[objId] || o.tabs[0].id)) ? "r" : "l" }),
+        showResults: searchOpen, results, resultsLabel: s.search ? `${results.length} ajuste${results.length === 1 ? "" : "s"}` : "Todos los ajustes", noResults: searchOpen && !results.length,
+        showLayers: fam === "layers", showCards: !!o && !searchOpen, dir: s.dir,
+      },
+      ly: fam === "layers" ? this.layersVM() : { groups: [] },
+      cards: o && !searchOpen ? this.cardsVM(objId) : [],
+      ft: elKind ? {
+        show: true, layer: String(v[`${elKind}.layer`]), layerTabs: [{ id: "0", label: "Fondo" }, { id: "1", label: "Medio" }, { id: "2", label: "Frente" }],
+        onLayer: id => { this.set(`${elKind}.layer`, Number(id)); this.state.lastK = null; this.toast(`A ${M.LAYER_NAMES[Number(id)]}`, "layers"); },
+        onLayers: () => this.setState({ panel: "layers" }),
+        locked: !!v[`${elKind}.locked`], lockIcon: v[`${elKind}.locked`] ? "lock" : "unlock", lockTip: v[`${elKind}.locked`] ? "Desbloquear" : "Bloquear",
+        onLock: () => { this.set(`${elKind}.locked`, !v[`${elKind}.locked`]); this.state.lastK = null; this.toast(v[`${elKind}.locked`] ? "Desbloqueado" : "Bloqueado", "lock"); },
+        deleteTip: `Eliminar ${o.label.toLowerCase()}   ⌫`,
+        onDelete: () => { this.set(`${elKind}.deleted`, true); this.state.lastK = null; this.setState({ panel: null, sel: null }); this.toast(`${o.label} eliminado`, "trash", "Deshacer"); },
+      } : { show: false },
+      toast: s.toast,
+    };
+  }
+}
+</script>
+</body>
+</html>
