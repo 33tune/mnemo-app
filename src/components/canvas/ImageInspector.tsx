@@ -1,4 +1,5 @@
 "use client";
+import { elementSearch } from "@/ui/SettingsSearch";
 import React, { useState } from "react";
 import type { CanvasImage } from "@/types";
 import { Accordion, InspectorShell, MenuSection, MenuNote, TextInput, UploadField } from "@/ui";
@@ -51,6 +52,7 @@ export default function ImageInspector(p: ImageInspectorProps) {
   return (
     <InspectorShell
       id={p.id}
+      search={elementSearch("image", "Imagen")}
       title={isGif ? "GIF" : "Imagen"}
       icon="image"
       path="imagen / suelta en la sala"

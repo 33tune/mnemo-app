@@ -1,10 +1,12 @@
 "use client";
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useLayoutEffect, useMemo, useRef } from "react";
 import type { ProfileCardData } from "@/types";
 import { InspectorShell, CardPaletteProvider } from "@/ui";
 import { cardPalette } from "@/lib/cardPalette";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
-import { inspectorObject, chipLabel, type ObjectId } from "@/lib/inspectorObjects";
+import { inspectorObject, chipLabel, PART_IDS, type ObjectId } from "@/lib/inspectorObjects";
+import { settingsOf } from "@/lib/settingsIndex";
+import type { SettingsSearchConfig } from "@/ui/SettingsSearch";
 import type { SelectionMemory } from "@/lib/editorSelection";
 import { INSPECTOR_TITLE_ID } from "@/ui/InspectorShell";
 import { ObjectList, partIcon } from "./ObjectList";
@@ -49,6 +51,20 @@ export default function ProfileInspector({
   const obj = inspectorObject(object);
   const effective = getProfileCardEffects(card);
 
+  // Liquid glass L6: "Buscar en la tarjeta…" — every part's settings; a hit
+  // on another part switches to it first (the shell then opens the card and
+  // flashes the control).
+  const selectRef = useRef(onSelectObject);
+  selectRef.current = onSelectObject;
+  const objectRef = useRef(object);
+  objectRef.current = object;
+  const search = useMemo<SettingsSearchConfig>(() => ({
+    placeholder: "Buscar en la tarjeta…",
+    hits: settingsOf(PART_IDS, o => partIcon(o as ObjectId)),
+    objectLabel: o => chipLabel(inspectorObject(o as ObjectId)),
+    go: h => { if (h.object !== objectRef.current) selectRef.current(h.object as ObjectId); },
+  }), []);
+
   function select(id: ObjectId) {
     if (id === object) return;
     onSelectObject(id);
@@ -74,6 +90,7 @@ export default function ProfileInspector({
       title={chipLabel(obj)}
       icon={partIcon(object)}
       path={`tarjeta / ${chipLabel(obj).toLowerCase()}`}
+      search={search}
       headerExtra={
         <ObjectList active={object} onSelect={select} panelId={panelId} sheet={mode === "sheet"}
           ctx={{ card, effective, baseColor, viewCount }} />

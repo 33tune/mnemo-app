@@ -74,6 +74,11 @@ planeado acá hasta confirmarlo.
 >   mientras se arrastra = libre, la tarjeta excluida) TERMINADA (2026-10-13)** e integrada a `main` con el OK del usuario.
 >   Revisión de cierre: Regresiones y Visual/UX/A11y APPROVE. Sin QA en navegador real. Detalle en el plan (§ 6, Fase I).
 >
+> - **Menús "Liquid glass" (diseño "Menús de personalización mejorados" de Claude Design): Fases L0–L6
+>   IMPLEMENTADAS (2026-10-14)** en `feature/myland-menus-v4` (desde `main`), commiteadas y pusheadas. **No
+>   mergeadas a `main`.** Plan, adaptaciones (A1–A16), bitácora y QA pendiente en
+>   `docs/ux/menu-redesign/liquid-glass-plan.md` (§ 4 y § 5). Sin QA en navegador real con login.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

@@ -1,4 +1,5 @@
 "use client";
+import { elementSearch } from "@/ui/SettingsSearch";
 import React, { useState } from "react";
 import type { SpaceCursor, SpaceFont, SpaceMusic } from "@/types";
 import {
@@ -74,6 +75,7 @@ export default function RoomInspector(p: RoomInspectorProps) {
   return (
     <InspectorShell
       id={p.id}
+      search={elementSearch("room", "Tu sala")}
       title="Tu sala"
       icon="gear"
       path={`sala · nada seleccionado · ${p.objectCount} ${p.objectCount === 1 ? "objeto" : "objetos"}`}

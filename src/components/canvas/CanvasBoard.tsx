@@ -51,6 +51,7 @@ import { shouldSkipCanvasShortcut, canvasShortcutAllowed, shouldFocusCanvasOnMou
 import { resolveNudgeKey, nudgeMove, nudgeResize, cycleSelection, isMacPlatform } from "@/lib/canvasNudge";
 import { T as UIT, Icon, type IconName, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote, INSPECTOR_TITLE_ID } from "@/ui";
 import { INSPECTOR_COLLAPSED_W, INSPECTOR_SHEET_COLLAPSED_H, INSPECTOR_EXPAND_ID } from "@/ui/InspectorShell";
+import { isSearchShortcut, openSettingsSearch } from "@/ui/SettingsSearch";
 import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSheetOffset, freezeViewOffset, shouldFreezeOnPointerDown, stickyElementOffset, SHEET_OPENER_RESERVE } from "@/lib/inspectorViewOffset";
 import { useEditorSelection, profileTargetId, targetId, elementTarget, elementEditButtonId, elementInspectorId, type ElementTargetKind } from "@/lib/editorSelection";
 import { resizeMinimums } from "@/lib/resizeMath";
@@ -1972,6 +1973,9 @@ export default function CanvasBoard({
       // Phase D: rail tools — V Seleccionar, A Agregar (the "+" menu), L Capas
       // (Phase E). Plain letters, so only here, after the canvas-focus guard.
       if (!e.ctrlKey && !e.metaKey && !e.altKey && railKeyRef.current?.(e.key.toLowerCase())) { e.preventDefault(); return; }
+      // Liquid glass L6: "/" or ⌘K / Ctrl+K searches the open inspector's
+      // settings (DS dock search); nothing open = the browser keeps the key.
+      if (inspectorOpenRef.current && isSearchShortcut(e)) { e.preventDefault(); openSettingsSearch(); return; }
       // Phase C: a held arrow nudge moves elements live and persists on
       // keyup — its history "before" is the state at the FIRST arrow.
       if (e.key.startsWith("Arrow") && !gestureBaselineRef.current) {

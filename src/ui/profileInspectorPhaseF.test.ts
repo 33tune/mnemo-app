@@ -35,7 +35,7 @@ test("Liquid glass header: the part's glyph, its name, the route in mono; the pa
   assert.ok(INSPECTOR.includes("path={`tarjeta / ${chipLabel(obj).toLowerCase()}`}"));
   assert.ok(INSPECTOR.includes("title={chipLabel(obj)}") && INSPECTOR.includes("icon={partIcon(object)}"));
   assert.ok(/headerExtra=\{\s*<ObjectList/.test(INSPECTOR), "the part picker lives in the header, not in the scrolling body");
-  assert.ok(HEADER.includes("{children}"), "InspectorHeader renders the fixed extra");
+  assert.ok(HEADER.includes("{!searchRow && children}"), "InspectorHeader renders the fixed extra (hidden while searching)");
   assert.ok(HEADER.includes("const btn = sheet ? 44 : 36;"), "36px filled buttons (DS), 44px in the sheet");
 });
 

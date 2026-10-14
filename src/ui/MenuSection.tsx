@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useId, useState } from "react";
+import React, { createContext, useContext, useEffect, useId, useState } from "react";
 import { T, uv } from "./tokens";
 import { Icon, type IconName } from "./icons";
 import { Toggle } from "./Toggle";
@@ -58,6 +58,10 @@ const AccordionContext = createContext<AccordionValue | null>(null);
 export function Accordion({ open, onOpenChange, children }: { open: string | null; onOpenChange: (k: string | null) => void; children: React.ReactNode }) {
   return <AccordionContext.Provider value={{ open, setOpen: onOpenChange }}>{children}</AccordionContext.Provider>;
 }
+/** Liquid glass L6: "Buscar ajuste" asks the card titled `card` to open
+ * (InspectorShell provides it; `seq` makes a repeated search re-open it). */
+export interface RevealRequest { card: string; seq: number }
+export const RevealContext = createContext<RevealRequest | null>(null);
 /** Nested sections inside a card render as a labelled group, not a card. */
 const InCardContext = createContext(false);
 
@@ -79,6 +83,11 @@ export function MenuSection({ label, children, changed, active, icon, summary, s
   const modified = !!changed && changed > 0;
   const lit = modified || (!!active && active > 0);
   const on = toggle ? toggle.value : true;
+  const reveal = useContext(RevealContext);
+  useEffect(() => {
+    if (reveal && reveal.card === label && !inCard && !pinned) setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal?.seq]);
 
   // A nested section (inside a card / tile): a plain labelled group.
   if (inCard || pinned) {
@@ -101,7 +110,7 @@ export function MenuSection({ label, children, changed, active, icon, summary, s
           <button type="button" className="mn-card__btn" aria-expanded={open} aria-controls={open ? bodyId : undefined}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); setOpen(!open); }}>
-            <span className="mn-card__icon" data-lit={lit || undefined} aria-hidden><Icon name={icon ?? "sliders"} size={16} /></span>
+            <span className="mn-card__icon" data-icon={icon ?? "sliders"} data-lit={lit || undefined} aria-hidden><Icon name={icon ?? "sliders"} size={16} /></span>
             <span className="mn-card__text">
               <span className="mn-card__title">
                 <span id={headingId}>{label}</span>

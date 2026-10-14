@@ -1,4 +1,5 @@
 "use client";
+import { elementSearch } from "@/ui/SettingsSearch";
 import React, { useState } from "react";
 import type { CanvasText, TextFont } from "@/types";
 import { Accordion, InspectorShell, MenuSection, MenuRow, SliderRow, ColorRow, TextArea, FontField, Tabs } from "@/ui";
@@ -36,6 +37,7 @@ export default function TextInspector(p: TextInspectorProps) {
   return (
     <InspectorShell
       id={p.id}
+      search={elementSearch("text", "Texto")}
       title="Texto"
       icon="text"
       path="texto / suelto en la sala"

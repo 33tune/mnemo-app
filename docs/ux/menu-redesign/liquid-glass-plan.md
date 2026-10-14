@@ -1,7 +1,8 @@
 # MYLAND · Menús "Liquid glass": plan de implementación
 
-> **Estado: EN IMPLEMENTACIÓN (2026-10-14)** en la branch `feature/myland-menus-v4` (desde `main`), con el OK del
-> usuario para ejecutar L0–L6 seguidas. **No se mergea a `main` sin OK explícito.** Bitácora en § 4.
+> **Estado: L0–L6 IMPLEMENTADAS (2026-10-14)** en la branch `feature/myland-menus-v4` (desde `main`), con el OK del
+> usuario para ejecutar L0–L6 seguidas. **No mergeada a `main`; no se mergea sin OK explícito.** Bitácora en § 4;
+> lo que falta verificar en navegador real (con login) en § 5.
 >
 > **Fuente del diseño:** proyecto de Claude Design "Menús de personalización mejorados"
 > (https://claude.ai/design/p/acc23753-1b2c-4fb7-ba8d-fe93672bdcfa?file=Editor.dc.html), importado como project
@@ -207,3 +208,42 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
   - Adaptación A15: el ítem del menú Agregar se llama "Music" (vocabulario del producto), no "Música"; "Card de
     presentación" sigue apareciendo solo si la tarjeta no existe.
   - Verificación: capturas lado a lado contra el prototipo (vacío, Agregar abierto, dock abierto, Claro, OG).
+- **L6 (Buscar ajuste):** botón Buscar en la cabecera del dock, `/` y ⌘K / Ctrl+K (en el dock, o en el lienzo
+  con un inspector abierto; `/` escrito dentro de un campo es una barra). El campo reemplaza la fila del título (el
+  h2 queda en el DOM, oculto: F6, Editar y el nombre del tabpanel lo siguen usando) y el cuerpo lista los ajustes
+  (pozo de ícono, control · tile, "Objeto › Card"); Enter toma el primero, ↓/↑ recorren, Esc cierra la búsqueda y
+  después el inspector. Al elegir uno: cambia de parte si hace falta, abre su card (`RevealContext` en
+  `MenuSection`), abre el "Ajustes de X" del tile o "Más ajustes" si el control está ahí adentro, lo centra, lo hace
+  destellar (DS `ml-flash`) y le pasa el foco. En la tarjeta busca en las 12 partes; en Texto / Imagen / Music / Tu
+  sala, en ese objeto.
+  - El índice (`src/lib/settingsIndex.ts`) NO genera UI: es una lista objeto › card › control con los textos
+    visibles, extraída del dock renderizado (harness) y atada al código por `settingsIndex.test.ts` (si un control se
+    renombra o se mueve, el test falla). Los controles de tiles que en la extracción estaban apagados no tienen sus
+    sub-ajustes indexados (se encuentra el tile).
+  - Adaptación A16: la pista inferior no dice "/ buscar": sin nada seleccionado no hay dock donde buscar (el
+    prototipo tampoco hace nada ahí). Tu sala también tiene búsqueda (el prototipo solo en objetos).
+- **No implementado:** el toast con Deshacer del DS (L2). Deshacer sigue en la cápsula de acciones y con ⌘Z/Ctrl+Z.
+
+## 5. Verificaciones pendientes (QA en navegador real, con login)
+
+Todo se verificó con tests (`npm test` 654/654), `tsc`, `next build` y capturas del harness de Chromium (los
+inspectores y el shell montados con datos de prueba, sin backend). **No se probó la app real con sesión iniciada.**
+Hay que probar en local:
+
+1. **Shell:** cápsulas sobre wallpaper claro y oscuro; la de acciones se corre al abrir y cerrar el dock (y con el
+   dock colapsado); "Más" (MY LAND / SOCIAL, Señales, Salir, punto de no leídos, Esc); tema Oscuro → OG → Claro;
+   Publicar en sus 4 estados; punto de estado; logo real en la cápsula de marca.
+2. **Rail:** indicador deslizante con V / A / L y Tu sala; tooltips a la derecha; menú Agregar (Texto, Imagen, Music,
+   Card de presentación sin tarjeta), Esc devuelve el foco a "+"; pista inferior solo sin selección.
+3. **Dock:** a 16px del borde superior; vista centrada entre el rail (72) y el dock; layout angosto (barra compacta
+   + hoja inferior) sin cambios.
+4. **Inspectores (L2–L4):** los 12 objetos de la tarjeta, Texto, Imagen / GIF, Music, Tu sala y Capas — cada card,
+   resumen vivo, restablecer, switches, tiles con "Ajustes de X", slider líquido (arrastre, teclado, click en el
+   valor para escribir, doble click restablece), cinta "Tu tarjeta", subidas por click y arrastre, Peso con pesos
+   cargados, pie de elemento (capa con el mismo escritor que Capas, Bloquear, Eliminar con deshacer).
+5. **Búsqueda:** `/`, ⌘K y Ctrl+K desde el lienzo y desde el dock; ir a un ajuste de otra parte; tiles y "Más
+   ajustes"; destello y foco; lector de pantalla (conteo anunciado, nombre del h2).
+6. **Temas y accesibilidad:** Light / Dark / OG; forced colors (Windows Alto contraste); reduced motion y reduced
+   transparency; NVDA / VoiceOver en switches, tiles, part picker y acordeón.
+7. **Sin regresiones:** drag, resize, rotate, marquee, papelera, hit-stack, edición de texto libre, deshacer /
+   rehacer global, guardar y recargar, perfil público y `space_mobile` sin cambios.

@@ -216,3 +216,20 @@ test("r2: one term for block style, scope in the label", () => {
   assert.ok(read("src/components/canvas/ProfileIdentityMenu.tsx").includes('scope="Nombre, @usuario, Frase y Bio"'));
   assert.ok(!read("src/components/canvas/ProfileMetadataMenu.tsx").includes("Estilo de bloque"));
 });
+
+test("Liquid glass L6: Buscar ajuste — header button, / and ⌘K, results, reveal + flash; the h2 stays", () => {
+  const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
+  const shell = read("src/ui/InspectorShell.tsx");
+  const head = read("src/ui/InspectorHeader.tsx");
+  const srch = read("src/ui/SettingsSearch.tsx");
+  const board = read("src/components/canvas/CanvasBoard.tsx");
+  assert.ok(head.includes('className={searchRow ? "mn-sr-only" : undefined}'), "the h2 is hidden, never unmounted, while searching");
+  assert.ok(shell.includes('<div style={{ display: searching ? "none" : "contents" }}>'), "the object's controls stay mounted (state survives)");
+  assert.ok(shell.includes("if (searching) closeSearch();"), "Esc closes the search first, then the inspector");
+  assert.ok(shell.includes("isSearchShortcut(e)") && board.includes("if (inspectorOpenRef.current && isSearchShortcut(e)) { e.preventDefault(); openSettingsSearch(); return; }"));
+  assert.ok(srch.includes('aria-label="Buscar ajuste"') && srch.includes('aria-live="polite"'));
+  assert.ok(srch.includes('t.tagName === "INPUT"'), "/ typed in a field is a slash, not a shortcut");
+  assert.ok(read("src/ui/MenuSection.tsx").includes("if (reveal && reveal.card === label && !inCard && !pinned) setOpen(true);"));
+  for (const f of ["Text", "Image", "Music", "Room"]) assert.ok(read(`src/components/canvas/${f}Inspector.tsx`).includes("search={elementSearch("), f);
+  assert.ok(read("src/components/canvas/ProfileInspector.tsx").includes("hits: settingsOf(PART_IDS"), "the card searches every part");
+});

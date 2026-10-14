@@ -1,10 +1,13 @@
 "use client";
-import React, { useRef, type CSSProperties } from "react";
+import React, { useEffect, useRef, useState, type CSSProperties } from "react";
 import { T, uv } from "./tokens";
 import { EDITOR_ATTR } from "@/lib/editorGuards";
 import { usePanelFocus } from "./MenuPanel";
 import { InspectorHeader } from "./InspectorHeader";
 import { Icon, type IconName } from "./icons";
+import { RevealContext, type RevealRequest } from "./MenuSection";
+import { SettingsSearchRow, SettingsSearchResults, revealSetting, isSearchShortcut, OPEN_SETTINGS_SEARCH_EVENT, type SettingsSearchConfig } from "./SettingsSearch";
+import type { SettingHit } from "@/lib/settingsIndex";
 
 /** id of the inspector's visible h2 — F6 (CanvasBoard) and "Editar" move
  * focus here; the tabpanel is labelled by it. */
@@ -32,8 +35,9 @@ interface InspectorShellProps {
   headerExtra?: React.ReactNode;
   /** Liquid glass: the object's glyph in the header well. */
   icon?:     IconName;
-  /** Liquid glass L6: opens "Buscar ajuste". */
-  onSearch?: () => void;
+  /** Liquid glass L6: "Buscar ajuste" (header button, `/` and ⌘K / Ctrl+K
+   * inside the dock or on the canvas). Absent = no search. */
+  search?: SettingsSearchConfig;
   /** Liquid glass L2: the element footer (capa, Capas, Bloquear, Eliminar)
    * pinned under the scrolling body. */
   footer?:   React.ReactNode;
@@ -75,7 +79,7 @@ interface InspectorShellProps {
 // Rendered through a portal to <body> by its owner — never inside the
 // canvas wrapper, whose view-offset transform would re-anchor a fixed box.
 export function InspectorShell({
-  title, path, aside, meta, headerExtra, icon, onSearch, footer, children, onClose, returnFocusTo, top, width, mode = "dock", height = 0, collapsed, onExpand, bodyRef, onBodyScroll, id,
+  title, path, aside, meta, headerExtra, icon, search, footer, children, onClose, returnFocusTo, top, width, mode = "dock", height = 0, collapsed, onExpand, bodyRef, onBodyScroll, id,
 }: InspectorShellProps) {
   const sheet = mode === "sheet";
   // Review B-UX-5: a full-width sheet on a ~900px window would stretch the
@@ -86,6 +90,33 @@ export function InspectorShell({
   const rootRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   usePanelFocus(rootRef, { focusOnMount: () => titleRef.current, returnFocusTo });
+
+  // Liquid glass L6: the search replaces the header row and the body (the
+  // object's controls stay mounted, hidden, so their state survives).
+  const [query, setQuery] = useState<string | null>(null);
+  const [reveal, setReveal] = useState<RevealRequest | null>(null);
+  const innerBodyRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const searching = query !== null && !!search && !collapsed;
+  useEffect(() => {
+    if (!search) return;
+    const open = () => setQuery(q => q ?? "");
+    window.addEventListener(OPEN_SETTINGS_SEARCH_EVENT, open);
+    return () => window.removeEventListener(OPEN_SETTINGS_SEARCH_EVENT, open);
+  }, [search]);
+  const closeSearch = () => { setQuery(null); requestAnimationFrame(() => titleRef.current?.focus({ preventScroll: true })); };
+  const go = (hit: SettingHit) => {
+    setQuery(null);
+    search?.go?.(hit);
+    setReveal(r => ({ card: hit.card, seq: (r?.seq ?? 0) + 1 }));
+    const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    void revealSetting(innerBodyRef.current, hit, !!reduced);
+  };
+  const setBodyRef = (el: HTMLDivElement | null) => {
+    innerBodyRef.current = el;
+    if (typeof bodyRef === "function") bodyRef(el);
+    else if (bodyRef) (bodyRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
 
   // Dock: right edge, under the topbar. Sheet: full-width, from the bottom.
   const box: CSSProperties = sheet
@@ -115,11 +146,13 @@ export function InspectorShell({
       onMouseDown={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
       onKeyDown={e => {
+        if (search && !collapsed && !e.defaultPrevented && isSearchShortcut(e)) { e.preventDefault(); setQuery(q => q ?? ""); return; }
         // Esc layering: a popover / draft input stops its own Esc first.
         if (e.key !== "Escape" || e.defaultPrevented) return;
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        if (searching) closeSearch();
+        else onClose();
       }}
       data-mode={mode}
       style={base}
@@ -141,12 +174,18 @@ export function InspectorShell({
       ) : (
         <>
           {sheet && <span aria-hidden="true" className="mn-inspector__grab" />}
-          <InspectorHeader path={path} title={title} titleId={INSPECTOR_TITLE_ID} titleRef={titleRef} icon={icon} onSearch={onSearch}
+          <InspectorHeader path={path} title={title} titleId={INSPECTOR_TITLE_ID} titleRef={titleRef} icon={icon}
+            onSearch={search ? () => setQuery("") : undefined}
+            searchRow={searching ? (
+              <SettingsSearchRow query={query!} placeholder={search!.placeholder} onQuery={setQuery} onClose={closeSearch}
+                onFirst={() => listRef.current?.querySelector<HTMLButtonElement>(".mn-result")?.click()}
+                onDown={() => listRef.current?.querySelector<HTMLButtonElement>(".mn-result")?.focus()} />
+            ) : undefined}
             aside={aside} meta={meta} onClose={onClose} sheet={sheet}>
             {headerExtra}
           </InspectorHeader>
           <div
-            ref={bodyRef}
+            ref={setBodyRef}
             onScroll={onBodyScroll}
             className="mn-inspector__body"
             style={{
@@ -157,7 +196,10 @@ export function InspectorShell({
               scrollbarWidth: "none" as CSSProperties["scrollbarWidth"],
             }}
           >
-            {children}
+            {searching && <SettingsSearchResults config={search!} query={query!} onGo={go} listRef={listRef} />}
+            <div style={{ display: searching ? "none" : "contents" }}>
+              <RevealContext.Provider value={reveal}>{children}</RevealContext.Provider>
+            </div>
           </div>
           {footer && <div className="mn-inspector__footer">{footer}</div>}
         </>

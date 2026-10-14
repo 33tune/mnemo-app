@@ -1,4 +1,5 @@
 "use client";
+import { elementSearch } from "@/ui/SettingsSearch";
 import React, { useState } from "react";
 import type { MusicCardData, CardEffects } from "@/types";
 import {
@@ -112,6 +113,7 @@ export default function MusicInspector(p: MusicInspectorProps) {
   return (
     <InspectorShell
       id={p.id}
+      search={elementSearch("music", "Music")}
       title="Music"
       icon="music"
       path="music / suelto en la sala"

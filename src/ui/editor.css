@@ -244,6 +244,49 @@
   :where([data-mnemo-ui]) .mn-rail__btn[data-active] { color: HighlightText; }
 }
 
+/* Liquid glass L6 — "Buscar ajuste" (SettingsSearch.tsx, DS dock search):
+   the field (44px well, ring when focused), the results (52px rows: icon
+   well, control · tile, "Objeto › Card") and the flash on the control the
+   search took you to (DS ml-flash, twice). */
+:where([data-mnemo-editor]) .mn-search {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; box-sizing: border-box;
+  border-radius: 16px; background: var(--ui-surface-control); color: var(--ui-text-secondary);
+}
+:where([data-mnemo-editor]) .mn-search:focus-within { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor]) .mn-search input {
+  flex: 1; min-width: 0; margin: 0; padding: 0; border: none; background: transparent; outline: none; -webkit-appearance: none; appearance: none;
+  color: var(--ui-text-primary); font: 450 15px var(--ui-font-sans);
+}
+:where([data-mnemo-editor]) .mn-search input::placeholder { color: var(--ui-text-tertiary); }
+:where([data-mnemo-editor]) .mn-search input::-webkit-search-cancel-button { display: none; }
+:where([data-mnemo-editor]) .mn-results { display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; animation: mn-swap-in 260ms var(--ui-motion-ease) both; }
+:where([data-mnemo-editor]) .mn-results__label { padding: 4px 6px 8px; }
+:where([data-mnemo-editor]) .mn-results__empty { padding: 28px 10px; text-align: center; font-size: 13px; color: var(--ui-text-secondary); }
+:where([data-mnemo-editor]) .mn-result {
+  display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 10px; margin: 0; border: none; border-radius: 14px; width: 100%; box-sizing: border-box;
+  background: transparent; color: var(--ui-text-primary); cursor: pointer; text-align: left; font-family: var(--ui-font-sans); font-size: 14px;
+  transition: background-color 120ms var(--ui-motion-ease);
+}
+:where([data-mnemo-editor]) .mn-result:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor]) .mn-result:focus { outline: none; }
+:where([data-mnemo-editor]) .mn-result:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor]) .mn-result > svg { color: var(--ui-text-tertiary); flex: none; }
+:where([data-mnemo-editor]) .mn-result__well { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex: none; background: var(--ui-surface-control); }
+:where([data-mnemo-editor]) .mn-result__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+:where([data-mnemo-editor]) .mn-result__label { font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where([data-mnemo-editor]) .mn-result__path { font-size: 12px; color: var(--ui-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where([data-mnemo-editor]) [data-flash] { border-radius: 18px; animation: mn-flash 1400ms var(--ui-motion-ease) 2; }
+@keyframes mn-flash { 0% { box-shadow: 0 0 0 0 var(--ui-accent-glow); } 30% { box-shadow: 0 0 0 6px var(--ui-accent-soft); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes mn-swap-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  :where([data-mnemo-editor]) .mn-results { animation: none; }
+  :where([data-mnemo-editor]) [data-flash] { animation: none; box-shadow: 0 0 0 3px var(--ui-accent-soft); }
+}
+@media (forced-colors: active) {
+  :where([data-mnemo-editor]) .mn-search { border: 1px solid ButtonText; }
+  :where([data-mnemo-editor]) [data-flash] { animation: none; outline: 2px solid Highlight; outline-offset: 2px; }
+}
+
 /* Liquid glass (L5, DS Editor shell): the editor topbar as two floating
    glass capsules (Topbar.tsx, wide). The header is a click-through strip;
    only the capsules take the pointer. The actions capsule slides on the

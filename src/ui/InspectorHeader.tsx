@@ -20,6 +20,10 @@ interface InspectorHeaderProps {
   onClose:   () => void;
   /** Liquid glass L6: "Buscar ajuste   /" (absent = no search button). */
   onSearch?: () => void;
+  /** Liquid glass L6: while searching, the search field replaces the title
+   * row (the h2 stays in the DOM, visually hidden: F6 / Editar and the
+   * tabpanel's name keep pointing at it) and the picker / tabs hide. */
+  searchRow?: React.ReactNode;
   /** Bottom sheet: 44px targets. */
   sheet?:    boolean;
   /** What stays put under the title while the body scrolls (the part
@@ -30,7 +34,7 @@ interface InspectorHeaderProps {
 /** Liquid glass (DS dock header, L2): the object's icon in a 36px well, the
  * title (Geist 19/650) with the route in mono under it, then Buscar and
  * Cerrar as filled round 36px buttons; the part picker / tabs below. */
-export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose, onSearch, sheet, children }: InspectorHeaderProps) {
+export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose, onSearch, searchRow, sheet, children }: InspectorHeaderProps) {
   const btn = sheet ? 44 : 36;
   return (
     <div className="mn-inspector__header" style={{
@@ -38,7 +42,8 @@ export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose,
       padding: sheet ? `${T.space[2]}px ${T.ui.size.panelPad}px ${T.space[3]}px` : "16px 14px 12px 18px",
       flexShrink: 0, minWidth: 0,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+      {searchRow}
+      <div className={searchRow ? "mn-sr-only" : undefined} style={searchRow ? undefined : { display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
         {icon && (
           <span key={icon} className="mn-inspector__icon" aria-hidden="true">
             <Icon name={icon} size={17} />
@@ -61,14 +66,14 @@ export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose,
             </span>
           )}
         </div>
-        {onSearch && (
+        {onSearch && !searchRow && (
           <IconButton icon="search" aria-label="Buscar ajuste" title="Buscar ajuste   /" size={btn} iconSize={16}
             className="mn-iconbtn--filled" onClick={() => onSearch()} />
         )}
-        <IconButton icon="close" aria-label="Cerrar inspector" title="Cerrar   esc" size={btn} iconSize={14}
-          className="mn-iconbtn--filled" onClick={() => onClose()} />
+        {!searchRow && <IconButton icon="close" aria-label="Cerrar inspector" title="Cerrar   esc" size={btn} iconSize={14}
+          className="mn-iconbtn--filled" onClick={() => onClose()} />}
       </div>
-      {children}
+      {!searchRow && children}
     </div>
   );
 }
