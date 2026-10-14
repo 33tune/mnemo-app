@@ -582,8 +582,8 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
 }
 
 const WIDE_MORE_MENU_ID = "mnemo-shell-more";
-const THEME_LABEL: Record<EditorTheme, string> = { dark: "Oscuro", light: "Claro", og: "OG" };
-const THEME_ICON: Record<EditorTheme, IconName> = { dark: "moon", light: "sun", og: "sparkles" };
+const THEME_LABEL: Record<EditorTheme, string> = { dark: "Oscuro", light: "Claro", og: "OG", limeDark: "Lima oscuro", limeLight: "Lima claro" };
+const THEME_ICON: Record<EditorTheme, IconName> = { dark: "moon", light: "sun", og: "sparkles", limeDark: "moon", limeLight: "sun" };
 
 // Phase D review (1.4.10 Reflow): the editor topbar on narrow viewports —
 // design screen 10 keeps the wordmark, Deshacer and Publicar (44px targets);

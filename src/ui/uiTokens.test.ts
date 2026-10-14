@@ -257,7 +257,7 @@ const rules = [...sheet.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => ({ sel: m[1].
 const PALETTE_KEYS = Object.keys(T.theme.dark).sort();
 
 test("the 3 palettes (light/dark/og) have the same keys, all non-empty — and every design key", () => {
-  assert.deepEqual([...EDITOR_THEME_NAMES], ["light", "dark", "og"]);
+  assert.deepEqual([...EDITOR_THEME_NAMES], ["light", "dark", "og", "limeDark", "limeLight"]);
   for (const t of EDITOR_THEME_NAMES) {
     assert.deepEqual(Object.keys(T.theme[t]).sort(), PALETTE_KEYS, t);
     for (const [k, v] of Object.entries(T.theme[t])) assert.ok(typeof v === "string" && v.trim().length > 0, `${t}.${k}`);
@@ -460,7 +460,10 @@ for (const t of EDITOR_THEME_NAMES) {
     }
     // State-carrying non-text >= 3:1 on the panel over every wallpaper.
     const nonText: Array<[string, string]> = [
-      ["accent (slider knob, switch on, modified dot)", P.accent], ["focus ring", P.focus],
+      // Lima claro (2026-10-14): the accent itself is a FILL that carries
+      // its own ink (tile on, Publicar — checked above); the marks drawn on
+      // the panel are the slider fill, the modified dot and accent glyphs.
+      ["slider fill", P.fill], ["modified dot", P.edit], ["accent glyph (lit card icon)", P.accentText], ["focus ring", P.focus],
       ["edge (switch off ring, field edge)", P.edge], ["selected part / tab", P.selEdge === "transparent" ? P.sel : P.selEdge],
     ];
     for (const [name, fg] of nonText) {
@@ -470,6 +473,11 @@ for (const t of EDITOR_THEME_NAMES) {
       }
     }
     assert.ok(contrast(P.knobOn, P.accent) >= 3, `${t}: switch knob on the accent track`);
+    // Switch ON: its track or its knob stands out from the panel.
+    for (const [where, bg] of on("panel")) {
+      const r = Math.max(contrast(P.on, bg), contrast(P.knobOn, bg));
+      assert.ok(r >= 3, `${t}: switch on (track or knob) on ${where} = ${r.toFixed(2)}:1 (< 3)`);
+    }
     assert.ok(contrast(T.ui.accent.chevron, flat(P.field, flat(P.panel, P.page))) >= 3, `${t}: select chevron`);
     // ink2 and ink3 stay distinguishable (hierarchy, not just a pass).
     const panel = flat(P.panel, P.page);

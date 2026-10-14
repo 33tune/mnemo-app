@@ -246,6 +246,16 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
     reducido queda quieto.
   - Matriz de capacidades: los `text.*` de la tarjeta pasan a "superseded" por las rutas de cada texto.
 
+- **Temas Lima oscuro y Lima claro (decisión del usuario, 2026-10-14):** dos temas nuevos, además de Oscuro, Claro y
+  OG: paneles grafito / niebla neutros (sin tinte violeta), verde lima como acento y un vidrio un poco más translúcido
+  (blur 30, saturación 150 %, para que la sala no tiña el panel). El desenfoque pasó a ser un valor por tema
+  (`materialBlur`). Se agregó `accentText` (el acento como glifo sobre el panel). Tu sala › Apariencia pasó de un
+  segmentado a una grilla de 5 muestras (radiogroup con flechas). El botón de tema de la cápsula recorre los 5.
+  - Contraste: la maqueta proponía 70 % / 74 % de opacidad; para que el texto llegue a 4,5:1 sobre salas blancas o
+    negras quedó en 78 % (Lima oscuro) y 80 % (Lima claro), con tintas y bordes ajustados. En Lima claro el lima
+    brillante es solo relleno (con texto negro); las marcas sobre el panel usan un verde oscuro (#446A00). El test de
+    contraste pasó a medir las marcas reales (relleno del slider, punto de cambios, glifo, switch encendido).
+
 ## 5. Verificaciones pendientes (QA en navegador real, con login)
 
 Todo se verificó con tests (`npm test` 654/654), `tsc`, `next build` y capturas del harness de Chromium (los
@@ -268,7 +278,7 @@ Hay que probar en local:
    Nombre; deshacer.
 6. **Búsqueda:** `/`, ⌘K y Ctrl+K desde el lienzo y desde el dock; ir a un ajuste de otra parte; tiles y "Más
    ajustes"; destello y foco; lector de pantalla (conteo anunciado, nombre del h2).
-7. **Temas y accesibilidad:** Light / Dark / OG; forced colors (Windows Alto contraste); reduced motion y reduced
+7. **Temas y accesibilidad:** Light / Dark / OG / Lima oscuro / Lima claro; forced colors (Windows Alto contraste); reduced motion y reduced
    transparency; NVDA / VoiceOver en switches, tiles, part picker y acordeón.
 8. **Sin regresiones:** drag, resize, rotate, marquee, papelera, hit-stack, edición de texto libre, deshacer /
    rehacer global, guardar y recargar, perfil público y `space_mobile` sin cambios.

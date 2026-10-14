@@ -80,7 +80,7 @@ planeado acá hasta confirmarlo.
 >   `docs/ux/menu-redesign/liquid-glass-plan.md` (§ 4 y § 5). Sin QA en navegador real con login.
 >   Selector de partes de la tarjeta por grupos Tarjeta / Perfil / Contenido, y efectos de texto (Sombra, Brillo,
 >   Pulso, Contorno, Desenfoque) por cada texto con `card.effects.text` como dato heredado (decisiones del usuario,
->   2026-10-14).
+>   2026-10-14). Temas nuevos del editor: Lima oscuro y Lima claro.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

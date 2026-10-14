@@ -18,7 +18,7 @@ const throwing = {
 test("contract: key, attribute, themes, default dark", () => {
   assert.equal(EDITOR_THEME_KEY, "myland.editorTheme");
   assert.equal(EDITOR_THEME_ATTR, "data-editor-theme");
-  assert.deepEqual([...EDITOR_THEMES], ["light", "dark", "og"]);
+  assert.deepEqual([...EDITOR_THEMES], ["light", "dark", "og", "limeDark", "limeLight"]);
   assert.equal(DEFAULT_EDITOR_THEME, "dark");
 });
 

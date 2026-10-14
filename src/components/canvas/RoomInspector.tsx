@@ -3,7 +3,7 @@ import { elementSearch } from "@/ui/SettingsSearch";
 import React, { useState } from "react";
 import type { SpaceCursor, SpaceFont, SpaceMusic } from "@/types";
 import {
-  InspectorShell, MenuSection, MenuRow, MenuNote, ColorRow, SliderRow, ActionButton, SwitchRow, Tabs, Icon, UploadField, Accordion,
+  InspectorShell, MenuSection, MenuRow, MenuNote, ColorRow, SliderRow, ActionButton, SwitchRow, Tabs, Icon, UploadField, Accordion, T,
 } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
 import { useEditorTheme } from "@/lib/useEditorTheme";
@@ -23,7 +23,7 @@ export type RoomOp =
 
 export const ROOM_DEFAULT_BG = "#0a0a0c";
 
-const THEME_LABEL: Record<EditorTheme, string> = { light: "Claro", dark: "Oscuro", og: "OG" };
+const THEME_LABEL: Record<EditorTheme, string> = { light: "Claro", dark: "Oscuro", og: "OG", limeDark: "Lima oscuro", limeLight: "Lima claro" };
 
 interface RoomInspectorProps {
   id?: string;
@@ -59,7 +59,36 @@ interface RoomInspectorProps {
   onExpand: () => void;
 }
 
-const THEME_ICON: Record<EditorTheme, "sun" | "moon" | undefined> = { light: "sun", dark: "moon", og: undefined };
+/** Tema del editor (2026-10-14, five themes): a radiogroup of chips, each
+ * with a swatch of the theme itself (its panel + its accent) — a segmented
+ * control no longer fits. Arrows move AND select (APG radio). */
+function ThemePicker({ theme, onChange }: { theme: EditorTheme; onChange: (t: EditorTheme) => void }) {
+  const refs = React.useRef<(HTMLButtonElement | null)[]>([]);
+  const i = EDITOR_THEMES.indexOf(theme);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const n = EDITOR_THEMES.length;
+    const next = e.key === "ArrowRight" || e.key === "ArrowDown" ? (i + 1) % n
+      : e.key === "ArrowLeft" || e.key === "ArrowUp" ? (i - 1 + n) % n
+      : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    if (next < 0) return;
+    e.preventDefault(); e.stopPropagation();
+    onChange(EDITOR_THEMES[next]);
+    refs.current[next]?.focus();
+  };
+  return (
+    <div role="radiogroup" aria-label="Tema del editor" className="mn-themes" onKeyDown={onKeyDown}>
+      {EDITOR_THEMES.map((t, k) => (
+        <button key={t} ref={el => { refs.current[k] = el; }} type="button" role="radio" aria-checked={t === theme} tabIndex={t === theme ? 0 : -1}
+          className="mn-theme" onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onChange(t); }}>
+          <span className="mn-theme__sw" aria-hidden style={{ background: T.theme[t].panelSolid }}>
+            <span className="mn-theme__dot" style={{ background: T.theme[t].accent }} />
+          </span>
+          {THEME_LABEL[t]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // Editor v3 Phase D: "Tu sala" — the inspector with nothing selected, opened
 // on demand from the rail. Liquid glass (design menu-schema.js "room"):
@@ -135,11 +164,7 @@ export default function RoomInspector(p: RoomInspectorProps) {
         </MenuSection>
 
         <MenuSection label="Apariencia del editor" icon="sun" summary={THEME_LABEL[theme]}>
-          <MenuRow label="Tema">
-            <div style={{ width: 228 }}>
-              <Tabs tabs={EDITOR_THEMES.map(t => ({ id: t, label: THEME_LABEL[t], icon: THEME_ICON[t], withText: true }))} active={theme} onChange={id => setTheme(id as EditorTheme)} label="Tema del editor" />
-            </div>
-          </MenuRow>
+          <ThemePicker theme={theme} onChange={setTheme} />
           <MenuNote>Cambia solo el editor: tu sala y tu perfil se ven igual.</MenuNote>
         </MenuSection>
       </div>

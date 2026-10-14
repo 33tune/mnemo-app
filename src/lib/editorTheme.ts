@@ -6,7 +6,8 @@
  * `useEditorTheme.ts` (a hook module cannot sit in the server graph).
  *
  * Contract (plan §5 "Temas", decision A1/A8):
- * - stored locally under `myland.editorTheme`; values light|dark|og;
+ * - stored locally under `myland.editorTheme`; values light|dark|og|
+ *   limeDark|limeLight (the Lima themes, 2026-10-14);
  *   DARK when the value is missing, invalid, or storage is absent/throwing
  *   (private mode, blocked site data, SSR);
  * - applied as `<html data-editor-theme="…">`. The generated stylesheet
@@ -15,7 +16,7 @@
  *   canvas, the ProfileCard and the public page never read it.
  */
 
-export const EDITOR_THEMES = ["light", "dark", "og"] as const;
+export const EDITOR_THEMES = ["light", "dark", "og", "limeDark", "limeLight"] as const;
 export type EditorTheme = (typeof EDITOR_THEMES)[number];
 
 export const EDITOR_THEME_KEY = "myland.editorTheme";

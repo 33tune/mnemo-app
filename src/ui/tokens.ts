@@ -54,6 +54,10 @@ const LIGHT = {
   wellBase: "#FFFFFF",
   checker: "conic-gradient(#D9D4DC 25%, #FFFFFF 0 50%, #D9D4DC 0 75%, #FFFFFF 0)",
   selEdge: "transparent",
+  /** Liquid glass material (DS --glass-blur) — per theme since the Lima themes. */
+  materialBlur: "blur(28px) saturate(190%)",
+  /** The accent used as TEXT / a glyph on the panel (lit card icons). */
+  accentText: "#D42A70",
 };
 type ThemePalette = { readonly [K in keyof typeof LIGHT]: string };
 
@@ -84,6 +88,8 @@ const DARK: ThemePalette = {
   wellBase: "#2C2733",
   checker: "conic-gradient(#3A3440 25%, #24202A 0 50%, #3A3440 0 75%, #24202A 0)",
   selEdge: "transparent",
+  materialBlur: "blur(28px) saturate(190%)",
+  accentText: "#FF4F94",
 };
 
 // OG: the light pearl glass, nearly opaque (OG was the flat white editor),
@@ -100,6 +106,60 @@ const OG: ThemePalette = {
   glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08)", glassBtn: "rgba(255,255,255,0.10)",
   seg: "#0B0B0C", segInk: "#FFFFFF", segShadow: "none",
   ring: "0 0 0 2px #FFFFFF, 0 0 0 4px #6440F0",
+  accentText: "#D6246E",
+};
+
+// User decision (2026-10-14): the Lima themes — neutral graphite / mist
+// glass (no violet tint), a touch more translucent like iOS (blur 30, less
+// saturation so the room never tints the panel), and lime as the one
+// accent. Lime on light is only a FILL (dark ink on it); as a mark / text
+// on the light panel it goes darker (#5E8A00 / #4F7A00) for contrast.
+const LIME_DARK: ThemePalette = {
+  ...DARK,
+  panel: "rgba(28,28,30,0.78)", rail: "rgba(28,28,30,0.78)", glass: "rgba(28,28,30,0.78)",
+  pop: "rgba(36,36,38,0.92)", popSolid: "#242426", panelSolid: "#1C1C1E", page: "#0E0E10",
+  field: "rgba(255,255,255,0.07)", fieldHover: "rgba(255,255,255,0.10)", fieldActive: "rgba(255,255,255,0.16)", wellPress: "rgba(255,255,255,0.16)",
+  track: "rgba(255,255,255,0.08)", track2: "rgba(255,255,255,0.16)", trackHover: "rgba(255,255,255,0.12)",
+  ink: "#F5F5F7", ink2: "rgba(245,245,247,0.90)", ink3: "rgba(245,245,247,0.82)", inkDisabled: "rgba(245,245,247,0.32)",
+  railInk: "rgba(245,245,247,0.90)", glassInk: "#F5F5F7", glassInk2: "rgba(245,245,247,0.90)", popInk: "#F5F5F7",
+  sel: "#F5F5F7", selInk: "#111113", railSel: "#F5F5F7", railSelInk: "#111113", seg: "#F5F5F7", segInk: "#111113",
+  glassBtn: "rgba(255,255,255,0.08)",
+  accent: "#C6F432", accentInk: "#0B0B0C", accentSoft: "rgba(198,244,50,0.16)", accentGlow: "rgba(198,244,50,0.38)", accentText: "#C6F432",
+  fill: "#C6F432", on: "#C6F432", edit: "#C6F432", knobOn: "#0B0B0C",
+  n1: "#C6F432", n2: "#C6F432", n3: "#C6F432", n4: "#C6F432",
+  focus: "#C6F432", ring: "0 0 0 2px #1C1C1E, 0 0 0 4px #C6F432",
+  edge: "#B4B4B9", lineField: "#B4B4B9", wellBase: "#2C2C2E",
+  primaryHover: "#FFFFFF", primaryActive: "#D8D8DC",
+  checker: "conic-gradient(#3A3A3C 25%, #242426 0 50%, #3A3A3C 0 75%, #242426 0)",
+  panelShadow: "inset 0 0.5px 0 rgba(255,255,255,0.20), inset 0 0 0 0.5px rgba(255,255,255,0.10), 0 1px 2px rgba(0,0,0,0.30), 0 28px 64px -16px rgba(0,0,0,0.55)",
+  popShadow: "inset 0 0.5px 0 rgba(255,255,255,0.20), inset 0 0 0 0.5px rgba(255,255,255,0.10), 0 12px 32px rgba(0,0,0,0.5)",
+  glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.20), inset 0 0 0 0.5px rgba(255,255,255,0.10)",
+  danger: "#FFADA7",
+  materialBlur: "blur(30px) saturate(150%)",
+};
+const LIME_LIGHT: ThemePalette = {
+  ...LIGHT,
+  panel: "rgba(246,246,248,0.80)", rail: "rgba(246,246,248,0.80)", glass: "rgba(246,246,248,0.80)",
+  pop: "rgba(250,250,252,0.94)", popSolid: "#FAFAFC", panelSolid: "#F6F6F8", page: "#F8F8FA",
+  field: "rgba(0,0,0,0.05)", fieldHover: "rgba(0,0,0,0.08)", fieldActive: "rgba(0,0,0,0.12)", wellPress: "rgba(0,0,0,0.12)",
+  track: "rgba(0,0,0,0.05)", track2: "rgba(0,0,0,0.12)", trackHover: "rgba(0,0,0,0.08)",
+  ink: "#111113", ink2: "rgba(17,17,19,0.74)", ink3: "rgba(17,17,19,0.70)", inkDisabled: "rgba(17,17,19,0.32)",
+  railInk: "rgba(17,17,19,0.74)", glassInk: "#111113", glassInk2: "rgba(17,17,19,0.74)", popInk: "#111113",
+  sel: "#111113", railSel: "#111113", seg: "#111113",
+  glassBtn: "rgba(0,0,0,0.05)",
+  accent: "#C6F432", accentInk: "#0B0B0C", accentSoft: "rgba(120,170,0,0.16)", accentGlow: "rgba(140,190,0,0.40)", accentText: "#446A00",
+  fill: "#446A00", on: "#C6F432", edit: "#446A00", knobOn: "#0B0B0C",
+  n1: "#446A00", n2: "#446A00", n3: "#446A00", n4: "#446A00",
+  focus: "#446A00", ring: "0 0 0 2px #F6F6F8, 0 0 0 4px #446A00",
+  edge: "#616166", lineField: "#616166",
+  scrollbar: "rgba(0,0,0,0.16)", line: "rgba(0,0,0,0.08)", lineStrong: "rgba(0,0,0,0.20)",
+  primaryHover: "#26262A", primaryActive: "#3A3A3E",
+  checker: "conic-gradient(#D8D8DC 25%, #FFFFFF 0 50%, #D8D8DC 0 75%, #FFFFFF 0)",
+  panelShadow: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06), 0 28px 64px -18px rgba(0,0,0,0.26)",
+  popShadow: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(0,0,0,0.08), 0 8px 24px -8px rgba(0,0,0,0.26)",
+  glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(0,0,0,0.08)",
+  danger: "#8E1B16", dangerTint: "rgba(142,27,22,0.10)",
+  materialBlur: "blur(30px) saturate(150%)",
 };
 
 /** Editor font stacks: next/font (layout.tsx) defines --font-display/-sans/
@@ -186,8 +246,8 @@ export const T = {
   // T.ui that is a COLOR is a theme reference (`th(key)`); sizes, radii,
   // z-indexes and motion stay literal. Interaction states live in
   // src/ui/editor.css.
-  theme: { light: LIGHT, dark: DARK, og: OG },
-  themeType: { light: TYPE_BASE, dark: TYPE_BASE, og: TYPE_OG },
+  theme: { light: LIGHT, dark: DARK, og: OG, limeDark: LIME_DARK, limeLight: LIME_LIGHT },
+  themeType: { light: TYPE_BASE, dark: TYPE_BASE, og: TYPE_OG, limeDark: TYPE_BASE, limeLight: TYPE_BASE },
 
   ui: {
     text: {
@@ -274,6 +334,8 @@ export const T = {
       soft:     th("accentSoft"),
       glow:     th("accentGlow"),
       success:  th("success"),
+      /** The accent as text / glyph on the panel (Lima claro darkens it). */
+      text:     th("accentText"),
     },
     /** Section number tones 01–04 (MenuSection `tone`). */
     tone: { n1: th("n1"), n2: th("n2"), n3: th("n3"), n4: th("n4") },
@@ -287,7 +349,7 @@ export const T = {
     },
     /** Liquid glass material (DS --glass-blur): the floating layer only —
      * dock, rail, topbar, menus, toasts; never glass on glass. */
-    material: { blur: "blur(28px) saturate(190%)" },
+    material: { blur: th("materialBlur") },
     /** Editor font stacks as variables (--ui-font-sans …) for editor.css. */
     font: UI_FONT,
     opacity: { disabled: 0.38 },

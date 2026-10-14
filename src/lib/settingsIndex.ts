@@ -115,7 +115,7 @@ export const SETTINGS_INDEX: Readonly<Record<SearchObject, readonly SettingsCard
     ["Fondo", "palette", ["Color", "Desenfoque", "Brillo", "Viñetado"]],
     ["Ambiente", "music", []],
     ["Lienzo", "frame", ["Mostrar cuadrícula", "Ajustar a la cuadrícula"]],
-    ["Apariencia del editor", "sun", ["Tema"]],
+    ["Apariencia del editor", "sun", []],
   ],
 };
 
