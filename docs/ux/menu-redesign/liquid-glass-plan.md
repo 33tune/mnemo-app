@@ -155,3 +155,13 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
 - **L0 (tokens y material):** paletas Liquid glass en `src/ui/tokens.ts` (dark/light/og), radios, tamaños, motion,
   `material.blur`; íconos Lucide incrustados; `.mn-panel` con vidrio y blur; tests de contraste reescritos para el
   vidrio translúcido (sobre blanco, negro, gris y la página).
+- **L1 (primitivas):** con la misma API para todos los que las usan: `SliderRow` = cápsula líquida (rango nativo
+  transparente encima: teclado, aria, tocar para saltar; valor editable con click; rebote en los extremos; botón
+  Restablecer del DS); `Toggle` = LiquidSwitch 51×31; `Tabs` pill = IconTabs con thumb que se estira; `EffectList` /
+  `EffectRow` = tiles 2×N con ripple, preview y "Ajustes de X" a lo ancho; `ColorRow` = tile de color + hex + chip
+  heredado + cinta "Tu tarjeta" (`src/lib/cardPalette.ts`, con test); `TextInput` / `TextArea` con contador adentro;
+  `NumberField` = campo de Medidas; `Collapsible` = fila "› Avanzado"; botones redondos y cápsulas.
+  - Adaptación A6: el selector de color completo sigue siendo el popover flotante existente (con su teclado y Esc
+    probados), no se despliega inline dentro del dock como en el prototipo.
+  - Adaptación A7: `FontField` mantiene la lista nativa de fuentes del repo; el explorador del prototipo (buscar,
+    favoritas, instalar cualquier Google Font o subir TTF) sería una funcionalidad nueva y queda fuera de alcance.

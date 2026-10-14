@@ -1,7 +1,8 @@
 "use client";
 import React, { useId, useRef, useState } from "react";
 import { T } from "./tokens";
-import { FieldResetMark, InheritedChip, labelStyle, type FieldStateProps } from "./MenuRow";
+import { FieldResetButton, InheritedChip, type FieldStateProps } from "./MenuRow";
+import { Icon, type IconName } from "./icons";
 import { inferDisplayScale, formatEditValue, commitSliderDraft, resolveSliderDoubleClick } from "@/lib/uiNumeric";
 
 interface SliderRowProps extends FieldStateProps {
@@ -23,6 +24,8 @@ interface SliderRowProps extends FieldStateProps {
   displayScale?:  number;
   displayOffset?: number;
   disabled?: boolean;
+  /** Liquid glass: the glyph inside the capsule, left of the label. */
+  icon?: IconName;
 }
 
 // Block 2: same props as before (every ~109 call site unchanged), now:
@@ -36,8 +39,10 @@ interface SliderRowProps extends FieldStateProps {
 // - optional field state (modified dot -> reset / inherited chip).
 export function SliderRow({
   label, value, min, max, step = 1, unit = "", fmt, onChange, defaultValue, disabled,
-  state, onReset, inheritedLabel, displayScale, displayOffset = 0,
+  state, onReset, inheritedLabel, displayScale, displayOffset = 0, icon,
 }: SliderRowProps) {
+  const [active, setActive] = useState(false);
+  const [over, setOver] = useState(0);
   const id = useId();
   const chipId = useId();
   const display = fmt ? fmt(value) : `${Math.round(value)}${unit}`;
@@ -78,17 +83,58 @@ export function SliderRow({
     });
   }
 
+  // Liquid glass (L1, DS LiquidSlider): the whole capsule is the control —
+  // fill + accent knob, the label (and icon) inside it on the left, the value
+  // on the right. A transparent native range covers the capsule: keyboard,
+  // aria and "tap to jump" / drag come from it; dragging past an end
+  // rubber-bands the capsule. The value stays click-to-edit (a button above
+  // the range), and "modified" shows the DS reset button next to it.
+  const onRangePointer = (e: React.PointerEvent<HTMLInputElement>) => {
+    if (!e.buttons) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const raw = (e.clientX - r.left) / (r.width || 1);
+    setOver(raw < 0 ? Math.max(-1, raw * 2.5) : raw > 1 ? Math.min(1, (raw - 1) * 2.5) : 0);
+  };
+  const stretch = 1 + Math.abs(over) * 0.045;
   return (
     <div
-      className="mn-field"
+      className="mn-field mn-lslider-row"
       data-state={state}
       data-inherited={state === "inherited" ? "" : undefined}
-      style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}
     >
-      <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", gap: T.space[2], minHeight: 20 }}>
-        {state === "modified" && onReset && <FieldResetMark label={label} onReset={onReset} />}
-        <label htmlFor={id} style={{ ...labelStyle, minWidth: 0 }}>{label}</label>
-        <div style={{ display: "flex", alignItems: "center", gap: T.space[2], flexShrink: 0 }}>
+      <div
+        className="mn-lslider"
+        data-active={active || undefined}
+        data-edge={pct <= 0 ? "min" : pct >= 100 ? "max" : undefined}
+        aria-disabled={disabled || undefined}
+        style={{
+          transform: `scale(${active ? 1.02 : 1}) scaleX(${stretch})`,
+          transformOrigin: over < 0 ? "right center" : over > 0 ? "left center" : "center",
+        }}
+      >
+        <div className="mn-lslider__fill" aria-hidden style={{ width: `${pct}%` }} />
+        <div className="mn-lslider__knob" aria-hidden style={{ left: `calc(${pct}% + ${pct < 2 ? 7 : pct > 98 ? -7 : 0}px)` }} />
+        <input
+          id={id}
+          type="range"
+          className="mn-lslider__input"
+          min={min} max={max} step={step}
+          value={value}
+          disabled={disabled}
+          aria-valuetext={display}
+          aria-describedby={state === "inherited" ? chipId : undefined}
+          onChange={e => onChange(Number(e.target.value))}
+          onMouseDown={e => e.stopPropagation()}
+          onPointerDown={e => { e.stopPropagation(); setActive(true); }}
+          onPointerMove={onRangePointer}
+          onPointerUp={() => { setActive(false); setOver(0); }}
+          onPointerCancel={() => { setActive(false); setOver(0); }}
+          onLostPointerCapture={() => { setActive(false); setOver(0); }}
+          onDoubleClick={onTrackDoubleClick}
+        />
+        <div className="mn-lslider__row">
+          {icon && <Icon name={icon} size={17} />}
+          <label htmlFor={id} className="mn-lslider__label">{label}</label>
           {state === "inherited" && <InheritedChip id={chipId}>{inheritedLabel}</InheritedChip>}
           {draft !== null ? (
             <input
@@ -109,6 +155,7 @@ export function SliderRow({
           ) : (
             <button
               ref={valueBtnRef}
+              key={display}
               type="button"
               className="mn-value"
               aria-label={`${label}: ${display}. Editar valor`}
@@ -117,27 +164,14 @@ export function SliderRow({
               onMouseDown={e => e.stopPropagation()}
               onClick={e => { e.stopPropagation(); startEdit(); }}
               // VIS-11: Mono only for numbers — a word value ("círculo") reads in Sans.
-              style={{ minWidth: 34, textAlign: "right", ...(/\d/.test(display) ? {} : { fontFamily: T.uiFont.sans, fontSize: 12 }) }}
+              style={/\d/.test(display) ? undefined : { fontFamily: T.uiFont.sans }}
             >
               {display}
             </button>
           )}
         </div>
       </div>
-      <input
-        id={id}
-        type="range"
-        className="mn-range"
-        min={min} max={max} step={step}
-        value={value}
-        disabled={disabled}
-        aria-valuetext={display}
-        aria-describedby={state === "inherited" ? chipId : undefined}
-        onChange={e => onChange(Number(e.target.value))}
-        onMouseDown={e => e.stopPropagation()}
-        onDoubleClick={onTrackDoubleClick}
-        style={{ ["--mn-pct" as string]: `${pct}%` } as React.CSSProperties}
-      />
+      {state === "modified" && onReset && <FieldResetButton label={label} onReset={onReset} />}
     </div>
   );
 }

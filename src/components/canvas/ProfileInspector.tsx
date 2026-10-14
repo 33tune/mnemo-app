@@ -1,7 +1,8 @@
 "use client";
 import React, { useLayoutEffect, useRef } from "react";
 import type { ProfileCardData } from "@/types";
-import { InspectorShell } from "@/ui";
+import { InspectorShell, CardPaletteProvider } from "@/ui";
+import { cardPalette } from "@/lib/cardPalette";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { inspectorObject, chipLabel, type ObjectId } from "@/lib/inspectorObjects";
 import type { SelectionMemory } from "@/lib/editorSelection";
@@ -91,8 +92,11 @@ export default function ProfileInspector({
       onBodyScroll={e => memory.setScroll(card.id, object, e.currentTarget.scrollTop)}
     >
       <div role="tabpanel" id={panelId} aria-labelledby={INSPECTOR_TITLE_ID} data-object={object}>
-        <ProfileConfigMenu object={object} card={card} baseColor={baseColor} linksFits={linksFits}
-          canvas={canvas} onChange={onChange} goTo={goTo} />
+        {/* Liquid glass: "Tu tarjeta" — the card's own colors for every color row. */}
+        <CardPaletteProvider value={cardPalette(card, effective)}>
+          <ProfileConfigMenu object={object} card={card} baseColor={baseColor} linksFits={linksFits}
+            canvas={canvas} onChange={onChange} goTo={goTo} />
+        </CardPaletteProvider>
       </div>
     </InspectorShell>
   );

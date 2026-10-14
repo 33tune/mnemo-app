@@ -20,6 +20,9 @@ interface ColorSwatchProps {
   label?:     string;
   /** Hex readout next to the well (default on). */
   showHex?:   boolean;
+  /** Liquid glass: "tile" = the DS color row's 36px rounded square
+   * ("Elegir cualquier color"); default = the round 32px well. */
+  variant?:   "well" | "tile";
 }
 
 // Block 2: "ColorWell" — 24px circle with a dark ring + light hairline so
@@ -27,8 +30,8 @@ interface ColorSwatchProps {
 // reads; hex in Space Mono 11 beside it. Click opens ColorPopover (custom
 // SV/hue/alpha picker, replaces the native <input type=color>, which had
 // no alpha and no keyboard model). Same props as before + optional ones.
-export function ColorSwatch({ value, onChange, size, clearable, onClear, alpha = false, label, showHex = true }: ColorSwatchProps) {
-  const sz = size ?? T.ui.size.swatch;
+export function ColorSwatch({ value, onChange, size, clearable, onClear, alpha = false, label, showHex = true, variant = "well" }: ColorSwatchProps) {
+  const sz = size ?? (variant === "tile" ? 36 : T.ui.size.swatch);
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const labelledBy = useFieldLabelId();
@@ -60,7 +63,8 @@ export function ColorSwatch({ value, onChange, size, clearable, onClear, alpha =
       <button
         ref={btnRef}
         type="button"
-        className="mn-well"
+        className={variant === "tile" ? "mn-well mn-well--tile" : "mn-well"}
+        title={variant === "tile" ? "Elegir cualquier color" : undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={label ? `${label}: ${empty ? "sin color propio" : hex}` : undefined}
@@ -70,7 +74,7 @@ export function ColorSwatch({ value, onChange, size, clearable, onClear, alpha =
         onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
         style={{ width: sz, height: sz }}
       >
-        <span aria-hidden className="mn-well__fill" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: value || "transparent" }} />
+        <span aria-hidden className="mn-well__fill" style={{ position: "absolute", inset: 0, borderRadius: "inherit", background: value || "transparent" }} />
       </button>
       <span id={valueId} style={{ display: "none" }}>{valueText}</span>
       {clearable && value && onClear && (

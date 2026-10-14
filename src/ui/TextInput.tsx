@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { T, uv } from "./tokens";
+import { T } from "./tokens";
 import { useFieldLabelId } from "./MenuRow";
 import { useSectionHeadingId } from "./MenuSection";
 
@@ -21,19 +21,26 @@ interface TextInputProps {
    * which is invisible). */
   labelledBy?:  string;
   describedBy?: string;
+  /** Liquid glass: 19px for the big content field (Nombre). */
+  big?:         boolean;
+  /** Liquid glass: the field writes in the role's own font (DS). */
+  fontFamily?:  string;
 }
 
 // Block 2: background/hairline/hover/focus ring come from editor.css
 // (.mn-input) — the old `outline: none` + border-color-on-focus is replaced
 // by the shared :focus-visible ring (always shown on text fields). Same
 // props as before; `style` still overrides layout per call site.
-export function TextInput({ value, onChange, placeholder, onKeyDown, mono, type = "text", maxLength, style, label, id, labelledBy: labelledByProp, describedBy }: TextInputProps) {
+export function TextInput({ value, onChange, placeholder, onKeyDown, mono, type = "text", maxLength, style, label, id, labelledBy: labelledByProp, describedBy, big, fontFamily }: TextInputProps) {
   const rowLabel = useFieldLabelId();
   const sectionHeading = useSectionHeadingId();
   // Name: visible label id > explicit label > row label > section heading >
   // placeholder (last resort only — Iteration 0).
   const labelledBy = labelledByProp ?? (label ? undefined : rowLabel ?? sectionHeading);
-  return (
+  const counterId = React.useId();
+  // Liquid glass (DS text row): a counter INSIDE the field, bottom-right.
+  const counter = maxLength != null && !mono;
+  const input = (
     <input
       id={id}
       type={type}
@@ -46,22 +53,29 @@ export function TextInput({ value, onChange, placeholder, onKeyDown, mono, type 
       placeholder={placeholder}
       aria-label={labelledByProp ? undefined : label ?? (labelledBy ? undefined : placeholder)}
       aria-labelledby={labelledBy}
-      aria-describedby={describedBy}
+      aria-describedby={[describedBy, counter ? counterId : undefined].filter(Boolean).join(" ") || undefined}
       style={{
         display:       "block",
         width:         "100%",
-        // v3 field look: 40px = 11px + 18px line + 11px (padding 11/12),
-        // written as a height so call sites that override `height` keep
-        // their text vertically centered.
-        height:        40,
-        padding:       "0 12px",
-        fontFamily:    mono ? T.uiFont.mono : T.uiFont.sans,
-        fontSize:      mono ? T.type.value.fontSize : T.type.label.fontSize,
-        letterSpacing: mono ? "0.02em" : 0,
+        // Liquid glass (DS .lg-input): 44px, padding 14, Geist 15 (19 for a
+        // "big" field like Nombre; the user's own font when given).
+        height:        T.ui.size.control,
+        padding:       counter ? "0 52px 0 14px" : "0 14px",
+        fontFamily:    mono ? T.uiFont.mono : fontFamily ?? T.uiFont.sans,
+        fontSize:      mono ? 13 : big ? 19 : 15,
+        fontWeight:    450,
+        letterSpacing: mono ? "0.02em" : -0.075,
         boxSizing:     "border-box",
         ...style,
       }}
     />
+  );
+  if (!counter) return input;
+  return (
+    <div style={{ position: "relative", width: "100%" }}>
+      {input}
+      <span id={counterId} className="mn-counter">{value.length}/{maxLength}</span>
+    </div>
   );
 }
 
@@ -74,6 +88,8 @@ interface TextAreaProps {
   /** id of a visible label; defaults to the enclosing MenuSection heading. */
   labelledBy?:  string;
   style?:       React.CSSProperties;
+  /** Liquid glass: the field writes in the role's own font (DS). */
+  fontFamily?:  string;
 }
 
 /**
@@ -83,12 +99,12 @@ interface TextAreaProps {
  * visible "12/120" counter is announced via aria-describedby (maxLength
  * used to cut input silently).
  */
-export function TextArea({ value, onChange, placeholder, maxLength, rows = 2, labelledBy, style }: TextAreaProps) {
+export function TextArea({ value, onChange, placeholder, maxLength, rows = 3, labelledBy, style, fontFamily }: TextAreaProps) {
   const sectionHeading = useSectionHeadingId();
   const counterId = React.useId();
   const name = labelledBy ?? sectionHeading;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div style={{ position: "relative" }}>
       <textarea
         className="mn-input"
         value={value}
@@ -101,16 +117,12 @@ export function TextArea({ value, onChange, placeholder, maxLength, rows = 2, la
         onChange={e => onChange(e.target.value)}
         onMouseDown={e => e.stopPropagation()}
         style={{
-          display: "block", width: "100%", padding: "11px 12px", boxSizing: "border-box",
-          fontFamily: T.uiFont.sans, fontSize: T.type.label.fontSize, lineHeight: 1.5, resize: "none",
+          display: "block", width: "100%", minHeight: T.ui.size.control, padding: maxLength != null ? "12px 52px 12px 14px" : "12px 14px", boxSizing: "border-box",
+          fontFamily: fontFamily ?? T.uiFont.sans, fontSize: 15, lineHeight: 1.35, resize: "none",
           ...style,
         }}
       />
-      {maxLength != null && (
-        <span id={counterId} style={{ ...T.type.value, color: uv("text-tertiary"), alignSelf: "flex-end" }}>
-          {value.length}/{maxLength}
-        </span>
-      )}
+      {maxLength != null && <span id={counterId} className="mn-counter">{value.length}/{maxLength}</span>}
     </div>
   );
 }

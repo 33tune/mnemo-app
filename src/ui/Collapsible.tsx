@@ -26,8 +26,11 @@ export function Collapsible({ label, children, defaultOpen = false, modified, hi
   const [open, setOpen] = useState(defaultOpen);
   const bodyId = useId();
   const btnId = useId();
+  // Liquid glass (DS "more" row): "› Avanzado · 2 cambios" — the chevron
+  // first (rotates 90° open), the label 13/600, the summary in ink3; the
+  // body unfolds inline (inert while closed).
   return (
-    <div style={{ marginTop: T.space[4] }}>
+    <div style={{ marginTop: T.space[1] }}>
       <button
         type="button"
         aria-expanded={open}
@@ -37,41 +40,27 @@ export function Collapsible({ label, children, defaultOpen = false, modified, hi
         onMouseDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
         style={{
-          display:        "flex",
-          alignItems:     "center",
-          gap:            T.space[1],
-          width:          "100%",
-          minHeight:      T.ui.size.row,
-          padding:        0,
-          background:     "transparent",
-          border:         "none",
-          // Top hairline + focus ring: editor.css (.mn-collapse__btn).
-          borderRadius:   0,
-          cursor:         "pointer",
-          userSelect:     "none",
-          textAlign:      "left",
+          display: "flex", alignItems: "center", gap: 8, width: "100%", height: 36,
+          padding: "0 4px", background: "transparent", border: "none", cursor: "pointer", userSelect: "none", textAlign: "left",
         }}
       >
-        {/* v3: a disclosure ROW ("Espaciado ›") - label first, chevron at
-            the end (rotates 90° open). r2: DS "control" role (550) so a
-            disclosure never reads like a field label (450). */}
-        <span style={{ ...T.type.control, color: "inherit", minWidth: 0 }}>
+        <span className="mn-collapse__chev" style={{ display: "inline-flex" }}>
+          <Icon name="chevron-right" size={13} />
+        </span>
+        <span style={{ fontFamily: T.uiFont.sans, fontSize: 13, lineHeight: "18px", fontWeight: 600, color: "inherit", minWidth: 0 }}>
           {label}
           {modified && <span className="mn-sr-only"> (con cambios)</span>}
         </span>
-        {hint && (
-          <span className="mn-collapse__hint" style={{ marginLeft: "auto" }}>
-            <span className="mn-sr-only">, </span>{hint}
+        {(hint || modified) && (
+          <span className="mn-collapse__hint">
+            <span className="mn-sr-only">, </span>{hint ?? "· con cambios"}
           </span>
         )}
-        {modified && <span className="mn-section__dot" aria-hidden="true" style={{ marginLeft: hint ? 8 : "auto" }} />}
-        <span className="mn-collapse__chev" style={{ display: "inline-flex", marginLeft: modified || hint ? 6 : "auto" }}>
-          <Icon name="chevron-right" size={14} />
-        </span>
+        {modified && hint && <span className="mn-section__dot" aria-hidden="true" />}
       </button>
       <div id={bodyId} role="group" aria-labelledby={btnId} className="mn-collapse__body" data-open={open} inert={!open}>
         <div className="mn-collapse__inner">
-          <div style={{ display: "flex", flexDirection: "column", gap: T.space[2], paddingTop: T.space[2] }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 6 }}>
             <SectionNumber value={null}>{children}</SectionNumber>
           </div>
         </div>

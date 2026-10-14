@@ -5,7 +5,7 @@ export { MenuSection, SectionNumber } from "./MenuSection";
 export type { SectionNumberValue } from "./MenuSection";
 export { EffectList, EffectRow } from "./EffectRow";
 export { FontField }      from "./FontField";
-export { MenuRow, FieldResetMark, InheritedChip, useFieldLabelId, FieldLabelProvider, labelStyle, refocusFieldControl }
+export { MenuRow, FieldResetMark, FieldResetButton, InheritedChip, useFieldLabelId, FieldLabelProvider, labelStyle, refocusFieldControl }
                           from "./MenuRow";
 export type { FieldState, FieldStateProps } from "./MenuRow";
 export { SliderRow }      from "./SliderRow";
@@ -19,7 +19,7 @@ export { ActionButton }   from "./ActionButton";
 export { Divider }        from "./Divider";
 export { Collapsible }    from "./Collapsible";
 export { MenuNote }       from "./MenuNote";
-export { ColorRow }       from "./ColorRow";
+export { ColorRow, CardPaletteProvider, useCardPalette } from "./ColorRow";
 export { FontSelect }     from "./FontSelect";
 export { OffsetRow }      from "./OffsetRow";
 export { GradientStops }  from "./GradientStops";

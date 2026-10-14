@@ -107,13 +107,15 @@ test("Peso offers only the loaded weights (fontWeights.ts); the font field write
   assert.ok(FONT.includes("aria-label={label}"));
 });
 
-test("effect rows: the switch sits NEXT to the disclosure button, never inside it; one row open at a time", () => {
-  const btnEnd = ROW.indexOf("</button>");
-  const toggle = ROW.indexOf("<Toggle");
-  assert.ok(btnEnd > 0 && toggle > btnEnd, "Toggle after the disclosure <button>");
-  assert.ok(ROW.includes("aria-expanded={open}"));
-  assert.ok(ROW.includes("list.open === id"), "EffectList keeps a single open row");
-  assert.ok(ROW.includes("{open && ("), "closed rows mount no hidden controls");
+test("Liquid glass tiles: the tile is a switch, \"Ajustes de X\" a separate button; one tile open at a time", () => {
+  // DS ControlTiles: the tile carries role="switch" (or a disclosure button
+  // when the effect has no switch, e.g. Borde); the chevron is its own
+  // <button aria-expanded> named "Ajustes de …".
+  assert.ok(ROW.includes('role={toggleable ? "switch" : "button"}'));
+  assert.ok(ROW.includes("aria-checked={toggleable ? !!on : undefined}"));
+  assert.ok(ROW.includes("aria-label={`Ajustes de ${label}`} aria-expanded={open}"));
+  assert.ok(ROW.includes("list.open === id"), "EffectList keeps a single open tile");
+  assert.ok(ROW.includes("{open && hasDetail && ("), "closed tiles mount no hidden controls");
   for (const id of ["border", "shadow", "glow", "float", "tilt", "hover", "spotlight", "scanlines", "noise", "flicker", "chroma"]) {
     assert.ok(FX.includes(`<EffectRow id="${id}"`), `card effect row ${id}`);
   }
@@ -134,9 +136,9 @@ test("review F: tone 3 (= the 'modified' orange) never sits next to 'N cambios';
   assert.ok(SECTION.includes("`${active} activos`"));
 });
 
-test("review F: switches on an open effect row get an edge ring (1.4.11 on field); Retro is a named group", () => {
+test("Liquid glass: every switch keeps an edge ring at rest (1.4.11, A3) and the focus ring; Retro is a named group", () => {
   const css = readFileSync(join(process.cwd(), "src/ui/editor.css"), "utf8");
-  assert.match(css, /\.mn-fxrow\[data-open\] \.mn-switch\s*\{\s*box-shadow:\s*inset 0 0 0 1px var\(--ui-line-field\)/);
-  assert.match(css, /\.mn-fxrow\[data-open\] \.mn-switch:focus-visible\s*\{\s*box-shadow:\s*var\(--ui-shadow-ring\)/, "the ring keeps the focus ring (2.4.7)");
+  assert.match(css, /\.mn-switch \{[^}]*box-shadow:\s*inset 0 0 0 1px var\(--ui-line-field\)/);
+  assert.match(css, /\.mn-switch:focus-visible\s*\{\s*box-shadow:\s*var\(--ui-shadow-ring\)/, "focus ring (2.4.7)");
   assert.ok(FX.includes('<div role="group" aria-labelledby={retroId}'));
 });

@@ -27,6 +27,7 @@ const FieldDescContext = createContext<string | undefined>(undefined);
 export function useFieldDescId(): string | undefined {
   return useContext(FieldDescContext);
 }
+export const FieldDescProvider = FieldDescContext.Provider;
 
 /** Review round (A11Y-2): after an action removes the focused button
  * (reset dot, clear x, trash), move focus to the field's main control
@@ -87,9 +88,30 @@ export function FieldResetMark({ label, onReset }: { label: string; onReset: () 
   );
 }
 
+/** Liquid glass (L1): the DS reset button (round, 32px, "Restablecer") at
+ * the end of a modified row — it pops in when the value becomes modified.
+ * Same contract as FieldResetMark: clears the raw value, focus never falls
+ * to <body>. */
+export function FieldResetButton({ label, onReset, size = 32 }: { label: string; onReset: () => void; size?: number }) {
+  return (
+    <button
+      type="button"
+      className="mn-iconbtn mn-reset"
+      aria-label={`Restablecer ${label}`}
+      title="Restablecer"
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => { e.stopPropagation(); const el = e.currentTarget; onReset(); refocusFieldControl(el); }}
+      style={{ width: size, height: size }}
+    >
+      <Icon name="reset" size={size <= 28 ? 13 : 14} />
+    </button>
+  );
+}
+
 export function InheritedChip({ children = "Card", id }: { children?: React.ReactNode; id?: string }) {
   return (
     <span className="mn-chip" title="Valor heredado" id={id}>
+      <Icon name="link" size={10} />
       {children}
       {/* Spoken via the control's aria-describedby. */}
       <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}> (heredado)</span>
@@ -97,10 +119,11 @@ export function InheritedChip({ children = "Card", id }: { children?: React.Reac
   );
 }
 
-/** Shared label typography (DM Sans 13/18). */
+/** Shared row label (Liquid glass: Geist 14/500 in ink — DS switch / seg
+ * rows; field labels above inputs use .mn-label, 13/600 ink2). */
 export const labelStyle: React.CSSProperties = {
   ...T.type.label,
-  color:      uv("text-secondary"),
+  color:      uv("text-primary"),
   userSelect: "none",
 };
 
@@ -122,10 +145,10 @@ export function MenuRow({ label, children, state, onReset, inheritedLabel, hintI
         alignItems:     "center",
         justifyContent: "space-between",
         minHeight:      T.ui.size.row,
-        gap:            T.space[2],
+        gap:            10,
+        padding:        "0 2px 0 4px",
       }}
     >
-      {label && state === "modified" && onReset && <FieldResetMark label={label} onReset={onReset} />}
       {label && (
         <span id={labelId} style={{ ...labelStyle, flexShrink: 1, minWidth: 0 }}>
           {label}
@@ -138,6 +161,7 @@ export function MenuRow({ label, children, state, onReset, inheritedLabel, hintI
             {children}
           </FieldDescContext.Provider>
         </FieldLabelProvider>
+        {label && state === "modified" && onReset && <FieldResetButton label={label} onReset={onReset} size={28} />}
       </div>
     </div>
   );

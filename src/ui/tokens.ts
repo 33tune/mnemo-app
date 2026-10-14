@@ -398,16 +398,18 @@ export const T = {
    * the display face, heavier). */
   type: {
     title:   { fontFamily: thType("titleFont"), fontSize: thType("titleSize"), lineHeight: 1.15, fontWeight: thType("titleWeight"), letterSpacing: "-0.02em" },
-    heading: { fontFamily: thType("headingFont"), fontSize: 15, lineHeight: "20px", fontWeight: thType("headingWeight") },
-    label:   { fontFamily: UI_FONT.sans, fontSize: 13, lineHeight: "18px", fontWeight: 450 },
-    control: { fontFamily: UI_FONT.sans, fontSize: 13, lineHeight: "18px", fontWeight: 550 },
-    help:    { fontFamily: UI_FONT.sans, fontSize: 12, lineHeight: "16px", fontWeight: 400 },
-    /** Segmented / tab labels = the DS "control" role. */
+    heading: { fontFamily: thType("headingFont"), fontSize: 14, lineHeight: "18px", fontWeight: thType("headingWeight"), letterSpacing: "-0.01em" },
+    // Liquid glass (DS tokens/typography.css): body 15, control 14/550,
+    // label 13/600, caption 12; numbers in Geist Mono 13.
+    label:   { fontFamily: UI_FONT.sans, fontSize: 14, lineHeight: "18px", fontWeight: 500 },
+    control: { fontFamily: UI_FONT.sans, fontSize: 14, lineHeight: "18px", fontWeight: 550 },
+    help:    { fontFamily: UI_FONT.sans, fontSize: 12, lineHeight: "16px", fontWeight: 450 },
+    /** Segmented / tab labels = the DS "control" role (lg-tabs__btn 13/550). */
     tab:     { fontFamily: UI_FONT.sans, fontSize: 13, lineHeight: "18px", fontWeight: 550 },
-    /** Section eyebrow (MenuSection, Collapsible): mono 11, uppercase, .12em. */
-    section: { fontFamily: UI_FONT.mono, fontSize: 11, lineHeight: "14px", fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase" },
+    /** Field / group label (DS .lg-label): Geist 13/600 in ink2. */
+    section: { fontFamily: UI_FONT.sans, fontSize: 13, lineHeight: "18px", fontWeight: 600 },
     eyebrow: { fontFamily: UI_FONT.sans, fontSize: 11, lineHeight: "14px", fontWeight: 600 },
-    value:   { fontFamily: UI_FONT.mono, fontSize: 12, lineHeight: "16px", fontWeight: 450, fontVariantNumeric: "tabular-nums" },
+    value:   { fontFamily: UI_FONT.mono, fontSize: 13, lineHeight: "16px", fontWeight: 500, fontVariantNumeric: "tabular-nums" },
     kbd:     { fontFamily: UI_FONT.mono, fontSize: 11, lineHeight: "14px", fontWeight: 450 },
     accent:  { fontFamily: UI_FONT.serif, fontSize: 22, lineHeight: 1.1, fontWeight: 400, fontStyle: "italic" },
   },

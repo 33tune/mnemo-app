@@ -1,12 +1,12 @@
 "use client";
-import React, { useId, useRef } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { T, uv } from "./tokens";
 import { useFieldLabelId } from "./MenuRow";
 import { Icon, type IconName } from "./icons";
 
 /** Phase F: a segment may show an icon instead of its text (the label
  * stays its accessible name and tooltip). */
-interface Tab { id: string; label: string; icon?: IconName }
+interface Tab { id: string; label: string; icon?: IconName; /** Liquid glass: show the label next to the icon (DS IconTabs "Claro"). */ withText?: boolean }
 
 interface TabsProps {
   tabs:     Tab[];
@@ -29,6 +29,16 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const baseId = useId();
   const activeIndex = Math.max(0, tabs.findIndex(t => t.id === active));
+  // Liquid glass (DS IconTabs): the thumb squashes a little while it glides.
+  const prev = useRef(activeIndex);
+  const [moving, setMoving] = useState(false);
+  useEffect(() => {
+    if (prev.current === activeIndex) return;
+    prev.current = activeIndex;
+    setMoving(true);
+    const t = setTimeout(() => setMoving(false), 220);
+    return () => clearTimeout(t);
+  }, [activeIndex]);
   // A11Y-4: unnamed tablists/radiogroups fall back to the row label.
   const labelledBy = useFieldLabelId();
   const nameProps = label ? { "aria-label": label } : { "aria-labelledby": labelledBy };
@@ -88,16 +98,17 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
   return (
     <div role="radiogroup" {...nameProps} onKeyDown={onKeyDown}
       style={{
-        // v3 segmented: `field` track radius 10, `seg` thumb radius 8.
-        position: "relative", display: "flex", height: 34, padding: 2, boxSizing: "border-box",
+        // Liquid glass (DS IconTabs): a 44px well capsule, 36px buttons.
+        position: "relative", display: "flex", height: 44, padding: 4, boxSizing: "border-box",
         background: uv("surface-group"), borderRadius: T.ui.radius.segTrack,
       }}>
       <div
         aria-hidden
         className="mn-seg__thumb"
+        data-moving={moving || undefined}
         style={{
-          position: "absolute", top: 2, bottom: 2, left: 2,
-          width: `calc((100% - 4px) / ${n})`,
+          position: "absolute", top: 4, bottom: 4, left: 4,
+          width: `calc((100% - 8px) / ${n})`,
           transform: `translateX(${activeIndex * 100}%)`,
           background: uv("surface-thumb"),
           borderRadius: T.ui.radius.segThumb,
@@ -116,8 +127,8 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
             aria-checked={selected}
             tabIndex={selected ? 0 : -1}
             className="mn-seg__btn"
-            aria-label={t.icon ? t.label : undefined}
-            title={t.icon ? t.label : undefined}
+            aria-label={t.icon && !t.withText ? t.label : undefined}
+            title={t.icon && !t.withText ? t.label : undefined}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onChange(t.id); }}
             style={{
@@ -127,11 +138,11 @@ export function Tabs({ tabs, active, onChange, variant = "pill", label }: TabsPr
               border:       "none",
               borderRadius: T.ui.radius.segThumb,
               cursor:       "pointer",
-              ...T.type.tab, fontWeight: selected ? 650 : 500,
+              ...T.type.tab, fontWeight: selected ? 650 : 550,
               userSelect:   "none",
-              display: "grid", placeItems: "center",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6, minWidth: 0,
             }}
-          >{t.icon ? <Icon name={t.icon} size={14} /> : t.label}</button>
+          >{t.icon && <Icon name={t.icon} size={15} />}{(!t.icon || t.withText) && t.label}</button>
         );
       })}
     </div>

@@ -1,7 +1,6 @@
 "use client";
 import React, { useId, useRef, useState } from "react";
-import { T } from "./tokens";
-import { FieldResetMark, labelStyle, type FieldStateProps } from "./MenuRow";
+import { FieldResetButton, type FieldStateProps } from "./MenuRow";
 import { numberFieldCommit, formatEditValue, inferDisplayScale, wasClamped } from "@/lib/uiNumeric";
 
 export interface NumberFieldProps extends FieldStateProps {
@@ -61,10 +60,10 @@ export function NumberField({
   const lo = formatEditValue(min + offset, step, scale);
   const hi = formatEditValue(max + offset, step, scale);
   return (
-    <div className="mn-field" data-state={state}
-      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: T.ui.size.row, gap: T.space[2], position: "relative" }}>
-      {state === "modified" && onReset && <FieldResetMark label={label} onReset={onReset} />}
-      <label htmlFor={id} style={{ ...labelStyle, minWidth: 0 }}>{label}</label>
+    // Liquid glass (L1, DS "Medidas"): one 44px well — the short label on
+    // the left (12/600 ink2), the number in mono on the right.
+    <div className="mn-field mn-numfield" data-state={state} data-disabled={disabled || undefined}>
+      <label htmlFor={id} className="mn-numfield__label">{label}</label>
       <input
         id={id}
         className="mn-value-input mn-value-input--field"
@@ -85,8 +84,8 @@ export function NumberField({
             requestAnimationFrame(() => el.select());
           }
         }}
-        style={{ width: 72, textAlign: "right" }}
       />
+      {state === "modified" && onReset && <FieldResetButton label={label} onReset={onReset} size={28} />}
       <span id={rangeId} style={{ display: "none" }}>{`Entre ${lo} y ${hi}${unit ? ` ${unit}` : ""}`}</span>
       <span id={statusId} role="status" className="mn-sr-only">{notice}</span>
     </div>
