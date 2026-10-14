@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ProfileCardData } from "@/types";
 import { stripComments } from "@/lib/sourceScan";
-import { OBJECT_IDS, objectModified, chipLabel, chipAccessibleName, inspectorObject, INSPECTOR_OBJECTS } from "@/lib/inspectorObjects";
+import { OBJECT_IDS, objectModified, chipLabel, chipAccessibleName, inspectorObject, INSPECTOR_OBJECTS, PART_GROUPS, PART_ORDER, partGroupOf } from "@/lib/inspectorObjects";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { cardBaseColor } from "@/lib/cardColors";
 
@@ -39,11 +39,20 @@ test("Liquid glass header: the part's glyph, its name, the route in mono; the pa
   assert.ok(HEADER.includes("const btn = sheet ? 44 : 36;"), "36px filled buttons (DS), 44px in the sheet");
 });
 
-test("part picker: one horizontal row, APG tablist, the design's order, the active part kept in view", () => {
+test("part picker: groups (Tarjeta / Perfil / Contenido), every part of the group visible with its name", () => {
   assert.ok(LIST.includes('role="tablist"') && LIST.includes('aria-orientation="horizontal"'));
   assert.ok(LIST.includes("sheet={mode === \"sheet\"}") || INSPECTOR.includes('sheet={mode === "sheet"}'));
-  assert.ok(LIST.includes("row.scrollTo"), "keeps the active part visible");
-  assert.ok(LIST.includes("PART_ORDER.map"), "photo first, the card group after a separator (design CARD_PARTS)");
+  assert.ok(LIST.includes('<Tabs label="Grupo de partes" active={group.id} onChange={selectGroup}'), "a segmented control picks the group");
+  assert.ok(LIST.includes("{group.parts.map(p => {"), "only the active group's parts; never a scrolling row");
+  assert.ok(LIST.includes("onSelect(lastInGroup.current[g.id] ?? g.parts[0]);"), "a group opens its last used part");
+  assert.deepEqual(PART_GROUPS.map(g => [g.label, g.parts]), [
+    ["Tarjeta", ["cardBg", "cardFx", "allText"]],
+    ["Perfil", ["photo", "name", "handle", "descriptor", "location", "bio"]],
+    ["Contenido", ["links", "logo", "views"]],
+  ]);
+  assert.equal(new Set(PART_ORDER).size, INSPECTOR_OBJECTS.length, "every part is in exactly one group");
+  assert.ok(PART_GROUPS.every(g => g.parts.length <= 6), "a group fits the 6-column row");
+  for (const id of PART_ORDER) assert.equal(partGroupOf(id).parts.includes(id), true);
 });
 
 test("chip labels are the object's name; the accessible name starts with it (2.5.3) and says 'con cambios'", () => {

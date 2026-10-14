@@ -110,9 +110,10 @@ test("keyboard: F6 toggles canvas ⇄ inspector and is declared; Esc on the canv
 test("ObjectList is an APG tablist controlling a tabpanel labelled by the h2; no live regions", () => {
   assert.ok(LIST.includes('role="tablist"') && LIST.includes('role="tab"') && LIST.includes("aria-selected={selected}"));
   assert.ok(LIST.includes("tabIndex={selected ? 0 : -1}"), "roving tabindex");
-  // Liquid glass: round part buttons (glyph / thumbnail / swatch) whose
-  // tooltip is the part's name; the dot is decorative, its meaning is spoken.
-  assert.ok(LIST.includes("data-tip={caption}") && LIST.includes('className="mn-part__dot" aria-hidden="true"'));
+  // Liquid glass: round part buttons (glyph / thumbnail / swatch) with the
+  // part's name always visible under them; the dot is decorative, its
+  // meaning is spoken.
+  assert.ok(LIST.includes('<span className="mn-part__label" aria-hidden="true"') && LIST.includes('className="mn-part__dot" aria-hidden="true"'));
   assert.ok(LIST.includes("aria-label={modified ? `${name}, con cambios` : name}"), "the dot is spoken");
   assert.ok(INSPECTOR.includes('role="tabpanel"') && INSPECTOR.includes("aria-labelledby={INSPECTOR_TITLE_ID}"));
   for (const src of [LIST, INSPECTOR, SHELL]) assert.ok(!src.includes("aria-live") && !src.includes('role="status"'));

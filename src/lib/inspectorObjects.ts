@@ -263,13 +263,24 @@ export function chipAccessibleName(obj: InspectorObject, data: ChipData, platfor
   return full.length > MAX_NAME ? `${full.slice(0, MAX_NAME - 1).trimEnd()}…` : full;
 }
 
-/** Liquid glass (DS part picker): the order of the round part buttons —
- * the photo first, then the texts, links and logo; a separator; then the
- * card as a whole (design menu-schema.js CARD_PARTS). "|" = separator. */
-export const PART_ORDER: ReadonlyArray<ObjectId | "|"> = [
-  "photo", "name", "handle", "descriptor", "location", "bio", "views", "links", "logo", "|", "cardBg", "cardFx", "allText",
+/** The card's parts in three groups (user decision, 2026-10-14): the card
+ * as a whole, the profile (who you are) and its content blocks. The part
+ * picker shows the active part's group as a segmented control and that
+ * group's parts — with their names — under it; every part is one click
+ * away from its group. */
+export type PartGroupId = "card" | "profile" | "content";
+export interface PartGroup { id: PartGroupId; label: string; parts: readonly ObjectId[] }
+export const PART_GROUPS: readonly PartGroup[] = [
+  { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText"] },
+  { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio"] },
+  { id: "content", label: "Contenido", parts: ["links", "logo", "views"] },
 ];
-export const PART_IDS: readonly ObjectId[] = PART_ORDER.filter((p): p is ObjectId => p !== "|");
+export function partGroupOf(id: ObjectId): PartGroup {
+  return PART_GROUPS.find(g => g.parts.includes(id)) ?? PART_GROUPS[0];
+}
+/** Every part, in group order (search, tests). */
+export const PART_ORDER: readonly ObjectId[] = PART_GROUPS.flatMap(g => g.parts);
+export const PART_IDS: readonly ObjectId[] = PART_ORDER;
 
 /** Roving-tabindex navigation of the tablist (APG): arrows wrap, Home/End.
  * Returns -1 for keys it doesn't handle. */

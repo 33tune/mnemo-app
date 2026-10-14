@@ -76,8 +76,9 @@ planeado acá hasta confirmarlo.
 >
 > - **Menús "Liquid glass" (diseño "Menús de personalización mejorados" de Claude Design): Fases L0–L6
 >   IMPLEMENTADAS (2026-10-14)** en `feature/myland-menus-v4` (desde `main`), commiteadas y pusheadas. **No
->   mergeadas a `main`.** Plan, adaptaciones (A1–A16), bitácora y QA pendiente en
+>   mergeadas a `main`.** Plan, adaptaciones (A1–A17), bitácora y QA pendiente en
 >   `docs/ux/menu-redesign/liquid-glass-plan.md` (§ 4 y § 5). Sin QA en navegador real con login.
+>   Selector de partes de la tarjeta por grupos Tarjeta / Perfil / Contenido (decisión del usuario, 2026-10-14).
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

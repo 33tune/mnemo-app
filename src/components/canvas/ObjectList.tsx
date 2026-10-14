@@ -1,8 +1,8 @@
 "use client";
-import React, { useLayoutEffect, useRef, useState } from "react";
-import { Icon, type IconName } from "@/ui";
+import React, { useRef } from "react";
+import { Icon, Tabs, type IconName } from "@/ui";
 import {
-  PART_IDS, PART_ORDER, chipAccessibleName, inspectorObject, nextTabIndex, objectModified, type ChipContext, type ObjectId,
+  PART_GROUPS, partGroupOf, chipAccessibleName, inspectorObject, nextTabIndex, objectModified, type ChipContext, type ObjectId, type PartGroupId,
 } from "@/lib/inspectorObjects";
 import { detectPlatform, PLATFORM_LABELS } from "./SocialIcons";
 
@@ -26,82 +26,87 @@ const PART_ICON: Record<ObjectId, IconName> = {
 };
 export const partIcon = (id: ObjectId): IconName => PART_ICON[id];
 
-// Liquid glass (L2, DS PartPicker): ONE row of round 44px part buttons under
-// the dock's title — the photo as a thumbnail, the background as a swatch,
-// the rest as glyphs; the selected part sits on the neutral `on` fill and
+// Liquid glass (L2, DS PartPicker) + groups (user decision, 2026-10-14):
+// a segmented control picks the group (Tarjeta / Perfil / Contenido) and
+// under it the group's round 44px part buttons, each with its name below
+// (always visible — the glyphs alone hid what they were, and the old single
+// row hid half the parts off-screen). The photo is a thumbnail, the
+// background a swatch; the selected part sits on the neutral `on` fill and
 // pops; the accent dot marks a part with its own values (objectModified).
-// The tooltip is the part's name. Still an APG tablist (roving tabindex,
-// arrows + Home/End move AND select); the accessible name starts with the
-// visible tooltip label and adds the content ("Nombre: Mara", 2.5.3).
+// Picking a group opens the part last used in it (else its first one), so
+// the group is always the active part's group — one state, never two.
+// The parts row is an APG tablist (roving tabindex, arrows + Home/End move
+// AND select inside the group); the accessible name starts with the visible
+// name and adds the content ("Nombre: Mara", 2.5.3).
 export function ObjectList({ active, onSelect, ctx, panelId, sheet }: ObjectListProps) {
   const refs = useRef<Partial<Record<ObjectId, HTMLButtonElement | null>>>({});
-  const rowRef = useRef<HTMLDivElement>(null);
-  const [, force] = useState(0);
-  const activeIndex = Math.max(0, PART_IDS.indexOf(active));
+  const group = partGroupOf(active);
+  const lastInGroup = useRef<Partial<Record<PartGroupId, ObjectId>>>({});
+  lastInGroup.current[group.id] = active;
+  const activeIndex = Math.max(0, group.parts.indexOf(active));
 
   function onKeyDown(e: React.KeyboardEvent) {
-    const next = nextTabIndex(e.key, activeIndex, PART_IDS.length);
+    const next = nextTabIndex(e.key, activeIndex, group.parts.length);
     if (next < 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const id = PART_IDS[next];
+    const id = group.parts[next];
     onSelect(id);
     refs.current[id]?.focus();
   }
-
-  // Keep the active part in view (it may have been picked on the card) —
-  // horizontally only, the panel never jumps.
-  useLayoutEffect(() => {
-    const row = rowRef.current, el = refs.current[active];
-    if (!row || !el) return;
-    const l = el.offsetLeft - 20, r = el.offsetLeft + el.offsetWidth + 20;
-    if (l < row.scrollLeft) row.scrollTo({ left: l, behavior: "smooth" });
-    else if (r > row.scrollLeft + row.clientWidth) row.scrollTo({ left: r - row.clientWidth, behavior: "smooth" });
-    force(x => x);
-  }, [active, sheet]);
+  function selectGroup(id: string) {
+    const g = PART_GROUPS.find(x => x.id === id);
+    if (!g || g.id === group.id) return;
+    onSelect(lastInGroup.current[g.id] ?? g.parts[0]);
+  }
 
   const bg = ctx.effective;
   const swatch = bg.gradient ? `linear-gradient(135deg, ${bg.gradient.from}, ${bg.gradient.to})` : bg.bg?.color;
 
   return (
-    <div ref={rowRef} role="tablist" aria-label="Partes de la tarjeta" aria-orientation="horizontal" onKeyDown={onKeyDown}
-      // A vertical mouse wheel scrolls the row sideways.
-      onWheel={e => { const row = rowRef.current; if (row && Math.abs(e.deltaY) > Math.abs(e.deltaX)) row.scrollLeft += e.deltaY; }}
-      className="mn-parts" data-sheet={sheet || undefined}>
-      {PART_ORDER.map((p, i) => {
-        if (p === "|") return <span key={`sep${i}`} role="none" aria-hidden="true" className="mn-parts__sep" />;
-        const o = inspectorObject(p);
-        const selected = p === active;
-        const modified = objectModified(p, ctx.card);
-        const name = chipAccessibleName(o, o.chip(ctx), platformLabel);
-        const caption = o.shortCaption ?? o.caption;
-        return (
-          <button
-            key={p}
-            ref={el => { refs.current[p] = el; }}
-            type="button"
-            role="tab"
-            id={objectTabId(p)}
-            data-part={p}
-            aria-selected={selected}
-            aria-controls={panelId}
-            aria-label={modified ? `${name}, con cambios` : name}
-            data-tip={caption}
-            tabIndex={selected ? 0 : -1}
-            className="mn-part mn-tip"
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => { e.stopPropagation(); onSelect(p); }}
-          >
-            {p === "photo" && ctx.card.photo
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={ctx.card.photo} alt="" className="mn-part__img" draggable={false} />
-              : p === "cardBg" && swatch
-                ? <span className="mn-part__sw" style={{ background: swatch }} />
-                : <Icon name={PART_ICON[p]} size={18} />}
-            {modified && <span className="mn-part__dot" aria-hidden="true" />}
-          </button>
-        );
-      })}
+    <div className="mn-partpicker" data-sheet={sheet || undefined}>
+      <Tabs label="Grupo de partes" active={group.id} onChange={selectGroup}
+        tabs={PART_GROUPS.map(g => ({ id: g.id, label: g.label, icon: GROUP_ICON[g.id], withText: true }))} />
+      <div role="tablist" aria-label={`Partes: ${group.label}`} aria-orientation="horizontal" onKeyDown={onKeyDown} className="mn-parts">
+        {group.parts.map(p => {
+          const o = inspectorObject(p);
+          const selected = p === active;
+          const modified = objectModified(p, ctx.card);
+          const name = chipAccessibleName(o, o.chip(ctx), platformLabel);
+          const caption = o.shortCaption ?? o.caption;
+          return (
+            <div key={p} role="none" className="mn-partcell" data-selected={selected || undefined}>
+              <button
+                ref={el => { refs.current[p] = el; }}
+                type="button"
+                role="tab"
+                id={objectTabId(p)}
+                data-part={p}
+                aria-selected={selected}
+                aria-controls={panelId}
+                aria-label={modified ? `${name}, con cambios` : name}
+                tabIndex={selected ? 0 : -1}
+                className="mn-part"
+                onMouseDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onSelect(p); }}
+              >
+                {p === "photo" && ctx.card.photo
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={ctx.card.photo} alt="" className="mn-part__img" draggable={false} />
+                  : p === "cardBg" && swatch
+                    ? <span className="mn-part__sw" style={{ background: swatch }} />
+                    : <Icon name={PART_ICON[p]} size={18} />}
+                {modified && <span className="mn-part__dot" aria-hidden="true" />}
+              </button>
+              {/* The visible name (the button's accessible name starts with it). */}
+              <span className="mn-part__label" aria-hidden="true" onMouseDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onSelect(p); }}>{caption}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
+
+const GROUP_ICON: Record<PartGroupId, IconName> = { card: "card", profile: "user", content: "shapes" };

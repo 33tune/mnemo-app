@@ -224,6 +224,14 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
     prototipo tampoco hace nada ahí). Tu sala también tiene búsqueda (el prototipo solo en objetos).
 - **No implementado:** el toast con Deshacer del DS (L2). Deshacer sigue en la cápsula de acciones y con ⌘Z/Ctrl+Z.
 
+- **Selector de partes por grupos (decisión del usuario, 2026-10-14):** la fila única del diseño escondía 5 de las 12
+  partes fuera del dock (Fondo, Efectos y Textos incluidas) y los íconos solos no decían qué eran. Ahora: un control
+  segmentado **Tarjeta / Perfil / Contenido** y, debajo, las partes de ese grupo con su nombre siempre visible
+  (Tarjeta: Fondo, Efectos, Textos · Perfil: Foto, Nombre, @usuario, Frase, Ubicación, Bio · Contenido: Links, Logo,
+  Visitas). Elegir un grupo abre la última parte usada en él (si no, la primera), así el grupo es siempre el de la
+  parte activa. Las flechas recorren las partes del grupo. `PART_GROUPS` en `inspectorObjects.ts`.
+  - Adaptación A17: el diseño tenía una sola fila de partes con separador; se reemplazó por grupos.
+
 ## 5. Verificaciones pendientes (QA en navegador real, con login)
 
 Todo se verificó con tests (`npm test` 654/654), `tsc`, `next build` y capturas del harness de Chromium (los
