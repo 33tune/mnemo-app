@@ -1,6 +1,7 @@
 # MYLAND · Menús "Liquid glass": plan de implementación
 
-> **Estado: PROPUESTA (2026-10-14). Nada implementado.** Cada fase arranca solo con el OK explícito del usuario.
+> **Estado: EN IMPLEMENTACIÓN (2026-10-14)** en la branch `feature/myland-menus-v4` (desde `main`), con el OK del
+> usuario para ejecutar L0–L6 seguidas. **No se mergea a `main` sin OK explícito.** Bitácora en § 4.
 >
 > **Fuente del diseño:** proyecto de Claude Design "Menús de personalización mejorados"
 > (https://claude.ai/design/p/acc23753-1b2c-4fb7-ba8d-fe93672bdcfa?file=Editor.dc.html), importado como project
@@ -61,7 +62,32 @@ editarlo · A agregar · / buscar".
 
 ---
 
-## 2. Diferencias con el repo que hay que decidir
+## 2. Criterio y decisiones (2026-10-14, del usuario)
+
+**Fidelidad visual alta.** Estructura del dock, tamaños, colores, espaciados, textos y animaciones como en
+`Editor.dc.html`. Solo se adapta donde copiarlo rompería una funcionalidad, los datos o la accesibilidad, y cada
+adaptación queda anotada acá (§ 2.1). Ninguna capacidad se pierde: lo avanzado va detrás de "Avanzado" o de los
+ajustes de cada tile.
+
+**Decisiones ya tomadas:**
+- Temas Oscuro, Claro y OG. OG conserva su identidad (selección lima, rail violeta, acento rosa) sobre el vidrio claro.
+- Sin contador de cambios sin publicar (v3 § 8).
+- Borde de la card: el tile no se apaga; con ancho 0 muestra "Sin borde". No se agrega pausa de borde.
+- Los rangos y capacidades del repo mandan cuando difieren de los ejemplos del prototipo.
+- Cada fase termina con capturas comparativas (prototipo vs. harness con los componentes reales) y, como no hay login
+  en la nube, con una lista de verificaciones pendientes para QA local.
+
+### 2.1 Adaptaciones registradas (dónde no es idéntico y por qué)
+
+| # | Qué | Diseño | Implementado | Motivo |
+|---|---|---|---|---|
+| A1 | Opacidad del vidrio del dock / rail / topbar | dark .60, light .66 | dark .85, light .86 (= `--glass-fill-strong` del DS), OG .94 | Con .60 el texto secundario baja a 2,4:1 sobre wallpapers claros. El dock queda legible sobre cualquier sala. |
+| A2 | Tintas secundarias | ink2 .68 / ink3 .42 (dark), .64 / .42 (light) | ink2 .82 / ink3 .71 (dark), .72 / .64 (light) | ≥ 4,5:1 sobre el vidrio, el well y el well en hover, sobre fondo blanco, negro y gris. |
+| A3 | Switch apagado | track `--glass-well-press` sin borde | mismo track + anillo `edge` | El track solo tiene ~1,5:1 (WCAG 1.4.11 pide 3:1). |
+| A4 | Íconos Lucide | se bajan de unpkg en runtime | incrustados en `src/ui/icons/lucide.tsx` | Sin red externa en el editor; `corner` sale de Lucide 0.500 porque 0.460 no lo tiene (en el prototipo ese ícono queda vacío). |
+| A5 | Rojo de peligro y foco claro | `#D93A31` / `#FF5F57`, foco `#7C5CFF` | `#B02A24` / `#FF8079`, foco claro `#6440F0` | Contraste sobre el vidrio translúcido. |
+
+## 3. Diferencias con el repo (resueltas)
 
 El schema dice que sus rangos "salen del repo", pero hay puntos donde no coinciden o que chocan con decisiones ya
 tomadas. **Regla por defecto: manda el repo** (capacidades, rangos, semántica). El diseño manda en lo visual.
@@ -79,7 +105,7 @@ tomadas. **Regla por defecto: manda el repo** (capacidades, rangos, semántica).
 
 ---
 
-## 3. Fases propuestas
+## 3b. Fases
 
 Cada fase sigue el flujo de v3 § 9: plan corto → revisión → implementación → revisión → correcciones → `npm test`,
 `tsc` y `next build` → commit y push → docs. Ninguna toca el render de la card ni el modelo de datos.
@@ -119,3 +145,13 @@ Cada fase sigue el flujo de v3 § 9: plan corto → revisión → implementació
 
 **Fuera de alcance:** el render de la card y del canvas del prototipo (sus estilos de tarjeta son una maqueta, no la
 spec del motor), presets, inline editing, Gallery y mobile legacy.
+
+---
+
+## 4. Bitácora de implementación
+
+Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `next build` → capturas → commit → push.
+
+- **L0 (tokens y material):** paletas Liquid glass en `src/ui/tokens.ts` (dark/light/og), radios, tamaños, motion,
+  `material.blur`; íconos Lucide incrustados; `.mn-panel` con vidrio y blur; tests de contraste reescritos para el
+  vidrio translúcido (sobre blanco, negro, gris y la página).

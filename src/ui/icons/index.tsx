@@ -1,4 +1,5 @@
 import React from "react";
+import { LUCIDE } from "./lucide";
 
 // Block 2: the editor's own SVG icon set — 16px grid, 1.5 stroke, round
 // caps/joins, currentColor. Replaces the unicode glyph "icons" (x, check,
@@ -38,7 +39,9 @@ const PATHS = {
   "align-right":  <><path d="M2.5 4h11" /><path d="M6.5 8h7" /><path d="M4.5 12h9" /></>,
 } as const;
 
-export type IconName = keyof typeof PATHS;
+/** Liquid glass (MYLAND DS): the editor's own 16px set + the Lucide glyphs
+ * the design adds (lucide.tsx, inlined — never fetched at runtime). */
+export type IconName = keyof typeof PATHS | keyof typeof LUCIDE;
 
 interface IconProps {
   name:   IconName;
@@ -51,17 +54,19 @@ interface IconProps {
 // Review round (VIS-6): the 16-unit viewBox is scaled to `size`, so the
 // stroke width is compensated to stay 1.5 device px at any size.
 export function Icon({ name, size = 16, style, title }: IconProps) {
+  const own = name in PATHS;
+  const unit = own ? 16 : 24;
   return (
     <svg
-      width={size} height={size} viewBox="0 0 16 16"
-      fill="none" stroke="currentColor" strokeWidth={(1.5 * 16) / size} strokeLinecap="round" strokeLinejoin="round"
+      width={size} height={size} viewBox={`0 0 ${unit} ${unit}`}
+      fill="none" stroke="currentColor" strokeWidth={(1.5 * unit) / size} strokeLinecap="round" strokeLinejoin="round"
       aria-hidden={title ? undefined : true}
       role={title ? "img" : undefined}
       focusable="false"
       style={{ display: "block", flexShrink: 0, ...style }}
     >
       {title && <title>{title}</title>}
-      {PATHS[name]}
+      {own ? PATHS[name as keyof typeof PATHS] : LUCIDE[name as keyof typeof LUCIDE]}
     </svg>
   );
 }

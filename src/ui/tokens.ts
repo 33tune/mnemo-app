@@ -1,109 +1,105 @@
-// ── MYLAND Editor v3 — Phase A: editor themes (Light / Dark / OG) ─────────
-// The palettes of "MYLAND Editor v3.dc.html" (`[data-t=…]`, the `--t-*`
-// variables; plan §3) — the single source for every theme color. They are
-// emitted as `--ui-theme-<key>` ONLY under
-//   :root[data-editor-theme="<t>"] :where([data-mnemo-editor], [data-mnemo-ui])
-// (uiCssVarsStylesheet below), so they can never reach the canvas, the
-// ProfileCard or the public page. The semantic T.ui tokens below point at
-// them (`th("ink")`), which is how the existing editor.css rules and inline
-// styles switch theme without being rewritten.
+// ── MYLAND Liquid glass (Menus v4, Phase L0): editor themes ─────────────────
+// The palettes of the MYLAND design system (design-import/menus-liquid-glass/
+// _ds/…/tokens/glass.css + colors.css: `--glass-*`, `--brand-*`) — the single
+// source for every editor theme color. Emitted as `--ui-theme-<key>` ONLY
+// under :root[data-editor-theme="<t>"] :where([data-mnemo-editor],
+// [data-mnemo-ui]) (uiCssVarsStylesheet below): they never reach the canvas,
+// the ProfileCard or the public page. Semantic T.ui tokens point at them
+// (`th("ink")`).
 //
-// First block of keys = the design file, verbatim, EXCEPT the WCAG
-// adjustments (decision A5, measured by uiTokens.test.ts; also in
-// docs/ux/menu-redesign/myland-editor-v3-plan.md §3):
-//   light/og ink3   #A1A1AA -> #69696F  (2.29:1 -> 4.50:1 on fieldHover, text)
-//   dark ink3       #5F5F68 -> #8B8B91  (2.69:1 -> 4.50:1 on fieldHover, text)
-//   light ink2 #6B6B73 / og ink2 #66666E -> #56565E (r2: keeps ink2 clearly
-//                    above ink3 — 7.27:1 vs 5.45:1 on panel)
-//   dark ink2       #9B9BA4 -> #B4B4BC  (r2: same reason, 9.08:1 vs 5.52:1)
-//   pop (all)       .78 / .74 / .80 -> .90  (r2: ink2 labels on a popover over
-//                    ANY wallpaper >= 4.5:1; Darkroom precedent >= .86)
-//   light/og track2 #E4E4E7 -> #949496  (1.27:1 -> 3.03:1 on panel, switch off)
-//   dark track2     #2C2C31 -> #616165  (1.35:1 -> 3.03:1 on panel, switch off)
-//   og on           #FF5C9D -> #F5559A  (2.89:1 -> 3.16:1 on panel + vs knob)
-//   dark sel        #7B61FF -> #765DF5  (selInk 4.20:1 -> 4.51:1)
-//   r2: + `edge` (#8B8B93 / #67676B, >= 3:1 on panel AND field): field
-//   outline, slider thumb ring (Light/OG), selected-segment ring; slider
-//   track .09->.12 (light/og), .10->.14 (dark); picker well/checker themed.
-//   og glass/glassInk2  rgba(16,16,18,.55)/rgba(255,255,255,.65)
-//                    -> rgba(16,16,18,.64)/rgba(255,255,255,.80)
-//                       (glassInk2 2.89:1 -> 4.6:1 over the og page)
-//   Phase D review: glass over REAL wallpapers (white / black / mid grey,
-//   with and without glassBtn) >= 4.5:1 — light glass .80 -> .86 and
-//   glassInk2 #6B6B73 -> #56565E; dark .58 -> .85 and #9B9BA4 -> #B4B4BC;
-//   og .64 -> .74 (tested in uiTokens.test.ts).
-// Second block = derived keys the design file does not spell out (lines,
-// focus ring, danger, opaque fallbacks…), chosen per theme in the same
-// family and contrast-tested the same way.
+// Material: tinted graphite glass (dark) / pearl glass (light) + blur 28 /
+// saturate 190, a 0.5px light edge and a long plum shadow; ONE accent (Rosa)
+// for "on"; the neutral `on` (near-white / near-black) for "selected but not
+// active"; a lilac focus ring. OG keeps its identity (lime selection, violet
+// rail, pink accent) on a near-white panel.
+//
+// Design values are verbatim EXCEPT the WCAG adjustments (measured in
+// uiTokens.test.ts over white / black / mid-grey wallpapers and the theme
+// page, because the dock is translucent; plan liquid-glass-plan.md §2):
+//   dock/panel fill  dark .60 -> .85 (the design's own --glass-fill-strong
+//                    family), light .66 -> .86 (= --glass-fill-strong): ink2/
+//                    ink3 >= 4.5:1 over ANY wallpaper.
+//   ink2  dark .68 -> .82, light .64 -> .72;  ink3 dark .42 -> .71, light
+//                    .42 -> .64 (>= 4.5:1 on panel, well and well-hover).
+//   switch off track: the design's well-press has ~1.5:1; it keeps an `edge`
+//                    ring (>= 3:1), like the v3 open-row fix (F-B1).
+// Second block of keys = derived values the DS does not spell out (edges,
+// danger tints, picker chrome…), chosen in the same family and tested.
 const LIGHT = {
-  panel: "#FFFFFF", field: "#F2F2F4", fieldHover: "#E9E9EC",
-  ink: "#0B0B0C", ink2: "#56565E", ink3: "#69696F",
-  track: "rgba(0,0,0,0.12)", track2: "#949496", fill: "#6B4EFF",
-  sel: "#6B4EFF", selInk: "#FFFFFF", on: "#0B0B0C", knobOn: "#FFFFFF", edit: "#C2541A",
-  rail: "#0B0B0C", railInk: "#8A8A93", railSel: "#6B4EFF", railSelInk: "#FFFFFF",
-  glass: "rgba(255,255,255,0.86)", glassInk: "#0B0B0C", glassInk2: "#56565E",
-  glassEdge: "inset 0 -0.5px 0 rgba(0,0,0,0.08)", glassBtn: "rgba(0,0,0,0.05)",
-  pop: "rgba(255,255,255,0.90)", popInk: "#0B0B0C",
-  panelShadow: "0 0 0 0.5px rgba(0,0,0,0.06), 0 24px 60px -24px rgba(0,0,0,0.35)",
-  seg: "#FFFFFF", segInk: "#0B0B0C", segShadow: "inset 0 0 0 1px #8B8B93, 0 1px 3px rgba(0,0,0,0.12)",
-  n1: "#6B4EFF", n2: "#E11D74", n3: "#C2541A", n4: "#5E7A00",
+  // panel = the dock's glass; field = the flat "well" inside it.
+  panel: "rgba(253,251,253,0.86)", field: "rgba(40,10,40,0.05)", fieldHover: "rgba(40,10,40,0.08)",
+  ink: "#141118", ink2: "rgba(20,17,24,0.72)", ink3: "rgba(20,17,24,0.64)",
+  track: "rgba(40,10,40,0.05)", track2: "rgba(40,10,40,0.12)", fill: "#D42A70",
+  sel: "#141118", selInk: "#FFFFFF", on: "#D42A70", knobOn: "#FFFFFF", edit: "#D42A70",
+  rail: "rgba(253,251,253,0.86)", railInk: "rgba(20,17,24,0.72)", railSel: "#141118", railSelInk: "#FFFFFF",
+  glass: "rgba(253,251,253,0.86)", glassInk: "#141118", glassInk2: "rgba(20,17,24,0.72)",
+  glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(40,10,40,0.08)", glassBtn: "rgba(40,10,40,0.05)",
+  pop: "rgba(253,251,253,0.94)", popInk: "#141118",
+  panelShadow: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(40,10,40,0.08), 0 1px 2px rgba(40,10,40,0.06), 0 28px 64px -18px rgba(60,20,60,0.28)",
+  seg: "#141118", segInk: "#FFFFFF", segShadow: "0 2px 10px rgba(0,0,0,0.2)",
+  n1: "#D42A70", n2: "#D42A70", n3: "#D42A70", n4: "#D42A70",
+  // DS accent (Rosa) + its ink / tints (tiles, Publicar, slider, switch on).
+  accent: "#D42A70", accentInk: "#FFFFFF", accentSoft: "rgba(212,42,112,0.12)", accentGlow: "rgba(212,42,112,0.35)",
+  wellPress: "rgba(40,10,40,0.12)", success: "#1F9D5B", panelSolid: "#FBF9FB",
   // derived
-  page: "#F4F4F5", fieldActive: "#E2E2E6", inkDisabled: "#B4B4BB",
-  popSolid: "#FFFFFF", popShadow: "0 0 0 0.5px rgba(0,0,0,0.08), 0 16px 40px -12px rgba(0,0,0,0.28)",
-  scrollbar: "rgba(0,0,0,0.18)", line: "rgba(0,0,0,0.08)", lineStrong: "rgba(0,0,0,0.20)", lineField: "#8B8B93",
-  primaryHover: "#26262A", primaryActive: "#3A3A40", trackHover: "rgba(0,0,0,0.14)",
-  danger: "#D92D20", dangerTint: "rgba(217,45,32,0.08)", dangerTintActive: "rgba(217,45,32,0.14)", dangerLine: "rgba(217,45,32,0.35)",
-  focus: "#6B4EFF", ring: "0 0 0 2px #FFFFFF, 0 0 0 3.5px #6B4EFF",
-  // r2: a boundary grey >= 3:1 on panel AND field — slider thumb ring,
-  // selected-segment ring, field outline (1.4.11).
-  edge: "#8B8B93",
-  thumbShadow: "0 0 0 1.5px #8B8B93, 0 1px 3px rgba(0,0,0,0.20)",
+  page: "#F3EFF4", fieldActive: "rgba(40,10,40,0.12)", inkDisabled: "rgba(20,17,24,0.32)",
+  popSolid: "#FBF9FB", popShadow: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(40,10,40,0.08), 0 8px 24px -8px rgba(60,20,60,0.28)",
+  scrollbar: "rgba(40,10,40,0.16)", line: "rgba(40,10,40,0.08)", lineStrong: "rgba(40,10,40,0.20)", lineField: "#77707B",
+  primaryHover: "#2A2530", primaryActive: "#3A3440", trackHover: "rgba(40,10,40,0.08)",
+  danger: "#B02A24", dangerTint: "rgba(176,42,36,0.10)", dangerTintActive: "rgba(217,58,49,0.16)", dangerLine: "rgba(217,58,49,0.35)",
+  focus: "#6440F0", ring: "0 0 0 2px #FBF9FB, 0 0 0 4px #6440F0",
+  // A boundary grey >= 3:1 on panel AND well (switch off ring, field edges).
+  edge: "#77707B",
+  thumbShadow: "0 1px 3px rgba(0,0,0,0.20)",
   wellBase: "#FFFFFF",
-  checker: "conic-gradient(#E4E4E7 25%, #FFFFFF 0 50%, #E4E4E7 0 75%, #FFFFFF 0)",
-  // Phase F: outline of the selected object chip. The violet `sel` already
-  // has >= 3:1 on the panel; OG's lime does not (1.28:1), so OG draws ink.
+  checker: "conic-gradient(#D9D4DC 25%, #FFFFFF 0 50%, #D9D4DC 0 75%, #FFFFFF 0)",
   selEdge: "transparent",
 };
 type ThemePalette = { readonly [K in keyof typeof LIGHT]: string };
 
 const DARK: ThemePalette = {
-  panel: "#121214", field: "#1C1C20", fieldHover: "#25252A",
-  ink: "#F4F4F5", ink2: "#B4B4BC", ink3: "#8B8B91",
-  track: "rgba(255,255,255,0.14)", track2: "#616165", fill: "#8B73FF",
-  sel: "#765DF5", selInk: "#FFFFFF", on: "#C6F432", knobOn: "#0B0B0C", edit: "#FF8A3D",
-  rail: "#000000", railInk: "#6F6F78", railSel: "#C6F432", railSelInk: "#0B0B0C",
-  glass: "rgba(16,16,18,0.85)", glassInk: "#F4F4F5", glassInk2: "#B4B4BC",
-  glassEdge: "inset 0 -0.5px 0 rgba(255,255,255,0.08)", glassBtn: "rgba(255,255,255,0.07)",
-  pop: "rgba(26,26,30,0.90)", popInk: "#F4F4F5",
-  panelShadow: "0 0 0 0.5px rgba(255,255,255,0.07), 0 30px 80px -24px rgba(0,0,0,0.9)",
-  seg: "#2E2E34", segInk: "#F4F4F5", segShadow: "inset 0 0 0 1px #67676B, 0 1px 2px rgba(0,0,0,0.5)",
-  n1: "#9B85FF", n2: "#FF5C9D", n3: "#FF8A3D", n4: "#C6F432",
+  panel: "rgba(19,17,24,0.85)", field: "rgba(255,255,255,0.07)", fieldHover: "rgba(255,255,255,0.11)",
+  ink: "#F6F3F8", ink2: "rgba(238,232,244,0.82)", ink3: "rgba(238,232,244,0.71)",
+  track: "rgba(255,255,255,0.07)", track2: "rgba(255,255,255,0.16)", fill: "#FF4F94",
+  sel: "#F6F3F8", selInk: "#141118", on: "#FF4F94", knobOn: "#FFFFFF", edit: "#FF4F94",
+  rail: "rgba(19,17,24,0.85)", railInk: "rgba(238,232,244,0.82)", railSel: "#F6F3F8", railSelInk: "#141118",
+  glass: "rgba(19,17,24,0.85)", glassInk: "#F6F3F8", glassInk2: "rgba(238,232,244,0.82)",
+  glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.22), inset 0 0 0 0.5px rgba(255,255,255,0.10)", glassBtn: "rgba(255,255,255,0.07)",
+  pop: "rgba(19,17,24,0.92)", popInk: "#F6F3F8",
+  panelShadow: "inset 0 0.5px 0 rgba(255,255,255,0.22), inset 0 0 0 0.5px rgba(255,255,255,0.10), 0 1px 2px rgba(8,4,12,0.30), 0 28px 64px -16px rgba(8,4,12,0.55)",
+  seg: "#F6F3F8", segInk: "#141118", segShadow: "0 2px 10px rgba(0,0,0,0.2)",
+  n1: "#FF4F94", n2: "#FF4F94", n3: "#FF4F94", n4: "#FF4F94",
+  accent: "#FF4F94", accentInk: "#1C0712", accentSoft: "rgba(255,79,148,0.18)", accentGlow: "rgba(255,79,148,0.50)",
+  wellPress: "rgba(255,255,255,0.16)", success: "#5BE49B", panelSolid: "#17151C",
   // derived
-  page: "#050506", fieldActive: "#2C2C32", inkDisabled: "#4A4A52",
-  popSolid: "#1A1A1E", popShadow: "inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 32px rgba(0,0,0,0.5)",
-  scrollbar: "rgba(255,255,255,0.14)", line: "rgba(255,255,255,0.08)", lineStrong: "rgba(255,255,255,0.20)", lineField: "#67676B",
-  primaryHover: "#FFFFFF", primaryActive: "#DADADF", trackHover: "rgba(255,255,255,0.16)",
-  danger: "#FF5A52", dangerTint: "rgba(255,90,82,0.10)", dangerTintActive: "rgba(255,90,82,0.16)", dangerLine: "rgba(255,90,82,0.35)",
-  focus: "#9B85FF", ring: "0 0 0 2px #121214, 0 0 0 3.5px #9B85FF",
-  edge: "#67676B",
-  // The white thumb itself is 18:1 on the dark panel: no ring needed.
+  page: "#0E0C12", fieldActive: "rgba(255,255,255,0.16)", inkDisabled: "rgba(238,232,244,0.32)",
+  popSolid: "#17151C", popShadow: "inset 0 0.5px 0 rgba(255,255,255,0.22), inset 0 0 0 0.5px rgba(255,255,255,0.10), 0 12px 32px rgba(8,4,12,0.5)",
+  scrollbar: "rgba(255,255,255,0.14)", line: "rgba(255,255,255,0.09)", lineStrong: "rgba(255,255,255,0.20)", lineField: "#9A93A2",
+  primaryHover: "#FFFFFF", primaryActive: "#DCD6E2", trackHover: "rgba(255,255,255,0.11)",
+  danger: "#FF8079", dangerTint: "rgba(255,95,87,0.16)", dangerTintActive: "rgba(255,95,87,0.22)", dangerLine: "rgba(255,95,87,0.35)",
+  focus: "#B9A2FF", ring: "0 0 0 2px #17151C, 0 0 0 4px #B9A2FF",
+  edge: "#9A93A2",
+  // The white thumb is 15:1 on the dark glass: no ring needed.
   thumbShadow: "0 1px 3px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(0,0,0,0.2)",
-  wellBase: "#2A2A30",
+  wellBase: "#2C2733",
+  checker: "conic-gradient(#3A3440 25%, #24202A 0 50%, #3A3440 0 75%, #24202A 0)",
   selEdge: "transparent",
-  checker: "conic-gradient(#3A3A42 25%, #24242A 0 50%, #3A3A42 0 75%, #24242A 0)",
 };
 
+// OG: the light pearl glass, nearly opaque (OG was the flat white editor),
+// with its own identity: lime selection, violet rail, pink accent.
 const OG: ThemePalette = {
   ...LIGHT,
-  ink2: "#56565E",
-  sel: "#C6F432", selInk: "#0B0B0C", on: "#F5559A", knobOn: "#FFFFFF",
-  rail: "#6B4EFF", railInk: "rgba(255,255,255,0.72)", railSel: "#C6F432", railSelInk: "#0B0B0C",
-  glass: "rgba(16,16,18,0.74)", glassInk: "#FFFFFF", glassInk2: "rgba(255,255,255,0.80)",
-  glassEdge: "inset 0 -0.5px 0 rgba(255,255,255,0.1)", glassBtn: "rgba(255,255,255,0.1)",
-  pop: "rgba(255,255,255,0.90)",
-  panelShadow: "0 24px 60px -24px rgba(0,0,0,0.6)",
+  panel: "rgba(255,255,255,0.94)", panelSolid: "#FFFFFF", page: "#F4F4F5", popSolid: "#FFFFFF", pop: "rgba(255,255,255,0.96)",
+  sel: "#C6F432", selInk: "#0B0B0C", selEdge: "#0B0B0C",
+  on: "#D6246E", fill: "#D6246E", edit: "#D6246E", knobOn: "#FFFFFF",
+  accent: "#D6246E", accentInk: "#FFFFFF", accentSoft: "rgba(214,36,110,0.12)", accentGlow: "rgba(214,36,110,0.35)",
+  n1: "#D6246E", n2: "#D6246E", n3: "#D6246E", n4: "#D6246E",
+  rail: "#6B4EFF", railInk: "rgba(255,255,255,0.86)", railSel: "#C6F432", railSelInk: "#0B0B0C",
+  glass: "rgba(16,16,18,0.80)", glassInk: "#FFFFFF", glassInk2: "rgba(255,255,255,0.84)",
+  glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08)", glassBtn: "rgba(255,255,255,0.10)",
   seg: "#0B0B0C", segInk: "#FFFFFF", segShadow: "none",
-  selEdge: "#0B0B0C",
+  ring: "0 0 0 2px #FFFFFF, 0 0 0 4px #6440F0",
 };
 
 /** Editor font stacks: next/font (layout.tsx) defines --font-display/-sans/
@@ -119,11 +115,12 @@ const UI_FONT = {
 /** Per-theme type overrides (DS: OG title 750 26 display, heading 650 15
  * display). Emitted with the palettes as --ui-theme-<key>. */
 const TYPE_BASE = {
-  titleFont: UI_FONT.display, titleSize: "22px", titleWeight: "650",
+  // Liquid glass: Geist does the work (title 19/650, DS tokens/typography.css).
+  titleFont: UI_FONT.sans, titleSize: "19px", titleWeight: "650",
   headingFont: UI_FONT.sans, headingWeight: "600",
 };
 type ThemeType = { readonly [K in keyof typeof TYPE_BASE]: string };
-const TYPE_OG: ThemeType = { ...TYPE_BASE, titleSize: "26px", titleWeight: "750", headingFont: UI_FONT.display, headingWeight: "650" };
+const TYPE_OG: ThemeType = { ...TYPE_BASE, titleFont: UI_FONT.display, titleSize: "21px", titleWeight: "750", headingFont: UI_FONT.display, headingWeight: "650" };
 
 const kebab = (k: string) => k.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
 
@@ -208,8 +205,11 @@ export const T = {
     },
     surface: {
       panel:      th("panel"),
-      /** Panel under prefers-reduced-transparency (the panels are opaque). */
-      panelOpaque: th("panel"),
+      /** Panel under prefers-reduced-transparency / forced colors: the
+       * glass' solid fill (DS --glass-fill-solid). */
+      panelOpaque: th("panelSolid"),
+      /** Liquid glass "well" press state (DS --glass-well-press). */
+      controlPress: th("wellPress"),
       group:      th("field"),
       groupHover: th("fieldHover"),
       /** Popovers: translucent `pop` + blur; opaque fallback below. */
@@ -236,11 +236,11 @@ export const T = {
       selEdge: th("selEdge"),
     },
     accent: {
-      /** Primary button: ink on panel. */
-      on:     th("ink"),
+      /** Primary button / selected-but-not-active (DS --glass-on). */
+      on:     th("sel"),
       onHover: th("primaryHover"),
       onActive: th("primaryActive"),
-      onInk:  th("panel"),
+      onInk:  th("selInk"),
       /** Slider fill (and the value pill while dragging). */
       fill:   th("fill"),
       /** Slider track. */
@@ -263,10 +263,17 @@ export const T = {
       /** Select chevron, drawn inside a data: URI (no var() there): one
        * mid grey with >= 3:1 on the field of every theme (tested). */
       chevron: "#86868E",
-      /** Editor v3 Phase D: the MYLAND brand pink of "Publicar" (design
-       * #FF5C9D) with its ink — the same in every theme (7.0:1, tested). */
-      brand:    "#FF5C9D",
-      brandInk: "#0B0B0C",
+      /** Liquid glass: Publicar is the accent (DS .lg-pill--brand) — the
+       * theme's Rosa with its ink (>= 4.5:1, tested). */
+      brand:    th("accent"),
+      brandInk: th("accentInk"),
+      /** The ONE accent (DS --glass-accent): tiles on, switches, slider,
+       * modified dot, canvas selection. */
+      main:     th("accent"),
+      ink:      th("accentInk"),
+      soft:     th("accentSoft"),
+      glow:     th("accentGlow"),
+      success:  th("success"),
     },
     /** Section number tones 01–04 (MenuSection `tone`). */
     tone: { n1: th("n1"), n2: th("n2"), n3: th("n3"), n4: th("n4") },
@@ -278,38 +285,51 @@ export const T = {
       /** A box-shadow (the glass bottom hairline). */
       glassEdge: th("glassEdge"),
     },
+    /** Liquid glass material (DS --glass-blur): the floating layer only —
+     * dock, rail, topbar, menus, toasts; never glass on glass. */
+    material: { blur: "blur(28px) saturate(190%)" },
     /** Editor font stacks as variables (--ui-font-sans …) for editor.css. */
     font: UI_FONT,
     opacity: { disabled: 0.38 },
-    radius: { panel: 16, group: 12, control: 8, segment: 6, chip: 999, field: 12, pill: 7, button: 10, segTrack: 10, segThumb: 8,
-      /** Editor v3 Phase B: top corners of the bottom sheet (design screen 10). */
-      sheet: 28,
-      /** Editor v3 Phase F: object chips (design: 9-12px, not a pill). */
-      objChip: 10,
-      /** Editor v3 Phase D: the floating dock (design: radius 22). */
-      dock: 22 },
+    // Liquid glass (DS tokens/glass.css + spacing.css): continuous, generous
+    // radii — 10 menu item, 16 control / field, 20 tile, 22 popover, 30
+    // panel, capsules (999) everywhere else.
+    radius: { panel: 30, group: 20, control: 16, segment: 999, chip: 999, field: 16, pill: 999, button: 999, segTrack: 999, segThumb: 999,
+      /** Bottom sheet's top corners (= the panel radius). */
+      sheet: 30,
+      /** Part picker buttons (round). */
+      objChip: 999,
+      /** The floating dock (DS --glass-radius-panel). */
+      dock: 30,
+      /** Tiles and inline detail wells (DS --glass-radius-tile). */
+      tile: 20,
+      /** Popovers (DS .lg-pop). */
+      popover: 22,
+      /** Menu items (DS .lg-menu__item). */
+      item: 10,
+      /** Accordion cards of the dock. */
+      card: 22 },
     size:   {
-      panelPad: 16, row: 32, control: 28, swatch: 24, icon: 16,
-      /** The docked inspector's width (InspectorShell). Editor v3 Phase D: 360,
-       * floating `dockMargin` px from the right / bottom edges and under the
-       * editor topbar (design screen 01). */
-      inspectorW: 360,
-      dockMargin: 12,
-      /** Editor v3 Phase D: the tool rail (left) and the editor topbar. The
-       * topbar OVERLAYS the canvas (glass): CANVAS_TOP_OFFSET stays 44 (R1). */
+      panelPad: 14, row: 44, control: 44, swatch: 32, icon: 17,
+      /** The floating dock (DS --glass-w-dock), `dockMargin` from the edges
+       * (DS --glass-gap-edge). */
+      inspectorW: 344,
+      dockMargin: 16,
+      /** The tool rail (left) and the editor topbar. The topbar OVERLAYS the
+       * canvas (glass): CANVAS_TOP_OFFSET stays 44 (R1). */
       railW: 64,
       editorTopbarH: 60,
-      /** Object-list chip height (design-direction.md §E). */
-      objChip: 32,
-      /** v3 controls (plan §3): switch 40×24 / knob 20, slider thumb 18, button 34. */
-      switchW: 40, switchH: 24, knob: 20, thumb: 18, button: 34,
+      /** Part picker button (DS --glass-h-part). */
+      objChip: 44,
+      /** DS controls: switch 51x31 / knob 27, buttons 36, tiles 92, hit 44. */
+      switchW: 51, switchH: 31, knob: 27, thumb: 18, button: 36, tileH: 92, touch: 44,
     },
     /** Below this viewport width the inspector stops docking and becomes a
      * bottom sheet (Editor v3 Phase B) and the rail hides (design screen 10
      * has none). The design says "under ~900px"; the value comes from the rule
      * that the widest ProfileCard fits between the rail and the dock — see
      * uiTokens.test.ts (railW + 16 + maxW 640 + 16 + inspectorW + dockMargin).
-     * Phase D: 64 + 16 + 640 + 16 + 360 + 12 = 1108. */
+     * Liquid glass: 64 + 16 + 640 + 16 + 344 + 16 = 1096 (kept at 1108). */
     breakpoint: { inspectorSheet: 1108 },
     shadow: {
       panel:   th("panelShadow"),
@@ -392,7 +412,10 @@ export const T = {
     accent:  { fontFamily: UI_FONT.serif, fontSize: 22, lineHeight: 1.1, fontWeight: 400, fontStyle: "italic" },
   },
 
-  motion: { fast: 120, base: 180, panel: 220, segment: 240, ease: "cubic-bezier(0.32,0.72,0,1)", spring: "cubic-bezier(0.34,1.56,0.64,1)", switch: 320 },
+  // Liquid glass (DS tokens/motion.css): springs for anything you touch,
+  // ease-out for content swaps; reduced motion = instant (editor.css).
+  motion: { fast: 120, base: 180, panel: 220, segment: 240, ease: "cubic-bezier(0.25,1,0.5,1)", spring: "cubic-bezier(0.34,1.56,0.64,1)", switch: 420,
+    springSoft: "cubic-bezier(0.22,1.2,0.36,1)", tap: 160, swap: 260, panelIn: 420, toast: 2400 },
   /** inspector = menu − 1: under Music's floating menu and ColorPopover,
    * above every canvas chrome and the topbar (uiTokens.test.ts). */
   z:      { inspector: 999998, menu: 999999, popover: 1000000 },

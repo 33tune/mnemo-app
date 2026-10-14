@@ -38,14 +38,18 @@
 
 /* ── Panel (L1) ─────────────────────────────────────────────────────────── */
 .mn-panel[data-mnemo-editor] {
+  /* Liquid glass (L0): the floating layer is glass — translucent fill +
+     blur 28 / saturate 190, the 0.5px light edge and the long shadow live in
+     --ui-shadow-panel (DS .lg-glass). Solid under reduced transparency. */
   background: var(--ui-surface-panel);
-  border: 0.5px solid var(--ui-line-panel);
+  -webkit-backdrop-filter: var(--ui-material-blur);
+  backdrop-filter: var(--ui-material-blur);
+  border: none;
   border-radius: var(--ui-radius-panel);
   box-shadow: var(--ui-shadow-panel);
   color: var(--ui-text-primary);
-}
-@media (max-resolution: 1dppx) {
-  .mn-panel[data-mnemo-editor] { border-width: 1px; }
+  font-family: var(--ui-font-sans);
+  letter-spacing: -0.005em;
 }
 .mn-panel[data-mnemo-editor]::-webkit-scrollbar { width: 6px; }
 .mn-panel[data-mnemo-editor]::-webkit-scrollbar-thumb { background: var(--ui-surface-scrollbar); border-radius: 3px; }
@@ -53,23 +57,19 @@
 /* The docked inspector (InspectorShell) — the SAME L1 surface (Menu redesign
    Phase 2), floating since Editor v3 Phase D. */
 .mn-panel.mn-panel--docked[data-mnemo-editor] {
-  /* Editor v3 Phase D: a FLOATING dock (design screen 01) — 12px from the
-     edges, radius 22, the panel shadow; the hairline all around. */
-  border: 0.5px solid var(--ui-line-panel);
+  /* Liquid glass: the floating dock (DS .lg-panel) — 16px from the edges,
+     radius 30, glass edge + shadow; enters on the soft spring. */
   border-radius: var(--ui-radius-dock);
   box-shadow: var(--ui-shadow-panel);
   overflow: hidden;
+  animation: mn-dock-in var(--ui-motion-panel-in) var(--ui-motion-spring-soft);
 }
-@media (max-resolution: 1dppx) {
-  .mn-panel.mn-panel--docked[data-mnemo-editor] { border-width: 1px; }
-}
+@keyframes mn-dock-in { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
 /* Editor v3 Phase B: the bottom sheet (narrow viewport, InspectorShell
    mode "sheet") — same L1 surface, top hairline + rounded top corners, the
    panel shadow for separation from the canvas above it; a decorative
    grabber; 44px targets (close, collapsed bar). */
 .mn-panel.mn-panel--sheet[data-mnemo-editor] {
-  border: 0 solid var(--ui-line-panel);
-  border-top-width: 0.5px;
   border-radius: var(--ui-radius-sheet) var(--ui-radius-sheet) 0 0;
   box-shadow: var(--ui-shadow-panel);
   /* Review B-UX-6: clear the home indicator on notched phones. */
@@ -499,7 +499,7 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  .mn-panel[data-mnemo-editor] { background: var(--ui-surface-panel-opaque); }
+  .mn-panel[data-mnemo-editor] { background: var(--ui-surface-panel-opaque); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @keyframes mn-pop-in {
   from { opacity: 0; }

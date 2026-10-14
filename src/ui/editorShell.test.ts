@@ -107,15 +107,17 @@ test("dock: the widest card is centered BETWEEN the rail and the floating dock",
   }
 });
 
-test("the brand pink of Publicar has >= 4.5:1 with its ink in every theme (theme-independent)", () => {
+test("Liquid glass: Publicar is the theme accent with its ink (>= 4.5:1 in every theme)", () => {
   const lum = (hex: string) => {
     const n = parseInt(hex.slice(1), 16);
     const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   };
-  const [a, b] = [lum(T.ui.accent.brand), lum(T.ui.accent.brandInk)];
-  assert.ok((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) >= 4.5);
-  assert.ok(!T.ui.accent.brand.includes("var("), "fixed in every theme");
+  assert.equal(T.ui.accent.brand, T.ui.accent.main);
+  for (const t of Object.values(T.theme)) {
+    const [a, b] = [lum(t.accent), lum(t.accentInk)];
+    assert.ok((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) >= 4.5);
+  }
 });
 
 test("Phase G: the image link moved to the image inspector (no canvas dialog / chip left)", () => {

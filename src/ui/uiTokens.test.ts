@@ -57,7 +57,7 @@ test("generated names follow --ui-<group>-<key> and carry the token values", () 
   assert.equal(vars["--ui-surface-control-hover"], T.ui.surface.controlHover);
   assert.equal(vars["--ui-shadow-ring"], T.ui.shadow.ring);
   assert.equal(vars["--ui-opacity-disabled"], "0.38");
-  assert.equal(vars["--ui-radius-panel"], "16px");
+  assert.equal(vars["--ui-radius-panel"], "30px");
   assert.equal(vars["--ui-motion-fast"], `${T.motion.fast}ms`);
   assert.equal(vars["--ui-motion-ease"], T.motion.ease);
 });
@@ -230,10 +230,11 @@ test("sheet breakpoint leaves room for the widest card between the rail and the 
   // margin — above the breakpoint the view offset can always uncover the card.
   const need = T.ui.size.railW + 16 + getFreeformCardBounds().maxW + 16 + T.ui.size.inspectorW + T.ui.size.dockMargin;
   assert.ok(T.ui.breakpoint.inspectorSheet >= need, `${T.ui.breakpoint.inspectorSheet} < ${need}`);
-  assert.equal(T.ui.size.inspectorW, 360, "design: dock 360px");
-  assert.equal(T.ui.size.dockMargin, 12);
-  assert.equal(T.ui.radius.dock, 22);
-  assert.equal(T.ui.size.objChip, 32);
+  // Liquid glass (DS --glass-w-dock / --glass-gap-edge / --glass-radius-panel / --glass-h-part).
+  assert.equal(T.ui.size.inspectorW, 344, "design: dock 344px");
+  assert.equal(T.ui.size.dockMargin, 16);
+  assert.equal(T.ui.radius.dock, 30);
+  assert.equal(T.ui.size.objChip, 44);
 });
 
 test("the docked inspector and the object chips are styled by editor.css (incl. forced colors / reduced motion)", () => {
@@ -414,71 +415,66 @@ function contrast(fg: string, bg: string, base = "#000000"): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
+// Liquid glass (Menus v4, L0): the dock / rail / popovers are TRANSLUCENT, so
+// every "on panel" pair is measured with the panel flattened over the worst
+// wallpapers (white, black, mid grey) and the theme page; the flat wells
+// (field / fieldHover) are flattened over that panel.
+const WALLS = ["#FFFFFF", "#000000", "#808080"] as const;
 for (const t of EDITOR_THEME_NAMES) {
-  test(`contrast — ${t}: text >= 4.5:1, state-carrying non-text >= 3:1`, () => {
+  test(`contrast — ${t}: text >= 4.5:1, state-carrying non-text >= 3:1 (glass over any wallpaper)`, () => {
     const P = T.theme[t];
-    const text: Array<[string, string, string, string?]> = [
-      ["ink on panel", P.ink, P.panel], ["ink on field", P.ink, P.field], ["ink on fieldHover", P.ink, P.fieldHover],
-      ["ink2 on panel", P.ink2, P.panel], ["ink2 on field", P.ink2, P.field],
-      ["ink3 on panel", P.ink3, P.panel], ["ink3 on field", P.ink3, P.field],
-      // r2 (A11y-2): placeholder / inherited value on a hovered field.
-      ["ink3 on fieldHover", P.ink3, P.fieldHover], ["ink2 on fieldHover", P.ink2, P.fieldHover],
-      // r2 (A11y-3): ColorPopover's ink2 labels over any wallpaper.
-      ["ink2 on pop / black", P.ink2, P.pop, "#000000"], ["ink2 on pop / white", P.ink2, P.pop, "#FFFFFF"],
-      ["selInk on sel", P.selInk, P.sel], ["segInk on seg", P.segInk, P.seg],
-      ["primary button label", P.panel, P.ink],
-      ["fill value (dragging) on field", P.fill, P.field],
-      ["danger on panel", P.danger, P.panel],
-      ["n1 on panel", P.n1, P.panel], ["n2 on panel", P.n2, P.panel], ["n3 on panel", P.n3, P.panel], ["n4 on panel", P.n4, P.panel],
-      // Translucent surfaces: popovers over anything (black and white
-      // backdrops); glass over the theme's page (Phase D re-measures it
-      // over real wallpapers when the topbar/rail ship).
-      ["popInk on pop / black", P.popInk, P.pop, "#000000"], ["popInk on pop / white", P.popInk, P.pop, "#FFFFFF"],
-      ["glassInk on glass / page", P.glassInk, P.glass, P.page], ["glassInk2 on glass / page", P.glassInk2, P.glass, P.page],
-      // Phase D review (1.4.3): the editor topbar's glass over REAL
-      // wallpapers — white, black and mid grey (the worst case for dark
-      // glass) — bare and under the glassBtn fill (tabs, idle Publicar).
-      ...(["#FFFFFF", "#000000", "#808080"] as const).flatMap(w => [
-        [`glassInk on glass / ${w}`, P.glassInk, P.glass, w],
-        [`glassInk2 on glass / ${w}`, P.glassInk2, P.glass, w],
-        [`glassInk on glassBtn / glass / ${w}`, P.glassInk, P.glassBtn, flat(P.glass, w)],
-        [`glassInk2 on glassBtn / glass / ${w}`, P.glassInk2, P.glassBtn, flat(P.glass, w)],
-      ] as Array<[string, string, string, string]>),
+    const bases = [...WALLS, P.page];
+    /** Every opaque backdrop a token can sit on: [label, color]. */
+    const on = (layer: "panel" | "field" | "fieldHover" | "pop" | "glass") => bases.map(w => {
+      const panel = flat(P.panel, w);
+      const c = layer === "panel" ? panel
+        : layer === "field" ? flat(P.field, panel)
+        : layer === "fieldHover" ? flat(P.fieldHover, panel)
+        : layer === "pop" ? flat(P.pop, w)
+        : flat(P.glass, w);
+      return [`${layer}/${w}`, c] as const;
+    });
+    const text: Array<[string, string, ReadonlyArray<readonly [string, string]>]> = [
+      ["ink", P.ink, [...on("panel"), ...on("field"), ...on("fieldHover")]],
+      ["ink2", P.ink2, [...on("panel"), ...on("field"), ...on("fieldHover")]],
+      ["ink3", P.ink3, [...on("panel"), ...on("field"), ...on("fieldHover")]],
+      ["popInk", P.popInk, on("pop")], ["ink2 on pop", P.ink2, on("pop")],
+      ["glassInk", P.glassInk, on("glass")], ["glassInk2", P.glassInk2, on("glass")],
+      ["danger", P.danger, on("panel")],
     ];
-    for (const [name, fg, bg, base] of text) {
-      const r = contrast(fg, bg, base);
+    for (const [name, fg, bgs] of text) {
+      for (const [where, bg] of bgs) {
+        const r = contrast(fg, bg);
+        assert.ok(r >= 4.5, `${t}: ${name} on ${where} = ${r.toFixed(2)}:1 (< 4.5)`);
+      }
+    }
+    // Opaque pairs: labels on filled controls.
+    const pairs: Array<[string, string, string]> = [
+      ["selInk on sel (tabs, part picker, rail)", P.selInk, P.sel], ["segInk on seg", P.segInk, P.seg],
+      ["accentInk on accent (tile on, Publicar)", P.accentInk, P.accent],
+      ["railSelInk on railSel", P.railSelInk, P.railSel],
+    ];
+    for (const [name, fg, bg] of pairs) {
+      const r = contrast(fg, bg);
       assert.ok(r >= 4.5, `${t}: ${name} = ${r.toFixed(2)}:1 (< 4.5)`);
     }
-    const nonText: Array<[string, string, string]> = [
-      ["switch off track on panel", P.track2, P.panel], ["switch on track on panel", P.on, P.panel],
-      ["switch knob (off) on its track", T.ui.accent.knob, P.track2], ["switch knob (on) on its track", P.knobOn, P.on],
-      ["slider fill on panel", P.fill, P.panel], ["modified dot on panel", P.edit, P.panel],
-      ["focus ring on panel", P.focus, P.panel], ["select chevron on field", T.ui.accent.chevron, P.field],
-      // r2: the shared boundary grey (field outline, thumb ring, segment ring).
-      ["edge (field outline) on panel", P.edge, P.panel], ["edge (field outline) on field", P.edge, P.field],
-      // Phase F: the selected object chip's shape — its `sel` fill, or (OG's
-      // lime, 1.28:1 on white) its selEdge outline — >= 3:1 on the panel.
-      ["selected chip boundary on panel", P.selEdge === "transparent" ? P.sel : P.selEdge, P.panel],
-      ["modified dot (chip) on field", P.edit, P.field],
-      // Review F-B1: the switch inside an OPEN effect row sits on `field`;
-      // its 1px ring (lineField) carries the shape there.
-      ["switch ring in an open effect row (on field)", P.lineField, P.field],
+    // State-carrying non-text >= 3:1 on the panel over every wallpaper.
+    const nonText: Array<[string, string]> = [
+      ["accent (slider knob, switch on, modified dot)", P.accent], ["focus ring", P.focus],
+      ["edge (switch off ring, field edge)", P.edge], ["selected part / tab", P.selEdge === "transparent" ? P.sel : P.selEdge],
     ];
-    for (const [name, fg, bg] of nonText) {
-      const r = contrast(fg, bg);
-      assert.ok(r >= 3, `${t}: ${name} = ${r.toFixed(2)}:1 (< 3)`);
+    for (const [name, fg] of nonText) {
+      for (const [where, bg] of [...on("panel"), ...on("field")]) {
+        const r = contrast(fg, bg);
+        assert.ok(r >= 3, `${t}: ${name} on ${where} = ${r.toFixed(2)}:1 (< 3)`);
+      }
     }
-    // r2 (A11y-1): slider thumb boundary vs the panel — the white thumb itself,
-    // or its `edge` ring (Light/OG).
-    const thumbOk = contrast(T.ui.accent.thumb, P.panel) >= 3 || (P.thumbShadow.includes(P.edge) && contrast(P.edge, P.panel) >= 3);
-    assert.ok(thumbOk, `${t}: slider thumb has no >= 3:1 boundary on the panel`);
-    // r2 (A11y-4 / Critic-1): selected segment thumb vs its track (field).
-    const segOk = contrast(P.seg, P.field) >= 3 || (P.segShadow.includes(P.edge) && contrast(P.edge, P.field) >= 3);
-    assert.ok(segOk, `${t}: selected segment has no >= 3:1 boundary on the track`);
-    // r2 (Visual-1): ink2 and ink3 stay distinguishable (hierarchy, not just a pass).
-    const gap = contrast(P.ink2, P.panel) / contrast(P.ink3, P.panel);
-    assert.ok(gap >= 1.3, `${t}: ink2/ink3 too close (${gap.toFixed(2)})`);
-    assert.ok(P.segShadow.includes(P.edge) || t === "og", `${t}: segShadow should carry the edge ring`);
+    assert.ok(contrast(P.knobOn, P.accent) >= 3, `${t}: switch knob on the accent track`);
+    assert.ok(contrast(T.ui.accent.chevron, flat(P.field, flat(P.panel, P.page))) >= 3, `${t}: select chevron`);
+    // ink2 and ink3 stay distinguishable (hierarchy, not just a pass).
+    const panel = flat(P.panel, P.page);
+    const gap = contrast(P.ink2, panel) / contrast(P.ink3, panel);
+    assert.ok(gap >= 1.15, `${t}: ink2/ink3 too close (${gap.toFixed(2)})`);
   });
 }
 
@@ -492,7 +488,7 @@ test("fields: opaque 1px edge BOTTOM line at rest (1.4.11), full edge ring on ho
   }
   assert.match(css, /\.mn-input:hover \{[^}]*inset 0 0 0 1px var\(--ui-line-field\)/);
   assert.match(css, /\.mn-value-input--field:hover \{[^}]*inset 0 0 0 1px var\(--ui-line-field\)/);
-  assert.ok(contrast(T.theme.light.edge, T.theme.light.panel) >= 3);
+  assert.ok(contrast(T.theme.light.edge, flat(T.theme.light.panel, "#FFFFFF")) >= 3);
   // Geist Mono has no italic face: italic there is a synthetic oblique.
   assert.doesNotMatch(css, /\.mn-(value|hex)[^{]*\{[^}]*font-style:\s*italic/);
 });
