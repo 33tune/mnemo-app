@@ -2,85 +2,72 @@
 import React from "react";
 import { T, uv } from "./tokens";
 import { IconButton } from "./IconButton";
+import { Icon, type IconName } from "./icons";
 
 interface InspectorHeaderProps {
-  /** Route in mono ("sala", "tarjeta / nombre"). */
+  /** Route in mono ("tarjeta / nombre", "sala · nada seleccionado"). */
   path?:     string;
   /** The object's name — the inspector's visible h2 (focus target). */
   title:     string;
   titleId:   string;
   titleRef?: React.Ref<HTMLHeadingElement>;
-  /** Serif aside next to the title ("de la tarjeta", "nada seleccionado"). */
+  /** Liquid glass: the object's glyph in the 36px well left of the title. */
+  icon?:     IconName;
+  /** Kept for the callers; the DS header carries the route only (the
+   * measures moved to each object's "Medidas"). */
   aside?:    string;
-  /** Mono meta line (measures, "5 objetos"). */
   meta?:     string;
   onClose:   () => void;
-  /** Bottom sheet: 44px close target, compact layout (design screen 10). */
+  /** Liquid glass L6: "Buscar ajuste   /" (absent = no search button). */
+  onSearch?: () => void;
+  /** Bottom sheet: 44px targets. */
   sheet?:    boolean;
-  /** Editor v3 Phase F: what stays put under the title while the body
-   * scrolls (the card's object chips). */
+  /** What stays put under the title while the body scrolls (the part
+   * picker of the card, tabs). */
   children?: React.ReactNode;
 }
 
-/** Editor v3 Phase D: the inspector header of the design (screen 01) — route
- * in mono, title in the display face, aside in serif, a meta line and
- * Cerrar. Shared by every inspector the dock hosts (Tu sala, the card).
- * Phase F: in the bottom sheet the title, aside and Cerrar share one row and
- * the route / meta lines are left out (design screen 10); `children` (the
- * object chips) sit under it in both layouts. */
-export function InspectorHeader({ path, title, titleId, titleRef, aside, meta, onClose, sheet, children }: InspectorHeaderProps) {
-  const close = (
-    <IconButton icon="close" aria-label="Cerrar inspector" title="Cerrar · Esc" size={sheet ? 44 : 28}
-      className="mn-iconbtn--filled" style={{ borderRadius: "50%", flexShrink: 0 }} onClick={() => onClose()} />
-  );
-  const titleBlock = (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", minWidth: 0, flex: sheet ? 1 : undefined }}>
-      <h2 ref={titleRef} id={titleId} tabIndex={-1} className="mn-inspector__title" style={{
-        margin: 0, fontFamily: T.uiFont.display, fontSize: sheet ? 28 : 34, lineHeight: 0.98, fontWeight: 800,
-        letterSpacing: "-0.045em", color: uv("text-primary"),
-        maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-      }}>
-        {title}
-      </h2>
-      {aside && (
-        <span style={{ fontFamily: T.uiFont.serif, fontStyle: "italic", fontSize: sheet ? 16 : 19, lineHeight: 1, color: uv("text-secondary") }}>
-          {aside}
-        </span>
-      )}
-    </div>
-  );
+/** Liquid glass (DS dock header, L2): the object's icon in a 36px well, the
+ * title (Geist 19/650) with the route in mono under it, then Buscar and
+ * Cerrar as filled round 36px buttons; the part picker / tabs below. */
+export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose, onSearch, sheet, children }: InspectorHeaderProps) {
+  const btn = sheet ? 44 : 36;
   return (
     <div className="mn-inspector__header" style={{
-      display: "flex", flexDirection: "column", gap: sheet ? T.space[2] : 12,
-      padding: sheet ? `${T.space[2]}px ${T.ui.size.panelPad}px ${T.space[2]}px` : "18px 20px 14px",
-      boxShadow: `inset 0 -1px 0 ${uv("line-group")}`,
+      display: "flex", flexDirection: "column", gap: 14,
+      padding: sheet ? `${T.space[2]}px ${T.ui.size.panelPad}px ${T.space[3]}px` : "16px 14px 12px 18px",
       flexShrink: 0, minWidth: 0,
     }}>
-      {sheet ? (
-        <div style={{ display: "flex", alignItems: "center", gap: T.space[2], minWidth: 0 }}>
-          {titleBlock}
-          {close}
-        </div>
-      ) : (
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: T.space[2], minHeight: 28 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        {icon && (
+          <span key={icon} className="mn-inspector__icon" aria-hidden="true">
+            <Icon name={icon} size={17} />
+          </span>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+          <h2 key={title} ref={titleRef} id={titleId} tabIndex={-1} className="mn-inspector__title" style={{
+            margin: 0, fontFamily: T.type.title.fontFamily, fontSize: T.type.title.fontSize, fontWeight: T.type.title.fontWeight,
+            lineHeight: 1.15, letterSpacing: "-0.02em", color: uv("text-primary"),
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {title}
+          </h2>
+          {path && (
             <span className="mn-inspector__path" style={{
-              fontFamily: T.uiFont.mono, fontSize: 11, lineHeight: "14px", fontWeight: 500, letterSpacing: "0.06em",
-              color: uv("text-tertiary"), marginRight: "auto", minWidth: 0,
+              fontFamily: T.uiFont.mono, fontSize: 11.5, lineHeight: "16px", fontWeight: 500, color: uv("text-tertiary"),
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
               {path}
             </span>
-            {close}
-          </div>
-          {titleBlock}
-          {meta && (
-            <span style={{ fontFamily: T.uiFont.mono, fontSize: 11, lineHeight: "14px", fontWeight: 500, color: uv("text-tertiary"), wordSpacing: 2 }}>
-              {meta}
-            </span>
           )}
-        </>
-      )}
+        </div>
+        {onSearch && (
+          <IconButton icon="search" aria-label="Buscar ajuste" title="Buscar ajuste   /" size={btn} iconSize={16}
+            className="mn-iconbtn--filled" onClick={() => onSearch()} />
+        )}
+        <IconButton icon="close" aria-label="Cerrar inspector" title="Cerrar   esc" size={btn} iconSize={14}
+          className="mn-iconbtn--filled" onClick={() => onClose()} />
+      </div>
       {children}
     </div>
   );

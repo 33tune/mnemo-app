@@ -67,19 +67,23 @@ export function GradientStops({ colors, onChange, min = DEFAULT_MIN, max = DEFAU
     (e.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
   }
 
+  // Liquid glass (DS isStops): the gradient bar (30px, radius 12) on top;
+  // under it the stops as round color radios, "Agregar color" (+), and at
+  // the end "Quitar este color" (trash); the selected stop's color well.
   return (
     <div role="group" aria-label="Editor de gradiente" style={{ display: "flex", flexDirection: "column", gap: T.space[2] }}>
-      <div style={{ padding: "0 7px" }}>
-        <div ref={barRef} className="mn-gbar" role="radiogroup" aria-label="Colores del gradiente" style={{
-          position: "relative", height: 20, borderRadius: 6,
-          background: n > 1 ? `linear-gradient(to right, ${colors.join(", ")})` : colors[0],
-          boxShadow: `inset 0 0 0 0.5px ${uv("line-control")}`,
-        }}>
+      <div className="mn-gbar" aria-hidden style={{
+        height: 30, borderRadius: 12,
+        background: n > 1 ? `linear-gradient(90deg, ${colors.join(", ")})` : colors[0],
+        boxShadow: uv("shadow-well"), transition: "background 200ms",
+      }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div ref={barRef} role="radiogroup" aria-label="Colores del gradiente" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {colors.map((c, i) => (
             <button
               key={i}
               type="button"
-              className="mn-gstop"
+              className="mn-color"
               role="radio"
               aria-label={`Color ${i + 1} de ${n}, ${wellHex(c)}`}
               aria-checked={i === selected}
@@ -87,16 +91,20 @@ export function GradientStops({ colors, onChange, min = DEFAULT_MIN, max = DEFAU
               onMouseDown={e => e.stopPropagation()}
               onClick={e => { e.stopPropagation(); setSel(i); }}
               onKeyDown={e => onHandleKey(e, i)}
-              style={{ left: `${posOf(i)}%`, background: c }}
+              style={{ background: c }}
             />
           ))}
         </div>
+        <IconButton icon="plus" aria-label="Agregar color" className="mn-iconbtn--filled" size={32} iconSize={14} disabled={n >= max} onClick={add} />
+        <span style={{ marginLeft: "auto" }} />
+        <IconButton icon="trash" tone="danger" aria-label={`Quitar color ${selected + 1}`} title="Quitar este color" size={32} iconSize={14} disabled={n <= min} onClick={() => removeSelected(true)} />
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: T.space[2], minHeight: T.ui.size.row }}>
-        <span style={{ ...labelStyle, flex: 1 }}>Color {selected + 1}</span>
-        <ColorSwatch value={colors[selected]} onChange={v => setColor(selected, v)} label={`Color ${selected + 1}`} />
-        <IconButton icon="trash" tone="danger" aria-label={`Quitar color ${selected + 1}`} disabled={n <= min} onClick={() => removeSelected(true)} />
-        <IconButton icon="plus" aria-label="Agregar color" disabled={n >= max} onClick={add} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, padding: "0 2px" }}>
+        <ColorSwatch variant="tile" value={colors[selected]} onChange={v => setColor(selected, v)} label={`Color ${selected + 1}`} showHex={false} />
+        <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ ...labelStyle, fontWeight: 550 }}>Color {selected + 1}</span>
+          <span style={{ ...T.type.value, fontSize: 12, color: uv("text-secondary") }}>{wellHex(colors[selected])}</span>
+        </span>
       </div>
     </div>
   );

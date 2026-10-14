@@ -1,10 +1,10 @@
 "use client";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
-import { useRef, useState } from "react";
 import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { T, uv, MenuSection, MenuRow, MenuNote, SliderRow, ActionButton, ColorRow, Toggle, EffectList, EffectRow, refocusFieldControl } from "@/ui";
+import { MenuSection, MenuNote, SliderRow, ColorRow, EffectList, EffectRow, UploadField, TextInput, SwitchRow, Icon } from "@/ui";
+import { getFontStyle } from "@/lib/fontList";
 import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
 import BlockStyleFields from "./BlockStyleFields";
 import { identityController } from "@/lib/objectControllers";
@@ -45,21 +45,6 @@ export type IdentityPart = "photo" | "name" | "handle" | "identityBlock";
 // controles, no en una pestaña aparte.
 export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor, onChange, only }: ProfileIdentityMenuProps) {
   const { photo, name, handle, photoSize, pfpSizePx, pfpRadius } = card;
-  const [editingName, setEditingName] = useState(false);
-  // Review round (A11Y-2): Enter commits / Esc cancels (restores the name
-  // the field opened with); both hand focus back to the name button.
-  const nameAtEdit = useRef<string>("");
-  const nameBtnRef = useRef<HTMLDivElement>(null);
-  function openNameEdit() {
-    nameAtEdit.current = name ?? "";
-    setEditingName(true);
-  }
-  function closeNameEdit(cancel: boolean) {
-    if (cancel && (name ?? "") !== nameAtEdit.current) id.setName(nameAtEdit.current);
-    setEditingName(false);
-    requestAnimationFrame(() => nameBtnRef.current?.focus({ preventScroll: true }));
-  }
-  const photoRef = useRef<HTMLInputElement>(null);
   const { min: sizeMin, max: sizeMax } = getPfpSizeBounds(cardW, cardH, pad);
   const currentSize = resolvePfpSize(photoSize, pfpSizePx, cardW, cardH, pad);
 
@@ -89,66 +74,54 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
     id.setPfpEffect("pfp.shadow", on);
   }
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  async function handlePhotoFile(f: File) {
     const { publicUrl } = await uploadToStorage(f);
     id.setPhoto(publicUrl);
-    if (photoRef.current) photoRef.current.value = "";
   }
+  const glowOn = isIntensityEffectVisible(pfpFx?.glow);
+  const fxOn = [pfpBorder.width > 0 && "Borde", shadowOn && "Sombra", glowOn && "Brillo"].filter(Boolean) as string[];
+  const shapeLabel = (v: number) => pfpRadiusToPercent(v) === 50 ? "Círculo" : pfpRadiusToPercent(v) === 0 ? "Cuadrado" : `${Math.round(v)}%`;
+  const shapeChanged = [pfpSizePx != null, pfpRadius != null].filter(Boolean).length;
+  const fxChanged = [pfpFx?.border, pfpFx?.shadow, pfpFx?.glow].filter(Boolean).length;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
-      {/* Editor v3 Phase F: Foto in numbered sections — 01 Imagen, 02 Forma,
-          03 Efectos de la foto as effect rows (Borde has no switch: no real
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* Liquid glass (design menu-schema.js "photo"): Imagen (pinned upload),
+          Forma, Efectos de la foto as tiles (Borde has no switch: no real
           pause exists for it; Sombra / Brillo do). Same writes as before. */}
       {only === "photo" && <>
-      <MenuSection label="Imagen" num="01" tone={1} first>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div onClick={() => photoRef.current?.click()} style={{
-            width: 64, height: 64, borderRadius: "50%", flexShrink: 0,
-            overflow: "hidden", cursor: "pointer", background: uv("surface-control"),
-          }}>
-            {photo
-              ? <img src={photo} alt="Foto de perfil actual" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : <div style={{ color: uv("text-tertiary"), width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                  </svg>
-                </div>}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 }}>
-            <ActionButton variant="primary" fullWidth onClick={() => photoRef.current?.click()}>{photo ? "Reemplazar" : "Subir foto"}</ActionButton>
-            {photo && <ActionButton variant="ghost" fullWidth onClick={e => { const el = e.currentTarget as HTMLElement; id.removePhoto(); refocusFieldControl(el); }}>Quitar</ActionButton>}
-          </div>
-        </div>
-        <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
+      <MenuSection label="Imagen" pinned>
+        <UploadField kind="avatar" value={photo || null} label="Subir foto" caption="Foto de perfil" accept="image/*"
+          onFile={handlePhotoFile} onRemove={() => id.removePhoto()} />
       </MenuSection>
 
-      <MenuSection label="Forma" num="02" tone={2} first>
-        <SliderRow label="Tamaño" min={sizeMin} max={sizeMax} step={1} value={currentSize} unit="px"
-          onChange={v => id.setPfpSize(v)} />
+      <MenuSection label="Forma" icon="corner" summary={`${Math.round(currentSize)} px · ${shapeLabel(pfpRadius ?? 100)}`}
+        changed={shapeChanged} onReset={() => id.resetPfpShape()}>
+        <SliderRow label="Tamaño" icon="maximize" min={sizeMin} max={sizeMax} step={1} value={currentSize} unit="px"
+          fmt={v => `${Math.round(v)} px`} onChange={v => id.setPfpSize(v)} />
 
-        <SliderRow label="Forma" min={0} max={100} step={1} value={pfpRadius ?? 100} unit="%"
-          fmt={v => pfpRadiusToPercent(v) === 50 ? "círculo" : pfpRadiusToPercent(v) === 0 ? "cuadrado" : `${Math.round(v)}%`}
+        <SliderRow label="Forma" icon="corner" min={0} max={100} step={1} value={pfpRadius ?? 100} unit="%"
+          fmt={shapeLabel}
           onChange={v => id.setPfpRadius(v)} />
       </MenuSection>
 
-      <MenuSection label="Efectos de la foto" num="03" tone={4} active={[pfpBorder.width > 0, shadowOn, isIntensityEffectVisible(pfpFx?.glow)].filter(Boolean).length} first>
+      <MenuSection label="Efectos de la foto" icon="sparkles" active={fxOn.length} summary={fxOn.length ? fxOn.join(", ") : "Ninguno activo"}
+        changed={fxChanged} onReset={() => id.resetPfpEffects()}>
         <EffectList label="Efectos de la foto">
-          <EffectRow id="border" label="Borde" tone={1} active={pfpBorder.width > 0}
+          <EffectRow id="border" label="Borde" icon="frame" preview="c-border" active={pfpBorder.width > 0}
             state={pfpBorder.width > 0 ? `${String(pfpBorder.width).replace(".", ",")} px` : "Sin borde"}>
             <ColorRow
               label="Color" value={pfpBorder.color} onChange={v => patchPfpBorder({ color: v })}
               clearable={!!pfpFx?.border?.color} onClear={() => patchPfpBorder({ color: undefined })}
             />
-            <SliderRow label="Grosor" min={0} max={6} step={0.5} value={pfpBorder.width}
-              onChange={v => patchPfpBorder({ width: v })} unit="px" />
-            <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={pfpBorder.opacity}
+            <SliderRow label="Grosor" icon="frame" min={0} max={6} step={0.5} value={pfpBorder.width}
+              onChange={v => patchPfpBorder({ width: v })} fmt={v => `${String(v).replace(".", ",")} px`} unit="px" />
+            <SliderRow label="Opacidad" icon="eye" min={0} max={1} step={0.01} value={pfpBorder.opacity}
               onChange={v => patchPfpBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
           </EffectRow>
 
-          <EffectRow id="shadow" label="Sombra" tone={2} on={shadowOn} onToggle={setPfpShadowOn}>
+          <EffectRow id="shadow" label="Sombra" icon="moon" preview="c-shadow" on={shadowOn} onToggle={setPfpShadowOn}
+            state={`${Math.round((pfpFx?.shadow?.intensity ?? 0.5) * 100)}%`} paused={!shadowOn && !!pfpFx?.shadow}>
             {shadowOn ? (
               <>
                 {/* With no pfp.shadow stored (guns/poster variant default),
@@ -156,75 +129,52 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
                     explicit shadow from then on. */}
                 <ColorRow label="Color" value={pfpShadowColor(baseColor, pfpFx?.shadow)} onChange={v => patchPfpShadow({ color: v })}
                   clearable={!!pfpFx?.shadow?.color} onClear={() => patchPfpShadow({ color: undefined })} />
-                <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={pfpFx?.shadow?.intensity ?? 0.5}
+                <SliderRow label="Intensidad" icon="moon" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={pfpFx?.shadow?.intensity ?? 0.5}
                   onChange={v => patchPfpShadow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
               </>
-            ) : <MenuNote>Una sombra debajo de la foto.</MenuNote>}
+            ) : null}
           </EffectRow>
 
           {/* Iteration 0: "on" = visible (intensity > 0, what the avatar
               renders), not mere presence. */}
-          <EffectRow id="glow" label="Brillo" tone={3} on={isIntensityEffectVisible(pfpFx?.glow)} onToggle={v => id.setPfpEffect("pfp.glow", v)}
-            state={pfpFx?.glow?.animation?.enabled && isIntensityEffectVisible(pfpFx?.glow) ? "pulso" : undefined}>
-            {pfpFx?.glow && isIntensityEffectVisible(pfpFx.glow) ? (
+          <EffectRow id="glow" label="Brillo" icon="sun" preview="c-glow" on={glowOn} onToggle={v => id.setPfpEffect("pfp.glow", v)}
+            paused={!glowOn && !!pfpFx?.glow}
+            state={pfpFx?.glow?.animation?.enabled && glowOn ? "Con pulso" : `${Math.round((pfpFx?.glow?.intensity ?? 0) * 100)}%`}>
+            {pfpFx?.glow && glowOn ? (
               <>
                 <ColorRow label="Color" value={pfpFx.glow.color ?? PFP_GLOW_DEFAULT_COLOR} onChange={v => patchPfpGlow({ color: v })} />
-                <SliderRow label="Intensidad" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={pfpFx.glow.intensity ?? 0}
+                <SliderRow label="Intensidad" icon="sun" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={pfpFx.glow.intensity ?? 0}
                   onChange={v => patchPfpGlow({ intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
-                <SliderRow label="Radio" min={0} max={40} step={1} value={pfpGlowRadius(pfpFx.glow)}
-                  onChange={v => patchPfpGlow({ radius: v })} unit="px" />
+                <SliderRow label="Radio" icon="maximize" min={0} max={40} step={1} value={pfpGlowRadius(pfpFx.glow)}
+                  onChange={v => patchPfpGlow({ radius: v })} fmt={v => `${Math.round(v)} px`} unit="px" />
                 {/* Stage FASE 3: same shared glow-pulse system as the card's
                     own Pulso — cardMotion.ts's one keyframe, independent instance. */}
-                <MenuRow label="Pulso">
-                  <Toggle
-                    value={!!pfpFx.glow.animation?.enabled}
-                    onChange={v => patchPfpGlow({ animation: { enabled: v, speed: pfpFx.glow?.animation?.speed } })}
-                  />
-                </MenuRow>
+                <SwitchRow label="Pulso" icon="sparkles"
+                  value={!!pfpFx.glow.animation?.enabled}
+                  onChange={v => patchPfpGlow({ animation: { enabled: v, speed: pfpFx.glow?.animation?.speed } })} />
                 {pfpFx.glow.animation?.enabled && (
-                  <SliderRow label="Velocidad del pulso" min={0.3} max={3} step={0.1} value={pfpFx.glow.animation?.speed ?? 1}
-                    onChange={v => patchPfpGlow({ animation: { enabled: true, speed: v } })} fmt={v => `${v.toFixed(1)}x`} />
+                  <SliderRow label="Velocidad del pulso" icon="play" min={0.3} max={3} step={0.1} value={pfpFx.glow.animation?.speed ?? 1}
+                    onChange={v => patchPfpGlow({ animation: { enabled: true, speed: v } })} fmt={v => `${v.toFixed(1).replace(".", ",")}x`} />
                 )}
               </>
-            ) : <MenuNote>Un halo de luz alrededor de la foto.</MenuNote>}
+            ) : null}
           </EffectRow>
         </EffectList>
       </MenuSection>
       </>}
 
-      {only === "name" && <MenuSection label="Contenido" first>
-        {editingName ? (
-          <input autoFocus
-            value={name}
-            onChange={e => id.setName(e.target.value)}
-            onBlur={() => setEditingName(false)}
-            onKeyDown={e => {
-              if (e.key === "Enter") { e.preventDefault(); closeNameEdit(false); }
-              else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeNameEdit(true); }
-            }}
-            onMouseDown={e => e.stopPropagation()}
-            placeholder="nombre"
-            aria-label="Nombre"
-            className="mn-focusable"
-            // Phase F: the filled field of design screen 02.
-            style={{ width: "100%", background: uv("surface-control"), color: uv("text-primary"), fontSize: 15, fontWeight: 500, fontFamily: T.uiFont.sans, padding: "11px 12px", border: "none", borderRadius: T.ui.radius.field, boxSizing: "border-box", outline: "none" }}
-          />
-        ) : (
-          // Block 2: keyboard-operable (Tab + Enter/Space opens the field).
-          <div ref={nameBtnRef} onClick={openNameEdit}
-            role="button" tabIndex={0} aria-label={name ? `Nombre: ${name}. Editar` : "Editar nombre"} className="mn-focusable"
-            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openNameEdit(); } }}
-            style={{ fontSize: 15, fontWeight: 500, fontFamily: T.uiFont.sans, color: name ? uv("text-primary") : uv("text-tertiary"), cursor: "text", padding: "11px 12px", borderRadius: T.ui.radius.field, background: uv("surface-control") }}>
-            {name || "nombre"}
-          </div>
-        )}
+      {only === "name" && <MenuSection label="Contenido" pinned>
+        {/* DS: the content field writes in the name's own font, 19px. */}
+        <TextInput value={name ?? ""} onChange={v => id.setName(v)} placeholder="nombre" big
+          fontFamily={getFontStyle(card.nameFont ?? card.font)} />
       </MenuSection>}
 
-      {only === "handle" && <MenuSection label="Contenido" first>
-        <MenuRow>
-          <span style={{ ...T.type.help, color: uv("text-secondary") }}>@{handle}</span>
-        </MenuRow>
-        <MenuNote>Es el @ de tu cuenta: no se edita acá.</MenuNote>
+      {only === "handle" && <MenuSection label="Contenido" pinned>
+        <div className="mn-input mn-readonly" title="Se cambia desde tu cuenta">
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", fontFamily: getFontStyle(card.handleFont ?? "Space Mono") }}>@{handle}</span>
+          <Icon name="lock" size={14} />
+        </div>
+        <MenuNote>Se cambia desde tu cuenta</MenuNote>
       </MenuSection>}
 
       {/* Identity block = name+handle+descriptor+bio grouped as one draggable
@@ -234,7 +184,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
           blockStyle.ts's header for why). */}
       {only === "identityBlock" && (
         <BlockStyleFields card={card} blockKey="identity" onChange={onChange}
-          scope="afecta Nombre, @usuario, Frase y Bio" />
+          scope="Nombre, @usuario, Frase y Bio" />
       )}
     </div>
   );

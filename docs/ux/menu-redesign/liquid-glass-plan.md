@@ -165,3 +165,19 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
     probados), no se despliega inline dentro del dock como en el prototipo.
   - Adaptación A7: `FontField` mantiene la lista nativa de fuentes del repo; el explorador del prototipo (buscar,
     favoritas, instalar cualquier Google Font o subir TTF) sería una funcionalidad nueva y queda fuera de alcance.
+- **L2 (dock):** cabecera del DS (ícono del objeto, título 19/650, ruta en mono, Buscar y Cerrar como botones
+  redondos de 36px); part picker redondo (`ObjectList.tsx`, orden del diseño: Foto primero, separador antes del grupo
+  de la tarjeta; miniatura de la foto y muestra del fondo; punto de modificado); secciones = cards en acordeón
+  (`MenuSection`: una abierta por parte, resumen vivo con muestra, "Restablecer card", switch en la cabecera para
+  Estilo del bloque; card fijada para el contenido); pie de elemento (`ElementFooter`: Fondo/Medio/Frente con el MISMO
+  escritor que Capas, Ordenar en Capas, Bloquear, Eliminar); tooltips del DS; cascada al cambiar de parte.
+- **L3 (tarjeta, los 12 objetos):** Foto (Imagen fijada con subida/arrastre, Forma, Efectos en tiles); Nombre /
+  @usuario / Frase / Ubicación / Bio / Visitas (Contenido fijado en la fuente del rol, Tipografía con Peso en muestras
+  "Aa", Color con bloqueo por gradiente, Efectos del texto en tiles + "Sombra, brillo y contorno ›", Estilo del bloque
+  con switch); Links (lista, agregar, contador, Íconos); Logo (Imagen, Tamaño y giro, Profundidad); Fondo (Color,
+  Imagen o GIF, Superficie en tiles, Forma y medidas); Efectos (Luz, Movimiento, Al pasar el cursor, Retro); Textos
+  (Color de todos los textos, Alineación y espaciado, Efectos de todos los textos). Matriz de capacidades: 0 pérdidas
+  (las evidencias se actualizaron a los controles nuevos).
+  - Adaptación A8: Hover de la tarjeta pasa de una fila con dos switches a dos tiles (Brillo, Escala) — mismas escrituras.
+  - Adaptación A9: el texto de @usuario sigue siendo de solo lectura (se cambia desde la cuenta), como en el diseño.
+- **L4 (parcial — Texto, Imagen, Music):** las mismas cards del diseño + Medidas en grilla + pie fijo.

@@ -4,7 +4,7 @@ import { T, uv } from "./tokens";
 import { EDITOR_ATTR } from "@/lib/editorGuards";
 import { usePanelFocus } from "./MenuPanel";
 import { InspectorHeader } from "./InspectorHeader";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 
 /** id of the inspector's visible h2 — F6 (CanvasBoard) and "Editar" move
  * focus here; the tabpanel is labelled by it. */
@@ -28,8 +28,15 @@ interface InspectorShellProps {
   path?:     string;
   aside?:    string;
   meta?:     string;
-  /** Editor v3 Phase F: fixed under the title (the card's object chips). */
+  /** Editor v3 Phase F: fixed under the title (the card's part picker). */
   headerExtra?: React.ReactNode;
+  /** Liquid glass: the object's glyph in the header well. */
+  icon?:     IconName;
+  /** Liquid glass L6: opens "Buscar ajuste". */
+  onSearch?: () => void;
+  /** Liquid glass L2: the element footer (capa, Capas, Bloquear, Eliminar)
+   * pinned under the scrolling body. */
+  footer?:   React.ReactNode;
   children:  React.ReactNode;
   onClose:   () => void;
   /** Where focus goes when the inspector closes ("Editar"); the canvas
@@ -68,7 +75,7 @@ interface InspectorShellProps {
 // Rendered through a portal to <body> by its owner — never inside the
 // canvas wrapper, whose view-offset transform would re-anchor a fixed box.
 export function InspectorShell({
-  title, path, aside, meta, headerExtra, children, onClose, returnFocusTo, top, width, mode = "dock", height = 0, collapsed, onExpand, bodyRef, onBodyScroll, id,
+  title, path, aside, meta, headerExtra, icon, onSearch, footer, children, onClose, returnFocusTo, top, width, mode = "dock", height = 0, collapsed, onExpand, bodyRef, onBodyScroll, id,
 }: InspectorShellProps) {
   const sheet = mode === "sheet";
   // Review B-UX-5: a full-width sheet on a ~900px window would stretch the
@@ -134,7 +141,7 @@ export function InspectorShell({
       ) : (
         <>
           {sheet && <span aria-hidden="true" className="mn-inspector__grab" />}
-          <InspectorHeader path={path} title={title} titleId={INSPECTOR_TITLE_ID} titleRef={titleRef}
+          <InspectorHeader path={path} title={title} titleId={INSPECTOR_TITLE_ID} titleRef={titleRef} icon={icon} onSearch={onSearch}
             aside={aside} meta={meta} onClose={onClose} sheet={sheet}>
             {headerExtra}
           </InspectorHeader>
@@ -144,12 +151,15 @@ export function InspectorShell({
             className="mn-inspector__body"
             style={{
               flex: 1, minHeight: 0, overflowY: "auto",
-              padding: `${T.ui.size.panelPad}px ${sideGutter}`,
-              scrollbarWidth: "thin" as CSSProperties["scrollbarWidth"],
+              // Liquid glass (DS .lg-scroll): no visible scrollbar; 2px top,
+              // 14px sides, 28px bottom.
+              padding: `2px ${sideGutter} 28px`,
+              scrollbarWidth: "none" as CSSProperties["scrollbarWidth"],
             }}
           >
             {children}
           </div>
+          {footer && <div className="mn-inspector__footer">{footer}</div>}
         </>
       )}
     </aside>

@@ -2,7 +2,7 @@
 import type { ProfileCardData, BlockStyleKey, BlockStyleOverride } from "@/types";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 import { mergePatch } from "@/lib/effectPause";
-import { Collapsible, MenuRow, MenuNote, ColorRow, SliderRow, Toggle } from "@/ui";
+import { MenuSection, ColorRow, SliderRow } from "@/ui";
 
 interface Props {
   /** Needs the FULL card.blockStyle (not just this block's slice) — patching
@@ -67,39 +67,36 @@ export default function BlockStyleFields({ card, blockKey, showTextColor, showIc
     return raw?.[key] !== undefined ? "modified" as const : "inherited" as const;
   }
 
+  // Liquid glass (design blockCard): a card with the switch in its header
+  // ("Estilo del bloque", the scope as summary); OFF = "Hereda el estilo de
+  // la tarjeta" and the controls hide (stashed, not lost); ON = Fondo,
+  // Ícono (Links), Radio.
+  const n = raw ? Object.values(raw).filter(v => v !== undefined).length : 0;
   return (
-    <Collapsible label={scope ? `${BLOCK_STYLE_LABEL} · ${scope}` : BLOCK_STYLE_LABEL} defaultOpen={active}>
-      <MenuRow label="Personalizar este bloque">
-        <Toggle value={active} onChange={setActive} />
-      </MenuRow>
-      <MenuNote>
-        {active ? "Estilo personalizado para este bloque." : "Hereda el estilo de la card de presentación."}
-      </MenuNote>
-      {active && (
-        <>
-          <ColorRow
-            label="Fondo" value={raw?.bg} onChange={v => patch({ bg: v })}
-            clearable={!!raw?.bg} onClear={() => reset("bg")}
-            state={fieldState("bg")} onReset={() => reset("bg")}
-          />
-          {showTextColor && (
-            <ColorRow
-              label="Color de texto" value={raw?.textColor} onChange={v => patch({ textColor: v })}
-              clearable={!!raw?.textColor} onClear={() => reset("textColor")}
-              state={fieldState("textColor")} onReset={() => reset("textColor")}
-            />
-          )}
-          {showIconColor && (
-            <ColorRow
-              label="Color de ícono" value={raw?.iconColor} onChange={v => patch({ iconColor: v })}
-              clearable={!!raw?.iconColor} onClear={() => reset("iconColor")}
-              state={fieldState("iconColor")} onReset={() => reset("iconColor")}
-            />
-          )}
-          <SliderRow label="Radio" min={0} max={24} step={1} value={resolved.radius} unit="px" onChange={v => patch({ radius: v })}
-            state={raw?.radius !== undefined ? "modified" : undefined} onReset={() => reset("radius")} />
-        </>
+    <MenuSection label={BLOCK_STYLE_LABEL} icon="frame" summary={scope ? `Afecta ${scope}` : undefined}
+      toggle={{ value: active, onChange: setActive, label: scope ? `${BLOCK_STYLE_LABEL}: ${scope}` : BLOCK_STYLE_LABEL }}
+      offNote="Hereda el estilo de la tarjeta" changed={n} onReset={() => set({})}>
+      <ColorRow
+        label="Fondo" value={raw?.bg} onChange={v => patch({ bg: v })}
+        clearable={!!raw?.bg} onClear={() => reset("bg")}
+        state={fieldState("bg")} onReset={() => reset("bg")} inheritedLabel="Sin fondo"
+      />
+      {showTextColor && (
+        <ColorRow
+          label="Color de texto" value={raw?.textColor} onChange={v => patch({ textColor: v })}
+          clearable={!!raw?.textColor} onClear={() => reset("textColor")}
+          state={fieldState("textColor")} onReset={() => reset("textColor")}
+        />
       )}
-    </Collapsible>
+      {showIconColor && (
+        <ColorRow
+          label="Ícono" value={raw?.iconColor} onChange={v => patch({ iconColor: v })}
+          clearable={!!raw?.iconColor} onClear={() => reset("iconColor")}
+          state={fieldState("iconColor")} onReset={() => reset("iconColor")} inheritedLabel="Todos los textos"
+        />
+      )}
+      <SliderRow label="Radio" icon="corner" min={0} max={24} step={1} value={resolved.radius} unit="px" fmt={v => `${Math.round(v)} px`} onChange={v => patch({ radius: v })}
+        state={raw?.radius !== undefined ? "modified" : undefined} onReset={() => reset("radius")} />
+    </MenuSection>
   );
 }

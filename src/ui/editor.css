@@ -227,51 +227,87 @@
   :where([data-mnemo-ui]) .mn-rail__btn[data-active] { border: 2px solid Highlight; }
 }
 
-/* Editor v3 Phase F — object chips (ObjectList.tsx, design screens 02 / 10):
-   ONE horizontal row under the inspector's title. Each chip is the object's
-   name; selected = the `sel` fill + selInk, weight 600, plus a selEdge
-   outline (OG's lime has 1.28:1 on white: the outline gives the shape >= 3:1)
-   and aria-selected. The row scrolls sideways with edge fades; the three
-   groups are split by a hairline. Sheet: 44px touch chips. */
-:where([data-mnemo-editor]) .mn-objlist {
-  display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; margin: 2px -20px 0; padding: 2px 20px 4px;
-  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+/* Liquid glass (L2) — the part picker (ObjectList.tsx = DS PartPicker): a
+   row of round 44px wells; selected = the neutral `on` fill (pops), the
+   photo / background as a 32px thumbnail, the accent "modified" dot with a
+   ring in the panel color; a hairline before the card group. Scrolls
+   sideways with no scrollbar. */
+:where([data-mnemo-editor]) .mn-parts {
+  position: relative; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  padding: 2px 20px; margin: 0 -20px;
 }
-:where([data-mnemo-editor]) .mn-objlist::-webkit-scrollbar { display: none; }
-:where([data-mnemo-editor]) .mn-objlist[data-fade-end] { -webkit-mask-image: linear-gradient(to right, var(--ui-surface-panel) calc(100% - 36px), transparent); mask-image: linear-gradient(to right, var(--ui-surface-panel) calc(100% - 36px), transparent); }
-:where([data-mnemo-editor]) .mn-objlist[data-fade-start] { -webkit-mask-image: linear-gradient(to right, transparent, var(--ui-surface-panel) 36px); mask-image: linear-gradient(to right, transparent, var(--ui-surface-panel) 36px); }
-:where([data-mnemo-editor]) .mn-objlist[data-fade-start][data-fade-end] { -webkit-mask-image: linear-gradient(to right, transparent, var(--ui-surface-panel) 36px, var(--ui-surface-panel) calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, var(--ui-surface-panel) 36px, var(--ui-surface-panel) calc(100% - 36px), transparent); }
-:where([data-mnemo-editor]) .mn-objlist[data-sheet] { margin: 0 -16px; padding: 2px 16px 6px; }
-:where([data-mnemo-editor]) .mn-objlist__sep { flex: none; width: 1px; height: 16px; margin: 0 4px; background: var(--ui-line-group); }
-:where([data-mnemo-editor]) .mn-objchip {
-  flex: none; display: inline-flex; align-items: center; gap: 6px;
-  height: var(--ui-size-obj-chip); padding: 0 10px; box-sizing: border-box; white-space: nowrap;
-  border: none; border-radius: var(--ui-radius-obj-chip);
-  background: transparent; color: var(--ui-text-secondary); cursor: pointer;
-  font-family: var(--ui-font-sans); font-size: 12.5px; line-height: 1; font-weight: 500;
-  transition: background-color var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, transform 200ms cubic-bezier(.34,1.56,.64,1);
+:where([data-mnemo-editor]) .mn-parts::-webkit-scrollbar { display: none; }
+:where([data-mnemo-editor]) .mn-parts__sep { flex: none; width: 1px; margin: 10px 2px; background: var(--ui-line-panel); }
+:where([data-mnemo-editor]) .mn-part {
+  flex: none; position: relative; width: var(--ui-size-obj-chip); height: var(--ui-size-obj-chip); padding: 0; margin: 0;
+  border: none; border-radius: 999px; display: grid; place-items: center; cursor: pointer;
+  background: var(--ui-surface-control); color: var(--ui-text-primary);
+  transition: transform 320ms var(--ui-motion-spring), background-color 260ms ease, color 260ms ease, box-shadow 300ms ease;
 }
-:where([data-mnemo-editor]) .mn-objchip:hover { background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
-:where([data-mnemo-editor]) .mn-objchip:active { transform: scale(0.95); }
-:where([data-mnemo-editor]) .mn-objchip[aria-selected="true"] {
-  background: var(--ui-surface-sel); color: var(--ui-text-sel); font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--ui-line-sel-edge);
+:where([data-mnemo-editor]) .mn-part:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor]) .mn-part:active { transform: scale(0.86); }
+:where([data-mnemo-editor]) .mn-part[aria-selected="true"] {
+  background: var(--ui-accent-on); color: var(--ui-accent-on-ink); box-shadow: 0 4px 14px color-mix(in srgb, var(--ui-accent-on-ink) 22%, transparent), inset 0 0 0 1px var(--ui-line-sel-edge);
+  animation: mn-pop 380ms var(--ui-motion-spring);
 }
-:where([data-mnemo-editor]) .mn-objchip:focus-visible { box-shadow: var(--ui-shadow-ring); }
-:where([data-mnemo-editor]) .mn-objlist[data-sheet] .mn-objchip { height: 44px; padding: 0 14px; border-radius: 12px; font-size: 13px; }
-/* The "modified" dot (design: 5px orange). */
-:where([data-mnemo-editor]) .mn-objchip__dot { flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--ui-accent-edit); }
-:where([data-mnemo-editor]) .mn-objchip[aria-selected="true"] .mn-objchip__dot { box-shadow: 0 0 0 1.5px var(--ui-surface-panel); }
-/* r2 → Phase F: in-section links to the object that owns a related control
-   ("Sombra, brillo y contorno: en Todos los textos") read as quiet "more"
-   rows (design: label + chevron), not as underlined body links. */
+:where([data-mnemo-editor]) .mn-part:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor]) .mn-part__img,
+:where([data-mnemo-editor]) .mn-part__sw { width: 32px; height: 32px; border-radius: 999px; object-fit: cover; display: block; transition: transform 320ms var(--ui-motion-spring); box-shadow: var(--ui-shadow-well); }
+:where([data-mnemo-editor]) .mn-part[aria-selected="true"] .mn-part__img,
+:where([data-mnemo-editor]) .mn-part[aria-selected="true"] .mn-part__sw { transform: scale(0.86); }
+:where([data-mnemo-editor]) .mn-part__dot {
+  position: absolute; top: 3px; right: 3px; width: 0; height: 0; border: 4px solid var(--ui-accent-edit); border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--ui-surface-panel-opaque);
+}
+@media (forced-colors: active) {
+  :where([data-mnemo-editor]) .mn-part { border: 1px solid ButtonText; }
+  :where([data-mnemo-editor]) .mn-part[aria-selected="true"] { border: 2px solid Highlight; }
+  :where([data-mnemo-editor]) .mn-part__dot { border-color: CanvasText; box-shadow: none; }
+  :where([data-mnemo-editor]) .mn-parts__sep { background: CanvasText; }
+}
+/* Liquid glass tooltip (DS .lg-tip): the label under / beside the control
+   after a short hover delay; never on touch (hover only). */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tip::after {
+  content: attr(data-tip); position: absolute; left: 50%; top: calc(100% + 8px); transform: translate(-50%, -4px) scale(0.96);
+  white-space: pre; padding: 6px 10px; border-radius: 10px; font: 500 12px/1 var(--ui-font-sans); letter-spacing: 0;
+  background: var(--ui-surface-panel-opaque); color: var(--ui-text-primary); box-shadow: var(--ui-shadow-popover);
+  opacity: 0; pointer-events: none; transition: opacity 140ms ease, transform 240ms var(--ui-motion-spring); z-index: 50;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tip[data-tip-side="right"]::after { left: calc(100% + 12px); top: 50%; transform: translate(-4px, -50%) scale(0.96); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tip:hover::after { opacity: 1; transform: translate(-50%, 0); transition-delay: 380ms; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tip[data-tip-side="right"]:hover::after { transform: translate(0, -50%); }
+/* The dock header's object well and the element footer. */
+:where([data-mnemo-editor]) .mn-inspector__icon {
+  flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--ui-surface-control); color: var(--ui-text-primary); animation: mn-fade 260ms var(--ui-motion-ease);
+}
+:where([data-mnemo-editor]) .mn-inspector__title { animation: mn-fade 260ms var(--ui-motion-ease); }
+:where([data-mnemo-editor]) .mn-inspector__body::-webkit-scrollbar { display: none; }
+:where([data-mnemo-editor]) .mn-inspector__footer {
+  flex: none; display: flex; align-items: center; gap: 6px; padding: 10px 12px 12px; box-shadow: inset 0 1px 0 var(--ui-line-panel);
+}
+
+/* Liquid glass (DS isGoto) — the outlined row that jumps to the part that
+   owns a related control; also the plain in-section link (.mn-objlink). */
 :where([data-mnemo-editor]) .mn-objlink {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 36px;
-  margin: 0; padding: 8px 0; border: none; border-radius: var(--ui-radius-segment); background: transparent; cursor: pointer;
-  color: var(--ui-text-secondary); font-family: var(--ui-font-sans); font-size: 13px; line-height: 18px; font-weight: 500; text-align: left;
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; box-sizing: border-box;
+  margin: 0; padding: 0 12px 0 14px; border: none; border-radius: 14px; background: transparent; cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--ui-line-panel);
+  color: var(--ui-text-primary); font-family: var(--ui-font-sans); font-size: 13.5px; line-height: 18px; font-weight: 500; text-align: left;
+  transition: background-color 120ms ease;
 }
-:where([data-mnemo-editor]) .mn-objlink:hover { color: var(--ui-text-primary); }
+:where([data-mnemo-editor]) .mn-objlink:hover { background: var(--ui-surface-control-hover); }
 :where([data-mnemo-editor]) .mn-objlink:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor]) .mn-goto__hint { font-size: 12px; color: var(--ui-text-tertiary); white-space: nowrap; }
+/* DS isHint / isWarn rows. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-note {
+  display: flex; align-items: center; gap: 8px; padding: 2px 4px;
+  font-family: var(--ui-font-sans); font-size: 12.5px; line-height: 17px; color: var(--ui-text-secondary);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-note__dot { flex: none; width: 0; height: 0; border: 3px solid var(--ui-accent-main); border-radius: 50%; }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-note__dot { border-color: CanvasText; }
+}
 
 /* Liquid glass (L1) — effect tiles (EffectRow.tsx = DS ControlTiles): a
    2-column grid of 92px wells; ON = the accent with its ink and glow, a
@@ -486,24 +522,45 @@
   :where([data-mnemo-editor]) .mn-shapeseg__btn[aria-pressed="true"] { border: 2px solid Highlight; }
 }
 
-/* Phase F — font field (FontField.tsx, design screen 02): the family written
-   in itself on a filled field; the native <select> covers it transparently. */
+/* Liquid glass — font field (FontField.tsx = DS .lg-fsel trigger): a 56px
+   well, the "Aa" tile on the neutral `on` fill, the family in itself; the
+   native <select> covers it transparently. */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield {
-  position: relative; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 12px; box-sizing: border-box;
-  border-radius: var(--ui-radius-field); background: var(--ui-surface-control); color: var(--ui-text-primary);
-  transition: background-color var(--ui-motion-fast) ease;
+  position: relative; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px 8px 8px; box-sizing: border-box;
+  border-radius: var(--ui-radius-tile); background: var(--ui-surface-control); color: var(--ui-text-primary);
+  transition: background-color 160ms ease, transform 260ms var(--ui-motion-spring);
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield:active { transform: scale(0.98); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield:focus-within { box-shadow: var(--ui-shadow-ring); outline: 2px solid transparent; outline-offset: 2px; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__face { display: flex; flex-direction: column; gap: 5px; min-width: 0; margin-right: auto; pointer-events: none; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__name { font-size: 18px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__detail { font-family: var(--ui-font-mono); font-size: 11px; line-height: 1; font-weight: 500; color: var(--ui-text-tertiary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__aa {
+  flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; overflow: hidden;
+  background: var(--ui-accent-on); color: var(--ui-accent-on-ink); font-size: 19px; line-height: 1; white-space: nowrap; pointer-events: none;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__face { display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-right: auto; pointer-events: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__name { font-size: 17px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__detail { font-family: var(--ui-font-sans); font-size: 12px; line-height: 1; font-weight: 450; color: var(--ui-text-tertiary); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__chev { display: inline-flex; color: var(--ui-text-secondary); pointer-events: none; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__select {
   position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer;
   font-size: 16px; /* no iOS zoom on focus */
 }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontfield__select option { background: var(--ui-surface-option); color: var(--ui-text-primary); }
+/* DS weight row: "Aa" samples, one per loaded weight (pressed = current). */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-weights { display: flex; gap: 6px; flex-wrap: wrap; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-weight {
+  min-width: 52px; height: 44px; padding: 0 12px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--ui-surface-control); color: var(--ui-text-primary); font-size: 16px; line-height: 1;
+  transition: background-color var(--ui-motion-tap) ease, color var(--ui-motion-tap) ease, transform 280ms var(--ui-motion-spring);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-weight:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-weight:active { transform: scale(0.88); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-weight[aria-checked="true"] { background: var(--ui-accent-on); color: var(--ui-accent-on-ink); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-weight:focus-visible { box-shadow: var(--ui-shadow-ring); }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-weight { border: 1px solid ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-weight[aria-checked="true"] { border: 2px solid Highlight; }
+}
 /* Peso with more than four weights (system fonts / a synthetic value). */
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-select.mn-select--compact { width: 148px; height: 34px; padding: 0 30px 0 12px; box-sizing: border-box; }
 
@@ -1116,6 +1173,137 @@
 :where([data-mnemo-ui]) .mn-canvas-btn--chip:focus-visible { box-shadow: var(--ui-chrome-ring); outline: none; }
 /* A6: every [data-mnemo-chrome] control keeps the neutral chrome ring. */
 :where([data-mnemo-ui]) [data-mnemo-chrome]:focus-visible { box-shadow: var(--ui-chrome-ring); }
+
+/* Content swap (DS .lg-swap): a new part's cards cascade in. */
+:where([data-mnemo-editor]) .mn-swap > * { animation: mn-fade 360ms var(--ui-motion-ease) both; }
+:where([data-mnemo-editor]) .mn-swap > *:nth-child(2) { animation-delay: 30ms; }
+:where([data-mnemo-editor]) .mn-swap > *:nth-child(3) { animation-delay: 60ms; }
+:where([data-mnemo-editor]) .mn-swap > *:nth-child(4) { animation-delay: 90ms; }
+:where([data-mnemo-editor]) .mn-swap > *:nth-child(n+5) { animation-delay: 120ms; }
+
+/* ── Liquid glass (L2) — dock cards (MenuSection = DS cards) ─────────────
+   Closed: a 56px well (radius 22) with the glyph, title, live summary;
+   open: the fill gives way to a hairline and the controls unfold. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card {
+  display: flex; flex-direction: column; border-radius: var(--ui-radius-card);
+  background: var(--ui-surface-control); box-shadow: inset 0 0 0 1px transparent; padding: 0 10px;
+  transition: background-color 260ms ease, box-shadow 260ms ease, padding 260ms ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card[data-open] { background: transparent; box-shadow: inset 0 0 0 1px var(--ui-line-panel); padding: 2px 10px 10px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card--pinned,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card--pinned[data-open] { background: transparent; box-shadow: none; padding: 2px 2px 6px; gap: 8px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card--pinned > .mn-label { padding: 0 4px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__head { display: flex; align-items: center; gap: 6px; min-height: 56px; cursor: pointer; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__btn {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 0 0 2px; margin: 0;
+  border: none; background: transparent; color: var(--ui-text-primary); cursor: pointer; text-align: left; border-radius: 14px;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__btn:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon {
+  flex: none; width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--ui-surface-control); color: inherit; transition: background-color 260ms ease, color 260ms ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon[data-lit] { background: var(--ui-accent-soft); color: var(--ui-accent-main); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__title { display: flex; align-items: center; gap: 6px; font-family: var(--ui-font-sans); font-size: 14px; line-height: 18px; font-weight: 600; letter-spacing: -0.01em; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__dot { flex: none; width: 0; height: 0; border: 3px solid var(--ui-accent-edit); border-radius: 50%; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__summary { display: flex; align-items: center; gap: 6px; min-width: 0; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__swatch { flex: none; width: 12px; height: 12px; border-radius: 99px; box-shadow: var(--ui-shadow-well); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__summary-text {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--ui-font-sans); font-size: 12px; line-height: 16px; font-weight: 450; color: var(--ui-text-tertiary);
+  animation: mn-tick 220ms var(--ui-motion-spring);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__chev { flex: none; display: inline-flex; padding: 6px; color: var(--ui-text-tertiary); transition: transform 360ms var(--ui-motion-spring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card[data-open] .mn-card__chev { transform: rotate(180deg); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__body { display: flex; flex-direction: column; padding: 0 0 4px; animation: mn-fade 300ms var(--ui-motion-ease); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__rows { display: flex; flex-direction: column; gap: 10px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__note { padding: 2px 4px 6px; font-family: var(--ui-font-sans); font-size: 13px; line-height: 18px; color: var(--ui-text-secondary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-subsection { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-label { display: flex; align-items: center; gap: 8px; font-family: var(--ui-font-sans); font-size: 13px; line-height: 18px; font-weight: 600; color: var(--ui-text-secondary); }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card { border: 1px solid CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__dot { border-color: CanvasText; }
+}
+
+/* DS isSwitch row and the read-only field (@usuario). */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switchrow { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 2px 0 4px; color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-switchrow__label { flex: 1; min-width: 0; font-family: var(--ui-font-sans); font-size: 14px; line-height: 18px; font-weight: 500; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input.mn-readonly { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; color: var(--ui-text-secondary); cursor: default; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-input.mn-readonly:hover { background: var(--ui-surface-control); box-shadow: inset 0 -1px 0 var(--ui-line-field); }
+
+/* DS offset pad (OffsetRow): drag the accent dot; axes in the line color. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad {
+  position: relative; flex: none; width: 104px; height: 104px; border-radius: 20px; overflow: hidden;
+  background: var(--ui-surface-control); touch-action: none; cursor: crosshair;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad__axis { position: absolute; background: var(--ui-line-panel); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad__axis--v { left: 50%; top: 10px; bottom: 10px; width: 1px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad__axis--h { top: 50%; left: 10px; right: 10px; height: 1px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad__center { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 9px; background: var(--ui-text-tertiary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad__dot {
+  position: absolute; width: 18px; height: 18px; margin: -9px; border-radius: 99px; background: var(--ui-accent-main);
+  box-shadow: 0 0 0 3px var(--ui-accent-soft), 0 4px 10px color-mix(in srgb, var(--ui-accent-ink) 35%, transparent);
+  transition: left 380ms var(--ui-motion-spring), top 380ms var(--ui-motion-spring);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad__dot[data-dragging] { transition: none; }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad { border: 1px solid CanvasText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-pad__dot { forced-color-adjust: none; background: Highlight; }
+}
+
+/* DS measures grid (Medidas): two columns of 44px fields. */
+:where([data-mnemo-editor]) .mn-measures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+
+/* DS corners (image Esquinas): four 56px options with their label. */
+:where([data-mnemo-editor]) .mn-corners { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+:where([data-mnemo-editor]) .mn-corners__opt { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+:where([data-mnemo-editor]) .mn-corners__shape { width: 22px; height: 22px; border: 2px solid currentColor; display: block; box-sizing: border-box; }
+:where([data-mnemo-editor]) .mn-corners__label { font-family: var(--ui-font-sans); font-size: 12px; color: var(--ui-text-secondary); }
+
+/* DS links rows (ProfileContactLinksMenu). */
+:where([data-mnemo-editor]) .mn-linkrow { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 4px 4px 6px; border-radius: 18px; background: var(--ui-surface-control); }
+:where([data-mnemo-editor]) .mn-linkrow__ico { flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-editor]) .mn-linkrow__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+:where([data-mnemo-editor]) .mn-linkrow__name { font-family: var(--ui-font-sans); font-size: 13.5px; line-height: 18px; font-weight: 600; color: var(--ui-text-primary); }
+:where([data-mnemo-editor]) .mn-linkrow__url { font-family: var(--ui-font-mono); font-size: 12px; line-height: 16px; font-weight: 500; color: var(--ui-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where([data-mnemo-editor]) .mn-linkrow__count { padding: 0 4px; font-family: var(--ui-font-mono); font-size: 11.5px; line-height: 16px; font-weight: 500; color: var(--ui-text-tertiary); }
+
+/* ── Liquid glass (L3) — upload field (UploadField.tsx = DS upload) ───── */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__row {
+  display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--ui-radius-tile); background: var(--ui-surface-control);
+  transition: box-shadow 160ms ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__row[data-over] { box-shadow: inset 0 0 0 1.5px var(--ui-accent-main); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__thumb {
+  flex: none; width: 56px; height: 56px; border-radius: 16px; overflow: hidden; display: grid; place-items: center;
+  background: var(--ui-surface-control-hover); color: var(--ui-text-primary); font-family: var(--ui-font-sans); font-size: 20px; font-weight: 700;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__thumb[data-kind="avatar"] { border-radius: 999px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__thumb[data-kind="cover"] { width: 72px; border-radius: 14px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__thumb[data-kind="logo"] { border-radius: 14px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__thumb[data-kind="logo"] img { object-fit: contain; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__thumb[data-kind="audio"] { background: linear-gradient(135deg, var(--ui-accent-main), color-mix(in srgb, var(--ui-accent-main) 25%, var(--ui-surface-panel-opaque))); color: var(--ui-accent-ink); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__name { font-family: var(--ui-font-sans); font-size: 14px; line-height: 18px; font-weight: 550; color: var(--ui-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__caption { font-family: var(--ui-font-sans); font-size: 12px; line-height: 16px; color: var(--ui-text-tertiary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop {
+  width: 100%; min-height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px;
+  border-radius: 22px; border: 1.5px dashed var(--ui-line-strong); background: var(--ui-surface-control); color: var(--ui-text-secondary);
+  font-family: var(--ui-font-sans); font-size: 13px; cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 300ms var(--ui-motion-spring);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop:hover,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop[data-over] { background: var(--ui-surface-control-hover); border-color: var(--ui-accent-main); color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop[data-over] { transform: scale(1.02); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop__ico { width: 40px; height: 40px; border-radius: 99px; display: grid; place-items: center; background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop__label { font-weight: 600; color: var(--ui-text-primary); }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop { border-color: ButtonText; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-upload__row { border: 1px solid CanvasText; }
+}
 
 /* ── v3 (Phase A): MenuSection "N cambios" dot ────────────────────────────
    Drawn with a border in currentColor (like the field's modified dot) so it

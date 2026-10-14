@@ -1,7 +1,9 @@
 "use client";
 import type { TextFont, TextGradientEffect, TextShimmerEffect, TextLetterAnimationEffect } from "@/types";
-import { T, MenuSection, MenuRow, MenuNote, ColorRow, FontField, SliderRow, Collapsible, GradientStops, Tabs, EffectList, EffectRow, useFieldLabelId } from "@/ui";
-import { CANVAS_FONTS } from "@/lib/fontList";
+import { useId } from "react";
+import { T, uv, MenuSection, MenuNote, ColorRow, FontField, SliderRow, GradientStops, EffectList, EffectRow, FieldResetButton, GotoRow } from "@/ui";
+import { wellHex } from "@/ui/ColorPopover";
+import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
 import { EFFECT_ON_DEFAULTS } from "@/lib/effectEditorDefaults";
 import { weightOptions, isLoadedFont, LOADED_FONT_WEIGHTS } from "@/lib/fontWeights";
 
@@ -13,7 +15,6 @@ const ON = EFFECT_ON_DEFAULTS;
  * says where it comes from. */
 export const ROLE_COLOR_INHERITED = "Todos los textos";
 const newGradient = (): TextGradientEffect => ({ colors: [...ON.textGradient.colors], angle: ON.textGradient.angle });
-const pad2 = (n: number) => String(n).padStart(2, "0");
 
 interface Props {
   /** The role's name ("Nombre", "@usuario"…) — names the font field. */
@@ -71,23 +72,41 @@ interface Props {
   /** Product closeout: per-character bounce — Name only. */
   letterAnimation?: TextLetterAnimationEffect;
   onLetterAnimationChange?: (v: TextLetterAnimationEffect | undefined) => void;
+
+  /** Liquid glass: the role's own text, sampled in the font tile. */
+  sample?: string;
+  /** Liquid glass: "Sombra, brillo y contorno ›" jumps to Todos los textos. */
+  onGoToAllText?: () => void;
 }
 
-/** Peso: only the weights the font LOADS (fontWeights.ts, CLAUDE.md) — a
- * segmented control when they fit, a select otherwise (system fonts keep
- * 100–900). A stored weight the font does not load stays selectable as
- * "<n> · sintético" and is never rewritten. */
-function WeightControl({ font, weight, onChange }: { font: string; weight: number; onChange: (v: number) => void }) {
-  const labelledBy = useFieldLabelId();
+/** Peso (DS weight row): one "Aa" sample per weight the font LOADS
+ * (fontWeights.ts, CLAUDE.md), written in that weight; a radiogroup. A
+ * stored weight the font does not load stays as "<n> · sintético" (dimmer)
+ * and is never rewritten. System fonts keep 100–900. */
+function WeightControl({ font, family, weight, onChange, modified, onReset }: {
+  font: string; family: string; weight: number; onChange: (v: number) => void; modified?: boolean; onReset?: () => void;
+}) {
   const options = weightOptions(font, weight);
-  if (options.length <= 4 && !options.some(o => o.synthetic)) {
-    return <Tabs tabs={options.map(o => ({ id: String(o.value), label: o.label }))} active={String(weight)} onChange={v => onChange(Number(v))} />;
-  }
+  const loaded = options.filter(o => !o.synthetic).length;
+  const synthetic = options.some(o => o.synthetic && o.value === weight);
+  const labelId = useId();
   return (
-    <select className="mn-input mn-select mn-select--compact" value={weight} aria-labelledby={labelledBy}
-      onChange={e => onChange(Number(e.target.value))} onMouseDown={e => e.stopPropagation()}>
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <div className="mn-field" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px", minHeight: 28 }}>
+        <span id={labelId} className="mn-label" style={{ color: uv("text-primary") }}>Peso</span>
+        <span style={{ ...T.type.help, fontSize: 11.5, color: uv("text-tertiary") }}>{synthetic ? "sintético" : `${loaded} ${loaded === 1 ? "peso" : "pesos"}`}</span>
+        <span style={{ ...T.type.value, fontSize: 12, color: uv("text-secondary"), marginLeft: "auto" }}>{weight}</span>
+        {modified && onReset && <FieldResetButton label="Peso" onReset={onReset} size={28} />}
+      </div>
+      <div className="mn-weights" role="radiogroup" aria-labelledby={labelId}>
+        {options.map(o => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === weight} className="mn-weight"
+            aria-label={o.label} title={o.label}
+            onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onChange(o.value); }}
+            style={{ fontFamily: family, fontWeight: o.value, opacity: o.synthetic ? 0.5 : 1 }}>Aa</button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -113,66 +132,66 @@ export default function RoleTypographyFields({
   letterSpacing, onLetterSpacingChange, letterSpacingModified, onLetterSpacingReset,
   lineHeight, lineHeightMin, lineHeightMax, onLineHeightChange, lineHeightModified, onLineHeightReset,
   gradient, onGradientChange, shimmer, onShimmerChange,
-  letterAnimation, onLetterAnimationChange,
+  letterAnimation, onLetterAnimationChange, sample, onGoToAllText,
 }: Props) {
   const gradientOn = !!gradient;
-  const hasSpacing = !!onLetterSpacingChange || (!!onLineHeightChange && lineHeight != null);
-  const spacingModified = !!letterSpacingModified || !!lineHeightModified;
   const typeChanges = [fontModified, sizeModified, weightModified, letterSpacingModified, lineHeightModified].filter(Boolean).length;
-  const fxOn = [gradientOn, !!shimmer, !!letterAnimation].filter(Boolean).length;
+  const fxNames = [gradientOn && "Gradiente", !!shimmer && "Shimmer", !!letterAnimation && "Por letra"].filter(Boolean) as string[];
   const mod = (m?: boolean) => (m ? "modified" as const : undefined);
   const gradientColors = gradient ? gradient.colors ?? [gradient.from, gradient.to].filter((c): c is string => !!c) : [];
+  const fontEntry = CANVAS_FONTS.find(f => f.key === font);
+  const family = getFontStyle(font);
+  const resetType = () => { onFontReset?.(); onSizeReset?.(); onWeightReset?.(); onLetterSpacingReset?.(); onLineHeightReset?.(); };
+  const px = (v: number) => `${String(Math.round(v * 10) / 10).replace(".", ",")} px`;
+  // Liquid glass (design menu-schema.js role()): three cards — Tipografía,
+  // Color, Efectos del texto (tiles + "Sombra, brillo y contorno ›").
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: T.space[5] }}>
-      <MenuSection label="Tipografía" num={pad2(numStart)} tone={2} changed={typeChanges} first>
+    <>
+      <MenuSection label="Tipografía" icon="case" changed={typeChanges} onReset={resetType}
+        summary={`${fontEntry?.label ?? font} · ${Math.round(fontSize)} px · ${weight}`}>
         <FontField value={font} onChange={v => onFontChange(v as TextFont)} fonts={CANVAS_FONTS} label={`Fuente: ${label}`}
-          detail={fontDetail(font, !!fontModified)} modified={fontModified} onReset={onFontReset} />
-        <SliderRow label="Tamaño" min={fontSizeMin} max={fontSizeMax} step={1} value={fontSize} unit="px" onChange={onFontSizeChange}
+          detail={fontDetail(font, !!fontModified)} modified={fontModified} onReset={onFontReset} sample={sample} />
+        <SliderRow label="Tamaño" icon="maximize" min={fontSizeMin} max={fontSizeMax} step={1} value={fontSize} unit="px" fmt={px} onChange={onFontSizeChange}
           state={mod(sizeModified)} onReset={onSizeReset} />
-        <MenuRow label="Peso" state={mod(weightModified)} onReset={onWeightReset}>
-          <WeightControl font={font} weight={weight} onChange={onWeightChange} />
-        </MenuRow>
-        {hasSpacing && (
-          <Collapsible label="Espaciado" modified={spacingModified} defaultOpen={spacingModified}>
-            {onLetterSpacingChange && (
-              <SliderRow label="Interletrado" min={-1} max={4} step={0.1} value={letterSpacing ?? 0} unit="px" onChange={onLetterSpacingChange}
-                state={mod(letterSpacingModified)} onReset={onLetterSpacingReset} />
-            )}
-            {onLineHeightChange && lineHeight != null && (
-              <SliderRow label="Interlineado" min={lineHeightMin ?? 0.9} max={lineHeightMax ?? 2} step={0.05} value={lineHeight} fmt={v => v.toFixed(2)} onChange={onLineHeightChange}
-                state={mod(lineHeightModified)} onReset={onLineHeightReset} />
-            )}
-          </Collapsible>
+        <WeightControl font={font} family={family} weight={weight} onChange={onWeightChange} modified={weightModified} onReset={onWeightReset} />
+        {onLetterSpacingChange && (
+          <SliderRow label="Interletrado" icon="spacing" min={-1} max={4} step={0.1} value={letterSpacing ?? 0} unit="px" fmt={px} onChange={onLetterSpacingChange}
+            state={mod(letterSpacingModified)} onReset={onLetterSpacingReset} />
+        )}
+        {onLineHeightChange && lineHeight != null && (
+          <SliderRow label="Interlineado" icon="height" min={lineHeightMin ?? 0.9} max={lineHeightMax ?? 2} step={0.05} value={lineHeight} fmt={v => v.toFixed(2).replace(".", ",")} onChange={onLineHeightChange}
+            state={mod(lineHeightModified)} onReset={onLineHeightReset} />
         )}
       </MenuSection>
 
-      <MenuSection label="Color" num={pad2(numStart + 1)} tone={1} changed={hasColorOverride ? 1 : 0} first>
+      <MenuSection label="Color" icon="palette" changed={hasColorOverride ? 1 : 0} onReset={onColorClear}
+        summary={gradientOn ? "Lo reemplaza el gradiente" : hasColorOverride ? wellHex(color) : ROLE_COLOR_INHERITED} swatch={gradientOn ? undefined : color}>
         {/* Iteration 0: truly disabled while a gradient replaces the solid
             color — `inert` removes it from Tab order and the a11y tree; a
             visible note says why. */}
-        <div style={{ opacity: gradientOn ? 0.4 : 1 }} inert={gradientOn}>
+        <div style={{ opacity: gradientOn ? 0.4 : 1, transition: "opacity 260ms" }} inert={gradientOn}>
           <ColorRow label="Color" value={color} onChange={onColorChange} clearable={hasColorOverride} onClear={onColorClear}
             state={hasColorOverride ? "modified" : "inherited"} inheritedLabel={ROLE_COLOR_INHERITED} onReset={onColorClear} />
         </div>
-        {gradientOn && <MenuNote>Color: lo reemplaza el gradiente.</MenuNote>}
+        {gradientOn && <MenuNote icon="lock">Lo reemplaza el gradiente</MenuNote>}
       </MenuSection>
 
-      <MenuSection label="Efectos del texto" num={pad2(numStart + 2)} tone={4} active={fxOn} first>
+      <MenuSection label="Efectos del texto" icon="sparkles" active={fxNames.length} summary={fxNames.length ? fxNames.join(", ") : "Ninguno activo"}>
         <EffectList label={`Efectos del texto: ${label}`}>
-          <EffectRow id="gradient" label="Gradiente" tone={1} on={gradientOn}
+          <EffectRow id="gradient" label="Gradiente" icon="palette" preview="t-grad" on={gradientOn}
             state={gradientOn ? `${gradientColors.length} colores` : undefined}
             onToggle={v => onGradientChange(v ? newGradient() : undefined)}>
             {gradient ? (
               <>
                 <GradientStops colors={gradientColors}
                   onChange={colors => onGradientChange({ ...gradient, colors })} />
-                <SliderRow label="Ángulo" min={0} max={360} step={5} value={gradient.angle ?? ON.textGradient.angle}
-                  onChange={v => onGradientChange({ ...gradient, angle: v })} fmt={v => `${v}°`} />
+                <SliderRow label="Ángulo" icon="rotate" min={0} max={360} step={5} value={gradient.angle ?? ON.textGradient.angle}
+                  onChange={v => onGradientChange({ ...gradient, angle: v })} fmt={v => `${Math.round(v)}°`} />
               </>
-            ) : <MenuNote>Activalo para pintar el texto con dos o más colores.</MenuNote>}
+            ) : null}
           </EffectRow>
-          <EffectRow id="shimmer" label="Shimmer" tone={2} on={!!shimmer}
-            state={shimmer ? `${(shimmer.speed ?? ON.textShimmer.speed).toFixed(1)}x` : undefined}
+          <EffectRow id="shimmer" label="Shimmer" icon="sparkles" preview="t-shim" on={!!shimmer}
+            state={shimmer ? `${(shimmer.speed ?? ON.textShimmer.speed).toFixed(1).replace(".", ",")}x` : undefined}
             onToggle={v => onShimmerChange(v ? { ...ON.textShimmer } : undefined)}>
             {shimmer ? (
               <>
@@ -182,32 +201,33 @@ export default function RoleTypographyFields({
                     nothing to control there, so it only shows for the
                     flat-color sweep. */}
                 {!gradientOn && (
-                  <SliderRow label="Intensidad" min={0} max={1} step={0.01} value={shimmer.intensity ?? ON.textShimmer.intensity}
+                  <SliderRow label="Intensidad" icon="sun" min={0} max={1} step={0.01} value={shimmer.intensity ?? ON.textShimmer.intensity}
                     onChange={v => onShimmerChange({ ...shimmer, intensity: v })} fmt={v => `${Math.round(v * 100)}%`} />
                 )}
-                <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={shimmer.speed ?? ON.textShimmer.speed}
-                  onChange={v => onShimmerChange({ ...shimmer, speed: v })} fmt={v => `${v.toFixed(1)}x`} />
+                <SliderRow label="Velocidad" icon="play" min={0.3} max={3} step={0.1} value={shimmer.speed ?? ON.textShimmer.speed}
+                  onChange={v => onShimmerChange({ ...shimmer, speed: v })} fmt={v => `${v.toFixed(1).replace(".", ",")}x`} />
               </>
-            ) : <MenuNote>Un brillo que recorre el texto.</MenuNote>}
+            ) : null}
           </EffectRow>
           {onLetterAnimationChange && (
-            <EffectRow id="letters" label="Animación por letra" tone={3} on={!!letterAnimation}
+            <EffectRow id="letters" label="Por letra" icon="text" preview="t-let" on={!!letterAnimation}
               state={letterAnimation ? `${letterAnimation.amplitude ?? ON.letterAnimation.amplitude} px` : undefined}
               onToggle={v => onLetterAnimationChange(v ? { ...ON.letterAnimation } : undefined)}>
               {letterAnimation ? (
                 <>
-                  <SliderRow label="Amplitud" min={1} max={12} step={1} value={letterAnimation.amplitude ?? ON.letterAnimation.amplitude}
-                    onChange={v => onLetterAnimationChange({ ...letterAnimation, amplitude: v })} unit="px" />
-                  <SliderRow label="Velocidad" min={0.3} max={3} step={0.1} value={letterAnimation.speed ?? ON.letterAnimation.speed}
-                    onChange={v => onLetterAnimationChange({ ...letterAnimation, speed: v })} fmt={v => `${v.toFixed(1)}x`} />
-                  <SliderRow label="Escalonado" min={0} max={0.2} step={0.01} value={letterAnimation.stagger ?? ON.letterAnimation.stagger}
-                    onChange={v => onLetterAnimationChange({ ...letterAnimation, stagger: v })} fmt={v => `${Math.round(v * 1000)}ms`} />
+                  <SliderRow label="Amplitud" icon="height" min={1} max={12} step={1} value={letterAnimation.amplitude ?? ON.letterAnimation.amplitude}
+                    onChange={v => onLetterAnimationChange({ ...letterAnimation, amplitude: v })} unit="px" fmt={v => `${Math.round(v)} px`} />
+                  <SliderRow label="Velocidad" icon="play" min={0.3} max={3} step={0.1} value={letterAnimation.speed ?? ON.letterAnimation.speed}
+                    onChange={v => onLetterAnimationChange({ ...letterAnimation, speed: v })} fmt={v => `${v.toFixed(1).replace(".", ",")}x`} />
+                  <SliderRow label="Escalonado" icon="spacing" min={0} max={0.2} step={0.01} value={letterAnimation.stagger ?? ON.letterAnimation.stagger}
+                    onChange={v => onLetterAnimationChange({ ...letterAnimation, stagger: v })} fmt={v => `${Math.round(v * 1000)} ms`} />
                 </>
-              ) : <MenuNote>Cada letra rebota por separado.</MenuNote>}
+              ) : null}
             </EffectRow>
           )}
         </EffectList>
+        {onGoToAllText && <GotoRow label="Sombra, brillo y contorno" hint="Todos los textos" onGo={onGoToAllText} />}
       </MenuSection>
-    </div>
+    </>
   );
 }

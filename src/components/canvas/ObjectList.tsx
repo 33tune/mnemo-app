@@ -1,7 +1,8 @@
 "use client";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "@/ui";
 import {
-  INSPECTOR_OBJECTS, OBJECT_GROUPS, chipAccessibleName, chipLabel, nextTabIndex, objectModified, type ChipContext, type ObjectId,
+  PART_IDS, PART_ORDER, chipAccessibleName, inspectorObject, nextTabIndex, objectModified, type ChipContext, type ObjectId,
 } from "@/lib/inspectorObjects";
 import { detectPlatform, PLATFORM_LABELS } from "./SocialIcons";
 
@@ -11,98 +12,96 @@ interface ObjectListProps {
   ctx:      ChipContext;
   /** id of the tabpanel the tabs control. */
   panelId:  string;
-  /** Bottom sheet: 44px chips (touch). */
+  /** Bottom sheet (touch): same 44px parts. */
   sheet?:   boolean;
 }
 
 export const objectTabId = (id: ObjectId) => `mnemo-object-tab-${id}`;
 const platformLabel = (url: string) => PLATFORM_LABELS[detectPlatform(url)];
 
-// Editor v3 Phase F (design screens 02 / 10): ONE horizontal row of object
-// chips under the inspector's title — it replaces Phase 2's grouped map.
-// Each chip is the object's name; the orange dot marks an object with its
-// own style values (objectModified — what reset would remove). The row
-// scrolls sideways (the active chip is kept in view) and the three groups
-// (texts · blocks · the card) are separated by a hairline.
-// Still an APG tablist: roving tabindex, arrows + Home/End move AND select,
-// focus stays on the chip; the body is the tabpanel labelled by the h2. The
-// accessible name starts with the visible label and adds the content
-// ("Nombre: Mara", WCAG 2.5.3) and ", con cambios" for the dot.
+/** Each part's glyph (design menu-schema.js OBJECTS[*].icon). */
+const PART_ICON: Record<ObjectId, IconName> = {
+  photo: "user", name: "text", handle: "at", descriptor: "quote", location: "pin", bio: "align-left", views: "eye",
+  links: "link", logo: "shapes", cardBg: "palette", cardFx: "sparkles", allText: "case",
+};
+export const partIcon = (id: ObjectId): IconName => PART_ICON[id];
+
+// Liquid glass (L2, DS PartPicker): ONE row of round 44px part buttons under
+// the dock's title — the photo as a thumbnail, the background as a swatch,
+// the rest as glyphs; the selected part sits on the neutral `on` fill and
+// pops; the accent dot marks a part with its own values (objectModified).
+// The tooltip is the part's name. Still an APG tablist (roving tabindex,
+// arrows + Home/End move AND select); the accessible name starts with the
+// visible tooltip label and adds the content ("Nombre: Mara", 2.5.3).
 export function ObjectList({ active, onSelect, ctx, panelId, sheet }: ObjectListProps) {
-  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const refs = useRef<Partial<Record<ObjectId, HTMLButtonElement | null>>>({});
   const rowRef = useRef<HTMLDivElement>(null);
-  const [fade, setFade] = useState({ start: false, end: false });
-  const activeIndex = Math.max(0, INSPECTOR_OBJECTS.findIndex(o => o.id === active));
+  const [, force] = useState(0);
+  const activeIndex = Math.max(0, PART_IDS.indexOf(active));
 
   function onKeyDown(e: React.KeyboardEvent) {
-    const next = nextTabIndex(e.key, activeIndex, INSPECTOR_OBJECTS.length);
+    const next = nextTabIndex(e.key, activeIndex, PART_IDS.length);
     if (next < 0) return;
     e.preventDefault();
     e.stopPropagation();
-    onSelect(INSPECTOR_OBJECTS[next].id);
-    refs.current[next]?.focus();
+    const id = PART_IDS[next];
+    onSelect(id);
+    refs.current[id]?.focus();
   }
 
-  const updateFade = () => {
-    const el = rowRef.current;
-    if (!el) return;
-    const start = el.scrollLeft > 1;
-    const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
-    setFade(f => (f.start === start && f.end === end ? f : { start, end }));
-  };
-  // Keep the active chip in view (it may have been picked from a link or
-  // from the canvas) — horizontally only, the panel never jumps.
+  // Keep the active part in view (it may have been picked on the card) —
+  // horizontally only, the panel never jumps.
   useLayoutEffect(() => {
-    const row = rowRef.current, chip = refs.current[activeIndex];
-    if (!row || !chip) return;
-    const l = chip.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft, r = l + chip.offsetWidth;
-    // Clear of the 36px edge fades (editor.css), focus ring included.
-    if (l < row.scrollLeft + 40) row.scrollLeft = Math.max(0, l - 40);
-    else if (r > row.scrollLeft + row.clientWidth - 40) row.scrollLeft = r - row.clientWidth + 40;
-    updateFade();
-  }, [activeIndex, sheet]);
-  useEffect(() => {
-    window.addEventListener("resize", updateFade);
-    return () => window.removeEventListener("resize", updateFade);
-  }, []);
+    const row = rowRef.current, el = refs.current[active];
+    if (!row || !el) return;
+    const l = el.offsetLeft - 20, r = el.offsetLeft + el.offsetWidth + 20;
+    if (l < row.scrollLeft) row.scrollTo({ left: l, behavior: "smooth" });
+    else if (r > row.scrollLeft + row.clientWidth) row.scrollTo({ left: r - row.clientWidth, behavior: "smooth" });
+    force(x => x);
+  }, [active, sheet]);
+
+  const bg = ctx.effective;
+  const swatch = bg.gradient ? `linear-gradient(135deg, ${bg.gradient.from}, ${bg.gradient.to})` : bg.bg?.color;
 
   return (
     <div ref={rowRef} role="tablist" aria-label="Partes de la tarjeta" aria-orientation="horizontal" onKeyDown={onKeyDown}
-      // A vertical mouse wheel scrolls the row sideways (the header itself
-      // never scrolls, so nothing else is lost).
+      // A vertical mouse wheel scrolls the row sideways.
       onWheel={e => { const row = rowRef.current; if (row && Math.abs(e.deltaY) > Math.abs(e.deltaX)) row.scrollLeft += e.deltaY; }}
-      onScroll={updateFade} className="mn-objlist" data-sheet={sheet || undefined}
-      data-fade-start={fade.start || undefined} data-fade-end={fade.end || undefined}>
-      {OBJECT_GROUPS.map((group, gi) => (
-        <React.Fragment key={group}>
-          {gi > 0 && <span role="none" aria-hidden="true" className="mn-objlist__sep" />}
-          {INSPECTOR_OBJECTS.map((o, i) => {
-            if (o.group !== group) return null;
-            const selected = o.id === active;
-            const modified = objectModified(o.id, ctx.card);
-            const name = chipAccessibleName(o, o.chip(ctx), platformLabel);
-            return (
-              <button
-                key={o.id}
-                ref={el => { refs.current[i] = el; }}
-                type="button"
-                role="tab"
-                id={objectTabId(o.id)}
-                aria-selected={selected}
-                aria-controls={panelId}
-                aria-label={modified ? `${name}, con cambios` : name}
-                tabIndex={selected ? 0 : -1}
-                className="mn-objchip"
-                onMouseDown={e => e.stopPropagation()}
-                onClick={e => { e.stopPropagation(); onSelect(o.id); }}
-              >
-                {chipLabel(o)}
-                {modified && <span className="mn-objchip__dot" aria-hidden="true" />}
-              </button>
-            );
-          })}
-        </React.Fragment>
-      ))}
+      className="mn-parts" data-sheet={sheet || undefined}>
+      {PART_ORDER.map((p, i) => {
+        if (p === "|") return <span key={`sep${i}`} role="none" aria-hidden="true" className="mn-parts__sep" />;
+        const o = inspectorObject(p);
+        const selected = p === active;
+        const modified = objectModified(p, ctx.card);
+        const name = chipAccessibleName(o, o.chip(ctx), platformLabel);
+        const caption = o.shortCaption ?? o.caption;
+        return (
+          <button
+            key={p}
+            ref={el => { refs.current[p] = el; }}
+            type="button"
+            role="tab"
+            id={objectTabId(p)}
+            data-part={p}
+            aria-selected={selected}
+            aria-controls={panelId}
+            aria-label={modified ? `${name}, con cambios` : name}
+            data-tip={caption}
+            tabIndex={selected ? 0 : -1}
+            className="mn-part mn-tip"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onSelect(p); }}
+          >
+            {p === "photo" && ctx.card.photo
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={ctx.card.photo} alt="" className="mn-part__img" draggable={false} />
+              : p === "cardBg" && swatch
+                ? <span className="mn-part__sw" style={{ background: swatch }} />
+                : <Icon name={PART_ICON[p]} size={18} />}
+            {modified && <span className="mn-part__dot" aria-hidden="true" />}
+          </button>
+        );
+      })}
     </div>
   );
 }

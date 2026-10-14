@@ -107,7 +107,7 @@ test("Fondo chip shows a swatch of the effective background; Todos los textos th
   assert.equal(chip("cardBg", c).swatch!.color, "#223344");
   const t = chip("allText", card({ textColor: "#ff0000" }));
   assert.equal(t.sampleColor, "#ff0000");
-  assert.equal(chipAccessibleName(inspectorObject("allText"), t), "Todos los textos");
+  assert.equal(chipAccessibleName(inspectorObject("allText"), t), "Textos");
 });
 
 test("accessible names: caption + visible content, capped at ~60 characters", () => {
@@ -173,7 +173,7 @@ test("OBJECT_SECTIONS mounts every object, only from the files OBJECT_FILES list
     for (const [h, comp] of Object.entries(helper)) if (new RegExp(`\\b${h}\\(`).test(body)) used.add(imports.get(comp)!);
     for (const t of body.matchAll(/<([A-Z]\w+)/g)) {
       if (t[1] === "ProfileMeasures") { used.add(CONFIG); continue; }
-      if (t[1] === "ObjectLink") continue; // navigation only, no capability
+      if (t[1] === "ObjectLink" || t[1] === "GotoRow") continue; // navigation only, no capability
       assert.ok(imports.has(t[1]), `${id}: <${t[1]}> is not imported from ./`);
       used.add(imports.get(t[1])!);
     }

@@ -28,7 +28,7 @@ test("the inspector is a stable-named landmark and an editor root — not a dial
   assert.ok(SHELL.includes("onMouseDown={e => e.stopPropagation()}") && SHELL.includes("onClick={e => e.stopPropagation()}"),
     "nothing inside starts a canvas drag or selects the card");
   // Phase D: the h2 lives in the shared InspectorHeader, wired with the same id / ref.
-  assert.match(HEADER, /<h2 ref=\{titleRef\} id=\{titleId\} tabIndex=\{-1\}/, "visible h2, focus target of Editar/F6");
+  assert.match(HEADER, /<h2 key=\{title\} ref=\{titleRef\} id=\{titleId\} tabIndex=\{-1\}/, "visible h2, focus target of Editar/F6");
   assert.ok(SHELL.includes("<InspectorHeader path={path} title={title} titleId={INSPECTOR_TITLE_ID} titleRef={titleRef}"));
 });
 
@@ -110,9 +110,9 @@ test("keyboard: F6 toggles canvas ⇄ inspector and is declared; Esc on the canv
 test("ObjectList is an APG tablist controlling a tabpanel labelled by the h2; no live regions", () => {
   assert.ok(LIST.includes('role="tablist"') && LIST.includes('role="tab"') && LIST.includes("aria-selected={selected}"));
   assert.ok(LIST.includes("tabIndex={selected ? 0 : -1}"), "roving tabindex");
-  // Phase F: chips are text labels (no thumbnails); the dot is decorative,
-  // its meaning is in the name.
-  assert.ok(LIST.includes("{chipLabel(o)}") && LIST.includes('className="mn-objchip__dot" aria-hidden="true"'));
+  // Liquid glass: round part buttons (glyph / thumbnail / swatch) whose
+  // tooltip is the part's name; the dot is decorative, its meaning is spoken.
+  assert.ok(LIST.includes("data-tip={caption}") && LIST.includes('className="mn-part__dot" aria-hidden="true"'));
   assert.ok(LIST.includes("aria-label={modified ? `${name}, con cambios` : name}"), "the dot is spoken");
   assert.ok(INSPECTOR.includes('role="tabpanel"') && INSPECTOR.includes("aria-labelledby={INSPECTOR_TITLE_ID}"));
   for (const src of [LIST, INSPECTOR, SHELL]) assert.ok(!src.includes("aria-live") && !src.includes('role="status"'));
@@ -160,7 +160,7 @@ test("r2: the sheet's collapse looks at focus ANYWHERE inside the canvas", () =>
 
 test("Phase B: narrow viewport = bottom sheet below the element, 44px targets, collapses to a bar; the FAB moves up", () => {
   assert.ok(SHELL.includes("? { left: 0, right: 0, bottom: 0, height: collapsed ? INSPECTOR_SHEET_COLLAPSED_H : height }"));
-  assert.ok(SHELL.includes("export const SHEET_TARGET = 44;") && HEADER.includes("size={sheet ? 44 : 28}"), "44px close in the sheet");
+  assert.ok(SHELL.includes("export const SHEET_TARGET = 44;") && HEADER.includes("const btn = sheet ? 44 : 36;"), "44px close in the sheet");
   assert.ok(SHELL.includes('className={sheet ? "mn-inspector__bar" : "mn-inspector__tab"}'));
   const css = read("src/ui/editor.css");
   assert.match(css, /\.mn-inspector__bar \{[^}]*min-height: 44px/);
@@ -198,21 +198,21 @@ test("Phase B review fixes: collapse only when the sheet hides the focus; FAB hi
 
 test("r2: in-section links move focus to the new object's h2 (the link itself unmounts)", () => {
   assert.match(INSPECTOR, /function goTo\(id: ObjectId\) \{\s*select\(id\);\s*requestAnimationFrame\(\(\) => document\.getElementById\(INSPECTOR_TITLE_ID\)\?\.focus/);
-  assert.ok(CONFIG.includes('link("allText", TEXT_FX_LINK)'));
-  assert.equal((CONFIG.match(/link\("allText", TEXT_FX_LINK\)/g) ?? []).length, 6, "from every text role");
-  // Phase F: the links name the object by its chip label.
-  assert.ok(CONFIG.includes('to="cardBg" label="Esquinas: en Fondo"') && CONFIG.includes('link("cardFx", "Color y grosor del borde: en Efectos")'));
+  // Liquid glass: the jump lives INSIDE each role's "Efectos del texto" card
+  // (DS isGoto "Sombra, brillo y contorno · Todos los textos").
+  assert.ok(CONFIG.includes('goTo={c.goTo ? () => c.goTo?.("allText") : undefined}'));
+  assert.ok(ROLE.includes('<GotoRow label="Sombra, brillo y contorno" hint="Todos los textos" onGo={onGoToAllText} />'));
 });
 
 test("r2: the 'Color de todos los textos' hint describes its control", () => {
   const typo = read("src/components/canvas/ProfileTypographyMenu.tsx");
-  assert.ok(typo.includes("hintId={hintId}") && typo.includes("<MenuNote id={hintId}>"));
-  assert.ok(read("src/ui/MenuRow.tsx").includes('[state === "inherited" ? chipId : undefined, hintId].filter(Boolean).join(" ")'));
+  assert.ok(typo.includes("hintId={hintId}") && typo.includes("<MenuNote id={hintId}"));
+  assert.ok(read("src/ui/ColorRow.tsx").includes('[state === "inherited" ? chipId : undefined, hintId].filter(Boolean).join(" ")'));
 });
 
 test("r2: one term for block style, scope in the label", () => {
   const block = read("src/components/canvas/BlockStyleFields.tsx");
   assert.ok(block.includes('export const BLOCK_STYLE_LABEL = "Estilo del bloque"'));
-  assert.ok(read("src/components/canvas/ProfileIdentityMenu.tsx").includes('scope="afecta Nombre, @usuario, Frase y Bio"'));
+  assert.ok(read("src/components/canvas/ProfileIdentityMenu.tsx").includes('scope="Nombre, @usuario, Frase y Bio"'));
   assert.ok(!read("src/components/canvas/ProfileMetadataMenu.tsx").includes("Estilo de bloque"));
 });

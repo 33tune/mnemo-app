@@ -134,6 +134,12 @@ export function identityController(card: ProfileCardData, write: Write<Partial<P
     /** Switches pause instead of deleting (effectBinding.ts / effectPause.ts). */
     setPfpEffect: (path: "pfp.shadow" | "pfp.glow", on: boolean) =>
       write({ effects: setEffectEnabled(card.effects, path, on, card.variant) }),
+    /** Liquid glass "Restablecer card" (Forma): back to the derived size /
+     * the circle — deletes the raw keys. */
+    resetPfpShape: () => write({ pfpSizePx: undefined, pfpRadius: undefined }),
+    /** Liquid glass "Restablecer card" (Efectos de la foto): every photo
+     * effect back to its default — deletes effects.pfp. */
+    resetPfpEffects: () => write({ effects: mergePatch(card.effects, { pfp: undefined }) }),
   };
 }
 
@@ -192,5 +198,7 @@ export function linksController(links: ContactLink[], write: Write<Partial<Profi
     update: (id: string, url: string) => write({ contactLinks: links.map(l => l.id === id ? { ...l, url } : l) }),
     remove: (id: string) => write({ contactLinks: links.filter(l => l.id !== id) }),
     setIconSize: (v: number) => write({ linksIconSize: v }),
+    /** Liquid glass "Restablecer card" (Íconos): deletes the raw key. */
+    resetIconSize: () => write({ linksIconSize: undefined }),
   };
 }

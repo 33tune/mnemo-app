@@ -1,6 +1,7 @@
 "use client";
 import type { ProfileCardData } from "@/types";
-import { T, MenuSection, MenuRow, Toggle, TextInput, TextArea } from "@/ui";
+import { MenuSection, SwitchRow, TextInput, TextArea } from "@/ui";
+import { getFontStyle } from "@/lib/fontList";
 import BlockStyleFields from "./BlockStyleFields";
 import { metadataController } from "@/lib/objectControllers";
 
@@ -14,7 +15,7 @@ interface ProfileMetadataMenuProps {
   only: MetadataPart;
 }
 
-export type MetadataPart = "descriptor" | "location" | "bio" | "views";
+export type MetadataPart = "descriptor" | "location" | "bio" | "views" | "locationBlock" | "viewsBlock";
 
 // CONTENT: qué querés mostrar. Tamaño/fuente/color de estos campos viven en
 // TEXT, no acá — ver [[ProfileTypographyMenu]]. El estilo (background/color/
@@ -28,33 +29,34 @@ export default function ProfileMetadataMenu({ card, onChange, only }: ProfileMet
   const { status, location, bio, showViews } = card;
   // Editor v3 Phase C: writes go through the metadata controller.
   const meta = metadataController(onChange);
+  // Liquid glass (design menu-schema.js roles): the content is a pinned
+  // card whose field writes in the role's own font; Ubicación's and
+  // Visitas' block style are their own cards (at the end of the part).
+  const mono = "Space Mono";
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: T.space[4] }}>
-      {only === "descriptor" && <MenuSection label="Contenido" first>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {only === "descriptor" && <MenuSection label="Contenido" pinned>
         {/* Iteration 0: shared TextInput — named by the visible section
-            heading (was placeholder-only) and with the editor focus ring
-            (was outline:none). */}
+            heading (was placeholder-only) and with the editor focus ring. */}
         <TextInput value={status ?? ""} onChange={v => meta.setText("status", v)}
-          placeholder="diseñador multimedia, just for fun..." maxLength={60} />
+          placeholder="diseñador multimedia, just for fun…" maxLength={60} fontFamily={getFontStyle(card.statusFont ?? mono)} />
       </MenuSection>}
 
-      {only === "location" && <MenuSection label="Contenido" first>
+      {only === "location" && <MenuSection label="Contenido" pinned>
         <TextInput value={location ?? ""} onChange={v => meta.setText("location", v)}
-          placeholder="la plata, buenos aires" maxLength={60} />
-        <BlockStyleFields card={card} blockKey="location" onChange={onChange} />
+          placeholder="la plata, buenos aires" maxLength={60} fontFamily={getFontStyle(card.locationFont ?? mono)} />
       </MenuSection>}
+      {only === "locationBlock" && <BlockStyleFields card={card} blockKey="location" onChange={onChange} scope="Ubicación" />}
 
-      {only === "bio" && <MenuSection label="Contenido" first>
+      {only === "bio" && <MenuSection label="Contenido" pinned>
         <TextArea value={bio ?? ""} onChange={v => meta.setText("bio", v)}
-          placeholder="una bio corta…" maxLength={120} rows={2} />
+          placeholder="Contá algo de vos" maxLength={120} rows={3} fontFamily={getFontStyle(card.bioFont ?? mono)} />
       </MenuSection>}
 
-      {only === "views" && <MenuSection label="Contador" first>
-        <MenuRow label="Mostrar cantidad">
-          <Toggle value={!!showViews} onChange={v => meta.setShowViews(v)} />
-        </MenuRow>
-        {showViews && <BlockStyleFields card={card} blockKey="views" onChange={onChange} />}
+      {only === "views" && <MenuSection label="Contador" pinned>
+        <SwitchRow label="Mostrar cantidad" icon="eye" value={!!showViews} onChange={v => meta.setShowViews(v)} />
       </MenuSection>}
+      {only === "viewsBlock" && <BlockStyleFields card={card} blockKey="views" onChange={onChange} scope="Visitas" />}
     </div>
   );
 }

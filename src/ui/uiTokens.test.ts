@@ -237,14 +237,14 @@ test("sheet breakpoint leaves room for the widest card between the rail and the 
   assert.equal(T.ui.size.objChip, 44);
 });
 
-test("the docked inspector and the object chips are styled by editor.css (incl. forced colors / reduced motion)", () => {
-  assert.match(css, /\.mn-panel\.mn-panel--docked\[data-mnemo-editor\]\s*\{[^}]*border-radius:\s*var\(--ui-radius-dock\)[^}]*box-shadow:\s*var\(--ui-shadow-panel\)/, "Phase D: floating dock");
-  // Phase F: chips are not pills (design: 9–12px) and the selected one has a
-  // selEdge outline (OG lime needs it for >= 3:1).
-  assert.match(css, /\.mn-objchip\s*\{[^}]*height:\s*var\(--ui-size-obj-chip\)[^}]*border-radius:\s*var\(--ui-radius-obj-chip\)/);
-  assert.match(css, /\.mn-objchip\[aria-selected="true"\]\s*\{[^}]*background:\s*var\(--ui-surface-sel\)[^}]*box-shadow:\s*inset 0 0 0 1px var\(--ui-line-sel-edge\)/);
-  assert.match(css, /\.mn-objlist\[data-sheet\] \.mn-objchip\s*\{[^}]*height:\s*44px/, "44px chips in the sheet");
-  assert.match(css, /\.mn-objchip\[aria-selected="true"\]\s*\{[^}]*border:\s*2px solid Highlight/);
+test("the docked inspector and the part picker are styled by editor.css (incl. forced colors / reduced motion)", () => {
+  assert.match(css, /\.mn-panel\.mn-panel--docked\[data-mnemo-editor\]\s*\{[^}]*border-radius:\s*var\(--ui-radius-dock\)[^}]*box-shadow:\s*var\(--ui-shadow-panel\)/, "floating glass dock");
+  assert.match(css, /\.mn-panel\[data-mnemo-editor\]\s*\{[^}]*backdrop-filter:\s*var\(--ui-material-blur\)/, "Liquid glass material");
+  // Liquid glass: round 44px parts; the selected one on the `on` fill with a
+  // selEdge ring (OG's lime needs it for >= 3:1).
+  assert.match(css, /\.mn-part\s*\{[^}]*width:\s*var\(--ui-size-obj-chip\)[^}]*height:\s*var\(--ui-size-obj-chip\)/);
+  assert.match(css, /\.mn-part\[aria-selected="true"\]\s*\{[^}]*background:\s*var\(--ui-accent-on\)[^}]*inset 0 0 0 1px var\(--ui-line-sel-edge\)/);
+  assert.match(css, /\.mn-part\[aria-selected="true"\]\s*\{\s*border:\s*2px solid Highlight/);
   assert.match(css, /\*::after\s*\{\s*transition-property/, "reduced motion covers ::after");
   assert.match(css, /\.mn-canvas\[data-mnemo-canvas\]\s*\{\s*transition:\s*none !important/, "view offset is instant with reduced motion");
 });

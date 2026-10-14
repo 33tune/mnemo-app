@@ -1,8 +1,7 @@
 "use client";
-import { useRef } from "react";
 import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { MenuSection, SliderRow, ActionButton, MenuNote, refocusFieldControl } from "@/ui";
+import { MenuSection, SliderRow, MenuNote, UploadField } from "@/ui";
 import { logoController } from "@/lib/objectControllers";
 
 type LogoPatch = Partial<Pick<ProfileCardData, "logo">>;
@@ -20,45 +19,54 @@ interface Props {
 // already used, not inventing a second one). Position is set by dragging
 // the logo directly on the card; everything else lives here.
 export default function ProfileLogoMenu({ logo, onChange }: Props) {
-  const fileRef = useRef<HTMLInputElement>(null);
-
   // Editor v3 Phase C: every write goes through the logo controller
   // (objectControllers.ts — same patches as before, moved verbatim).
   const logoCtl = logoController(logo, onChange);
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  async function handleFile(f: File) {
     const { publicUrl } = await uploadToStorage(f);
     logoCtl.setImage(publicUrl);
-    if (fileRef.current) fileRef.current.value = "";
   }
+  const deg = (v: number) => `${Math.round(v)}°`;
+  const px = (v: number) => `${Math.round(v)} px`;
+  const depth = (v: number) => (v < 0 ? `${v} · detrás` : v > 0 ? `+${v}` : "0");
 
+  // Liquid glass (design menu-schema.js "logo"): Imagen (pinned upload),
+  // Tamaño y giro, Profundidad — the last two wait for a logo ("Subí un
+  // logo primero"). Same writes as before.
   return (
-    <MenuSection label="Logo" first>
-      {!logo ? (
-        <ActionButton onClick={() => fileRef.current?.click()} fullWidth>subir logo</ActionButton>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <MenuSection label="Imagen" pinned>
+        <UploadField kind="logo" value={logo?.url ?? null} label="Subí tu logo" caption="Logo"
+          accept="image/png,image/svg+xml,image/webp,image/*" onFile={handleFile} onRemove={() => logoCtl.remove()} />
+      </MenuSection>
+      {logo ? (
+        <>
+          <MenuSection label="Tamaño y giro" icon="maximize"
+            summary={`${Math.round(logo.w)} × ${Math.round(logo.h)} · ${deg(logo.rotation ?? 0)}`}>
+            <SliderRow label="Ancho" icon="maximize" min={16} max={200} step={1} value={logo.w} unit="px" fmt={px} onChange={v => logoCtl.patch({ w: v })} />
+            <SliderRow label="Alto" icon="height" min={16} max={200} step={1} value={logo.h} unit="px" fmt={px} onChange={v => logoCtl.patch({ h: v })} />
+            <SliderRow label="Rotación" icon="rotate" min={-180} max={180} step={1} value={logo.rotation ?? 0}
+              fmt={deg} onChange={v => logoCtl.patch({ rotation: v })} />
+            <SliderRow label="Opacidad" icon="eye" min={0} max={1} step={0.01} value={logo.opacity ?? 1}
+              fmt={v => `${Math.round(v * 100)}%`} onChange={v => logoCtl.patch({ opacity: v })} />
+          </MenuSection>
+          <MenuSection label="Profundidad" icon="layers" summary={depth(logo.zIndex ?? 0)}>
+            <SliderRow label="Profundidad" icon="layers" min={-5} max={10} step={1} value={logo.zIndex ?? 0} fmt={depth}
+              onChange={v => logoCtl.patch({ zIndex: v })} />
+            <MenuNote icon="move">Arrastralo sobre la tarjeta para moverlo</MenuNote>
+          </MenuSection>
+        </>
       ) : (
         <>
-          <div style={{ display: "flex", gap: 6 }}>
-            <ActionButton onClick={() => fileRef.current?.click()}>reemplazar imagen</ActionButton>
-            <ActionButton variant="danger" onClick={e => { const el = e.currentTarget as HTMLElement; logoCtl.remove(); refocusFieldControl(el); }}>quitar</ActionButton>
-          </div>
-
-          <SliderRow label="Ancho" min={16} max={200} step={1} value={logo.w} unit="px" onChange={v => logoCtl.patch({ w: v })} />
-          <SliderRow label="Alto" min={16} max={200} step={1} value={logo.h} unit="px" onChange={v => logoCtl.patch({ h: v })} />
-          <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={logo.opacity ?? 1}
-            fmt={v => `${Math.round(v * 100)}%`} onChange={v => logoCtl.patch({ opacity: v })} />
-          <SliderRow label="Rotación" min={-180} max={180} step={1} value={logo.rotation ?? 0}
-            fmt={v => `${v}°`} onChange={v => logoCtl.patch({ rotation: v })} />
-          <SliderRow label="Profundidad" min={-5} max={10} step={1} value={logo.zIndex ?? 0}
-            onChange={v => logoCtl.patch({ zIndex: v })} />
-          <MenuNote>
-            Arrastrá el logo directamente sobre la card para moverlo. Profundidad negativa lo manda detrás del resto de los elementos.
-          </MenuNote>
+          <MenuSection label="Tamaño y giro" icon="maximize" summary="Subí un logo primero" defaultOpen={false}>
+            <MenuNote>Subí un logo para ajustarlo</MenuNote>
+          </MenuSection>
+          <MenuSection label="Profundidad" icon="layers" summary="Subí un logo primero" defaultOpen={false}>
+            <MenuNote>Subí un logo para ajustarlo</MenuNote>
+          </MenuSection>
         </>
       )}
-      <input ref={fileRef} type="file" accept="image/png,image/svg+xml,image/webp,image/*" style={{ display: "none" }} onChange={handleUpload} />
-    </MenuSection>
+    </div>
   );
 }

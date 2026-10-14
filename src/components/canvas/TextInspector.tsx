@@ -1,11 +1,12 @@
 "use client";
 import React from "react";
 import type { CanvasText, TextFont } from "@/types";
-import { InspectorShell, MenuSection, MenuRow, MenuNote, SliderRow, Toggle, ColorRow, TextArea, FontField } from "@/ui";
-import { CANVAS_FONTS } from "@/lib/fontList";
+import { InspectorShell, MenuSection, MenuRow, MenuNote, SliderRow, ColorRow, TextArea, FontField, Tabs } from "@/ui";
+import { wellHex } from "@/ui/ColorPopover";
+import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
 import { CANVAS_TEXT_DEFAULTS as TEXT_DEFAULTS, CANVAS_TEXT_SIZE_RANGE as TEXT_SIZE_RANGE } from "@/lib/canvasText";
 import type { LayerIndex } from "@/lib/layerOrder";
-import { ObjectSection, excerpt, type ElementShellProps, type MeasureSpec } from "./ElementInspectorParts";
+import { ObjectSection, ElementFooter, type ElementShellProps, type MeasureSpec } from "./ElementInspectorParts";
 
 interface TextInspectorProps extends ElementShellProps {
   text: CanvasText;
@@ -13,25 +14,30 @@ interface TextInspectorProps extends ElementShellProps {
   onOpenLayers: () => void;
   onToggleLock: () => void;
   onDelete: () => void;
+  /** Liquid glass footer: Fondo / Medio / Frente (Capas' own writer). */
+  onSetLayer?: (layer: LayerIndex) => void;
   measures?: MeasureSpec;
 }
 
-// Editor v3 Phase G (design screen 04): the free text inspector. ONLY the
-// fields CanvasText has — content, font, size, letter spacing, uppercase,
-// color, opacity — written through CanvasBoard.updateText (update_text, the
-// same op the old floating format toolbar sent). The layer and its order
-// live in Capas; double-click on the canvas still edits the text in place.
+const CASE_TABS = [{ id: "aa", label: "Aa", withText: true }, { id: "AA", label: "AA", withText: true }];
+
+// Liquid glass (design menu-schema.js "text"): Contenido (pinned, written in
+// the text's own font) · Tipografía · Color · Medidas; the pinned footer
+// holds the layer, Capas, Bloquear and Eliminar. ONLY the fields CanvasText
+// has, written through CanvasBoard.updateText (update_text).
 export default function TextInspector(p: TextInspectorProps) {
   const { text: t, updateText } = p;
   const set = (patch: Partial<CanvasText>) => updateText(t.id, patch);
-  const name = excerpt(t.content || "", 28) || "Texto vacío";
+  const fontLabel = CANVAS_FONTS.find(f => f.key === t.font)?.label ?? t.font;
+  const px = (v: number) => `${String(Math.round(v * 10) / 10).replace(".", ",")} px`;
+  const typeChanged = [t.font !== TEXT_DEFAULTS.font, t.size !== TEXT_DEFAULTS.size, (t.letterSpacing ?? 0) !== TEXT_DEFAULTS.letterSpacing, !!t.uppercase !== TEXT_DEFAULTS.uppercase].filter(Boolean).length;
+  const colorChanged = [t.color.toLowerCase() !== TEXT_DEFAULTS.color, (t.opacity ?? 1) !== TEXT_DEFAULTS.opacity].filter(Boolean).length;
   return (
     <InspectorShell
       id={p.id}
       title="Texto"
-      path={`texto / ${excerpt(t.content || "", 22).toLowerCase() || "vacío"}`}
-      aside={name}
-      meta={`X ${Math.round(t.x)}   Y ${Math.round(t.y)}   R ${Math.round(t.rotation ?? 0)}°`}
+      icon="text"
+      path="texto / suelto en la sala"
       onClose={p.onClose}
       returnFocusTo={p.returnFocusTo}
       top={p.top}
@@ -40,40 +46,47 @@ export default function TextInspector(p: TextInspectorProps) {
       height={p.height}
       collapsed={p.collapsed}
       onExpand={p.onExpand}
+      footer={<ElementFooter layer={t.layer as LayerIndex} onSetLayer={p.onSetLayer} onOpenLayers={p.onOpenLayers}
+        locked={!!t.locked} onToggleLock={p.onToggleLock} noun="texto" onDelete={p.onDelete} />}
     >
-      <MenuSection label="Contenido" num="01" tone={1} first>
-        <TextArea value={t.content} onChange={v => set({ content: v })} rows={3} placeholder="Escribí el texto" />
-        <MenuNote>También podés editarlo con doble click en la sala.</MenuNote>
-      </MenuSection>
+      <div className="mn-swap" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <MenuSection label="Contenido" pinned>
+          <TextArea value={t.content} onChange={v => set({ content: v })} rows={3} placeholder="Escribí el texto"
+            fontFamily={getFontStyle(t.font)} style={{ fontSize: 19, textTransform: t.uppercase ? "uppercase" : "none" }} />
+          <MenuNote icon="pointer">Doble click en la sala para editarlo ahí</MenuNote>
+        </MenuSection>
 
-      <MenuSection label="Tipografía" num="02" tone={2}>
-        <FontField value={t.font} fonts={CANVAS_FONTS} label={`Fuente: ${CANVAS_FONTS.find(f => f.key === t.font)?.label ?? t.font}`}
-          onChange={v => set({ font: v as TextFont })}
-          modified={t.font !== TEXT_DEFAULTS.font} onReset={() => set({ font: TEXT_DEFAULTS.font })} />
-        <SliderRow label="Tamaño" min={TEXT_SIZE_RANGE.min} max={TEXT_SIZE_RANGE.max} step={1} unit="px" value={t.size}
-          onChange={v => set({ size: v })} defaultValue={TEXT_DEFAULTS.size}
-          state={t.size !== TEXT_DEFAULTS.size ? "modified" : undefined} onReset={() => set({ size: TEXT_DEFAULTS.size })} />
-        <SliderRow label="Interletrado" min={-10} max={60} step={0.5} unit="px" value={t.letterSpacing ?? 0}
-          onChange={v => set({ letterSpacing: v })} defaultValue={TEXT_DEFAULTS.letterSpacing}
-          state={(t.letterSpacing ?? 0) !== TEXT_DEFAULTS.letterSpacing ? "modified" : undefined}
-          onReset={() => set({ letterSpacing: TEXT_DEFAULTS.letterSpacing })} />
-        <MenuRow label="Mayúsculas" state={!!t.uppercase !== TEXT_DEFAULTS.uppercase ? "modified" : undefined}
-          onReset={() => set({ uppercase: TEXT_DEFAULTS.uppercase })}>
-          <Toggle value={!!t.uppercase} onChange={v => set({ uppercase: v })} />
-        </MenuRow>
-      </MenuSection>
+        <MenuSection label="Tipografía" icon="case" summary={`${fontLabel} · ${Math.round(t.size)} px`} changed={typeChanged}
+          onReset={() => set({ font: TEXT_DEFAULTS.font, size: TEXT_DEFAULTS.size, letterSpacing: TEXT_DEFAULTS.letterSpacing, uppercase: TEXT_DEFAULTS.uppercase })}>
+          <FontField value={t.font} fonts={CANVAS_FONTS} label={`Fuente: ${fontLabel}`}
+            onChange={v => set({ font: v as TextFont })}
+            modified={t.font !== TEXT_DEFAULTS.font} onReset={() => set({ font: TEXT_DEFAULTS.font })} />
+          <SliderRow label="Tamaño" icon="maximize" min={TEXT_SIZE_RANGE.min} max={TEXT_SIZE_RANGE.max} step={1} unit="px" value={t.size} fmt={px}
+            onChange={v => set({ size: v })} defaultValue={TEXT_DEFAULTS.size}
+            state={t.size !== TEXT_DEFAULTS.size ? "modified" : undefined} onReset={() => set({ size: TEXT_DEFAULTS.size })} />
+          <SliderRow label="Interletrado" icon="spacing" min={-10} max={60} step={0.5} unit="px" value={t.letterSpacing ?? 0} fmt={px}
+            onChange={v => set({ letterSpacing: v })} defaultValue={TEXT_DEFAULTS.letterSpacing}
+            state={(t.letterSpacing ?? 0) !== TEXT_DEFAULTS.letterSpacing ? "modified" : undefined}
+            onReset={() => set({ letterSpacing: TEXT_DEFAULTS.letterSpacing })} />
+          <MenuRow label="Mayúsculas" state={!!t.uppercase !== TEXT_DEFAULTS.uppercase ? "modified" : undefined}
+            onReset={() => set({ uppercase: TEXT_DEFAULTS.uppercase })}>
+            <div style={{ width: 196 }}>
+              <Tabs tabs={CASE_TABS} active={t.uppercase ? "AA" : "aa"} onChange={v => set({ uppercase: v === "AA" })} label="Mayúsculas" />
+            </div>
+          </MenuRow>
+        </MenuSection>
 
-      <MenuSection label="Color" num="03" tone={3}>
-        <ColorRow label="Texto" value={t.color} onChange={v => set({ color: v })}
-          state={t.color.toLowerCase() !== TEXT_DEFAULTS.color ? "modified" : undefined} onReset={() => set({ color: TEXT_DEFAULTS.color })} />
-        <SliderRow label="Opacidad" min={0.05} max={1} step={0.01} value={t.opacity ?? 1} fmt={v => `${Math.round(v * 100)}%`}
-          onChange={v => set({ opacity: v })} defaultValue={TEXT_DEFAULTS.opacity}
-          state={(t.opacity ?? 1) !== TEXT_DEFAULTS.opacity ? "modified" : undefined} onReset={() => set({ opacity: TEXT_DEFAULTS.opacity })} />
-      </MenuSection>
+        <MenuSection label="Color" icon="palette" summary={`${wellHex(t.color)}${(t.opacity ?? 1) < 1 ? ` · ${Math.round((t.opacity ?? 1) * 100)}%` : ""}`} swatch={t.color}
+          changed={colorChanged} onReset={() => set({ color: TEXT_DEFAULTS.color, opacity: TEXT_DEFAULTS.opacity })}>
+          <ColorRow label="Color" value={t.color} onChange={v => set({ color: v })}
+            state={t.color.toLowerCase() !== TEXT_DEFAULTS.color ? "modified" : undefined} onReset={() => set({ color: TEXT_DEFAULTS.color })} />
+          <SliderRow label="Opacidad" icon="eye" min={0.05} max={1} step={0.01} value={t.opacity ?? 1} fmt={v => `${Math.round(v * 100)}%`}
+            onChange={v => set({ opacity: v })} defaultValue={TEXT_DEFAULTS.opacity}
+            state={(t.opacity ?? 1) !== TEXT_DEFAULTS.opacity ? "modified" : undefined} onReset={() => set({ opacity: TEXT_DEFAULTS.opacity })} />
+        </MenuSection>
 
-      <ObjectSection num="04" tone={4} layer={t.layer as LayerIndex} onOpenLayers={p.onOpenLayers}
-        locked={!!t.locked} onToggleLock={p.onToggleLock} noun="texto" measures={p.measures}
-        deleteLabel="Eliminar texto" onDelete={p.onDelete} />
+        <ObjectSection layer={t.layer as LayerIndex} locked={!!t.locked} measures={p.measures} />
+      </div>
     </InspectorShell>
   );
 }

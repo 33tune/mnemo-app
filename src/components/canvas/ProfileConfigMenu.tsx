@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import type { ProfileCardData, CardEffects } from "@/types";
-import { T, Collapsible, NumberField, MenuNote, Icon, SectionNumber, type SectionNumberValue } from "@/ui";
+import { NumberField, MenuNote, Icon, SectionNumber, Accordion, GotoRow, type SectionNumberValue } from "@/ui";
 import { getCardPadding, getFreeformCardBounds, clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import type { ObjectId } from "@/lib/inspectorObjects";
@@ -68,7 +68,8 @@ const metadata = (only: MetadataPart): Section => ({
 });
 const roleText = (role: Extract<ObjectId, "name" | "handle" | "descriptor" | "location" | "bio" | "views">): Section => ({
   key: `text-${role}`,
-  render: c => <RoleTextSection role={role} card={c.card} baseColor={c.baseColor} onChange={c.onChange} />,
+  render: c => <RoleTextSection role={role} card={c.card} baseColor={c.baseColor} onChange={c.onChange}
+    goTo={c.goTo ? () => c.goTo?.("allText") : undefined} />,
 });
 /** r2: a visible, keyboard-reachable path to the object that owns a
  * related control (e.g. text shadow lives in "Todos los textos"). Focus
@@ -96,36 +97,32 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
   name: [
     identity("name"),
     roleText("name"),
-    link("allText", TEXT_FX_LINK),
     identity("identityBlock"),
   ],
   handle: [
     identity("handle"),
     roleText("handle"),
-    link("allText", TEXT_FX_LINK),
     identity("identityBlock"),
   ],
   descriptor: [
     metadata("descriptor"),
     roleText("descriptor"),
-    link("allText", TEXT_FX_LINK),
     identity("identityBlock"),
   ],
   location: [
     metadata("location"),
     roleText("location"),
-    link("allText", TEXT_FX_LINK),
+    metadata("locationBlock"),
   ],
   bio: [
     metadata("bio"),
     roleText("bio"),
-    link("allText", TEXT_FX_LINK),
     identity("identityBlock"),
   ],
   views: [
     metadata("views"),
     roleText("views"),
-    link("allText", TEXT_FX_LINK),
+    metadata("viewsBlock"),
   ],
   photo: [
     identity("photo"),
@@ -138,14 +135,19 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
   ],
   cardBg: [
     { key: "bg", render: c => <ProfileBackgroundMenu effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)} /> },
-    { key: "corners", num: { num: "04", tone: 4 }, render: c => <CardCornersSection effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)} /> },
-    link("cardFx", "Color y grosor del borde: en Efectos"),
-    { key: "measures", render: c => c.canvas ? <ProfileMeasures card={c.card} canvas={c.canvas} onChange={c.onChange} /> : null },
+    // Liquid glass: "Forma y medidas" = Esquinas + Medidas in one card.
+    { key: "corners", render: c => (
+      <CardCornersSection effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)}
+        summaryExtra={`${Math.round(c.card.w)} × ${Math.round(c.card.h)}`}>
+        {c.canvas ? <ProfileMeasures card={c.card} canvas={c.canvas} onChange={c.onChange} /> : null}
+        {c.goTo && <GotoRow label="Color y grosor del borde" hint="Efectos" onGo={() => c.goTo?.("cardFx")} />}
+      </CardCornersSection>
+    ) },
   ],
   cardFx: [
     { key: "effects", render: c => (
       <CardEffectsSection effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)}
-        borderFooter={<ObjectLink c={c} to="cardBg" label="Esquinas: en Fondo" />} />
+        borderFooter={c.goTo ? <GotoRow label="Esquinas" hint="Fondo" onGo={() => c.goTo?.("cardBg")} /> : null} />
     ) },
   ],
   allText: [
@@ -160,10 +162,15 @@ interface ProfileConfigMenuProps extends Omit<SectionContext, "effective"> {
 /** The active object's sections (the inspector's tabpanel body). */
 export default function ProfileConfigMenu({ object, ...ctx }: ProfileConfigMenuProps) {
   const c: SectionContext = { ...ctx, effective: getProfileCardEffects(ctx.card) };
+  // Liquid glass (DS accordion): one card open per part, remembered per part
+  // while the inspector is open.
+  const [openByObject, setOpenByObject] = React.useState<Partial<Record<ObjectId, string | null>>>({});
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: T.space[6] }}>
-      {OBJECT_SECTIONS[object].map(s => <SectionNumber key={s.key} value={s.num ?? null}>{s.render(c)}</SectionNumber>)}
-    </div>
+    <Accordion open={openByObject[object] ?? null} onOpenChange={k => setOpenByObject(m => ({ ...m, [object]: k }))}>
+      <div key={object} className="mn-swap" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {OBJECT_SECTIONS[object].map(s => <SectionNumber key={s.key} value={s.num ?? null}>{s.render(c)}</SectionNumber>)}
+      </div>
+    </Accordion>
   );
 }
 
@@ -183,11 +190,14 @@ function ProfileMeasures({ card, canvas, onChange }: {
     const { x, y } = centerCardPosition(canvas.w, canvas.h, c.w, c.h, canvas.topOffset);
     onChange({ w: c.w, h: c.h, x, y });
   }
+  // Liquid glass (DS measures): two fields side by side + "Siempre centrada".
   return (
-    <Collapsible label="Medidas">
-      <NumberField label="Ancho (px)" min={b.minW} max={b.maxW} step={1} unit="px" value={Math.round(card.w)} onChange={v => setSize(v, card.h)} />
-      <NumberField label="Alto (px)" min={b.minH} max={b.maxH} step={1} unit="px" value={Math.round(card.h)} onChange={v => setSize(card.w, v)} />
-      <MenuNote>La tarjeta siempre queda centrada.</MenuNote>
-    </Collapsible>
+    <>
+      <div className="mn-measures">
+        <NumberField label="Ancho" min={b.minW} max={b.maxW} step={1} unit="px" value={Math.round(card.w)} onChange={v => setSize(v, card.h)} />
+        <NumberField label="Alto" min={b.minH} max={b.maxH} step={1} unit="px" value={Math.round(card.h)} onChange={v => setSize(card.w, v)} />
+      </div>
+      <MenuNote>Siempre centrada</MenuNote>
+    </>
   );
 }

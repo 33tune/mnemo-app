@@ -36,8 +36,9 @@ test("D8: Music leaves its floating MenuPanel — the pencil opens the dock; the
   assert.ok(WIDGET.includes('label="Editar Music"') && WIDGET.includes("onActivate={() => onEdit()}"));
   assert.ok(WIDGET.includes("id={elementEditButtonId(card.id)}"), "focus returns to it when the inspector closes");
   assert.ok(BOARD.includes('onEdit={() => handleElementEdit("music", mc.id)}'));
-  assert.ok(!MUSIC.includes('theme="dark"') && !/\bT\.border\b/.test(MUSIC), "follows the editor theme; dividers are uv(\"line-group\")");
-  assert.ok(MUSIC.includes('uv("line-group")'));
+  assert.ok(!MUSIC.includes('theme="dark"') && !/\bT\.border\b/.test(MUSIC), "follows the editor theme");
+  // Liquid glass: cards (no ad-hoc dividers) and the pinned element footer.
+  assert.ok(MUSIC.includes('<MenuSection label="Canción" pinned>') && MUSIC.includes("footer={<ElementFooter"));
 });
 
 test("Music keeps EXACTLY its writes: effect owner model, pause-instead-of-erase, O2 / O4", () => {
@@ -138,11 +139,12 @@ test("Medidas: the drag's writers, real ranges (topOffset 44, R1); rotation for 
   assert.equal(normalizeRotation(-190), 170);
 });
 
-test("layer lives in Capas: the inspectors show it and open Capas (selection kept), never write `layer`", () => {
+test("layer: the footer sets it ONLY through Capas' own writer (setElementLayer), and opens Capas (selection kept)", () => {
   for (const f of [TEXT, IMAGE, MUSIC]) {
-    assert.ok(f.includes("<ObjectSection") && f.includes("onOpenLayers={p.onOpenLayers}"));
-    assert.ok(!/layer:\s*\d/.test(f) && !f.includes("layer: l"), "no layer writes");
+    assert.ok(f.includes("<ElementFooter") && f.includes("onOpenLayers={p.onOpenLayers}") && f.includes("onSetLayer={p.onSetLayer}"));
+    assert.ok(!/layer:\s*\d/.test(f) && !f.includes("layer: l"), "no direct layer writes");
   }
+  assert.equal((BOARD.match(/onSetLayer: \(layer: 0 \| 1 \| 2\) => applyLayerChange\(inspectorElement\.id, setElementLayer\(layerItemsNow\(\), inspectorElement\.id, layer\)\)/g) ?? []).length, 3);
   assert.ok(PARTS.includes("Ordenar en Capas"));
   // Closing Capas opened from an inspector returns to that element's "Editar".
   assert.ok(BOARD.includes("layersFromElementRef.current = inspectorTargetElIdRef.current;"));

@@ -4285,6 +4285,8 @@ export default function CanvasBoard({
           text={inspectorElement?.elementType === "text" ? {
             text: inspectorElement, updateText,
             onOpenLayers: openLayersFromInspector,
+            // Liquid glass: the footer's Fondo / Medio / Frente — Capas' own writer.
+            onSetLayer: (layer: 0 | 1 | 2) => applyLayerChange(inspectorElement.id, setElementLayer(layerItemsNow(), inspectorElement.id, layer)),
             onToggleLock: () => toggleLockFromInspector(inspectorElement.id),
             onDelete: () => deleteFromInspector(inspectorElement.id),
             measures: measuresFor(inspectorElement),
@@ -4294,6 +4296,8 @@ export default function CanvasBoard({
             updateImage: (id: string, patch: Partial<CanvasImageType>) => enqueueOp({ type: "update_image", id, patch }),
             onReplace: (file: File) => replaceImage(inspectorElement.id, file),
             onOpenLayers: openLayersFromInspector,
+            // Liquid glass: the footer's Fondo / Medio / Frente — Capas' own writer.
+            onSetLayer: (layer: 0 | 1 | 2) => applyLayerChange(inspectorElement.id, setElementLayer(layerItemsNow(), inspectorElement.id, layer)),
             onToggleLock: () => toggleLockFromInspector(inspectorElement.id),
             onDelete: () => deleteFromInspector(inspectorElement.id),
             measures: measuresFor(inspectorElement),
@@ -4303,6 +4307,8 @@ export default function CanvasBoard({
             card: resolveModuleStyle(inspectorElement),
             updateCard: updateMusicCard,
             onOpenLayers: openLayersFromInspector,
+            // Liquid glass: the footer's Fondo / Medio / Frente — Capas' own writer.
+            onSetLayer: (layer: 0 | 1 | 2) => applyLayerChange(inspectorElement.id, setElementLayer(layerItemsNow(), inspectorElement.id, layer)),
             onToggleLock: () => toggleLockFromInspector(inspectorElement.id),
             onDelete: () => deleteFromInspector(inspectorElement.id),
             measures: measuresFor(inspectorElement),

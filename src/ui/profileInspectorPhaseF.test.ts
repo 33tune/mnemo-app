@@ -31,22 +31,19 @@ const card = (over: Partial<ProfileCardData> = {}): ProfileCardData => ({
   id: "p1", x: 0, y: 0, w: 320, h: 300, zIndex: 0, layer: 1, depth: 0, rotation: 0, handle: "nico", ...over,
 } as ProfileCardData);
 
-test("header: route in mono, the object as title, 'de la tarjeta', the card's measures; chips fixed under it", () => {
+test("Liquid glass header: the part's glyph, its name, the route in mono; the part picker fixed under it", () => {
   assert.ok(INSPECTOR.includes("path={`tarjeta / ${chipLabel(obj).toLowerCase()}`}"));
-  assert.ok(INSPECTOR.includes('aside="de la tarjeta"'));
-  assert.ok(INSPECTOR.includes("title={chipLabel(obj)}"));
-  assert.ok(/meta=\{`X \$\{Math\.round\(card\.x\)\}.*W \$\{Math\.round\(card\.w\)\}.*H \$\{Math\.round\(card\.h\)\}`\}/.test(INSPECTOR));
-  assert.ok(/headerExtra=\{\s*<ObjectList/.test(INSPECTOR), "the chips live in the header, not in the scrolling body");
+  assert.ok(INSPECTOR.includes("title={chipLabel(obj)}") && INSPECTOR.includes("icon={partIcon(object)}"));
+  assert.ok(/headerExtra=\{\s*<ObjectList/.test(INSPECTOR), "the part picker lives in the header, not in the scrolling body");
   assert.ok(HEADER.includes("{children}"), "InspectorHeader renders the fixed extra");
-  // Sheet (design screen 10): title + Cerrar on one row, 44px close.
-  assert.ok(HEADER.includes("size={sheet ? 44 : 28}"));
+  assert.ok(HEADER.includes("const btn = sheet ? 44 : 36;"), "36px filled buttons (DS), 44px in the sheet");
 });
 
-test("chips: one horizontal row, APG tablist, 44px in the sheet, the active chip kept in view", () => {
+test("part picker: one horizontal row, APG tablist, the design's order, the active part kept in view", () => {
   assert.ok(LIST.includes('role="tablist"') && LIST.includes('aria-orientation="horizontal"'));
   assert.ok(LIST.includes("sheet={mode === \"sheet\"}") || INSPECTOR.includes('sheet={mode === "sheet"}'));
-  assert.ok(LIST.includes("row.scrollLeft"), "keeps the active chip visible");
-  assert.ok(!LIST.includes("mn-objlist__group"), "the grouped map of Phase 2 is gone");
+  assert.ok(LIST.includes("row.scrollTo"), "keeps the active part visible");
+  assert.ok(LIST.includes("PART_ORDER.map"), "photo first, the card group after a separator (design CARD_PARTS)");
 });
 
 test("chip labels are the object's name; the accessible name starts with it (2.5.3) and says 'con cambios'", () => {
@@ -79,15 +76,13 @@ test("modified dot: only the object's own style values count — content and pos
   assert.equal(objectModified("cardFx", card({ effects: { interactions: { tilt3d: false, hoverGlow: false } } })), false);
 });
 
-test("numbered sections: ProfileConfigMenu numbers what it mounts; only the outermost MenuSection takes it", () => {
-  assert.ok(CONFIG.includes("<SectionNumber key={s.key} value={s.num ?? null}>"));
-  assert.ok(SECTION.includes("const num = numProp ?? inherited?.num;"));
-  assert.ok(SECTION.includes("<SectionNumberContext.Provider value={null}>"), "nested sections are never numbered");
-  assert.ok(COLLAPSIBLE.includes("<SectionNumber value={null}>"), "nor sections inside a disclosure");
-  assert.ok(ROW.includes("<SectionNumber value={null}>"), "nor inside an effect row");
-  // Review F: Color takes tone 1 (tone 3 = the "modified" orange, next to "N cambios").
-  for (const [label, tone] of [["Tipografía", 2], ["Color", 1], ["Efectos del texto", 4]] as const) {
-    assert.ok(new RegExp(`label="${label}" num=\\{pad2\\([^)]*\\)\\} tone=\\{${tone}\\}`).test(ROLE), `${label} is numbered, tone ${tone}`);
+test("Liquid glass cards: one open per part (accordion); an APG heading > button; nested sections are plain groups", () => {
+  assert.ok(CONFIG.includes("<Accordion open={openByObject[object] ?? null}"), "one card open per part, remembered per part");
+  assert.ok(SECTION.includes('<div role="heading" aria-level={3}') && SECTION.includes("aria-expanded={open}"));
+  assert.ok(SECTION.includes("const inCard = useContext(InCardContext);"), "a section inside a card is not a card");
+  assert.ok(COLLAPSIBLE.includes("aria-expanded={open}") && ROW.includes("aria-expanded={open}"));
+  for (const [label, icon] of [["Tipografía", "case"], ["Color", "palette"], ["Efectos del texto", "sparkles"]] as const) {
+    assert.ok(new RegExp(`label="${label}" icon="${icon}"`).test(ROLE), `${label} card with its glyph`);
   }
 });
 
@@ -97,11 +92,11 @@ test("role text: every value the user set shows the dot and its reset DELETES th
     assert.ok(TYPE.includes(`card.${key} !== undefined`), `${key}: modified`);
     assert.ok(TYPE.includes(`onChange({ ${key}: undefined })`), `${key}: reset deletes the key`);
   }
-  assert.ok(ROLE.includes('<Collapsible label="Espaciado" modified={spacingModified}'), "Espaciado › with its dot");
+  assert.ok(ROLE.includes('label="Interletrado" icon="spacing"') && ROLE.includes('label="Interlineado" icon="height"'), "spacing sits in Tipografía (DS)");
 });
 
-test("Peso offers only the loaded weights (fontWeights.ts); the font field writes the font in itself", () => {
-  assert.ok(ROLE.includes("weightOptions(font, weight)"));
+test("Peso offers only the loaded weights (fontWeights.ts) as 'Aa' samples; the font field writes the font in itself", () => {
+  assert.ok(ROLE.includes("weightOptions(font, weight)") && ROLE.includes('role="radiogroup"') && ROLE.includes("fontWeight: o.value"));
   assert.ok(!ROLE.includes("min={100} max={900}"), "no free 100–900 slider over fonts that do not load those weights");
   assert.ok(FONT.includes("fontFamily: current?.style") && FONT.includes("<select"), "native select under the specimen");
   assert.ok(FONT.includes("aria-label={label}"));
@@ -125,20 +120,19 @@ test("Liquid glass tiles: the tile is a switch, \"Ajustes de X\" a separate butt
   assert.ok(FX.includes("patchGlow({ outer: false, inner: false })"));
 });
 
-test("review F: tone 3 (= the 'modified' orange) never sits next to 'N cambios'; effect sections say 'N activos'", () => {
-  for (const f of ["RoleTypographyFields.tsx", "ProfileTypographyMenu.tsx", "ProfileEffectsMenu.tsx", "ProfileBackgroundMenu.tsx", "ProfileIdentityMenu.tsx"]) {
+test("effect cards light their glyph with the active effects and summarize them ('Gradiente, Shimmer' / 'Ninguno activo')", () => {
+  for (const f of ["RoleTypographyFields.tsx", "ProfileTypographyMenu.tsx", "ProfileIdentityMenu.tsx"]) {
     const src = read(`${C}${f}`);
-    for (const m of src.match(/<MenuSection[^>]*>/g) ?? []) {
-      assert.ok(!(m.includes("tone={3}") && m.includes("changed=")), `${f}: ${m}`);
-      if (/label="Efectos/.test(m)) assert.ok(m.includes("active=") && !m.includes("changed="), `${f}: effect sections count active effects`);
-    }
+    const fx = (src.match(/<MenuSection[^>]*label="Efectos[^>]*>/g) ?? []);
+    assert.ok(fx.length > 0, f);
+    for (const m of fx) assert.ok(m.includes("active=") && m.includes('"Ninguno activo"'), `${f}: ${m}`);
   }
-  assert.ok(SECTION.includes("`${active} activos`"));
+  assert.ok(SECTION.includes("const lit = modified || (!!active && active > 0);"));
 });
 
-test("Liquid glass: every switch keeps an edge ring at rest (1.4.11, A3) and the focus ring; Retro is a named group", () => {
+test("Liquid glass: every switch keeps an edge ring at rest (1.4.11, A3) and the focus ring; Retro is its own card", () => {
   const css = readFileSync(join(process.cwd(), "src/ui/editor.css"), "utf8");
   assert.match(css, /\.mn-switch \{[^}]*box-shadow:\s*inset 0 0 0 1px var\(--ui-line-field\)/);
   assert.match(css, /\.mn-switch:focus-visible\s*\{\s*box-shadow:\s*var\(--ui-shadow-ring\)/, "focus ring (2.4.7)");
-  assert.ok(FX.includes('<div role="group" aria-labelledby={retroId}'));
+  for (const card of ["Luz", "Movimiento", "Al pasar el cursor", "Retro"]) assert.ok(FX.includes(`<MenuSection label="${card}"`), card);
 });

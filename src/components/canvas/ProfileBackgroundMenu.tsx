@@ -1,9 +1,9 @@
 "use client";
-import { useRef } from "react";
 import type { CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
-import { T, SliderRow, ColorRow, MenuSection, MenuNote, ActionButton, EffectList, EffectRow, refocusFieldControl } from "@/ui";
+import { SliderRow, ColorRow, MenuSection, EffectList, EffectRow, UploadField } from "@/ui";
+import { wellHex } from "@/ui/ColorPopover";
 import { CARD_BG_DEFAULT_COLOR } from "@/lib/effectEditorDefaults";
 import { backgroundController } from "@/lib/objectControllers";
 
@@ -42,67 +42,66 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
   const patchBg = bgCtl.patchBg;
   const patchGradient = bgCtl.patchGradient;
 
-  const bgImgRef = useRef<HTMLInputElement>(null);
-  async function handleBgImgUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  async function handleBgFile(f: File) {
     const [{ publicUrl: src }, bgMode] = await Promise.all([uploadToStorage(f), detectBgModeFromFile(f)]);
     // Color and image coexist — never clear the color when an image is set.
     bgCtl.setImage(src, bgMode);
-    if (bgImgRef.current) bgImgRef.current.value = "";
   }
+  const color = bg?.color ?? CARD_BG_DEFAULT_COLOR;
+  const surfaceOn = [grad && "Gradiente", bg?.glass && "Vidrio", bg?.blur && "Desenfoque"].filter(Boolean) as string[];
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
 
-  // Editor v3 Phase F: numbered sections — 01 Color (with its opacity),
-  // 02 Imagen, 03 Superficie (Gradiente / Vidrio / Desenfoque as effect
-  // rows). "Esquinas" follows as 04 (ProfileConfigMenu numbers it).
+  // Liquid glass (design menu-schema.js "cardBg"): Color · Imagen o GIF ·
+  // Superficie (Gradiente / Vidrio / Desenfoque as tiles). "Forma y medidas"
+  // follows (ProfileConfigMenu mounts it). Same writes as before.
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: T.space[6] }}>
-      <MenuSection label="Color" num="01" tone={1} changed={[raw?.bg?.color, raw?.bg?.opacity].filter(v => v !== undefined).length} first>
+    <>
+      <MenuSection label="Color" icon="palette" summary={`${wellHex(color)}${(bg?.opacity ?? 1) < 1 ? ` · ${pct(bg?.opacity ?? 1)}` : ""}`} swatch={color}
+        changed={[raw?.bg?.color, raw?.bg?.opacity].filter(v => v !== undefined).length}
+        onReset={() => patchBg({ color: undefined, opacity: undefined })}>
         <ColorRow
-          label="Color" value={bg?.color ?? CARD_BG_DEFAULT_COLOR} onChange={v => patchBg({ color: v })} keepAlpha
+          label="Color" value={color} onChange={v => patchBg({ color: v })} keepAlpha
           clearable={!!raw?.bg?.color} onClear={() => patchBg({ color: undefined })}
           state={raw?.bg?.color ? "modified" : undefined} onReset={() => patchBg({ color: undefined })}
         />
-        <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={bg?.opacity ?? 1}
-          onChange={v => patchBg({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`}
+        <SliderRow label="Opacidad" icon="eye" min={0} max={1} step={0.01} value={bg?.opacity ?? 1}
+          onChange={v => patchBg({ opacity: v })} fmt={pct}
           state={raw?.bg?.opacity !== undefined ? "modified" : undefined} onReset={() => patchBg({ opacity: undefined })} />
       </MenuSection>
 
-      <MenuSection label="Imagen" num="02" tone={4} first>
-        <div style={{ display: "flex", gap: 6 }}>
-          <ActionButton variant={bg?.image ? "secondary" : "primary"} fullWidth onClick={() => bgImgRef.current?.click()}>{bg?.image ? "Reemplazar" : "Subir imagen o GIF"}</ActionButton>
-          {/* Shown for the EFFECTIVE image (a legacy card.bgImage too). "" (not
-              undefined) so the raw override actually masks a legacy image —
-              getProfileCardEffects spreads effects.bg over the legacy field. */}
-          {bg?.image && <ActionButton variant="ghost" onClick={e => { const el = e.currentTarget as HTMLElement; patchBg({ image: "" }); refocusFieldControl(el); }}>Quitar</ActionButton>}
-        </div>
-        <input ref={bgImgRef} type="file" accept="image/*,image/gif" style={{ display: "none" }} onChange={handleBgImgUpload} />
+      <MenuSection label="Imagen o GIF" icon="image" summary={bg?.image ? (/\.gif/i.test(bg.image) ? "GIF" : "Cargada") : "Vacía"}>
+        {/* Shown for the EFFECTIVE image (a legacy card.bgImage too). Remove
+            writes "" (not undefined) so the raw override actually masks a
+            legacy image — getProfileCardEffects spreads effects.bg over it. */}
+        <UploadField kind="cover" value={bg?.image || null} label="Subir imagen o GIF" accept="image/*,image/gif"
+          caption={bg?.image && /\.gif/i.test(bg.image) ? "GIF" : "Imagen"}
+          onFile={handleBgFile} onRemove={() => patchBg({ image: "" })} />
       </MenuSection>
 
-      <MenuSection label="Superficie" num="03" tone={2} changed={[raw?.gradient, raw?.bg?.glass, raw?.bg?.blur].filter(v => v !== undefined).length} first>
+      <MenuSection label="Superficie" icon="blend" active={surfaceOn.length} summary={surfaceOn.length ? surfaceOn.join(", ") : "Ninguno activo"}
+        changed={[raw?.gradient, raw?.bg?.glass, raw?.bg?.blur].filter(v => v !== undefined).length}>
         <EffectList label="Superficie del fondo">
-          <EffectRow id="gradient" label="Gradiente" tone={1} on={!!grad} onToggle={v => bgCtl.setGradient(v)}
+          <EffectRow id="gradient" label="Gradiente" icon="palette" preview="c-grad" on={!!grad} onToggle={v => bgCtl.setGradient(v)}
             state={grad ? `${grad.angle}°` : undefined}>
             {grad ? (
               <>
                 <ColorRow label="Color A" value={grad.from} onChange={v => patchGradient({ from: v })} />
                 <ColorRow label="Color B" value={grad.to} onChange={v => patchGradient({ to: v })} />
-                <SliderRow label="Ángulo" min={0} max={360} step={5} value={grad.angle}
-                  onChange={v => patchGradient({ angle: v })} fmt={v => `${v}°`} />
-                <SliderRow label="Opacidad" min={0} max={1} step={0.01} value={grad.opacity}
-                  onChange={v => patchGradient({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+                <SliderRow label="Ángulo" icon="rotate" min={0} max={360} step={5} value={grad.angle}
+                  onChange={v => patchGradient({ angle: v })} fmt={v => `${Math.round(v)}°`} />
+                <SliderRow label="Opacidad" icon="eye" min={0} max={1} step={0.01} value={grad.opacity}
+                  onChange={v => patchGradient({ opacity: v })} fmt={pct} />
               </>
-            ) : <MenuNote>Un degradé de dos colores sobre el fondo.</MenuNote>}
+            ) : null}
           </EffectRow>
-          <EffectRow id="glass" label="Vidrio" tone={2} on={!!bg?.glass} onToggle={v => patchBg({ glass: v })}>
-            <MenuNote>Fondo translúcido que deja ver la sala detrás.</MenuNote>
-          </EffectRow>
-          <EffectRow id="blur" label="Desenfoque" tone={4} active={!!bg?.blur} state={bg?.blur ? `${bg.blur} px` : undefined}>
-            <SliderRow label="Blur" min={0} max={24} step={1} value={bg?.blur ?? 0}
-              onChange={v => patchBg({ blur: v || undefined })} unit="px" />
+          <EffectRow id="glass" label="Vidrio" icon="blend" preview="c-glass" on={!!bg?.glass} onToggle={v => patchBg({ glass: v })}
+            state="Translúcido" />
+          <EffectRow id="blur" label="Desenfoque" icon="blend" preview="c-blur" active={!!bg?.blur} state={bg?.blur ? `${bg.blur} px` : "Sin desenfoque"}>
+            <SliderRow label="Blur" icon="blend" min={0} max={24} step={1} value={bg?.blur ?? 0}
+              onChange={v => patchBg({ blur: v || undefined })} unit="px" fmt={v => `${Math.round(v)} px`} />
           </EffectRow>
         </EffectList>
       </MenuSection>
-    </div>
+    </>
   );
 }

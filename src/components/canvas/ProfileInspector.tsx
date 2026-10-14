@@ -7,7 +7,7 @@ import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { inspectorObject, chipLabel, type ObjectId } from "@/lib/inspectorObjects";
 import type { SelectionMemory } from "@/lib/editorSelection";
 import { INSPECTOR_TITLE_ID } from "@/ui/InspectorShell";
-import { ObjectList } from "./ObjectList";
+import { ObjectList, partIcon } from "./ObjectList";
 import ProfileConfigMenu from "./ProfileConfigMenu";
 
 interface ProfileInspectorProps {
@@ -69,13 +69,11 @@ export default function ProfileInspector({
   return (
     <InspectorShell
       id={id}
-      // Phase F header (design screen 02): route in mono, the object as the
-      // title, "de la tarjeta" in serif, the card's measures; the object
-      // chips stay fixed under it while the sections scroll.
+      // Liquid glass header (DS dock): the part's glyph, its name, the route
+      // in mono; the part picker stays fixed under it while the cards scroll.
       title={chipLabel(obj)}
+      icon={partIcon(object)}
       path={`tarjeta / ${chipLabel(obj).toLowerCase()}`}
-      aside="de la tarjeta"
-      meta={`X ${Math.round(card.x)}   Y ${Math.round(card.y)}   W ${Math.round(card.w)}   H ${Math.round(card.h)}`}
       headerExtra={
         <ObjectList active={object} onSelect={select} panelId={panelId} sheet={mode === "sheet"}
           ctx={{ card, effective, baseColor, viewCount }} />

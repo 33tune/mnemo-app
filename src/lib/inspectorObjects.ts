@@ -160,8 +160,8 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
       const label = n === 1 ? "1 activo" : `${n} activos`;
       return { text: `Efectos · ${label}`, spoken: label };
     } },
-  { id: "allText", caption: "Todos los textos", placeholder: "Aa", kind: "all", group: "card",
-    chip: ({ baseColor, effective }) => ({ text: "Todos los textos", sampleColor: baseColor, swatch: backgroundSwatch(effective), spoken: "" }) },
+  { id: "allText", caption: "Todos los textos", shortCaption: "Textos", placeholder: "Aa", kind: "all", group: "card",
+    chip: ({ baseColor, effective }) => ({ text: "Textos", sampleColor: baseColor, swatch: backgroundSwatch(effective), spoken: "" }) },
 ];
 
 export const OBJECT_IDS: readonly ObjectId[] = INSPECTOR_OBJECTS.map(o => o.id);
@@ -262,6 +262,14 @@ export function chipAccessibleName(obj: InspectorObject, data: ChipData, platfor
   const full = content && content !== caption ? `${caption}: ${content}` : caption;
   return full.length > MAX_NAME ? `${full.slice(0, MAX_NAME - 1).trimEnd()}…` : full;
 }
+
+/** Liquid glass (DS part picker): the order of the round part buttons —
+ * the photo first, then the texts, links and logo; a separator; then the
+ * card as a whole (design menu-schema.js CARD_PARTS). "|" = separator. */
+export const PART_ORDER: ReadonlyArray<ObjectId | "|"> = [
+  "photo", "name", "handle", "descriptor", "location", "bio", "views", "links", "logo", "|", "cardBg", "cardFx", "allText",
+];
+export const PART_IDS: readonly ObjectId[] = PART_ORDER.filter((p): p is ObjectId => p !== "|");
 
 /** Roving-tabindex navigation of the tablist (APG): arrows wrap, Home/End.
  * Returns -1 for keys it doesn't handle. */

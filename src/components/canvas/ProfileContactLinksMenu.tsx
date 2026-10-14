@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { ContactLink, ProfileCardData } from "@/types";
-import { T, uv, MenuSection, MenuNote, SliderRow, TextInput, IconButton, refocusFieldControl } from "@/ui";
+import { MenuSection, MenuNote, SliderRow, TextInput, IconButton, refocusFieldControl } from "@/ui";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
 import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
 import BlockStyleFields from "./BlockStyleFields";
@@ -59,85 +59,84 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
     if (editingId === id) { setEditingId(null); setEditUrl(""); }
   }
 
+  // Liquid glass (design menu-schema.js "links"): the list as a pinned card
+  // (platform tile, name + URL, Editar / Quitar), the add row (Enter or +),
+  // "3/12 · la plataforma se detecta sola"; then Íconos and the block style.
+  const draftReady = !!newUrl.trim();
   return (
-    // `first`: this component is used as a direct flex child (gap-managed by
-    // the parent "datos" view in ProfileConfigMenu.tsx), same as
-    // ProfileIdentityMenu/ProfileMetadataMenu — without it, MenuSection's own
-    // marginTop would stack on top of that flex gap and double the spacing
-    // above this section.
-    <MenuSection label="Contact Links" first>
-      {links.length > 0 && fitsInCard === false && (
-        <MenuNote>
-          No entra en la altura actual de la card — no se muestra hasta que la agrandes.
-        </MenuNote>
-      )}
-      <SliderRow
-        label="Tamaño" min={CONTACT_LINK_ICON_SIZE_MIN} max={CONTACT_LINK_ICON_SIZE_MAX} step={1}
-        value={linksIconSize ?? CONTACT_LINK_ICON_SIZE} unit="px"
-        onChange={v => linksCtl.setIconSize(v)}
-      />
-      {links.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: T.space[2] }}>
-          {links.map(link => (
-            <div key={link.id} data-mn-item="" style={{
-              display: "flex", alignItems: "center", gap: 6,
-              background: uv("surface-group"), color: uv("text-secondary"), boxShadow: `inset 0 0 0 0.5px ${uv("line-group")}`,
-              borderRadius: T.ui.radius.control, padding: "2px 2px 2px 10px", minHeight: T.ui.size.row,
-            }}>
-              <PlatformIcon platform={detectPlatform(link.url)} size={12} color="currentColor" />
-              {editingId === link.id ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <MenuSection label="Links" pinned>
+        {links.length > 0 && fitsInCard === false && (
+          <MenuNote tone="warn">No entra en la altura actual de la tarjeta: agrandala para que se vea.</MenuNote>
+        )}
+        {links.map(link => {
+          const platform = PLATFORM_LABELS[detectPlatform(link.url)];
+          const editing = editingId === link.id;
+          return (
+            <div key={link.id} data-mn-item="" className="mn-linkrow">
+              <span className="mn-linkrow__ico" aria-hidden><PlatformIcon platform={detectPlatform(link.url)} size={16} color="currentColor" /></span>
+              {editing ? (
                 <TextInput
                   value={editUrl}
                   onChange={setEditUrl}
                   onKeyDown={e => {
                     if (e.key === "Enter") confirmEdit();
                     // stopPropagation: Esc cancels the edit only — it must not
-                    // also reach MenuPanel's Esc and close the whole editor.
+                    // also reach the inspector's Esc and close it.
                     if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); setEditUrl(""); }
                   }}
                   placeholder="https://..."
-                  label="Editar URL del link"
+                  label="Editar URL"
                   type="url"
                   mono
-                  style={{ flex: 1, minWidth: 0, height: T.ui.size.control }}
+                  style={{ flex: 1, minWidth: 0, height: 40, padding: "0 10px" }}
                 />
               ) : (
-                <span style={{
-                  ...T.type.value, color: uv("text-secondary"), flex: 1, minWidth: 0,
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>
-                  {PLATFORM_LABELS[detectPlatform(link.url)]} · {link.url.replace(/^https?:\/\/(www\.)?/, "")}
+                <span className="mn-linkrow__text">
+                  <span className="mn-linkrow__name">{platform}</span>
+                  <span className="mn-linkrow__url">{link.url.replace(/^https?:\/\/(www\.)?/, "")}</span>
                 </span>
               )}
-              {editingId === link.id ? (
-                <IconButton icon="check" aria-label="Confirmar cambio" title="Confirmar" onClick={confirmEdit} />
+              {editing ? (
+                <IconButton icon="check" aria-label="Confirmar" title="Confirmar" size={34} iconSize={15} onClick={confirmEdit} />
               ) : (
-                <IconButton icon="pencil" aria-label={`Editar link de ${PLATFORM_LABELS[detectPlatform(link.url)]}`} title="Editar" onClick={() => startEdit(link)} />
+                <IconButton icon="pencil" aria-label={`Editar link de ${platform}`} title="Editar" size={34} iconSize={15} onClick={() => startEdit(link)} />
               )}
-              <IconButton icon="close" tone="danger" aria-label={`Eliminar link de ${PLATFORM_LABELS[detectPlatform(link.url)]}`} title="Eliminar" onClick={e => { const el = e.currentTarget as HTMLElement; removeLink(link.id); refocusFieldControl(el); }} />
+              <IconButton icon="trash" tone="danger" aria-label={`Quitar link de ${platform}`} title="Quitar link" size={34} iconSize={15}
+                onClick={e => { const el = e.currentTarget as HTMLElement; removeLink(link.id); refocusFieldControl(el); }} />
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
 
-      {links.length < CONTACT_LINKS_MAX && (
-        <div style={{ display: "flex", gap: 6 }}>
-          <TextInput
-            value={newUrl}
-            onChange={setNewUrl}
-            onKeyDown={e => e.key === "Enter" && addLink()}
-            placeholder="instagram.com/usuario, github.com/user…"
-            label="URL del link nuevo"
-            type="url"
-            mono
-            style={{ flex: 1 }}
-          />
-          <IconButton icon="plus" aria-label="Agregar link" title="Agregar" onClick={addLink}
-            size={T.comp.inputH} className="mn-iconbtn--filled" />
-        </div>
-      )}
+        {links.length < CONTACT_LINKS_MAX && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <TextInput
+              value={newUrl}
+              onChange={setNewUrl}
+              onKeyDown={e => e.key === "Enter" && addLink()}
+              placeholder="instagram.com/usuario…"
+              label="URL del link nuevo"
+              type="url"
+              mono
+              style={{ flex: 1, minWidth: 0 }}
+            />
+            <IconButton icon="plus" aria-label="Agregar link" title="Agregar link" onClick={addLink}
+              size={44} className={draftReady ? "mn-iconbtn--accent" : "mn-iconbtn--filled"} />
+          </div>
+        )}
+        <span className="mn-linkrow__count">{links.length}/{CONTACT_LINKS_MAX} · la plataforma se detecta sola</span>
+      </MenuSection>
 
-      <BlockStyleFields card={card} blockKey="links" showIconColor onChange={onChange} />
-    </MenuSection>
+      <MenuSection label="Íconos" icon="maximize" summary={`${linksIconSize ?? CONTACT_LINK_ICON_SIZE} px`}
+        changed={linksIconSize != null ? 1 : 0} onReset={() => linksCtl.resetIconSize()}>
+        <SliderRow
+          label="Tamaño" icon="maximize" min={CONTACT_LINK_ICON_SIZE_MIN} max={CONTACT_LINK_ICON_SIZE_MAX} step={1}
+          value={linksIconSize ?? CONTACT_LINK_ICON_SIZE} unit="px" fmt={v => `${Math.round(v)} px`}
+          onChange={v => linksCtl.setIconSize(v)}
+        />
+      </MenuSection>
+
+      <BlockStyleFields card={card} blockKey="links" showIconColor onChange={onChange} scope="Links" />
+    </div>
   );
 }
