@@ -44,9 +44,9 @@
  * color) is untouched — there's no hue to scroll through with one color.
  */
 import type { CSSProperties } from "react";
-import type { TextEffects, RoleTextEffect, TextGradientEffect } from "@/types";
+import type { CardEffects, TextEffects, RoleTextEffect, TextGradientEffect, TextRole } from "@/types";
 import { withOpacity } from "./cardColors";
-import { resolveShimmerAnimation, resolveGradientFlowAnimation, resolveLetterBounceAnimation, GRADIENT_FLOW_OFFSET_PROPERTY } from "./cardMotion";
+import { resolveShimmerAnimation, resolveGradientFlowAnimation, resolveLetterBounceAnimation, resolveTextGlowPulseAnimation, GRADIENT_FLOW_OFFSET_PROPERTY, TEXT_GLOW_PULSE_PROPERTY } from "./cardMotion";
 
 const DEFAULT_SHADOW_COLOR = "#000000";
 const DEFAULT_SHADOW_OPACITY_NO_COLOR = 0.5; // reproduces the pre-existing "rgba(0,0,0,0.5)" look when nothing is set
@@ -61,9 +61,91 @@ function resolveShadowColor(color: string | undefined, opacity: number | undefin
   return base.startsWith("#") ? withOpacity(base, alpha) : base;
 }
 
-function resolveGlowColor(color: string | undefined, intensity: number): string {
+function resolveGlowColor(color: string | undefined, intensity: number, pulse = false): string {
   const base = color ?? DEFAULT_GLOW_COLOR;
-  return base.startsWith("#") ? withOpacity(base, Math.min(1, intensity)) : base;
+  if (!base.startsWith("#")) return base;
+  const alpha = Math.min(1, intensity);
+  // Pulso: the alpha is multiplied by the animated TEXT_GLOW_PULSE_PROPERTY.
+  if (pulse) {
+    const m = /^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/.exec(withOpacity(base, alpha));
+    if (m) return `rgba(${m[1]}, ${m[2]}, ${m[3]}, calc(${m[4]} * var(${TEXT_GLOW_PULSE_PROPERTY}, 1)))`;
+  }
+  return withOpacity(base, alpha);
+}
+
+const ROLE_FX_KEYS = ["shadow", "glow", "stroke", "blur"] as const;
+type RoleFxKey = (typeof ROLE_FX_KEYS)[number];
+export const TEXT_ROLES: readonly TextRole[] = ["name", "handle", "descriptor", "location", "bio", "views"];
+
+/** Per-role text effects (user decision, 2026-10-14): a role's own shadow /
+ * glow / stroke / blur, else the LEGACY card-wide one (card.effects.text).
+ * Key by key — a role with its own glow still inherits a card-wide shadow. */
+export function mergeRoleTextEffects(card?: TextEffects, role?: RoleTextEffect): TextEffects | undefined {
+  if (!role || !ROLE_FX_KEYS.some(k => role[k] !== undefined)) return card;
+  const out: TextEffects = { ...card };
+  for (const k of ROLE_FX_KEYS) if (role[k] !== undefined) (out as Record<RoleFxKey, unknown>)[k] = role[k];
+  return out;
+}
+
+/** A role's gradient / shimmer / letter animation (the per-span fill). */
+export function roleFillOnly(role?: RoleTextEffect): RoleTextEffect | undefined {
+  if (!role) return role;
+  const { gradient, shimmer, letterAnimation } = role;
+  return { gradient, shimmer, letterAnimation };
+}
+/** A role's shadow / glow / stroke / blur (the line around Name's spans). */
+export function roleFxOnly(role?: RoleTextEffect): RoleTextEffect | undefined {
+  if (!role) return role;
+  const { shadow, glow, stroke, blur } = role;
+  return { shadow, glow, stroke, blur };
+}
+/** True when any text (card-wide or a role) has a pulsing glow. */
+export function anyTextGlowPulse(fx?: CardEffects): boolean {
+  const on = (t?: TextEffects) => !!t?.glow?.animation?.enabled;
+  return on(fx?.text) || TEXT_ROLES.some(r => on(fx?.textRoles?.[r]));
+}
+
+/** The editor's one-time, look-preserving split: copies the card-wide
+ * shadow / glow / stroke / blur (active AND paused) into every role that
+ * has no value of its own, then drops the card-wide keys. Every role
+ * renders exactly as before (mergeRoleTextEffects); after it, each role
+ * owns its effects. A card with no card-wide text effects is returned as
+ * is (same object). */
+export function splitCardTextEffects(effects: CardEffects | undefined): CardEffects | undefined {
+  const text = effects?.text;
+  const pausedText = effects?.paused?.text;
+  const has = (t?: TextEffects) => !!t && ROLE_FX_KEYS.some(k => t[k] !== undefined);
+  if (!effects || (!has(text) && !has(pausedText))) return effects;
+  const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+  const roles = { ...effects.textRoles };
+  const pausedRoles = { ...effects.paused?.textRoles };
+  for (const r of TEXT_ROLES) {
+    const own = { ...roles[r] };
+    const ownPaused = { ...pausedRoles[r] };
+    for (const k of ROLE_FX_KEYS) {
+      const ownHas = own[k] !== undefined || ownPaused[k] !== undefined;
+      if (ownHas) continue;
+      if (text?.[k] !== undefined) (own as Record<RoleFxKey, unknown>)[k] = copy(text[k]);
+      else if (pausedText?.[k] !== undefined) (ownPaused as Record<RoleFxKey, unknown>)[k] = copy(pausedText[k]);
+    }
+    if (Object.keys(own).length) roles[r] = own;
+    if (Object.keys(ownPaused).length) pausedRoles[r] = ownPaused;
+  }
+  const rest = { ...text };
+  for (const k of ROLE_FX_KEYS) delete rest[k];
+  const next: CardEffects = { ...effects, textRoles: roles };
+  if (Object.keys(rest).length) next.text = rest; else delete next.text;
+  if (effects.paused) {
+    const pRest = { ...pausedText };
+    for (const k of ROLE_FX_KEYS) delete pRest[k];
+    const paused = { ...effects.paused, textRoles: pausedRoles } as NonNullable<CardEffects["paused"]>;
+    if (Object.keys(pRest).length) paused.text = pRest; else delete paused.text;
+    if (!Object.keys(pausedRoles).length) delete paused.textRoles;
+    next.paused = paused;
+  } else if (Object.keys(pausedRoles).length) {
+    next.paused = { textRoles: pausedRoles } as NonNullable<CardEffects["paused"]>;
+  }
+  return next;
 }
 
 /** Builds the `linear-gradient(...)` CSS string for a role's gradient,
@@ -118,8 +200,12 @@ export function resolveGradientFlowCss(gradient: TextGradientEffect): string {
  * gradient is set. All absent returns `{}` — zero visual change for every
  * existing card, the entire compatibility contract.
  */
-export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTextEffect, resolvedColor?: string): CSSProperties {
+export function resolveTextEffectStyle(cardEffect?: TextEffects, roleEffect?: RoleTextEffect, resolvedColor?: string): CSSProperties {
   const style: CSSProperties = {};
+  // 2026-10-14: the role's own shadow / glow / stroke / blur win over the
+  // legacy card-wide ones (mergeRoleTextEffects).
+  const effect = mergeRoleTextEffects(cardEffect, roleEffect);
+  const pulse = !!effect?.glow?.animation?.enabled && (effect.glow.intensity ?? 0) > 0;
 
   if (effect) {
     const shadowLayers: string[] = [];
@@ -131,7 +217,7 @@ export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTe
     if (effect.glow && (effect.glow.intensity ?? 0) > 0) {
       const intensity = effect.glow.intensity ?? 0;
       const radius = effect.glow.radius ?? Math.round(intensity * 16);
-      const color = resolveGlowColor(effect.glow.color, intensity);
+      const color = resolveGlowColor(effect.glow.color, intensity, pulse);
       shadowLayers.push(`0 0 ${radius}px ${color}`);
     }
     if (shadowLayers.length > 0) style.textShadow = shadowLayers.join(", ");
@@ -184,6 +270,11 @@ export function resolveTextEffectStyle(effect?: TextEffects, roleEffect?: RoleTe
     style.color = "transparent";
   }
 
+  if (pulse) {
+    const anim = resolveTextGlowPulseAnimation(effect!.glow!.animation!.speed ?? 1);
+    style.animation = style.animation ? `${style.animation}, ${anim}` : anim;
+  }
+
   return style;
 }
 
@@ -221,7 +312,9 @@ export function resolveLetterEffectStyle(
   const letter = roleEffect?.letterAnimation;
   const speed = letter?.speed ?? 1;
   const delay = index * (letter?.stagger ?? 0.05);
-  const fill = resolveTextEffectStyle(undefined, roleEffect, resolvedColor);
+  // The fill only: the role's shadow / glow / stroke / blur live on the
+  // parent line (inherited by the spans), never per span.
+  const fill = resolveTextEffectStyle(undefined, roleFillOnly(roleEffect), resolvedColor);
   const style: CSSProperties = {
     display: "inline-block",
     ...fill,

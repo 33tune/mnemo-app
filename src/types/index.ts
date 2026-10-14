@@ -28,6 +28,9 @@ export interface TextGlowEffect {
   color?:     string;
   intensity?: number; // 0-1
   radius?:    number; // px
+  /** Per-role text effects (2026-10-14): the glow breathes ("Pulso") —
+   * same shape as the card / PFP glow pulse. */
+  animation?: GlowPulseAnimation;
 }
 export interface TextStrokeEffect {
   color?: string;
@@ -96,10 +99,22 @@ export interface TextLetterAnimationEffect {
 // checkpoint). Separate fields on CardEffects rather than folding these
 // into TextEffects keeps existing FASE 1/2 data (already shipped) untouched
 // — no shape change to `card.effects.text`, no migration needed.
+//
+// User decision (2026-10-14): shadow / glow (+ pulse) / stroke / blur are
+// per-role too. `card.effects.text` stays as LEGACY card-wide data: each
+// role renders its own value, else the card-wide one (textEffects.ts's
+// mergeRoleTextEffects), so existing cards look identical; the editor
+// splits the card-wide values into the six roles on the first per-role
+// edit (splitCardTextEffects) — same look, no destructive migration.
 export interface RoleTextEffect {
   gradient?:        TextGradientEffect;
   shimmer?:         TextShimmerEffect;
   letterAnimation?: TextLetterAnimationEffect;
+  shadow?:          TextShadowEffect;
+  glow?:            TextGlowEffect;
+  stroke?:          TextStrokeEffect;
+  /** filter: blur(px) on this role's glyphs. */
+  blur?:            number;
 }
 export type TextRole = "name" | "handle" | "descriptor" | "location" | "bio" | "views";
 

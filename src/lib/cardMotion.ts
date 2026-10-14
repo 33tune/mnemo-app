@@ -26,6 +26,12 @@ export const LETTER_BOUNCE_ANIMATION_NAME = "mnemo-letter-bounce";
 export const LETTER_SHIMMER_PULSE_ANIMATION_NAME = "mnemo-letter-shimmer-pulse";
 export const FLICKER_ANIMATION_NAME = "mnemo-flicker";
 export const GRADIENT_FLOW_ANIMATION_NAME = "mnemo-text-gradient-flow";
+/** Per-role text glow "Pulso" (2026-10-14): animates the registered
+ * TEXT_GLOW_PULSE_PROPERTY, a 0–1 multiplier the role's glow alpha reads
+ * (textEffects.ts) — text-shadow itself never animates, so the shadow and
+ * the stroke stay still while the glow breathes. */
+export const TEXT_GLOW_PULSE_ANIMATION_NAME = "mnemo-text-glow-pulse";
+export const TEXT_GLOW_PULSE_PROPERTY = "--mnemo-text-glow";
 /** Registered via @property below so it interpolates — read inside the
  * gradient's stop positions by textEffects.ts's resolveGradientFlowCss. */
 export const GRADIENT_FLOW_OFFSET_PROPERTY = "--mnemo-flow-offset";
@@ -80,6 +86,16 @@ const KEYFRAMES_CSS = `
   from { ${GRADIENT_FLOW_OFFSET_PROPERTY}: 0%; }
   to   { ${GRADIENT_FLOW_OFFSET_PROPERTY}: -100%; }
 }
+/* Inherits so Name's per-letter spans glow in phase with their line. */
+@property ${TEXT_GLOW_PULSE_PROPERTY} {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+@keyframes ${TEXT_GLOW_PULSE_ANIMATION_NAME} {
+  0%, 100% { ${TEXT_GLOW_PULSE_PROPERTY}: 1; }
+  50%      { ${TEXT_GLOW_PULSE_PROPERTY}: 0.3; }
+}
 @media (prefers-reduced-motion: reduce) {
   @keyframes ${SHIMMER_ANIMATION_NAME}              { from, to { background-position: 0 0, 0 0; } }
   @keyframes ${GLOW_PULSE_ANIMATION_NAME}           { from, to { opacity: 0.85; } }
@@ -87,6 +103,7 @@ const KEYFRAMES_CSS = `
   @keyframes ${LETTER_SHIMMER_PULSE_ANIMATION_NAME} { from, to { opacity: 1; } }
   @keyframes ${FLICKER_ANIMATION_NAME}              { from, to { opacity: 0; } }
   @keyframes ${GRADIENT_FLOW_ANIMATION_NAME}        { from, to { ${GRADIENT_FLOW_OFFSET_PROPERTY}: 0%; } }
+  @keyframes ${TEXT_GLOW_PULSE_ANIMATION_NAME}      { from, to { ${TEXT_GLOW_PULSE_PROPERTY}: 0.85; } }
 }
 `;
 
@@ -141,6 +158,12 @@ export function resolveShimmerAnimation(speed = 1, delaySeconds = 0): string {
 export function resolveGlowPulseAnimation(speed = 1): string {
   const duration = clampDuration(GLOW_PULSE_BASE_DURATION_S / Math.max(0.1, speed));
   return `${GLOW_PULSE_ANIMATION_NAME} ${duration.toFixed(2)}s ease-in-out infinite`;
+}
+
+/** Per-role text glow pulse — same pace as the card / PFP glow pulse. */
+export function resolveTextGlowPulseAnimation(speed = 1): string {
+  const duration = clampDuration(GLOW_PULSE_BASE_DURATION_S / Math.max(0.1, speed));
+  return `${TEXT_GLOW_PULSE_ANIMATION_NAME} ${duration.toFixed(2)}s ease-in-out infinite`;
 }
 
 /** `delaySeconds` is the per-letter stagger offset (negative delay is NOT

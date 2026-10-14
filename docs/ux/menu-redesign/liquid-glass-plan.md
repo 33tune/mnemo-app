@@ -232,6 +232,20 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
   parte activa. Las flechas recorren las partes del grupo. `PART_GROUPS` en `inspectorObjects.ts`.
   - Adaptación A17: el diseño tenía una sola fila de partes con separador; se reemplazó por grupos.
 
+- **Efectos por texto (decisión del usuario, 2026-10-14):** Sombra, Brillo, Pulso (nuevo: el brillo "respira"),
+  Contorno y Desenfoque pasan a cada texto, en su card "Efectos del texto", junto a Gradiente, Shimmer y Rebote (antes
+  "Por letra"). "Textos" de la tarjeta queda con Color de todos los textos y Alineación y espaciado. Se quitó el atajo
+  "Sombra, brillo y contorno › Todos los textos".
+  - Datos: `RoleTextEffect` suma `shadow`, `glow` (con `animation` = Pulso), `stroke` y `blur`. `card.effects.text`
+    queda como dato heredado: cada texto usa su valor propio y si no tiene, el de la tarjeta
+    (`mergeRoleTextEffects`), así ninguna tarjeta existente cambia de aspecto. La primera edición de un efecto de
+    texto reparte los valores de la tarjeta en los 6 textos y los saca de la tarjeta, en la misma escritura y sin
+    cambio visual (`splitCardTextEffects`, con test de render idéntico).
+  - Render: el Pulso anima una propiedad registrada (`--mnemo-text-glow`) que multiplica el alfa del brillo; la
+    sombra y el contorno no se mueven. Verificado en Chromium (el alfa va de 0,85 a 0,28 y vuelve). Con movimiento
+    reducido queda quieto.
+  - Matriz de capacidades: los `text.*` de la tarjeta pasan a "superseded" por las rutas de cada texto.
+
 ## 5. Verificaciones pendientes (QA en navegador real, con login)
 
 Todo se verificó con tests (`npm test` 654/654), `tsc`, `next build` y capturas del harness de Chromium (los
@@ -249,9 +263,12 @@ Hay que probar en local:
    resumen vivo, restablecer, switches, tiles con "Ajustes de X", slider líquido (arrastre, teclado, click en el
    valor para escribir, doble click restablece), cinta "Tu tarjeta", subidas por click y arrastre, Peso con pesos
    cargados, pie de elemento (capa con el mismo escritor que Capas, Bloquear, Eliminar con deshacer).
-5. **Búsqueda:** `/`, ⌘K y Ctrl+K desde el lienzo y desde el dock; ir a un ajuste de otra parte; tiles y "Más
+5. **Efectos por texto:** Sombra/Brillo/Pulso/Contorno/Desenfoque en cada texto; una tarjeta vieja con efectos
+   en "Todos los textos" se ve igual y, al editar un texto, los demás conservan su efecto; Pulso con Rebote en el
+   Nombre; deshacer.
+6. **Búsqueda:** `/`, ⌘K y Ctrl+K desde el lienzo y desde el dock; ir a un ajuste de otra parte; tiles y "Más
    ajustes"; destello y foco; lector de pantalla (conteo anunciado, nombre del h2).
-6. **Temas y accesibilidad:** Light / Dark / OG; forced colors (Windows Alto contraste); reduced motion y reduced
+7. **Temas y accesibilidad:** Light / Dark / OG; forced colors (Windows Alto contraste); reduced motion y reduced
    transparency; NVDA / VoiceOver en switches, tiles, part picker y acordeón.
-7. **Sin regresiones:** drag, resize, rotate, marquee, papelera, hit-stack, edición de texto libre, deshacer /
+8. **Sin regresiones:** drag, resize, rotate, marquee, papelera, hit-stack, edición de texto libre, deshacer /
    rehacer global, guardar y recargar, perfil público y `space_mobile` sin cambios.

@@ -78,7 +78,9 @@ planeado acá hasta confirmarlo.
 >   IMPLEMENTADAS (2026-10-14)** en `feature/myland-menus-v4` (desde `main`), commiteadas y pusheadas. **No
 >   mergeadas a `main`.** Plan, adaptaciones (A1–A17), bitácora y QA pendiente en
 >   `docs/ux/menu-redesign/liquid-glass-plan.md` (§ 4 y § 5). Sin QA en navegador real con login.
->   Selector de partes de la tarjeta por grupos Tarjeta / Perfil / Contenido (decisión del usuario, 2026-10-14).
+>   Selector de partes de la tarjeta por grupos Tarjeta / Perfil / Contenido, y efectos de texto (Sombra, Brillo,
+>   Pulso, Contorno, Desenfoque) por cada texto con `card.effects.text` como dato heredado (decisiones del usuario,
+>   2026-10-14).
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

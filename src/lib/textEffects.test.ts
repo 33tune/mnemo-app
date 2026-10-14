@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveTextEffectStyle, resolveLetterEffectStyle } from "./textEffects";
+import { resolveTextEffectStyle, resolveLetterEffectStyle, mergeRoleTextEffects, splitCardTextEffects, TEXT_ROLES } from "./textEffects";
 
 test("resolveTextEffectStyle: undefined input returns empty style (no visual change)", () => {
   assert.deepEqual(resolveTextEffectStyle(undefined), {});
@@ -231,4 +231,47 @@ test("resolveLetterEffectStyle: letter animation alone — bounce only, plain in
   assert.equal(s.display, "inline-block");
   assert.ok(String(s.animation).startsWith("mnemo-letter-bounce"));
   assert.ok(!String(s.animation).includes(","));
+});
+
+// ── Per-text effects (user decision, 2026-10-14) ───────────────────────────
+
+test("per-role shadow/glow/stroke/blur win key by key over the legacy card-wide ones", () => {
+  const cardWide = { shadow: { blur: 3 }, stroke: { width: 1 } };
+  const merged = mergeRoleTextEffects(cardWide, { glow: { intensity: 0.5 }, stroke: { width: 2 } });
+  assert.deepEqual(merged, { shadow: { blur: 3 }, stroke: { width: 2 }, glow: { intensity: 0.5 } });
+  assert.equal(mergeRoleTextEffects(cardWide, { gradient: { colors: ["#000", "#fff"], angle: 0 } }), cardWide, "no own fx: the card-wide object as is");
+});
+
+test("splitting the card-wide effects into the roles renders every role identically", () => {
+  const before = {
+    text: { shadow: { blur: 5, color: "#112233" }, glow: { intensity: 0.4 }, blur: 1 },
+    paused: { text: { stroke: { width: 3 } } },
+    textRoles: { bio: { glow: { intensity: 0.9, color: "#ff0000" } } },
+  };
+  const after = splitCardTextEffects(before)!;
+  assert.equal(after.text, undefined, "the card-wide keys are gone");
+  assert.equal(after.paused?.text, undefined);
+  for (const r of TEXT_ROLES) {
+    assert.deepEqual(resolveTextEffectStyle(after.text, after.textRoles?.[r], "#fff"), resolveTextEffectStyle(before.text, before.textRoles?.[r as "bio"], "#fff"), r);
+  }
+  assert.deepEqual(after.textRoles?.bio?.glow, { intensity: 0.9, color: "#ff0000" }, "a role's own value is kept");
+  assert.deepEqual(after.paused?.textRoles?.name?.stroke, { width: 3 }, "paused card-wide values become each role's paused value");
+  const plain = { textRoles: { name: { shimmer: {} } } };
+  assert.equal(splitCardTextEffects(plain), plain, "nothing card-wide: same object");
+});
+
+test("Pulso: the role's glow alpha follows the animated multiplier; off = byte-identical output", () => {
+  const still = resolveTextEffectStyle(undefined, { glow: { intensity: 0.5, color: "#ff0000" } });
+  assert.equal(still.textShadow, "0 0 8px rgba(255,0,0,0.5)");
+  assert.equal(still.animation, undefined);
+  const pulsing = resolveTextEffectStyle(undefined, { glow: { intensity: 0.5, color: "#ff0000", animation: { enabled: true } } });
+  assert.match(String(pulsing.textShadow), /calc\(0\.5 \* var\(--mnemo-text-glow, 1\)\)/);
+  assert.match(String(pulsing.animation), /mnemo-text-glow-pulse/);
+  const both = resolveTextEffectStyle(undefined, { shimmer: {}, glow: { intensity: 0.5, animation: { enabled: true } } }, "#fff");
+  assert.match(String(both.animation), /mnemo-text-shimmer.*, mnemo-text-glow-pulse/, "composes with the shimmer");
+});
+
+test("Name's letters carry only the fill; the role's shadow/glow stay on the line", () => {
+  const s = resolveLetterEffectStyle({ letterAnimation: {}, shadow: { blur: 4 }, glow: { intensity: 0.5 } }, "#fff", 0, 3);
+  assert.equal(s.textShadow, undefined);
 });

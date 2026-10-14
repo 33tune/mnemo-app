@@ -199,10 +199,9 @@ test("Phase B review fixes: collapse only when the sheet hides the focus; FAB hi
 
 test("r2: in-section links move focus to the new object's h2 (the link itself unmounts)", () => {
   assert.match(INSPECTOR, /function goTo\(id: ObjectId\) \{\s*select\(id\);\s*requestAnimationFrame\(\(\) => document\.getElementById\(INSPECTOR_TITLE_ID\)\?\.focus/);
-  // Liquid glass: the jump lives INSIDE each role's "Efectos del texto" card
-  // (DS isGoto "Sombra, brillo y contorno · Todos los textos").
-  assert.ok(CONFIG.includes('goTo={c.goTo ? () => c.goTo?.("allText") : undefined}'));
-  assert.ok(ROLE.includes('<GotoRow label="Sombra, brillo y contorno" hint="Todos los textos" onGo={onGoToAllText} />'));
+  // 2026-10-14: each text owns its Sombra / Brillo / Contorno, so the jump
+  // to Todos los textos is gone (nothing of that kind lives there now).
+  assert.ok(!ROLE.includes("onGoToAllText") && !CONFIG.includes('c.goTo?.("allText")'));
 });
 
 test("r2: the 'Color de todos los textos' hint describes its control", () => {

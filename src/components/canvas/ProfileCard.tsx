@@ -27,7 +27,7 @@ import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE,
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
 import { withOpacity, resolveCardColors, cardIsLight, cardBaseColor } from "@/lib/cardColors";
 import { resolveCardTypography } from "@/lib/cardTypography";
-import { resolveTextEffectStyle, resolveLetterEffectStyle } from "@/lib/textEffects";
+import { resolveTextEffectStyle, resolveLetterEffectStyle, roleFxOnly, anyTextGlowPulse } from "@/lib/textEffects";
 import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 import { PART_ATTR, partFromTarget, movedBeyondSlop, type PartClick, type PartRole } from "@/lib/partNavigation";
@@ -547,7 +547,9 @@ function ProfileCard({
   // shadow/glow/stroke/blur only; gradient/shimmer go on each letter span
   // (see NameLine's per-letter branch / resolveLetterEffectStyle).
   const nameLetterAnim = textRoles?.name?.letterAnimation;
-  const nameShadowStyle = resolveTextEffectStyle(effectiveEffects.text);
+  // The line around Name's letters: its own shadow / glow / stroke / blur
+  // (else the legacy card-wide ones), never the per-letter fill.
+  const nameShadowStyle = resolveTextEffectStyle(effectiveEffects.text, roleFxOnly(textRoles?.name));
   // Stage FASE 1: per-block visual overrides (background/radius always;
   // textColor/iconColor only for the 3 blocks without their own finer-grained
   // color system — see blockStyle.ts's header for why Identity/Links don't
@@ -597,7 +599,7 @@ function ProfileCard({
   // before anything on this card tries to use them — safe to call
   // alongside CardLayers.tsx's own useMotionKeyframes call for the card's
   // border animation (idempotent injection, see cardMotion.ts).
-  useMotionKeyframes(anyShimmerActive || pfpGlowPulseOn || !!nameLetterAnim);
+  useMotionKeyframes(anyShimmerActive || pfpGlowPulseOn || !!nameLetterAnim || anyTextGlowPulse(effectiveEffects));
 
   // ── Free-mode drag ────────────────────────────────────────────────────────
 

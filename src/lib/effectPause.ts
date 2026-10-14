@@ -40,6 +40,9 @@ export type EffectPath =
   | `textRoles.${TextRole}.gradient`
   | `textRoles.${TextRole}.shimmer`
   | `textRoles.${TextRole}.letterAnimation`
+  | `textRoles.${TextRole}.shadow`
+  | `textRoles.${TextRole}.glow`
+  | `textRoles.${TextRole}.stroke`
   | "pfp.shadow"
   | "pfp.glow"
   | "interactions.hoverScale";

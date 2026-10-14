@@ -68,8 +68,7 @@ const metadata = (only: MetadataPart): Section => ({
 });
 const roleText = (role: Extract<ObjectId, "name" | "handle" | "descriptor" | "location" | "bio" | "views">): Section => ({
   key: `text-${role}`,
-  render: c => <RoleTextSection role={role} card={c.card} baseColor={c.baseColor} onChange={c.onChange}
-    goTo={c.goTo ? () => c.goTo?.("allText") : undefined} />,
+  render: c => <RoleTextSection role={role} card={c.card} baseColor={c.baseColor} onChange={c.onChange} />,
 });
 /** r2: a visible, keyboard-reachable path to the object that owns a
  * related control (e.g. text shadow lives in "Todos los textos"). Focus

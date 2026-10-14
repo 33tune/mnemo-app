@@ -130,7 +130,9 @@ test("Liquid glass tiles: the tile is a switch, \"Ajustes de X\" a separate butt
 });
 
 test("effect cards light their glyph with the active effects and summarize them ('Gradiente, Shimmer' / 'Ninguno activo')", () => {
-  for (const f of ["RoleTypographyFields.tsx", "ProfileTypographyMenu.tsx", "ProfileIdentityMenu.tsx"]) {
+  // (ProfileTypographyMenu.tsx no longer has an effects card: Todos los
+  // textos is color + alignment only, 2026-10-14.)
+  for (const f of ["RoleTypographyFields.tsx", "ProfileIdentityMenu.tsx"]) {
     const src = read(`${C}${f}`);
     const fx = (src.match(/<MenuSection[^>]*label="Efectos[^>]*>/g) ?? []);
     assert.ok(fx.length > 0, f);

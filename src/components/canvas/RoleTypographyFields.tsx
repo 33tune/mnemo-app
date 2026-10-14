@@ -1,7 +1,7 @@
 "use client";
 import type { TextFont, TextGradientEffect, TextShimmerEffect, TextLetterAnimationEffect } from "@/types";
-import { useId } from "react";
-import { T, uv, MenuSection, MenuNote, ColorRow, FontField, SliderRow, GradientStops, EffectList, EffectRow, FieldResetButton, GotoRow } from "@/ui";
+import React, { useId } from "react";
+import { T, uv, MenuSection, MenuNote, ColorRow, FontField, SliderRow, GradientStops, EffectList, EffectRow, FieldResetButton } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
 import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
 import { EFFECT_ON_DEFAULTS } from "@/lib/effectEditorDefaults";
@@ -75,8 +75,11 @@ interface Props {
 
   /** Liquid glass: the role's own text, sampled in the font tile. */
   sample?: string;
-  /** Liquid glass: "Sombra, brillo y contorno ›" jumps to Todos los textos. */
-  onGoToAllText?: () => void;
+  /** 2026-10-14: the role's own Sombra / Brillo / Pulso / Contorno /
+   * Desenfoque tiles (ProfileTypographyMenu.tsx's roleFxTiles) and their
+   * names for the card summary. */
+  fxTiles?: React.ReactElement[];
+  fxActive?: string[];
 }
 
 /** Peso (DS weight row): one "Aa" sample per weight the font LOADS
@@ -132,11 +135,11 @@ export default function RoleTypographyFields({
   letterSpacing, onLetterSpacingChange, letterSpacingModified, onLetterSpacingReset,
   lineHeight, lineHeightMin, lineHeightMax, onLineHeightChange, lineHeightModified, onLineHeightReset,
   gradient, onGradientChange, shimmer, onShimmerChange,
-  letterAnimation, onLetterAnimationChange, sample, onGoToAllText,
+  letterAnimation, onLetterAnimationChange, sample, fxTiles, fxActive = [],
 }: Props) {
   const gradientOn = !!gradient;
   const typeChanges = [fontModified, sizeModified, weightModified, letterSpacingModified, lineHeightModified].filter(Boolean).length;
-  const fxNames = [gradientOn && "Gradiente", !!shimmer && "Shimmer", !!letterAnimation && "Por letra"].filter(Boolean) as string[];
+  const fxNames = [gradientOn && "Gradiente", !!shimmer && "Shimmer", !!letterAnimation && "Rebote", ...fxActive].filter(Boolean) as string[];
   const mod = (m?: boolean) => (m ? "modified" as const : undefined);
   const gradientColors = gradient ? gradient.colors ?? [gradient.from, gradient.to].filter((c): c is string => !!c) : [];
   const fontEntry = CANVAS_FONTS.find(f => f.key === font);
@@ -144,7 +147,8 @@ export default function RoleTypographyFields({
   const resetType = () => { onFontReset?.(); onSizeReset?.(); onWeightReset?.(); onLetterSpacingReset?.(); onLineHeightReset?.(); };
   const px = (v: number) => `${String(Math.round(v * 10) / 10).replace(".", ",")} px`;
   // Liquid glass (design menu-schema.js role()): three cards — Tipografía,
-  // Color, Efectos del texto (tiles + "Sombra, brillo y contorno ›").
+  // Color, Efectos del texto (tiles: the fill effects, then the role's own
+  // Sombra, Brillo, Pulso, Contorno and Desenfoque — 2026-10-14).
   return (
     <>
       <MenuSection label="Tipografía" icon="case" changed={typeChanges} onReset={resetType}
@@ -210,7 +214,7 @@ export default function RoleTypographyFields({
             ) : null}
           </EffectRow>
           {onLetterAnimationChange && (
-            <EffectRow id="letters" label="Por letra" icon="text" preview="t-let" on={!!letterAnimation}
+            <EffectRow id="letters" label="Rebote" icon="text" preview="t-let" on={!!letterAnimation}
               state={letterAnimation ? `${letterAnimation.amplitude ?? ON.letterAnimation.amplitude} px` : undefined}
               onToggle={v => onLetterAnimationChange(v ? { ...ON.letterAnimation } : undefined)}>
               {letterAnimation ? (
@@ -225,8 +229,8 @@ export default function RoleTypographyFields({
               ) : null}
             </EffectRow>
           )}
+          {fxTiles}
         </EffectList>
-        {onGoToAllText && <GotoRow label="Sombra, brillo y contorno" hint="Todos los textos" onGo={onGoToAllText} />}
       </MenuSection>
     </>
   );

@@ -106,6 +106,7 @@ export const CAPAS = "Capas";
 
 const LEGACY_POS = "pre-composition position/scale (Stage 3 replaced it with block anchors); kept for old data";
 const BLOCK_DRAG = (block: string) => card(`${LIENZO} › bloque ${block}`, `${block}: ["${block}AnchorX", "${block}AnchorY"]`, "[fx]: latest.x");
+const TEXT_PER_ROLE = "per-text effects (2026-10-14): legacy card-wide value, rendered by every role without its own and split into the roles on the first edit — edited in each text's Efectos del texto";
 const ROLE_COLOR = "text color is owned by each role (its object › Color › Color — Block 1: una propiedad, un dueño)";
 
 // ── ProfileCard fields ──────────────────────────────────────────────────────
@@ -249,17 +250,23 @@ export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "shadow.offsetX": fxMenu(`${EFECTOS} › Sombra › Avanzado › Desplazamiento`, "patchShadow({ offsetX: nx, offsetY: ny })"),
   "shadow.offsetY": fxMenu(`${EFECTOS} › Sombra › Avanzado › Desplazamiento`, "patchShadow({ offsetX: nx, offsetY: ny })"),
   "shadow.opacity": fxMenu(`${EFECTOS} › Sombra › Avanzado › Opacidad`, "patchShadow({ opacity: v })"),
-  "text.shadow.color": type(`${TODOS} › Efectos del texto › Sombra › Color`, 'toggleTextFx("text.shadow", v)', "patchShadow({ color: v })"),
-  "text.shadow.opacity": type(`${TODOS} › Efectos del texto › Sombra › Opacidad`, "patchShadow({ opacity: v })"),
-  "text.shadow.blur": type(`${TODOS} › Efectos del texto › Sombra › Blur`, "patchShadow({ blur: v })"),
-  "text.shadow.offsetX": type(`${TODOS} › Efectos del texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: nx, offsetY: ny })"),
-  "text.shadow.offsetY": type(`${TODOS} › Efectos del texto › Sombra › Desplazamiento`, "patchShadow({ offsetX: nx, offsetY: ny })"),
-  "text.glow.color": type(`${TODOS} › Efectos del texto › Brillo › Color`, "patchGlow({ color: v })"),
-  "text.glow.intensity": type(`${TODOS} › Efectos del texto › Brillo › Activar · Intensidad`, 'toggleTextFx("text.glow", v)', "patchGlow({ intensity: v })"),
-  "text.glow.radius": type(`${TODOS} › Efectos del texto › Brillo › Radio`, "patchGlow({ radius: v })"),
-  "text.stroke.color": type(`${TODOS} › Efectos del texto › Contorno › Color`, 'toggleTextFx("text.stroke", v)', "patchStroke({ color: v })"),
-  "text.stroke.width": type(`${TODOS} › Efectos del texto › Contorno › Grosor`, "patchStroke({ width: v })"),
-  "text.blur": type(`${TODOS} › Efectos del texto › Desenfoque`, "patchTextFx({ blur: v"),
+  // 2026-10-14 (user decision): text effects are per text. The card-wide
+  // effects.text is LEGACY data — each role renders it unless it has its own
+  // (mergeRoleTextEffects) and the editor splits it into the roles on the
+  // first per-role edit (splitCardTextEffects). Edited through each role.
+  "text.shadow.color": by("effects.textRoles.name.shadow.color", TEXT_PER_ROLE),
+  "text.shadow.opacity": by("effects.textRoles.name.shadow.opacity", TEXT_PER_ROLE),
+  "text.shadow.blur": by("effects.textRoles.name.shadow.blur", TEXT_PER_ROLE),
+  "text.shadow.offsetX": by("effects.textRoles.name.shadow.offsetX", TEXT_PER_ROLE),
+  "text.shadow.offsetY": by("effects.textRoles.name.shadow.offsetY", TEXT_PER_ROLE),
+  "text.glow.color": by("effects.textRoles.name.glow.color", TEXT_PER_ROLE),
+  "text.glow.intensity": by("effects.textRoles.name.glow.intensity", TEXT_PER_ROLE),
+  "text.glow.radius": by("effects.textRoles.name.glow.radius", TEXT_PER_ROLE),
+  "text.glow.animation.enabled": by("effects.textRoles.name.glow.animation.enabled", TEXT_PER_ROLE),
+  "text.glow.animation.speed": by("effects.textRoles.name.glow.animation.speed", TEXT_PER_ROLE),
+  "text.stroke.color": by("effects.textRoles.name.stroke.color", TEXT_PER_ROLE),
+  "text.stroke.width": by("effects.textRoles.name.stroke.width", TEXT_PER_ROLE),
+  "text.blur": by("effects.textRoles.name.blur", TEXT_PER_ROLE),
   "pfp.border.color": pfp(`${FOTO} › Borde › Color`, "patchPfpBorder({ color: v })"),
   "pfp.border.width": pfp(`${FOTO} › Borde › Grosor`, "patchPfpBorder({ width: v })"),
   "pfp.border.opacity": pfp(`${FOTO} › Borde › Opacidad`, "patchPfpBorder({ opacity: v })"),
@@ -303,9 +310,11 @@ const ROLE_LABEL: Record<TextRole, string> = {
   name: "Nombre", handle: "@usuario", descriptor: "Frase", location: "Ubicación", bio: "Bio", views: "Visitas",
 };
 const ROLE_FIELDS = "RoleTypographyFields.tsx";
+const TYPE_MENU = "ProfileTypographyMenu.tsx";
 function roleCaps(role: TextRole): Record<RoleEffectLeaf, Capability> {
   const ui = `${obj(ROLE_LABEL[role])} › ${FX_TEXTO}`;
-  const host = ev("ProfileTypographyMenu.tsx", `{...makeGradientHandlers("${role}")}`);
+  const host = ev(TYPE_MENU, `{...makeGradientHandlers("${role}")}`);
+  const own = host;
   const letter = role === "name"
     ? (field: string) => route(`${ui} › Animación por letra › ${field}`, ev("ProfileTypographyMenu.tsx", 'setRoleTextEffect("name", "letterAnimation", v)'), ev(ROLE_FIELDS, `onLetterAnimationChange({ ...letterAnimation, ${field}: v })`))
     : () => unsupported("letter animation is Name-only (Product closeout)");
@@ -319,6 +328,22 @@ function roleCaps(role: TextRole): Record<RoleEffectLeaf, Capability> {
     "letterAnimation.amplitude": letter("amplitude"),
     "letterAnimation.speed": letter("speed"),
     "letterAnimation.stagger": letter("stagger"),
+    // 2026-10-14: the role's own Sombra / Brillo / Pulso / Contorno /
+    // Desenfoque (ProfileTypographyMenu.tsx's roleFxTiles, mounted for
+    // every role through RoleTextSection).
+    "shadow.color": route(`${ui} › Sombra › Color`, own, ev(TYPE_MENU, 'fx.toggle("shadow", v)'), ev(TYPE_MENU, "fx.patchShadow({ color: v })")),
+    "shadow.opacity": route(`${ui} › Sombra › Opacidad`, own, ev(TYPE_MENU, "fx.patchShadow({ opacity: v })")),
+    "shadow.blur": route(`${ui} › Sombra › Blur`, own, ev(TYPE_MENU, "fx.patchShadow({ blur: v })")),
+    "shadow.offsetX": route(`${ui} › Sombra › Desplazamiento`, own, ev(TYPE_MENU, "fx.patchShadow({ offsetX: nx, offsetY: ny })")),
+    "shadow.offsetY": route(`${ui} › Sombra › Desplazamiento`, own, ev(TYPE_MENU, "fx.patchShadow({ offsetX: nx, offsetY: ny })")),
+    "glow.color": route(`${ui} › Brillo › Color`, own, ev(TYPE_MENU, "fx.patchGlow({ color: v })")),
+    "glow.intensity": route(`${ui} › Brillo › Intensidad`, own, ev(TYPE_MENU, 'fx.toggle("glow", v)'), ev(TYPE_MENU, "fx.patchGlow({ intensity: v })")),
+    "glow.radius": route(`${ui} › Brillo › Radio`, own, ev(TYPE_MENU, "fx.patchGlow({ radius: v })")),
+    "glow.animation.enabled": route(`${ui} › Pulso`, own, ev(TYPE_MENU, "fx.patchPulse({ enabled: v })")),
+    "glow.animation.speed": route(`${ui} › Pulso › Velocidad`, own, ev(TYPE_MENU, "fx.patchPulse({ speed: v })")),
+    "stroke.color": route(`${ui} › Contorno › Color`, own, ev(TYPE_MENU, 'fx.toggle("stroke", v)'), ev(TYPE_MENU, "fx.patchStroke({ color: v })")),
+    "stroke.width": route(`${ui} › Contorno › Grosor`, own, ev(TYPE_MENU, "fx.patchStroke({ width: v })")),
+    blur: route(`${ui} › Desenfoque`, own, ev(TYPE_MENU, "fx.setBlur(v)")),
   };
 }
 export const ROLE_EFFECT_CAPS: Record<TextRole, Record<RoleEffectLeaf, Capability>> = {
@@ -428,6 +453,7 @@ export const MUSIC_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "text.shadow.blur": unsupported(PROFILE_ONLY), "text.shadow.offsetX": unsupported(PROFILE_ONLY),
   "text.shadow.offsetY": unsupported(PROFILE_ONLY), "text.glow.color": unsupported(PROFILE_ONLY),
   "text.glow.intensity": unsupported(PROFILE_ONLY), "text.glow.radius": unsupported(PROFILE_ONLY),
+  "text.glow.animation.enabled": unsupported(PROFILE_ONLY), "text.glow.animation.speed": unsupported(PROFILE_ONLY),
   "text.stroke.color": unsupported(PROFILE_ONLY), "text.stroke.width": unsupported(PROFILE_ONLY),
   "text.blur": unsupported(PROFILE_ONLY),
   "pfp.border.color": unsupported(PROFILE_ONLY), "pfp.border.width": unsupported(PROFILE_ONLY),

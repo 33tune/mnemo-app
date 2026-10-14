@@ -130,9 +130,15 @@ function rule(path: EffectPath): SwitchRule {
   // Per-role paths (textRoles.<role>.<key>). Exhaustive: a new EffectPath
   // that reaches here without its own rule fails tsc (the `never` below)
   // instead of silently inheriting another effect's "on" default.
-  const rolePath: `textRoles.${TextRole}.${keyof RoleTextEffect}` = path;
-  const key = rolePath.split(".")[2] as keyof RoleTextEffect;
+  type RoleSwitchKey = Exclude<keyof RoleTextEffect, "blur">;
+  const rolePath: `textRoles.${TextRole}.${RoleSwitchKey}` = path;
+  const key = rolePath.split(".")[2] as RoleSwitchKey;
   switch (key) {
+    // Per-role shadow / glow / stroke (2026-10-14): the same rules as the
+    // legacy card-wide text.* switches.
+    case "shadow": return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.textShadow) };
+    case "stroke": return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.textStroke) };
+    case "glow": return { isOn: intensityVisible(path), intensity: true, neutralGlow: true };
     case "gradient": return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.textGradient) };
     case "shimmer": return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.textShimmer) };
     case "letterAnimation": return { isOn: present(path), onDefault: () => fresh(EFFECT_ON_DEFAULTS.letterAnimation) };

@@ -69,7 +69,7 @@ test("user content and core look are always routes (cannot be retired by acciden
     ["profile", "photo"], ["profile", "name"], ["profile", "status"], ["profile", "location"], ["profile", "bio"],
     ["profile", "showViews"], ["profile", "contactLinks"], ["profile", "logo.url"], ["profile", "w"], ["profile", "h"],
     ["profile", "effects.bg.color"], ["profile", "effects.bg.image"], ["profile", "effects.border.width"],
-    ["profile", "effects.shadow.intensity"], ["profile", "effects.glow.outer"], ["profile", "effects.text.glow.intensity"],
+    ["profile", "effects.shadow.intensity"], ["profile", "effects.glow.outer"], ["profile", "effects.textRoles.bio.glow.intensity"], ["profile", "effects.textRoles.handle.shadow.color"],
     ["profile", "effects.pfp.glow.intensity"], ["profile", "effects.textRoles.name.gradient.colors"],
     ["profile", "effects.textRoles.name.letterAnimation.amplitude"], ["profile", "blockStyle.links.iconColor"],
     ["music", "audioUrl"], ["music", "title"], ["music", "artist"], ["music", "textSize"], ["music", "font"],
