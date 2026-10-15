@@ -1,7 +1,9 @@
 "use client";
 import { useState, useRef } from "react";
-import type { CanvasElement, CardFormat } from "@/types";
+import type { CanvasElement, CardFormat, ProfileCardData } from "@/types";
 import { getFreeformCardBounds, clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
+import { clampProfileCardSize } from "@/lib/profileCardLayout";
+import { getTextMeasurer } from "@/lib/textMeasure";
 import { applyGroupDragDelta, filterTrashDeletion } from "@/lib/canvasSelectionGuards";
 import { computeResize, resizeMinimums, type ResizeHandle } from "@/lib/resizeMath";
 import { snapDragDelta, snapResizeDelta } from "@/lib/gridSnap";
@@ -225,9 +227,15 @@ export function useDragDrop({
         // position, not two systems that can disagree mid-gesture (see that
         // function's doc comment for what the previous, two-system version
         // actually broke).
+        // Engine rewrite (2026-10-15): the card cannot shrink past its
+        // content (profileCardLayout.ts — the same floor ProfileCard renders
+        // with), so the handle simply stops there instead of dropping texts.
         const freeform = getFreeformCardBounds();
         const raw = computeResize(handle, dx, dy, w, h, ex, ey, ratio, ratio > 0, freeform.minW, freeform.minH);
-        const { w: nw, h: nh } = clampFreeformCardSize(raw.nw, raw.nh);
+        const card = elements.find((el): el is ProfileCardData & { elementType: "profile" } => el.id === resizing.id && el.elementType === "profile");
+        const { w: nw, h: nh } = card
+          ? clampProfileCardSize(card, raw.nw, raw.nh, { measure: getTextMeasurer(), startW: w })
+          : clampFreeformCardSize(raw.nw, raw.nh);
         const bounds = canvasBounds ?? { w: nw, h: nh, topOffset: 0 };
         const { x: nx, y: ny } = centerCardPosition(bounds.w, bounds.h, nw, nh, bounds.topOffset);
         lastResize.current = { w: nw, h: nh, x: nx, y: ny };

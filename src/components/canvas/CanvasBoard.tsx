@@ -49,6 +49,8 @@ import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
 import { shouldSkipCanvasShortcut, canvasShortcutAllowed, shouldFocusCanvasOnMouseDown, isEventFromNode, CANVAS_ATTR, CHROME_ATTR, type GuardElement } from "@/lib/editorGuards";
 import { resolveNudgeKey, nudgeMove, nudgeResize, cycleSelection, isMacPlatform } from "@/lib/canvasNudge";
+import { clampProfileCardSize } from "@/lib/profileCardLayout";
+import { getTextMeasurer } from "@/lib/textMeasure";
 import { T as UIT, Icon, type IconName, ActionButton, SliderRow, ColorRow, MenuSection, MenuNote, INSPECTOR_TITLE_ID } from "@/ui";
 import { INSPECTOR_COLLAPSED_W, INSPECTOR_SHEET_COLLAPSED_H, INSPECTOR_EXPAND_ID } from "@/ui/InspectorShell";
 import { isSearchShortcut, openSettingsSearch } from "@/ui/SettingsSearch";
@@ -1187,6 +1189,14 @@ export default function CanvasBoard({
    * clamps to — topOffset 44, R1) and the drag's own writers
    * (setElementGeometry). A free text has position and rotation only (its
    * size is the font size, in Tipografía). None in space_mobile (legacy). */
+  /** Ctrl/⌘+arrows on the ProfileCard: the same content floor as the
+   * resize handles (profileCardLayout.ts). Undefined for other elements. */
+  function profileClampFor(el: { elementType: string }): ((w: number, h: number) => { w: number; h: number }) | undefined {
+    if (el.elementType !== "profile") return undefined;
+    const card = el as unknown as ProfileCardData;
+    return (w, h) => clampProfileCardSize(card, w, h, { measure: getTextMeasurer(), startW: card.w });
+  }
+
   function measuresFor(el: CanvasElement): MeasureSpec | undefined {
     if (canvasMode === "space_mobile") return undefined;
     const top = CANVAS_TOP_OFFSET;
@@ -1388,7 +1398,7 @@ export default function CanvasBoard({
       if (rdx) rdx = snapNudgeDelta(box.x + bw, Math.sign(rdx), snapStepRef.current);
       if (rdy) rdy = snapNudgeDelta(box.y + bh, Math.sign(rdy), snapStepRef.current);
     }
-    const r = nudgeResize(el as Parameters<typeof nudgeResize>[0], rdx, rdy, bounds);
+    const r = nudgeResize(el as Parameters<typeof nudgeResize>[0], rdx, rdy, bounds, profileClampFor(el));
     if (!r) { announceRef.current?.("Elemento bloqueado"); return true; }
     const p = pendingNudgeRef.current;
     if (!p || p.kind !== "resize" || p.id !== el.id) flushNudgeRef.current?.();
@@ -1442,7 +1452,7 @@ export default function CanvasBoard({
     const dw = target.w !== undefined ? target.w - (cur.w ?? 0) : 0;
     const dh = target.h !== undefined ? target.h - (cur.h ?? 0) : 0;
     if (!dw && !dh) return;
-    const r = dw ? nudgeResize(cur, dw, 0, bounds) : nudgeResize(cur, 0, dh, bounds);
+    const r = dw ? nudgeResize(cur, dw, 0, bounds, profileClampFor(cur)) : nudgeResize(cur, 0, dh, bounds, profileClampFor(cur));
     if (!r || r.kind !== "box") return;
     const dims = { w: r.w, h: r.h, x: r.x, y: r.y };
     const next = elementsRef.current.map(x => x.id === id ? ({ ...x, ...dims } as CanvasElement) : x);

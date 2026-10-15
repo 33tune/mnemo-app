@@ -84,6 +84,11 @@ planeado acá hasta confirmarlo.
 >   Botones con link estilo Linktree (`card.linkButtons` + `card.linkButtonStyle`, parte "Botones" en Contenido):
 >   7.º bloque del motor, no estructural; render en `LinkButtonsBlock.tsx` + `src/lib/linkButtons.ts`, listos para
 >   montarse en mobile (hoy `space_mobile` no los muestra; no se tocó).
+>   **Motor de la tarjeta reescrito (2026-10-15, pedido del usuario):** dos formas elegidas por la posición de la foto
+>   (nunca por la altura), grupo anclado, espacios fijos, íconos y botones debajo del texto, sin filas comprimidas,
+>   medición real del texto y **tope de achique por contenido** (`profileCardLayout.ts`, usado por render, resize,
+>   Ctrl/⌘+flechas y Medidas). Supera lo que dice "Arquitectura" sobre las 5 topologías, la PFP autoritativa sola,
+>   Links "no estructural" y el growth con `extraBlocks`. Detalle en `liquid-glass-plan.md` § 4.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

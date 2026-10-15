@@ -9,12 +9,12 @@
  * LinkButtonsBlock with `resolveLinkButtonStyle` + `linkButtonsBlockSize`;
  * nothing here assumes the desktop canvas).
  *
- * Engine contract: the block is the 7th, lowest-priority block of
- * computeBlockLayout (ButtonsBlockInput) and, like Contact Links, NOT
- * structural — the card never auto-grows for it (Stage 4.2-C.2.6: growth
- * fighting a resize was a real bug). A block that does not fit is hidden by
- * ProfileCard's blockFits() and the inspector says so, offering to grow the
- * card once (an explicit, undoable edit — never an effect).
+ * Engine contract (engine rewrite 2026-10-15): the 7th, lowest-priority
+ * block of computeBlockLayout. Never dragged, it flows under the texts and
+ * the icons row, as part of the anchored group; the card's content floor
+ * (profileCardLayout.ts) keeps it always inside the card. Dragged, it sits
+ * at its anchor and is hidden only when it cannot sit there
+ * (linkButtonsPlaced).
  */
 import type { CSSProperties } from "react";
 import type { LinkButtonStyle } from "@/types";
@@ -26,9 +26,6 @@ export const LINK_BUTTON_FONT_SIZE = { min: 11, max: 20, default: 13 } as const;
 export const LINK_BUTTON_GAP = { min: 4, max: 20, default: 8 } as const;
 export const LINK_BUTTON_DEFAULT_FONT = "DM Sans";
 export const LINK_BUTTON_DEFAULT_WEIGHT = 600;
-/** Space between the icons row (Contact Links) and the buttons stacked
- * right under it, when both exist and neither was dragged. */
-export const LINK_BUTTONS_STACK_GAP = 10;
 
 /** Button height for a font size — a comfortable tap target (13px -> 38px). */
 export function linkButtonHeight(fontSize: number): number {
@@ -115,20 +112,6 @@ export function linkButtonCss(style: ResolvedLinkButtonStyle, fontFamily: string
   };
 }
 
-/** Anchor (normalized, anchorToRect's contract) that puts the icons row
- * right ABOVE the buttons when both sit at their default bottom place, so
- * the card reads identity → icons → buttons. Pure; the caller applies it
- * only when the icons were never dragged and the buttons exist. */
-export function stackedLinksAnchorY(input: {
-  boxH: number; padding: number; linksH: number; buttonsH: number; gap?: number;
-}): number {
-  const { boxH, padding, linksH, buttonsH, gap = LINK_BUTTONS_STACK_GAP } = input;
-  const availH = boxH - 2 * padding - linksH;
-  if (availH <= 0) return 1;
-  const y = boxH - padding - buttonsH - gap - linksH;
-  return Math.max(0, Math.min(1, (y - padding) / availH));
-}
-
 interface Box { x: number; y: number; w: number; h: number }
 const overlaps = (a: Box, b: Box) =>
   Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
@@ -144,17 +127,6 @@ export function linkButtonsPlaced(
   const others = [layout.boxes.pfp, layout.identityRect, layout.boxes.location, layout.boxes.views, layout.boxes.links]
     .filter((o): o is Box => !!o);
   return !others.some(o => overlaps(o, b));
-}
-
-/** How many px taller the card must be for the buttons (and the icons row
- * above them) to fit under the content — what "Agrandar" adds. */
-export function linkButtonsShortfall(input: {
-  contentBottom: number; linksH: number; buttonsH: number; cardH: number; padding: number; box?: Box;
-}): number {
-  const { contentBottom, linksH, buttonsH, cardH, padding, box } = input;
-  const stacked = contentBottom + LINK_BUTTONS_STACK_GAP + (linksH ? linksH + LINK_BUTTONS_STACK_GAP : 0) + buttonsH + padding;
-  const offCard = box ? box.y + box.h - (cardH - padding) : 0;
-  return Math.max(1, Math.ceil(Math.max(stacked - cardH, offCard)));
 }
 
 /** "https://" added when missing (what the <a> opens). */

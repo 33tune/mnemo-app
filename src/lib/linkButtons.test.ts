@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  resolveLinkButtonStyle, linkButtonsBlockSize, linkButtonCss, linkButtonHeight, contrastInk, linkButtonHref, stackedLinksAnchorY,
+  resolveLinkButtonStyle, linkButtonsBlockSize, linkButtonCss, linkButtonHeight, contrastInk, linkButtonHref,
   LINK_BUTTON_FONT_SIZE,
 } from "./linkButtons";
 
@@ -42,8 +42,4 @@ test("helpers", () => {
   assert.equal(contrastInk("#000000"), "#FFFFFF");
   assert.equal(linkButtonHref("mara.land"), "https://mara.land");
   assert.equal(linkButtonHref("http://a.b"), "http://a.b");
-  assert.equal(stackedLinksAnchorY({ boxH: 100, padding: 10, linksH: 200, buttonsH: 20 }), 1, "no room: bottom");
-  const y = stackedLinksAnchorY({ boxH: 500, padding: 20, linksH: 24, buttonsH: 130 });
-  // links bottom = 500 - 20 - 130 - 10 = 340 → top 316 → (316-20)/(460-24)
-  assert.ok(Math.abs(y - 296 / 436) < 1e-9);
 });

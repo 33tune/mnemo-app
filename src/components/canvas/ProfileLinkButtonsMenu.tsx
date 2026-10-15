@@ -3,30 +3,24 @@ import React, { useRef, useState } from "react";
 import type { LinkButton, LinkButtonStyle, ProfileCardData } from "@/types";
 import {
   MenuSection, MenuRow, MenuNote, SliderRow, Tabs, ColorRow, FontField, SwitchRow, EffectList, EffectRow,
-  TextInput, IconButton, Icon, ActionButton, refocusFieldControl,
+  TextInput, IconButton, Icon, refocusFieldControl,
 } from "@/ui";
 import { detectPlatform, PlatformIcon } from "./SocialIcons";
 import { CANVAS_FONTS } from "@/lib/fontList";
 import { linkButtonsController } from "@/lib/objectControllers";
-import { clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
 import {
-  LINK_BUTTONS_MAX, LINK_BUTTON_LABEL_MAX, LINK_BUTTON_FONT_SIZE, LINK_BUTTON_GAP, LINK_BUTTONS_STACK_GAP,
-  resolveLinkButtonStyle, linkButtonHeight,
+  LINK_BUTTONS_MAX, LINK_BUTTON_LABEL_MAX, LINK_BUTTON_FONT_SIZE, LINK_BUTTON_GAP,
+  resolveLinkButtonStyle,
 } from "@/lib/linkButtons";
 
 interface Props {
-  card: Pick<ProfileCardData, "linkButtons" | "linkButtonStyle" | "w" | "h">;
+  card: Pick<ProfileCardData, "linkButtons" | "linkButtonStyle">;
   /** The card's base text color (the buttons' default color). */
   baseColor: string;
-  /** Render verdicts from ProfileCard (EditorHost facts): the block fits;
-   * else how many px the card is short of. */
+  /** ProfileCard's render verdict (EditorHost facts). The card grows to fit
+   * its content by itself (profileCardLayout.ts), so this is false only when
+   * the buttons were dragged where they cannot sit. */
   fits?: boolean;
-  overflow?: number;
-  /** px the card must grow for one more button (engine-computed; 0 =
-   * there is room). Absent = unknown: grow by one row. */
-  growNext?: number;
-  /** The canvas the card is centered in (absent: space_mobile). */
-  canvas?: { w: number; h: number; topOffset: number };
   onChange: (patch: Partial<ProfileCardData>) => void;
 }
 
@@ -40,7 +34,7 @@ const px = (v: number) => `${Math.round(v)} px`;
 // row (Texto del botón + link) — then ONE style for every button: Estilo
 // (shape, fill, colors, font, size, network icon), Distribución (width,
 // spacing) and Al pasar el cursor (tiles). The icon comes from the link.
-export default function ProfileLinkButtonsMenu({ card, baseColor, fits, overflow = 0, growNext, canvas, onChange }: Props) {
+export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange }: Props) {
   const buttons = card.linkButtons ?? [];
   const style = card.linkButtonStyle;
   const r = resolveLinkButtonStyle(style, baseColor);
@@ -51,22 +45,11 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, overflow
   const [draft, setDraft] = useState<{ label: string; url: string }>({ label: "", url: "" });
   const full = buttons.length >= LINK_BUTTONS_MAX;
 
-  /** One-shot card geometry (never an effect): taller by `dh`, clamped,
-   * recentered exactly like the resize handles / Medidas. */
-  function grow(dh: number): Partial<ProfileCardData> {
-    const c = clampFreeformCardSize(card.w, card.h + dh);
-    if (!canvas) return { h: c.h };
-    const { x, y } = centerCardPosition(canvas.w, canvas.h, c.w, c.h, canvas.topOffset);
-    return { h: c.h, x, y };
-  }
-
   function add() {
     const u = url.trim();
     if (!u || full) return;
-    // The card grows exactly what the engine says one more button needs
-    // (ProfileCard's facts; 0 = already room). Unknown: one row taller.
-    const dh = growNext ?? linkButtonHeight(r.fontSize) + (buttons.length ? r.gap : LINK_BUTTONS_STACK_GAP);
-    ctl.add(label.trim() || u.replace(/^https?:\/\/(www\.)?/, ""), u, dh > 0 ? grow(dh) : undefined);
+    // The card grows to fit by itself (the content floor, ProfileCard).
+    ctl.add(label.trim() || u.replace(/^https?:\/\/(www\.)?/, ""), u);
     setLabel(""); setUrl("");
   }
   function confirmEdit() {
@@ -84,12 +67,7 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, overflow
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <MenuSection label="Botones" pinned>
         {buttons.length > 0 && fits === false && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <MenuNote tone="warn">No entran en la altura actual de la tarjeta.</MenuNote>
-            <ActionButton fullWidth onClick={e => { e.stopPropagation(); ctl.resize(grow(Math.max(1, overflow))); }}>
-              <Icon name="maximize" size={15} /> Agrandar la tarjeta para que entren
-            </ActionButton>
-          </div>
+          <MenuNote tone="warn">No entran donde los dejaste: arrastralos a un lugar libre de la tarjeta.</MenuNote>
         )}
         {buttons.length > 0 && (
           <ButtonList buttons={buttons} editingId={editingId} draft={draft} setDraft={setDraft}

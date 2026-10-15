@@ -2,7 +2,9 @@
 import React from "react";
 import type { ProfileCardData, CardEffects } from "@/types";
 import { NumberField, MenuNote, Icon, SectionNumber, Accordion, GotoRow, type SectionNumberValue } from "@/ui";
-import { getCardPadding, getFreeformCardBounds, clampFreeformCardSize, centerCardPosition } from "@/lib/cardGeometry";
+import { getCardPadding, getFreeformCardBounds, centerCardPosition } from "@/lib/cardGeometry";
+import { clampProfileCardSize, profileCardMinSize } from "@/lib/profileCardLayout";
+import { getTextMeasurer } from "@/lib/textMeasure";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import type { ObjectId } from "@/lib/inspectorObjects";
 import ProfileIdentityMenu, { type IdentityPart } from "./ProfileIdentityMenu";
@@ -35,10 +37,8 @@ export interface SectionContext {
   /** Stage 4.2-C.2.7: render-time verdict from ProfileCard's blockFits() —
    * only an explicit `false` warns. */
   linksFits?: boolean;
-  /** Link buttons (2026-10-14): fit verdict + px short (ProfileCard). */
+  /** Link buttons: drawn (false only when dragged where they cannot sit). */
   buttonsFits?: boolean;
-  buttonsOverflow?: number;
-  buttonsGrowNext?: number;
   /** Iteration 0 (O1 "Medidas"): the canvas the card is centered in.
    * Absent (space_mobile) = no Medidas. */
   canvas?:   { w: number; h: number; topOffset: number };
@@ -136,7 +136,7 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
   ],
   buttons: [
     { key: "buttons", num: N1, render: c => <ProfileLinkButtonsMenu card={c.card} baseColor={c.baseColor} fits={c.buttonsFits}
-      overflow={c.buttonsOverflow} growNext={c.buttonsGrowNext} canvas={c.canvas} onChange={c.onChange} /> },
+      onChange={c.onChange} /> },
   ],
   logo: [
     { key: "logo", num: N1, render: c => <ProfileLogoMenu logo={c.card.logo} onChange={c.onChange} /> },
@@ -187,14 +187,18 @@ export default function ProfileConfigMenu({ object, ...ctx }: ProfileConfigMenuP
 // (WCAG 2.5.7, 2.1.1) — closed by default, under "Fondo de la card".
 // Width/height only: the card's position is always derived
 // (centerCardPosition), never edited. Writes through exactly what the
-// resize drag writes: clampFreeformCardSize + centerCardPosition, one patch.
+// resize drag writes: the content floor (clampProfileCardSize — the card
+// never gets smaller than what it holds) + centerCardPosition, one patch.
 function ProfileMeasures({ card, canvas, onChange }: {
   card: ProfileCardData; canvas: { w: number; h: number; topOffset: number };
   onChange: (patch: Partial<ProfileCardData>) => void;
 }) {
   const b = getFreeformCardBounds();
+  const measure = getTextMeasurer();
+  const minW = profileCardMinSize(card, b.maxW, { measure }).w;
+  const minH = profileCardMinSize(card, card.w, { measure }).h;
   function setSize(w: number, h: number) {
-    const c = clampFreeformCardSize(w, h);
+    const c = clampProfileCardSize(card, w, h, { measure, startW: card.w });
     const { x, y } = centerCardPosition(canvas.w, canvas.h, c.w, c.h, canvas.topOffset);
     onChange({ w: c.w, h: c.h, x, y });
   }
@@ -202,8 +206,8 @@ function ProfileMeasures({ card, canvas, onChange }: {
   return (
     <>
       <div className="mn-measures">
-        <NumberField label="Ancho" min={b.minW} max={b.maxW} step={1} unit="px" value={Math.round(card.w)} onChange={v => setSize(v, card.h)} />
-        <NumberField label="Alto" min={b.minH} max={b.maxH} step={1} unit="px" value={Math.round(card.h)} onChange={v => setSize(card.w, v)} />
+        <NumberField label="Ancho" min={Math.min(minW, Math.round(card.w))} max={b.maxW} step={1} unit="px" value={Math.round(card.w)} onChange={v => setSize(v, card.h)} />
+        <NumberField label="Alto" min={minH} max={b.maxH} step={1} unit="px" value={Math.round(card.h)} onChange={v => setSize(card.w, v)} />
       </div>
       <MenuNote>Siempre centrada</MenuNote>
     </>

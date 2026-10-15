@@ -33,7 +33,7 @@ test("resolveCardTypography: no card overrides matches ProfileCard.tsx's pre-exi
   assert.deepEqual(t.name, { fontSize: 15, letterSpacing: 0, lineHeight: 1.2, fontWeight: 700 });
   assert.equal(t.handle.fontSize, 9);
   assert.equal(t.handle.letterSpacing, 0.4);
-  assert.equal(t.handle.lineHeight, undefined); // pre-existing render never set an explicit line-height for this role
+  assert.equal(t.handle.lineHeight, 1.4); // 2026-10-15: the engine's monoLineH (rows clip; "normal" could be taller)
   assert.equal(t.handle.fontWeight, undefined); // pre-existing render never set an explicit weight for this role either
   assert.equal(t.bio.fontWeight, undefined);
   assert.equal(t.views.fontWeight, undefined);

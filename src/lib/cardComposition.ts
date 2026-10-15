@@ -1,50 +1,44 @@
 /**
  * Pure, React/DOM-independent composition engine for the Presentation Card.
- * No measurements from the browser — text size is estimated heuristically
- * (see TEXT_METRICS) and CSS truncation (line-clamp) is the real safety net
- * for whatever the estimate gets wrong. Same architectural family as
- * cardGeometry.ts and mobileMerge.ts: constants + pure functions, no state.
+ * Text size comes from the caller's measurements when it has them
+ * (ProfileCard measures the real fonts, see textMeasure.ts) and otherwise
+ * from the char-width estimates in cardTypography.ts. Same architectural
+ * family as cardGeometry.ts: constants + pure functions, no state.
  *
- * MODEL (see Stage 2 design discussion for the full reasoning; PFP-authority
- * model revised in Stage 3B.2-B — see below):
- * - format/geometry (cardGeometry.ts) decide the box. This file never touches w/h.
- * - 5 fixed structural PRIMITIVES ("row" | "row-reverse" | "column" |
- *   "column-reverse" | "centered") are internal topologies, never exposed to
- *   the user as presets/positions.
- * - The PFP is AUTHORITATIVE: its box is always the literal anchorX/anchorY
- *   position (padding + anchor*(avail-size)), for every topology, with no
- *   exception and no compromise — never clamped or nudged to make content
- *   fit. This was NOT always true: through Stage 3B.2-A, row/row-reverse/
- *   column/column-reverse could silently reposition the PFP away from the
- *   anchor when content needed the room (scored via a now-removed
- *   "anchorDistance" term), which is what let the persisted anchor and the
- *   rendered position disagree — see the 3B.2-A/B PFP-anchor-drag postmortem.
- *   The content block is what negotiates for whatever room is left once the
- *   PFP's position is fixed — never the other way around.
- * - Content alignment (textAlign, resolveContentBlock) and content POSITION
- *   (which topology, i.e. anchor-driven placement) are independent: textAlign
- *   only affects how rows sit within the content block's own bounding width;
- *   it never changes where that block sits in the card.
- * - Candidates are generated for all 5 primitives on every call, scored, and
- *   the highest score wins — purely on visual-quality terms now (density,
- *   proximity, balance, alignment, how much had to be dropped): with the PFP
- *   fixed, whichever topology leaves the most usable room for content
- *   naturally tends to win, with no anchor-fidelity term needed to steer it.
+ * MODEL (engine rewrite, 2026-10-15). The previous engine generated 5
+ * topologies on every call and kept the best-SCORED one. Scores moved with
+ * the card size, so resizing flipped the topology (everything jumped), grew
+ * the line spacing with the card height ("centered" used 6% of the height
+ * between rows), dropped texts while GROWING, and compressed rows (text cut
+ * in half) when content did not fit. Audit with the 450-configuration sweep:
+ * docs/ux/menu-redesign/liquid-glass-plan.md, "Motor de la tarjeta".
  *
- * STAGE 3B.3 — constrained freeform (see computeBlockLayout at the bottom):
- * computeComposition() above is unchanged and IS the "base composition" —
- * the automatic, anchor-free-for-content layout used whenever a block has no
- * override. computeBlockLayout() wraps it: PFP stays exactly as
- * computeComposition produced it (still the only authoritative anchor system
- * — no second one introduced here), while Name+Handle+Descriptor+Bio (one
- * group, "identity"), Location, and Views may each additionally have an
- * independent normalized-anchor override. An overridden block is resolved
- * through blockConstraints.ts's generic anchor->rect->anti-overlap pipeline
- * instead of the base composition's position; a block with no override keeps
- * its base-composition position untouched (byte-identical output — see the
- * "no overrides" regression test). Blocks are resolved in a fixed priority
- * order (pfp, then identity, then location, then views) so a moved block
- * only ever displaces a LOWER-priority one, never a higher one.
+ * - Two shapes. "stack": photo above the texts (column) or below them
+ *   (column-reverse). "side": photo beside the texts (row: photo left,
+ *   row-reverse: photo right). Where the user put the photo picks the shape
+ *   (dragged to a side → side, otherwise stack) and its direction. The other
+ *   shape is only used when a text would not fit across the preferred one
+ *   (a narrow card) — never because of the HEIGHT, so resizing the card
+ *   vertically never switches the shape and nothing jumps.
+ * - Group anchoring. The anchor positions the whole GROUP — photo, texts and
+ *   the icons / buttons flowing under them — not the photo alone: a centered
+ *   anchor centers the profile in the card instead of leaving half of it
+ *   empty. It is still a pure function of the anchor (never a scoring
+ *   compromise — the 3B.2-A/B lesson), and the photo drag maps the mouse 1:1
+ *   through the same `travel` this engine returns.
+ * - Fixed spacing: CONTENT_ROW_GAP between rows, pfpContentGap(photo size)
+ *   between photo and texts, FLOW_GAP before the icons and the buttons. No
+ *   gap depends on the card size.
+ * - textAlign aligns every item of the group (photo, rows, icons) to the
+ *   left / center / right of the group.
+ * - Nothing is ever compressed: a row keeps its full height or is dropped.
+ * - computeCardMinSize(): the smallest card where everything fits — the
+ *   resize floor (user decision 2026-10-15: you cannot shrink the card past
+ *   its content; remove content to go smaller).
+ *
+ * computeBlockLayout() (bottom) adds the independently draggable blocks
+ * (identity / location / views / icons / music / buttons) on top, with the
+ * same fixed priority cascade as before (blockConstraints.ts).
  */
 import type { CardFormat } from "@/types";
 import { anchorToRect, resolveBlockPosition, resolveOverlap, type Rect } from "./blockConstraints";
@@ -52,27 +46,39 @@ import { TYPOGRAPHY_METRICS as TEXT_METRICS, resolveTypographyMetrics } from "./
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
+/** "centered" is kept in the union for persisted / test data only — the
+ * engine no longer produces it (its flanking metadata jumped beside / under
+ * the photo as the card was resized). */
 export type CompositionStrategy = "row" | "row-reverse" | "column" | "column-reverse" | "centered";
 export type TextAlign = "left" | "center" | "right";
 
 export interface PfpInput {
-  /** 0-1, continuous, normalized within the card's padded content area. */
+  /** 0-1, continuous: where the GROUP sits within the card's padded area. */
   anchorX: number;
   anchorY: number;
-  /** Resolved px size (diameter) of the avatar — caller resolves from whatever size config exists. */
+  /** Resolved px size (diameter) of the avatar. */
   size: number;
 }
 
 export interface ContentFieldInput {
   present: boolean;
-  /** Approx character length, used for width/wrap estimation. Ignored if !present. */
+  /** Approx character length, for the width estimate. Ignored if !present. */
   length?: number;
+  /** Measured natural single-line width, px (letter-spacing included), when
+   * the caller can measure the real font. Absent → the char-width estimate. */
+  width?: number;
+}
+
+export interface BioFieldInput extends ContentFieldInput {
+  /** Measured line count when wrapped at `availWidth` (real font, real
+   * words, explicit line breaks). Absent → the char-width estimate. */
+  linesAt?: (availWidth: number) => number;
 }
 
 export interface CompositionContentInput {
   name: ContentFieldInput;
   handle: ContentFieldInput;
-  bio: ContentFieldInput;
+  bio: BioFieldInput;
   descriptor: ContentFieldInput;
   location: ContentFieldInput;
   views: ContentFieldInput;
@@ -81,13 +87,8 @@ export interface CompositionContentInput {
 export interface CompositionTypographyInput {
   nameFontSize: number;
   bioFontSize: number;
-  // Stage FASE 1 (Personalization Core): optional per-role measurement
-  // overrides, each defaulting to the exact constant this file already
-  // hardcoded before this stage (see cardTypography.ts's TYPOGRAPHY_METRICS/
-  // resolveTypographyMetrics — the single source both this engine and
-  // ProfileCard.tsx's render read). Omitting all of them (every caller
-  // before this stage) makes measurement byte-identical to before —
-  // required so an existing card's layout never shifts.
+  // Optional per-role measurement overrides, each defaulting to
+  // cardTypography.ts's TYPOGRAPHY_METRICS (the source render reads too).
   nameLetterSpacing?: number;
   nameLineHeight?: number;
   handleFontSize?: number;
@@ -101,8 +102,14 @@ export interface CompositionTypographyInput {
   monoLineHeight?: number;
 }
 
+/** A block that flows under the texts (icons row, link buttons). */
+export interface FlowBlockInput {
+  width: number;
+  height: number;
+}
+
 export interface CompositionInput {
-  /** Soft tiebreaker only — see FORMAT_BIAS. Never a hard branch. */
+  /** Kept for data compatibility; the shapes no longer depend on it. */
   format: CardFormat;
   boxW: number;
   boxH: number;
@@ -110,11 +117,18 @@ export interface CompositionInput {
   pfp: PfpInput;
   content: CompositionContentInput;
   typography: CompositionTypographyInput;
-  /** Strategy that won last tick, for hysteresis. Omit on a cold call (page load). */
+  /** @deprecated ignored — the choice is deterministic (no hysteresis), so
+   * the editor and the public page always agree. */
   incumbent?: CompositionStrategy;
-  /** Text alignment within the content block — independent of WHERE the
-   * composition engine places that block (anchor-driven). Defaults to "left". */
+  /** Alignment of every item of the group. Defaults to "left". */
   textAlign?: TextAlign;
+  /** Blocks stacked under the texts, in this order. computeBlockLayout fills
+   * it with the icons / buttons that were never dragged. */
+  flow?: { links?: FlowBlockInput; buttons?: FlowBlockInput };
+  /** Text rows taken OUT of the stack because the user dragged them
+   * elsewhere (computeBlockLayout); the rest closes up. Their natural size is
+   * returned in `detachedSizes`. */
+  detached?: Array<"location" | "views">;
 }
 
 export type ElementRole = "pfp" | "name" | "handle" | "bio" | "descriptor" | "location" | "views" | "links" | "music" | "buttons";
@@ -124,7 +138,8 @@ export interface ElementBox {
   y: number;
   w: number;
   h: number;
-  /** Bio only: how many lines it was actually given (may be less than its natural estimate). */
+  /** Bio only: how many lines it was given (less than natural only when the
+   * card is below its minimum size). */
   lines?: number;
 }
 
@@ -132,564 +147,376 @@ export interface CompositionResult {
   strategy: CompositionStrategy;
   boxes: Partial<Record<ElementRole, ElementBox>>;
   dropped: ElementRole[];
+  /** 1 = everything fits as is, 0 = something had to give. */
   score: number;
+  /** 1 = that shape fits everything at this size, 0 = it does not; the
+   * shapes not considered ("centered") are -1. */
   candidateScores: Record<CompositionStrategy, number>;
+  /** px the group can travel on each axis — the photo drag's denominator
+   * (anchorDrag.ts's nextAnchorAxis). <= 0: that axis is frozen. */
+  travel: { x: number; y: number };
+  /** Everything (texts and flow blocks) fits without dropping, clamping or
+   * truncating anything. */
+  fits: boolean;
+  /** Natural size of each detached row (see CompositionInput.detached). */
+  detachedSizes: Partial<Record<"location" | "views", { w: number; h: number }>>;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const STRATEGIES: CompositionStrategy[] = ["row", "row-reverse", "column", "column-reverse", "centered"];
+/** Between the rows of the text stack. Never depends on the card size. */
+export const CONTENT_ROW_GAP = 10;
+/** Before each flow block (texts → icons → buttons). */
+export const FLOW_GAP = 14;
+/** Between the photo and the texts: proportional to the photo, never to the card. */
+export function pfpContentGap(pfpSize: number): number {
+  return Math.round(Math.max(10, Math.min(18, pfpSize * 0.18)));
+}
 
-// Small, deliberately weak nudge — see cardComposition's header comment and
-// the Stage 2 discussion. Must never be large enough to beat a real anchor signal.
-const FORMAT_BIAS: Record<CardFormat, Partial<Record<CompositionStrategy, number>>> = {
-  vertical:   { column: 20, "column-reverse": 20 },
-  horizontal: { row: 20, "row-reverse": 20 },
-  square:     { centered: 20 },
-  phone:      { column: 20 },
-  card:       { row: 10, column: 10 },
-};
-
-// Heuristic text metrics — average proportional-font char width as a fraction
-// of font size, and line-height factors. Approximate by design (see file header).
-//
-// letterSpacing* mirrors the CSS letter-spacing actually applied to each role
-// in ProfileCard.tsx (HandleLine/DescriptorLine/LocationLine/ViewsLine) — the
-// estimator used to omit this entirely, which under-measured every mono-font
-// role by (charCount-1)*letterSpacing px. For a 13-char descriptor at 0.5px
-// spacing that's only ~6px, but combined with an already-tight charW average
-// it was consistently enough to push real rendered text past the box the
-// engine allocated for it, triggering the CSS ellipsis fallback on content
-// that should have fit (see Stage 3B.2-B QA: "CEO OF MYLAND" -> "CEO OF MYLA...").
-// SAFETY_MARGIN_PX is deliberately asymmetric: a slightly-too-wide box just
-// wastes a few px of card whitespace (invisible); a slightly-too-narrow one
-// truncates a word (very visible) — so estimates are biased to over- rather
-// than under-shoot.
-//
-// TEXT_METRICS itself (the defaults) now lives in cardTypography.ts as
-// TYPOGRAPHY_METRICS, imported above under this same local name — see that
-// file's header for why (Stage FASE 1: render and this engine must share one
-// source of truth for typography). Per-call overrides (when a card sets one)
-// are resolved via resolveTypographyMetrics(typography) below, not read from
-// this constant directly, wherever a role's size/letter-spacing/line-height
-// needs to be overridable — see resolveContentBlock/resolveCentered.
+// Width estimates err on the wide side: a too-wide box wastes a few px, a
+// too-narrow one truncates a word.
 const SAFETY_MARGIN_PX = 3;
 
-const GAP_MIN = 8, GAP_MAX = 32;
-// Natural PFP-content gap band, as a fraction of PFP size — used by the proximity score term.
-const PROXIMITY_BAND: [number, number] = [0.15, 0.4];
-const DENSITY_BAND: [number, number] = [0.35, 0.55];
-// Side margin needed around a centered PFP before metadata is allowed to flank it
-// instead of stacking below — see resolveCentered.
-const CENTER_FLANK_MIN_MARGIN = 60;
+/** Photo dragged this far toward a side → the texts go beside it. */
+const SIDE_THRESHOLD = 0.3;
+/** Photo dragged this far down → the texts go above it. */
+const REVERSE_THRESHOLD = 0.7;
 
-// Drop order when content doesn't fit: least essential to identity first.
-const METADATA_DROP_ORDER: ElementRole[] = ["views", "location", "descriptor"];
+// Below the minimum size only (a card saved before this engine, or the
+// public page of one): least essential first, then bio lines, then — last
+// resort, never the name — bio and handle.
+const METADATA_DROP_ORDER = ["views", "location", "descriptor"] as const;
+const LAST_RESORT_DROP_ORDER = ["bio", "handle"] as const;
 
-const W = {
-  overflow: 50,          // defensive; cardGeometry's minimums should make this unreachable in practice
-  dropped: 30,            // per fully-dropped optional role
-  bioClampLine: 8,        // per line cut below bio's natural estimate
-  edgeViolation: 500,     // defensive
-  density: 300,
-  proximity: 100,
-  balance: 3,
-  alignment: 2,
-  incumbent: 35,
-};
+type TextRole = "name" | "handle" | "descriptor" | "location" | "bio" | "views";
+const STACK_ORDER: TextRole[] = ["name", "handle", "descriptor", "location", "bio", "views"];
 
-// ── Text estimation (pure, heuristic — see file header) ──────────────────────
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-// letterSpacingPx: the (charCount-1) gaps a real rendered line actually has —
-// see TEXT_METRICS's header comment for why this used to be omitted and what
-// that cost. SAFETY_MARGIN_PX is added to every non-empty estimate, biasing
-// the box the engine allocates to be slightly generous rather than tight.
+// ── Text measurement ─────────────────────────────────────────────────────────
+
 function estimateLineWidth(length: number, fontSize: number, charW: number, letterSpacingPx = 0): number {
   if (length <= 0) return 0;
   return length * fontSize * charW + Math.max(0, length - 1) * letterSpacingPx + SAFETY_MARGIN_PX;
 }
 
-/** Lines needed to fit `length` chars of bio in `availWidth`, unbounded (degradation clamps later). */
+/** Lines needed to fit `length` chars of bio in `availWidth` (estimate). */
 function estimateBioLines(length: number, fontSize: number, availWidth: number): number {
   if (length <= 0) return 0;
   const lineWidth = estimateLineWidth(length, fontSize, TEXT_METRICS.bioCharW);
   return Math.max(1, Math.ceil(lineWidth / Math.max(1, availWidth)));
 }
 
-/** x offset for a row of width `rowW` within a block of width `blockWidth`. */
-function alignRowX(rowW: number, blockWidth: number, align: TextAlign): number {
-  if (align === "center") return Math.max(0, (blockWidth - rowW) / 2);
-  if (align === "right") return Math.max(0, blockWidth - rowW);
-  return 0;
+/** Natural single-line width (px) of a role. */
+function naturalWidth(role: TextRole, input: Pick<CompositionInput, "content" | "typography">): number {
+  const field = input.content[role];
+  if (field.width != null) return field.width + SAFETY_MARGIN_PX;
+  const t = input.typography;
+  const m = resolveTypographyMetrics(t);
+  const len = field.length ?? 0;
+  switch (role) {
+    case "name": return estimateLineWidth(len, t.nameFontSize, m.nameCharW, m.nameLetterSpacing);
+    case "handle": return estimateLineWidth(len, m.handleFontSize, m.monoCharW, m.handleLetterSpacing);
+    case "descriptor": return estimateLineWidth(len, m.descriptorFontSize, m.monoCharW, m.descriptorLetterSpacing);
+    case "location": return estimateLineWidth(len, m.locationFontSize, m.monoCharW, m.locationLetterSpacing);
+    case "bio": return estimateLineWidth(len, t.bioFontSize, m.bioCharW);
+    case "views": return m.viewsWidthPx;
+  }
 }
 
-// ── Content block resolution (always a vertical stack) ────────────────────────
+function bioLinesAt(input: Pick<CompositionInput, "content" | "typography">, availWidth: number): number {
+  const bio = input.content.bio;
+  if (!bio.present) return 0;
+  if (bio.linesAt) return Math.max(1, bio.linesAt(Math.max(1, availWidth)));
+  return estimateBioLines(bio.length ?? 0, input.typography.bioFontSize, Math.max(1, availWidth));
+}
 
-interface ResolvedContent {
+function rowHeight(role: TextRole, input: Pick<CompositionInput, "typography">, bioLines: number): number {
+  const t = input.typography;
+  const m = resolveTypographyMetrics(t);
+  switch (role) {
+    case "name": return t.nameFontSize * m.nameLineH;
+    case "handle": return m.handleFontSize * m.monoLineH;
+    case "descriptor": return m.descriptorFontSize * m.monoLineH;
+    case "location": return m.locationFontSize * m.monoLineH;
+    case "bio": return bioLines * t.bioFontSize * m.bioLineH;
+    case "views": return m.viewsFontSize * m.monoLineH;
+  }
+}
+
+function alignWithin(itemW: number, x0: number, groupW: number, align: TextAlign): number {
+  if (align === "center") return x0 + (groupW - itemW) / 2;
+  if (align === "right") return x0 + groupW - itemW;
+  return x0;
+}
+
+// ── Text stack ───────────────────────────────────────────────────────────────
+
+interface TextStack {
+  /** Relative to the stack's own top-left. */
   boxes: Partial<Record<ElementRole, ElementBox>>;
   dropped: ElementRole[];
+  bioClamped: number;
   width: number;
   height: number;
+  /** Every single-line row fits `availWidth` (nothing truncated). */
+  widthFits: boolean;
+  /** Widest natural single-line row — what the card minimum width needs. */
+  maxSingleWidth: number;
+  detachedSizes: CompositionResult["detachedSizes"];
 }
 
 /**
- * Lays out name/handle/bio/descriptor/location/views as a vertical stack
- * within `availWidth`, dropping the least-essential optional roles (in
- * METADATA_DROP_ORDER, then clamping bio down to 1 line) until the stack's
- * height fits `availHeight`. Used identically by row-like (tight width,
- * generous height) and column-like (generous width, tight height) topologies
- * — only which axis is under pressure differs.
+ * The texts as one vertical stack within `availWidth`. With a finite
+ * `availHeight` (only below the card's minimum size) the degradation ladder
+ * runs until it fits; otherwise every present row is kept as is.
  */
-function resolveContentBlock(
-  content: CompositionContentInput,
-  typography: CompositionTypographyInput,
-  availWidth: number,
-  availHeight: number,
-  gap: number,
-  textAlign: TextAlign = "left",
-): ResolvedContent {
+function resolveTextStack(input: CompositionInput, availWidth: number, availHeight: number): TextStack {
+  const detached = new Set(input.detached ?? []);
+  const active = new Set<TextRole>(STACK_ORDER.filter(r => input.content[r].present && !detached.has(r as "location" | "views")));
+  const naturalBio = bioLinesAt(input, availWidth);
+  let bioLines = naturalBio;
   const dropped: ElementRole[] = [];
-  const active = {
-    name: content.name.present,
-    handle: content.handle.present,
-    bio: content.bio.present,
-    descriptor: content.descriptor.present,
-    location: content.location.present,
-    views: content.views.present,
+
+  const measure = () => {
+    const rows = STACK_ORDER.filter(r => active.has(r)).map(role => {
+      const natural = naturalWidth(role, input);
+      const w = role === "bio" && bioLines > 1 ? availWidth : Math.min(availWidth, natural);
+      return { role, h: rowHeight(role, input, bioLines), w };
+    });
+    const height = rows.reduce((s, r) => s + r.h, 0) + Math.max(0, rows.length - 1) * CONTENT_ROW_GAP;
+    return { rows, height };
   };
-  // Stage FASE 1: resolved once per call — every field a card doesn't
-  // explicitly set falls back to TEXT_METRICS' constant, so this is a no-op
-  // read for any card with no typography overrides (see cardTypography.ts).
-  const metrics = resolveTypographyMetrics(typography);
-  let bioLines = content.bio.present
-    ? estimateBioLines(content.bio.length ?? 0, typography.bioFontSize, Math.max(1, availWidth))
-    : 0;
 
-  function measure(): { height: number; rows: { role: ElementRole; h: number; w: number }[] } {
-    const rows: { role: ElementRole; h: number; w: number }[] = [];
-    if (active.name) rows.push({ role: "name", h: typography.nameFontSize * metrics.nameLineH, w: Math.min(availWidth, estimateLineWidth(content.name.length ?? 0, typography.nameFontSize, metrics.nameCharW, metrics.nameLetterSpacing)) });
-    if (active.handle) rows.push({ role: "handle", h: metrics.handleFontSize * metrics.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.handle.length ?? 0, metrics.handleFontSize, metrics.monoCharW, metrics.handleLetterSpacing)) });
-    if (active.descriptor) rows.push({ role: "descriptor", h: metrics.descriptorFontSize * metrics.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.descriptor.length ?? 0, metrics.descriptorFontSize, metrics.monoCharW, metrics.descriptorLetterSpacing)) });
-    if (active.location) rows.push({ role: "location", h: metrics.locationFontSize * metrics.monoLineH, w: Math.min(availWidth, estimateLineWidth(content.location.length ?? 0, metrics.locationFontSize, metrics.monoCharW, metrics.locationLetterSpacing)) });
-    // Bio's width must reflect its real ink, not the whole wrap column it's
-    // allowed to use (see cardComposition.ts's header + Stage 3B.4-D fix):
-    // a bio short enough to sit on one line reports that line's own natural
-    // width — same as name/handle/descriptor — so the group's bounding box
-    // doesn't inflate to availWidth just because bio *could* use that much
-    // room. A bio that genuinely needs to wrap (bioLines > 1) keeps
-    // availWidth: a wrapped paragraph's rendered lines generically approach
-    // the width of the column they wrapped in, so that remains the right
-    // estimate for "how wide this block visually is" in that case, and it's
-    // also the width the wrap-height math (estimateBioLines) above was
-    // computed against — changing it there would desync height from width.
-    if (active.bio && bioLines > 0) {
-      const bioW = bioLines > 1
-        ? availWidth
-        : Math.min(availWidth, estimateLineWidth(content.bio.length ?? 0, typography.bioFontSize, metrics.bioCharW));
-      rows.push({ role: "bio", h: bioLines * typography.bioFontSize * metrics.bioLineH, w: bioW });
-    }
-    if (active.views) rows.push({ role: "views", h: metrics.viewsFontSize * metrics.monoLineH, w: Math.min(availWidth, metrics.viewsWidthPx) });
-    const height = rows.reduce((sum, r) => sum + r.h, 0) + Math.max(0, rows.length - 1) * gap;
-    return { height, rows };
-  }
-
-  // Degradation ladder: drop least-essential metadata, then clamp bio, until it fits.
   let m = measure();
-  for (const role of METADATA_DROP_ORDER) {
-    if (m.height <= availHeight) break;
-    if (active[role as "views" | "location" | "descriptor"]) {
-      active[role as "views" | "location" | "descriptor"] = false;
-      dropped.push(role);
-      m = measure();
+  if (m.height > availHeight) {
+    for (const role of METADATA_DROP_ORDER) {
+      if (m.height <= availHeight) break;
+      if (active.delete(role)) { dropped.push(role); m = measure(); }
+    }
+    while (m.height > availHeight && bioLines > 1) { bioLines -= 1; m = measure(); }
+    for (const role of LAST_RESORT_DROP_ORDER) {
+      if (m.height <= availHeight) break;
+      if (active.delete(role)) { dropped.push(role); m = measure(); }
     }
   }
-  while (m.height > availHeight && bioLines > 1) {
-    bioLines -= 1;
-    m = measure();
-  }
-  // Absolute floor reached (everything droppable dropped, bio at 1 line) and it
-  // still doesn't fit: compress proportionally rather than let the block invade
-  // whatever sits next to it (the PFP). This is the rare last resort — CSS
-  // truncation is the real safety net for what this compression visually implies.
-  const squeeze = m.height > availHeight && m.height > 0 ? availHeight / m.height : 1;
 
-  // Stack the surviving rows top-to-bottom, each aligned per `textAlign`
-  // within the block's own width (the widest row) — independent of WHERE
-  // this whole block ends up in the card (that's the topology's job, done
-  // by the caller via contentMainStart/contentCrossStart/blockOffsetX).
-  const width = m.rows.length > 0 ? Math.max(...m.rows.map(r => r.w)) : 0;
+  const singleRoles = STACK_ORDER.filter(r => input.content[r].present && r !== "bio");
+  const maxSingleWidth = singleRoles.reduce((mx, r) => Math.max(mx, naturalWidth(r, input)), 0);
+  const widthFits = [...active].every(r => r === "bio" || naturalWidth(r, input) <= availWidth + 0.5);
+
+  const width = m.rows.length ? Math.max(...m.rows.map(r => r.w)) : 0;
+  const align = input.textAlign ?? "left";
   const boxes: Partial<Record<ElementRole, ElementBox>> = {};
   let y = 0;
   for (const row of m.rows) {
-    const h = row.h * squeeze;
-    boxes[row.role] = { x: alignRowX(row.w, width, textAlign), y, w: row.w, h, ...(row.role === "bio" ? { lines: bioLines } : {}) };
-    y += h + gap * squeeze;
+    boxes[row.role] = {
+      x: alignWithin(row.w, 0, width, align), y, w: row.w, h: row.h,
+      ...(row.role === "bio" ? { lines: bioLines } : {}),
+    };
+    y += row.h + CONTENT_ROW_GAP;
   }
-  return { boxes, dropped, width, height: Math.min(m.height, availHeight) };
+
+  const detachedSizes: TextStack["detachedSizes"] = {};
+  for (const role of detached) {
+    if (input.content[role].present) {
+      detachedSizes[role] = { w: Math.min(availWidth, naturalWidth(role, input)), h: rowHeight(role, input, 0) };
+    }
+  }
+
+  return {
+    boxes, dropped, bioClamped: Math.max(0, naturalBio - bioLines), width, height: m.height,
+    widthFits, maxSingleWidth, detachedSizes,
+  };
 }
 
-// ── Axis-aligned topologies (row, row-reverse, column, column-reverse) ───────
+// ── Shapes ───────────────────────────────────────────────────────────────────
 
-interface AxisResolution {
+interface ShapeLayout {
+  strategy: CompositionStrategy;
   boxes: Partial<Record<ElementRole, ElementBox>>;
   dropped: ElementRole[];
-  contentWidth: number;
-  contentHeight: number;
+  bioClamped: number;
+  widthFits: boolean;
+  heightFits: boolean;
+  /** Height of the whole group (photo + texts + flow). */
+  groupH: number;
+  /** Width the card needs for this shape with nothing truncated. */
+  minWidth: number;
+  travel: { x: number; y: number };
+  detachedSizes: CompositionResult["detachedSizes"];
 }
 
-/**
- * Generic resolver for the 4 non-centered primitives. mainAxis is the axis
- * PFP and content are ordered along; `reverse` flips which comes first.
- *
- * PFP-authoritative (Stage 3B.2-B): the pfp's position on both axes is always
- * the literal anchor-derived value, computed FIRST and never adjusted — see
- * file header. Content then negotiates for whatever room is actually left
- * once the pfp's position is fixed (as opposed to the pre-3B.2-B order, which
- * sized content against a pfp-position-independent budget and only THEN
- * clamped the pfp to make room for it if that budget turned out wrong — that
- * two-way negotiation is what let the pfp silently end up somewhere other
- * than the anchor).
- */
-function resolveAxis(
-  mainAxis: "x" | "y",
-  reverse: boolean,
-  input: CompositionInput,
-): AxisResolution {
-  const { boxW, boxH, padding, pfp, content, typography, textAlign } = input;
-  const boxMain = mainAxis === "x" ? boxW : boxH;
-  const boxCross = mainAxis === "x" ? boxH : boxW;
-  const anchorMain = mainAxis === "x" ? pfp.anchorX : pfp.anchorY;
-  const anchorCross = mainAxis === "x" ? pfp.anchorY : pfp.anchorX;
+const isSide = (s: CompositionStrategy) => s === "row" || s === "row-reverse";
 
-  const availMain = Math.max(0, boxMain - 2 * padding);
-  const availCross = Math.max(0, boxCross - 2 * padding);
-  const gap = Math.max(GAP_MIN, Math.min(GAP_MAX, availMain * 0.06));
-
-  // Authoritative pfp position on both axes — always in-bounds by
-  // construction (anchor∈[0,1], avail-pfp.size floored at 0), so no clamp is
-  // needed or applied.
-  const actualPfpMain = padding + anchorMain * Math.max(0, availMain - pfp.size);
-  const actualPfpCross = padding + anchorCross * Math.max(0, availCross - pfp.size);
-
-  // Content's dimension along mainAxis is negotiated against whatever room
-  // the now-fixed pfp position actually leaves; along cross it's generous
-  // (=availCross), same as before.
-  let contentMainStart: number;
-  let negotiatedMainSpace: number;
-  if (!reverse) {
-    // [PFP][gap][CONTENT] — content starts right after the pfp, however far
-    // right that turned out to be; whatever's left to the box edge is its budget.
-    contentMainStart = actualPfpMain + pfp.size + gap;
-    negotiatedMainSpace = Math.max(0, (boxMain - padding) - contentMainStart);
-  } else {
-    // [CONTENT][gap][PFP] — budget is whatever sits between the padding edge
-    // and the pfp; content still hugs the pfp (computed below, once its own
-    // resolved width is known) rather than pinning to the padding edge.
-    negotiatedMainSpace = Math.max(0, actualPfpMain - gap - padding);
-    contentMainStart = padding; // placeholder, overwritten below once contentMain is known
-  }
-
-  const contentAvailWidth  = mainAxis === "x" ? negotiatedMainSpace : availCross;
-  const contentAvailHeight = mainAxis === "x" ? availCross : negotiatedMainSpace;
-
-  const resolved = resolveContentBlock(content, typography, contentAvailWidth, contentAvailHeight, Math.min(gap, 10), textAlign);
-  const contentMain = mainAxis === "x" ? resolved.width : resolved.height;
-  const contentCross = mainAxis === "x" ? resolved.height : resolved.width;
-
-  if (reverse) contentMainStart = actualPfpMain - gap - contentMain; // hug the pfp
-
-  const pfpCrossCenter = actualPfpCross + pfp.size / 2;
-  const contentCrossStart = Math.max(padding, Math.min(pfpCrossCenter - contentCross / 2, Math.max(padding, boxCross - padding - contentCross)));
-
-  const pfpBox: ElementBox = mainAxis === "x"
-    ? { x: actualPfpMain, y: actualPfpCross, w: pfp.size, h: pfp.size }
-    : { x: actualPfpCross, y: actualPfpMain, w: pfp.size, h: pfp.size };
-
-  const boxes: Partial<Record<ElementRole, ElementBox>> = { pfp: pfpBox };
-  for (const [role, box] of Object.entries(resolved.boxes) as [ElementRole, ElementBox][]) {
-    boxes[role] = mainAxis === "x"
-      ? { ...box, x: box.x + contentMainStart, y: box.y + contentCrossStart }
-      : { ...box, x: box.x + contentCrossStart, y: box.y + contentMainStart };
-  }
-
-  return {
-    boxes,
-    dropped: resolved.dropped,
-    contentWidth: mainAxis === "x" ? contentMain : contentCross,
-    contentHeight: mainAxis === "x" ? contentCross : contentMain,
-  };
+/** [preferred, fallback] — from where the user put the photo. */
+function shapePreference(anchorX: number, anchorY: number): [CompositionStrategy, CompositionStrategy] {
+  const stack: CompositionStrategy = anchorY > REVERSE_THRESHOLD ? "column-reverse" : "column";
+  const side: CompositionStrategy = anchorX > 0.5 ? "row-reverse" : "row";
+  return anchorX < SIDE_THRESHOLD || anchorX > 1 - SIDE_THRESHOLD ? [side, stack] : [stack, side];
 }
 
-// ── Centered topology ──────────────────────────────────────────────────────
-
-function resolveCentered(input: CompositionInput): AxisResolution {
-  const { boxW, boxH, padding, pfp, content, typography, textAlign } = input;
-  const availW = Math.max(0, boxW - 2 * padding);
-  const availH = Math.max(0, boxH - 2 * padding);
-  // Stage FASE 1: same resolved metrics resolveContentBlock uses below — the
-  // two flanking boxes (descriptor/location) are the only place in this
-  // strategy that measures text directly rather than delegating to
-  // resolveContentBlock, so they need their own copy of this call.
-  const metrics = resolveTypographyMetrics(typography);
-
-  // Authoritative pfp position — always in-bounds by construction (anchor∈[0,1]),
-  // same as resolveAxis. This was already effectively true before Stage 3B.2-B
-  // (the clamp below was already a no-op for any anchor∈[0,1] — hence this
-  // strategy's pre-existing "anchorDistance-free by construction" test), now
-  // made explicit by dropping the dead clamp/anchorDistance computation.
-  const actualX = padding + pfp.anchorX * Math.max(0, availW - pfp.size);
-  const actualY = padding + pfp.anchorY * Math.max(0, availH - pfp.size);
-
-  const leftMargin = actualX - padding;
-  const rightMargin = boxW - padding - (actualX + pfp.size);
-  const belowSpace = Math.max(0, boxH - padding - (actualY + pfp.size));
-  const gap = Math.max(GAP_MIN, Math.min(GAP_MAX, availH * 0.06));
-
-  const canFlank = leftMargin >= CENTER_FLANK_MIN_MARGIN || rightMargin >= CENTER_FLANK_MIN_MARGIN;
-  const dropped: ElementRole[] = [];
-  const boxes: Partial<Record<ElementRole, ElementBox>> = {
-    pfp: { x: actualX, y: actualY, w: pfp.size, h: pfp.size },
-  };
-
-  // "Radiate": descriptor/location flank the PFP if there's real margin for them;
-  // name/handle/bio/views always stack below, centered — see file header for
-  // why this counts as one primitive's internal richness, not a 6th strategy.
-  const belowContent: CompositionContentInput = canFlank
-    ? { ...content, descriptor: { present: false }, location: { present: false } }
-    : content;
-
-  if (canFlank && content.descriptor.present) {
-    const side = rightMargin >= leftMargin ? "right" : "left";
-    const w = Math.min(side === "right" ? rightMargin - 8 : leftMargin - 8, 120);
-    if (w > 20) {
-      const x = side === "right" ? actualX + pfp.size + 8 : actualX - 8 - w;
-      boxes.descriptor = { x, y: actualY, w, h: metrics.descriptorFontSize * metrics.monoLineH };
-    } else dropped.push("descriptor");
-  } else if (content.descriptor.present) dropped.push("descriptor");
-
-  if (canFlank && content.location.present) {
-    const side = leftMargin >= rightMargin ? "left" : "right";
-    const w = Math.min(side === "right" ? rightMargin - 8 : leftMargin - 8, 120);
-    if (w > 20) {
-      const x = side === "right" ? actualX + pfp.size + 8 : actualX - 8 - w;
-      boxes.location = { x, y: actualY + pfp.size - metrics.locationFontSize * metrics.monoLineH, w, h: metrics.locationFontSize * metrics.monoLineH };
-    } else dropped.push("location");
-  } else if (content.location.present) dropped.push("location");
-
-  const resolvedBelow = resolveContentBlock(belowContent, typography, availW, belowSpace, gap, textAlign);
-  dropped.push(...resolvedBelow.dropped);
-  const belowY = actualY + pfp.size + gap;
-  // Position of the BLOCK as a whole (centered under the pfp) — a topology
-  // concern — is independent of textAlign, which only governs how rows sit
-  // WITHIN that block (already baked into resolvedBelow.boxes[role].x by
-  // resolveContentBlock). Previously this force-centered every row
-  // individually against the full card width, which both ignored textAlign
-  // and threw away resolveContentBlock's own (left-by-default) row alignment.
-  const blockOffsetX = padding + Math.max(0, (availW - resolvedBelow.width) / 2);
-  for (const [role, box] of Object.entries(resolvedBelow.boxes) as [ElementRole, ElementBox][]) {
-    boxes[role] = { ...box, x: box.x + blockOffsetX, y: box.y + belowY };
-  }
-
-  return {
-    boxes,
-    dropped,
-    contentWidth: availW,
-    contentHeight: resolvedBelow.height + gap + pfp.size,
-  };
+function flowItems(input: CompositionInput): Array<["links" | "buttons", FlowBlockInput]> {
+  const out: Array<["links" | "buttons", FlowBlockInput]> = [];
+  const f = input.flow;
+  if (f?.links && f.links.width > 0 && f.links.height > 0) out.push(["links", f.links]);
+  if (f?.buttons && f.buttons.width > 0 && f.buttons.height > 0) out.push(["buttons", f.buttons]);
+  return out;
 }
 
-// ── Scoring ──────────────────────────────────────────────────────────────────
-
-function bandPenalty(value: number, band: [number, number]): number {
-  if (value < band[0]) return (band[0] - value) ** 2;
-  if (value > band[1]) return (value - band[1]) ** 2;
-  return 0;
-}
-
-function stddev(values: number[]): number {
-  if (values.length < 2) return 0;
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
-}
-
-function scoreResolution(
-  strategy: CompositionStrategy,
-  res: { boxes: Partial<Record<ElementRole, ElementBox>>; dropped: ElementRole[] },
-  input: CompositionInput,
-): number {
-  const { boxW, boxH, padding, pfp, format } = input;
-  const boxes = res.boxes;
-  const entries = Object.values(boxes) as ElementBox[];
-
-  let score = 1000;
-
-  // Overflow / edge safety (defensive — should be ~unreachable given cardGeometry minimums).
-  for (const b of entries) {
-    const overW = Math.max(0, b.x + b.w - (boxW - padding)) + Math.max(0, padding - b.x);
-    const overH = Math.max(0, b.y + b.h - (boxH - padding)) + Math.max(0, padding - b.y);
-    if (overW > 1 || overH > 1) score -= W.edgeViolation;
-    score -= (overW + overH) * W.overflow * 0.01;
-  }
-
-  // Overlap between pfp and any content box — should be structurally impossible
-  // after resolveContentBlock's proportional squeeze, but scored explicitly too
-  // (defense in depth, and it's what actually caught the squeeze bug in testing).
-  const pfpBox0 = boxes.pfp;
-  if (pfpBox0) {
-    for (const b of entries) {
-      if (b === pfpBox0) continue;
-      const overlapX = Math.max(0, Math.min(pfpBox0.x + pfpBox0.w, b.x + b.w) - Math.max(pfpBox0.x, b.x));
-      const overlapY = Math.max(0, Math.min(pfpBox0.y + pfpBox0.h, b.y + b.h) - Math.max(pfpBox0.y, b.y));
-      if (overlapX > 0 && overlapY > 0) score -= overlapX * overlapY * 5;
-    }
-  }
-
-  score -= res.dropped.filter(r => r !== "bio").length * W.dropped;
-  const bioBox = boxes.bio;
-  if (bioBox?.lines != null) {
-    const natural = estimateBioLines(input.content.bio.length ?? 0, input.typography.bioFontSize, bioBox.w || 1);
-    score -= Math.max(0, natural - bioBox.lines) * W.bioClampLine;
-  }
-
-  const totalArea = entries.reduce((sum, b) => sum + b.w * b.h, 0);
-  const boxArea = Math.max(1, boxW * boxH);
-  const density = totalArea / boxArea;
-  score -= bandPenalty(density, DENSITY_BAND) * W.density;
-
-  const pfpBox = boxes.pfp;
-  if (pfpBox) {
-    const others = entries.filter(b => b !== pfpBox);
-    if (others.length > 0) {
-      const pfpCx = pfpBox.x + pfpBox.w / 2, pfpCy = pfpBox.y + pfpBox.h / 2;
-      let minGapDist = Infinity;
-      for (const b of others) {
-        const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-        const d = Math.hypot(cx - pfpCx, cy - pfpCy) - (pfpBox.w / 2);
-        minGapDist = Math.min(minGapDist, Math.max(0, d));
-      }
-      const normalized = minGapDist / Math.max(1, pfp.size);
-      score -= bandPenalty(normalized, PROXIMITY_BAND) * W.proximity;
-    }
-
-    // Balance: variance of the 4 edge margins (pfp+content bounding box vs card edges).
-    const minX = Math.min(...entries.map(b => b.x));
-    const maxX = Math.max(...entries.map(b => b.x + b.w));
-    const minY = Math.min(...entries.map(b => b.y));
-    const maxY = Math.max(...entries.map(b => b.y + b.h));
-    const margins = [minX - padding, (boxW - padding) - maxX, minY - padding, (boxH - padding) - maxY].map(m => Math.max(0, m));
-    score -= stddev(margins) * W.balance;
-  }
-
-  // Alignment: variance along the reference line that actually matches
-  // input.textAlign — left edge, right edge, or center line. This must track
-  // textAlign (not the strategy) so choosing "right"/"center" text alignment
-  // never itself biases which topology wins: a topology-selection decision
-  // driven by textAlign would violate the "these are two independent things"
-  // contract (see file header) just as surely as the pre-3B.2-B anchor
-  // compromise did for position.
-  const contentRoles: ElementRole[] = ["name", "handle", "bio", "descriptor", "location", "views"];
+/** One shape, laid out. `degrade` = run the ladder against the card height
+ * (only when no shape fits as is). */
+function layoutShape(strategy: CompositionStrategy, input: CompositionInput, degrade: boolean): ShapeLayout {
+  const { boxW, boxH, padding: pad, pfp } = input;
   const align = input.textAlign ?? "left";
-  const alignmentCoords = contentRoles
-    .map(r => boxes[r])
-    .filter((b): b is ElementBox => b != null)
-    .map(b => align === "center" ? b.x + b.w / 2 : align === "right" ? b.x + b.w : b.x);
-  score -= stddev(alignmentCoords) * W.alignment;
+  const availW = Math.max(0, boxW - 2 * pad);
+  const availH = Math.max(0, boxH - 2 * pad);
+  const gap = pfpContentGap(pfp.size);
+  const side = isSide(strategy);
+  const flow = flowItems(input);
+  const flowH = flow.reduce((s, [, b]) => s + FLOW_GAP + b.height, 0);
 
-  score += FORMAT_BIAS[format]?.[strategy] ?? 0;
-  if (input.incumbent === strategy) score += W.incumbent;
+  // Texts outrank the flow blocks: when degrading, the texts get the room
+  // next to / under the photo and the icons / buttons only what is left.
+  const textW = side ? Math.max(0, availW - pfp.size - gap) : availW;
+  const textBudget = !degrade ? Infinity : side ? availH : Math.max(0, availH - pfp.size - gap);
+  const text = resolveTextStack(input, textW, textBudget);
+  const hasText = text.height > 0;
 
-  return score;
+  const headW = side ? pfp.size + (hasText ? gap + text.width : 0) : Math.max(pfp.size, text.width);
+  const headH = side ? Math.max(pfp.size, text.height) : pfp.size + (hasText ? gap + text.height : 0);
+  const groupH = headH + flowH;
+  const travel = { x: availW - headW, y: availH - groupH };
+  const x0 = pad + clamp01(pfp.anchorX) * Math.max(0, travel.x);
+  const y0 = pad + clamp01(pfp.anchorY) * Math.max(0, travel.y);
+
+  const boxes: Partial<Record<ElementRole, ElementBox>> = {};
+  let textX: number, textY: number;
+  if (side) {
+    const pfpX = strategy === "row" ? x0 : x0 + headW - pfp.size;
+    boxes.pfp = { x: pfpX, y: y0 + (headH - pfp.size) / 2, w: pfp.size, h: pfp.size };
+    textX = strategy === "row" ? x0 + pfp.size + gap : x0;
+    textY = y0 + (headH - text.height) / 2;
+  } else {
+    const pfpY = strategy === "column" ? y0 : y0 + (hasText ? text.height + gap : 0);
+    boxes.pfp = { x: alignWithin(pfp.size, x0, headW, align), y: pfpY, w: pfp.size, h: pfp.size };
+    textX = alignWithin(text.width, x0, headW, align);
+    textY = strategy === "column" ? y0 + pfp.size + gap : y0;
+  }
+  for (const [role, b] of Object.entries(text.boxes) as [ElementRole, ElementBox][]) {
+    boxes[role] = { ...b, x: b.x + textX, y: b.y + textY };
+  }
+
+  let fy = y0 + headH;
+  for (const [key, b] of flow) {
+    fy += FLOW_GAP;
+    const x = Math.max(pad, Math.min(boxW - pad - b.width, alignWithin(b.width, x0, headW, align)));
+    boxes[key] = { x, y: fy, w: b.width, h: b.height };
+    fy += b.height;
+  }
+
+  const minTextW = text.maxSingleWidth;
+  const minWidth = side
+    ? 2 * pad + pfp.size + (minTextW > 0 ? gap + minTextW : 0)
+    : 2 * pad + Math.max(pfp.size, minTextW);
+
+  return {
+    strategy, boxes, dropped: text.dropped, bioClamped: text.bioClamped,
+    widthFits: text.widthFits && pfp.size <= availW + 0.5 && (!side || !hasText || textW > 0),
+    heightFits: groupH <= availH + 0.5,
+    groupH, minWidth, travel, detachedSizes: text.detachedSizes,
+  };
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
+/** The shape used at this width: the preferred one (from where the photo
+ * is) unless a text would not fit across it; then the other one if that
+ * avoids it. Never chosen by HEIGHT — so resizing the card vertically never
+ * switches the shape (the content would jump). */
+function chooseShape(input: CompositionInput): ShapeLayout {
+  const [pref, other] = shapePreference(input.pfp.anchorX, input.pfp.anchorY).map(s => layoutShape(s, input, false));
+  return pref.widthFits || !other.widthFits ? pref : other;
+}
+
 export function computeComposition(input: CompositionInput): CompositionResult {
-  const candidateScores = {} as Record<CompositionStrategy, number>;
-  const resolutions: Record<CompositionStrategy, { boxes: Partial<Record<ElementRole, ElementBox>>; dropped: ElementRole[] }> = {} as never;
-
-  for (const strategy of STRATEGIES) {
-    const res = strategy === "centered"
-      ? resolveCentered(input)
-      : strategy === "row" ? resolveAxis("x", false, input)
-      : strategy === "row-reverse" ? resolveAxis("x", true, input)
-      : strategy === "column" ? resolveAxis("y", false, input)
-      : resolveAxis("y", true, input);
-    resolutions[strategy] = res;
-    candidateScores[strategy] = scoreResolution(strategy, res, input);
-  }
-
-  let winner: CompositionStrategy = STRATEGIES[0];
-  for (const s of STRATEGIES) {
-    if (candidateScores[s] > candidateScores[winner]) winner = s;
-  }
-
+  const natural = chooseShape(input);
+  // Below the minimum height only (computeCardMinSize — a card saved before
+  // this engine, or its public page): degrade instead of overflowing.
+  const chosen = natural.heightFits ? natural : layoutShape(natural.strategy, input, true);
+  const fits = chosen.heightFits && chosen.widthFits && chosen.dropped.length === 0 && chosen.bioClamped === 0;
+  const candidateScores: Record<CompositionStrategy, number> = { row: -1, "row-reverse": -1, column: -1, "column-reverse": -1, centered: -1 };
+  candidateScores[chosen.strategy] = fits ? 1 : 0;
   return {
-    strategy: winner,
-    boxes: resolutions[winner].boxes,
-    dropped: resolutions[winner].dropped,
-    score: candidateScores[winner],
-    candidateScores,
+    strategy: chosen.strategy, boxes: chosen.boxes, dropped: chosen.dropped,
+    score: fits ? 1 : 0, candidateScores, travel: chosen.travel, fits,
+    detachedSizes: chosen.detachedSizes,
   };
+}
+
+/**
+ * The smallest card (px) where everything fits — texts, icons, buttons and
+ * detached rows, nothing dropped, clamped or truncated. Same arguments as
+ * computeBlockLayout (`boxH` is ignored; the height is for `boxW`, since the
+ * texts wrap with the width). The caller also applies the product floor
+ * (cardGeometry.ts's MIN_PROFILE_CARD_*).
+ *
+ * Height: what the shape used at this width needs. Width: the narrower of
+ * the two shapes' needs (below the preferred one's, the other one is used).
+ */
+export function computeCardMinSize(input: CompositionInput, overrides?: BlockOverrides, links?: LinksBlockInput, buttons?: ButtonsBlockInput): { w: number; h: number } {
+  const full = withFlow(input, overrides, links, buttons);
+  const shapes = shapePreference(full.pfp.anchorX, full.pfp.anchorY).map(s => layoutShape(s, full, false));
+  const chosen = shapes[0].widthFits || !shapes[1].widthFits ? shapes[0] : shapes[1];
+  let h = 2 * full.padding + chosen.groupH;
+  let w = Math.min(...shapes.map(l => l.minWidth));
+  const pinned: Array<{ width: number; height: number } | undefined> = [
+    ...Object.values(chosen.detachedSizes).map(d => d && { width: d.w, height: d.h }),
+    links && !full.flow?.links ? links.size : undefined,
+    buttons && !full.flow?.buttons ? buttons.size : undefined,
+  ];
+  for (const size of pinned) {
+    if (!size) continue;
+    w = Math.max(w, size.width + 2 * full.padding);
+    h = Math.max(h, size.height + 2 * full.padding);
+  }
+  return { w: Math.ceil(w), h: Math.ceil(h) };
 }
 
 // ── Constrained freeform block layout (Stage 3B.3) ────────────────────────────
 
 /** One optional normalized anchor override per independently-positionable
- * block. Absent = "use the base composition's own placement for this block". */
+ * block. Absent = "use the automatic placement for this block". */
 export interface BlockOverrides {
   identity?: { x: number; y: number };
   location?: { x: number; y: number };
   views?: { x: number; y: number };
-  /** Stage 4.2-A: overrides the future Links block's position — same
-   * normalized-anchor contract as the three above. See LinksBlockInput. */
+  /** The icons row (Contact Links). */
   links?: { x: number; y: number };
-  /** Stage 4.2-C.1: overrides the Music block's position — same
-   * normalized-anchor contract as the others. See MusicBlockInput. */
+  /** Legacy in-card Music block — no caller since Music became a canvas element. */
   music?: { x: number; y: number };
-  /** 2026-10-14: the link buttons block (Linktree-style). See ButtonsBlockInput. */
+  /** The link buttons (Linktree-style). */
   buttons?: { x: number; y: number };
 }
 
-/**
- * Stage 4.2-A infrastructure: natural size (px) of the future Links internal
- * block, passed to computeBlockLayout only once a caller actually enables
- * that block (no caller does yet — Links UI/content lands in Stage 4.2-B).
- * Omitting this parameter entirely is the "capability not enabled" state and
- * leaves computeBlockLayout's output completely unchanged from before Links
- * existed (see the "no links block" regression test in cardComposition.test.ts).
- */
+/** Natural size (px) of the icons row (Contact Links). Without a drag
+ * override and without `defaultAnchor` it flows under the texts. */
 export interface LinksBlockInput {
   size: { width: number; height: number };
-  /** Normalized anchor used only when no drag override is set — same
-   * anchorToRect contract as every other block. Defaults to bottom-center,
-   * i.e. below whatever content already occupies the card. */
+  /** Pins the block to a normalized anchor instead of the flow. */
   defaultAnchor?: { x: number; y: number };
 }
 
-/**
- * Stage 4.2-C.1 infrastructure: natural size (px) of the Music internal
- * block — same contract as LinksBlockInput, one step further down the
- * priority chain (see computeBlockLayout's doc comment). Omitting this
- * parameter entirely leaves computeBlockLayout's output unchanged from
- * before Music existed (see the "no music block" regression test).
- */
+/** Legacy in-card Music block — always anchored (default bottom-center). */
 export interface MusicBlockInput {
   size: { width: number; height: number };
-  /** Normalized anchor used only when no drag override is set — same
-   * anchorToRect contract as every other block. Defaults to bottom-center. */
   defaultAnchor?: { x: number; y: number };
 }
 
-/**
- * Link buttons (Linktree-style, 2026-10-14): natural size (px) of the 7th,
- * lowest-priority block — same contract as LinksBlockInput / MusicBlockInput.
- * Omitting it leaves computeBlockLayout's output unchanged (see the "no
- * buttons block" regression test). Sizing lives in linkButtons.ts.
- */
+/** Natural size (px) of the link buttons (linkButtons.ts). Without a drag
+ * override and without `defaultAnchor` they flow under the icons. */
 export interface ButtonsBlockInput {
   size: { width: number; height: number };
-  /** Defaults to bottom-center, like the other appended blocks. */
   defaultAnchor?: { x: number; y: number };
 }
 
@@ -706,9 +533,7 @@ function unionBox(boxes: ElementBox[]): ElementBox | undefined {
 }
 
 /** override -> resolve via the anchor pipeline (user dragged it); no override
- * -> just re-validate the base composition's own rect against obstacles
- * (exact no-op when nothing upstream moved — no anchor round-trip needed
- * since we already have the pixel rect). */
+ * -> re-validate the automatic rect against obstacles. */
 function resolveBlock(
   baseRect: ElementBox,
   override: { x: number; y: number } | undefined,
@@ -722,155 +547,94 @@ function resolveBlock(
     : resolveOverlap(baseRect, obstacles, boxW, boxH, padding, BLOCK_MIN_GAP);
 }
 
-/**
- * Wraps computeComposition() with independent, overridable positioning for
- * the identity group (name+handle+descriptor+bio, moved as one block),
- * location, and views — see the file header's Stage 3B.3 section. Same
- * CompositionResult shape as computeComposition(); with no overrides at all
- * the output is identical to calling computeComposition() directly (see the
- * "no overrides" regression test in cardComposition.test.ts).
- *
- * Resolution order is fixed priority, not arbitrary: pfp (untouched, already
- * authoritative) -> identity -> location -> views. Each later block treats
- * every earlier one as an obstacle, so a moved block only ever displaces a
- * LOWER-priority block, never a higher one — moving identity can push
- * location or views out of the way, but never the pfp, and moving location
- * never pushes identity.
- *
- * Stage 4.2-A: an optional 5th, lowest-priority block — `links` — can be
- * appended after the four above via the `links` parameter (see
- * LinksBlockInput). It treats pfp/identity/location/views' FINAL resolved
- * positions as obstacles, same priority-cascade rule as the rest. Omitting
- * `links` entirely (every caller today) skips this step completely, so
- * output is byte-identical to pre-4.2-A computeBlockLayout.
- *
- * Stage 4.2-C.1: an optional 6th block — `music` — can be appended after
- * links via the `music` parameter (see MusicBlockInput), same
- * priority-cascade rule: it treats pfp/identity/location/views/links' FINAL
- * resolved positions as obstacles, so it may be displaced by any of the five
- * but never displaces any of them. Omitting `music` skips this step
- * completely — full priority chain is PFP -> Identity -> Location -> Views
- * -> Links -> Music.
- */
 export interface BlockLayoutResult extends CompositionResult {
   /** Bounding box of the identity group (name+handle+descriptor+bio) in its
-   * FINAL position — i.e. boxes.name/handle/descriptor/bio's union after any
-   * override/overlap resolution. Exposed so callers (the drag UI) have a
-   * single rect to use as the group's hit-area and drag-start reference,
-   * without re-deriving the union themselves (see 3B.3-B). Undefined only if
-   * none of name/handle/descriptor/bio are present at all. */
+   * FINAL position — the group's drag hit-area. Undefined when none of them
+   * is present. */
   identityRect?: ElementBox;
+}
+
+/**
+ * computeComposition() plus the independently draggable blocks, in a fixed
+ * priority order: pfp → identity → location → views → icons → music →
+ * buttons. A dragged block only ever displaces a LOWER-priority one.
+ *
+ * Blocks that were never dragged stay in the automatic layout: location and
+ * views inside the text stack, the icons and the buttons flowing under the
+ * texts (so the whole profile reads top to bottom and is anchored as one
+ * group). A dragged location / views leaves the stack (the rest closes up);
+ * dragged icons / buttons leave the flow.
+ */
+/** The input with the never-dragged icons / buttons in the flow and the
+ * dragged location / views out of the text stack. */
+function withFlow(input: CompositionInput, overrides?: BlockOverrides, links?: LinksBlockInput, buttons?: ButtonsBlockInput): CompositionInput {
+  const linksFlow = links && !overrides?.links && !links.defaultAnchor ? links.size : undefined;
+  const buttonsFlow = buttons && !overrides?.buttons && !buttons.defaultAnchor ? buttons.size : undefined;
+  const detached = (["location", "views"] as const).filter(r => overrides?.[r] && input.content[r].present);
+  return { ...input, flow: { links: linksFlow, buttons: buttonsFlow }, detached };
 }
 
 export function computeBlockLayout(input: CompositionInput, overrides?: BlockOverrides, links?: LinksBlockInput, music?: MusicBlockInput, buttons?: ButtonsBlockInput): BlockLayoutResult {
   const { boxW, boxH, padding } = input;
-  const base = computeComposition(input);
+  const base = computeComposition(withFlow(input, overrides, links, buttons));
   const identityBase = unionBox(
     IDENTITY_ROLES.map(role => base.boxes[role]).filter((b): b is ElementBox => b != null),
   );
+  const boxes = { ...base.boxes };
+  delete boxes.links; delete boxes.buttons;
+  const flowRects = { links: base.boxes.links, buttons: base.boxes.buttons };
+  let identityRect = identityBase;
+  const textMoved = !!(overrides?.identity || overrides?.location || overrides?.views);
 
-  let result: BlockLayoutResult;
-
-  // No identity/location/views overrides: base composition completely
-  // untouched. Re-running it through the anti-overlap pipeline below would
-  // NOT necessarily be a no-op — that pipeline enforces BLOCK_MIN_GAP (a
-  // deliberate breathing-room minimum for freeform dragging), while the base
-  // composition itself only guarantees zero literal overlap, not any
-  // particular gap. Skipping entirely here is what keeps "no overrides yet"
-  // byte-identical to calling computeComposition() directly (see the
-  // regression test), which is the actual compatibility contract (existing
-  // cards have none of these fields and must render unchanged).
-  if (!overrides?.identity && !overrides?.location && !overrides?.views) {
-    result = { ...base, identityRect: identityBase };
-  } else {
-    const boxes = { ...base.boxes };
+  if (textMoved) {
     const obstacles: Rect[] = boxes.pfp ? [boxes.pfp] : [];
-    let identityRect = identityBase;
 
-    // ── Identity group (name/handle/descriptor/bio) — moved as one block ──────
+    // Identity group (name/handle/descriptor/bio) — moved as one block.
     if (identityBase && identityBase.w > 0 && identityBase.h > 0) {
-      const identityEntries = IDENTITY_ROLES
-        .map(role => [role, boxes[role]] as const)
-        .filter((e): e is [ElementRole, ElementBox] => e[1] != null);
       const resolved = resolveBlock(identityBase, overrides?.identity, obstacles, boxW, boxH, padding);
       const dx = resolved.x - identityBase.x, dy = resolved.y - identityBase.y;
       if (dx !== 0 || dy !== 0) {
-        for (const [role, b] of identityEntries) boxes[role] = { ...b, x: b.x + dx, y: b.y + dy };
+        for (const role of IDENTITY_ROLES) {
+          const b = boxes[role];
+          if (b) boxes[role] = { ...b, x: b.x + dx, y: b.y + dy };
+        }
       }
       identityRect = { ...identityBase, x: resolved.x, y: resolved.y };
       obstacles.push(resolved);
     }
 
-    // ── Location — independent block ───────────────────────────────────────────
-    if (boxes.location) {
-      const resolved = resolveBlock(boxes.location, overrides?.location, obstacles, boxW, boxH, padding);
-      boxes.location = { ...boxes.location, x: resolved.x, y: resolved.y };
-      obstacles.push(resolved);
+    // Location / views — independent blocks.
+    for (const role of ["location", "views"] as const) {
+      const size = base.detachedSizes[role];
+      const override = overrides?.[role];
+      if (override && size) {
+        const r = resolveBlockPosition(override.x, override.y, size.w, size.h, obstacles, boxW, boxH, padding, BLOCK_MIN_GAP);
+        boxes[role] = { x: r.x, y: r.y, w: size.w, h: size.h };
+        obstacles.push(r);
+      } else if (boxes[role]) {
+        const r = resolveBlock(boxes[role]!, undefined, obstacles, boxW, boxH, padding);
+        boxes[role] = { ...boxes[role]!, x: r.x, y: r.y };
+        obstacles.push(r);
+      }
     }
-
-    // ── Views — independent block ──────────────────────────────────────────────
-    if (boxes.views) {
-      const resolved = resolveBlock(boxes.views, overrides?.views, obstacles, boxW, boxH, padding);
-      boxes.views = { ...boxes.views, x: resolved.x, y: resolved.y };
-    }
-
-    result = { ...base, boxes, identityRect };
   }
 
-  // ── Links — 5th, lowest-priority block (Stage 4.2-A infrastructure) ────────
-  // No `links` param (every caller today omitting it): skip entirely — no
-  // longer an early return (Stage 4.2-C.1 needs `music` reachable even when
-  // `links` is absent), but the output for a links-less/music-less call is
-  // still exactly `result`, untouched, so this remains byte-identical to
-  // pre-4.2-A computeBlockLayout in that case.
-  if (links) {
-    const obstacles: Rect[] = [];
-    if (result.boxes.pfp) obstacles.push(result.boxes.pfp);
-    if (result.identityRect) obstacles.push(result.identityRect);
-    if (result.boxes.location) obstacles.push(result.boxes.location);
-    if (result.boxes.views) obstacles.push(result.boxes.views);
+  const higher = (): Rect[] => [boxes.pfp, identityRect, boxes.location, boxes.views].filter((b): b is ElementBox => !!b);
+  // A flow block is already clear of everything above it; it only needs
+  // re-validating when a text block was dragged onto its spot.
+  const place = (key: "links" | "music" | "buttons", size: { width: number; height: number }, defaultAnchor: { x: number; y: number } | undefined, obstacles: Rect[]) => {
+    const flowRect = key !== "music" ? flowRects[key] : undefined;
+    const override = overrides?.[key];
+    if (flowRect && !override && !textMoved) { boxes[key] = flowRect; return; }
+    const a = defaultAnchor ?? { x: 0.5, y: 1 };
+    const baseRect = flowRect ?? anchorToRect(a.x, a.y, size.width, size.height, boxW, boxH, padding);
+    const r = resolveBlock(baseRect, override, obstacles, boxW, boxH, padding);
+    boxes[key] = { x: r.x, y: r.y, w: size.width, h: size.height };
+  };
 
-    const defaultAnchor = links.defaultAnchor ?? { x: 0.5, y: 1 };
-    const baseRect = anchorToRect(defaultAnchor.x, defaultAnchor.y, links.size.width, links.size.height, boxW, boxH, padding);
-    const resolvedLinks = resolveBlock(baseRect, overrides?.links, obstacles, boxW, boxH, padding);
-    result = { ...result, boxes: { ...result.boxes, links: { x: resolvedLinks.x, y: resolvedLinks.y, w: links.size.width, h: links.size.height } } };
-  }
+  if (links) place("links", links.size, links.defaultAnchor, higher());
+  if (music) place("music", music.size, music.defaultAnchor, [...higher(), ...(boxes.links ? [boxes.links] : [])]);
+  if (buttons) place("buttons", buttons.size, buttons.defaultAnchor, [...higher(), ...(boxes.links ? [boxes.links] : []), ...(boxes.music ? [boxes.music] : [])]);
 
-  // ── Music — 6th, lowest-priority block (Stage 4.2-C.1 infrastructure) ─────
-  // Obstacles include boxes.links from the step above (its FINAL resolved
-  // rect, if it ran) — same priority-cascade rule as every other block here.
-  // No `music` param: skip entirely, `result` unchanged.
-  if (music) {
-    const obstacles: Rect[] = [];
-    if (result.boxes.pfp) obstacles.push(result.boxes.pfp);
-    if (result.identityRect) obstacles.push(result.identityRect);
-    if (result.boxes.location) obstacles.push(result.boxes.location);
-    if (result.boxes.views) obstacles.push(result.boxes.views);
-    if (result.boxes.links) obstacles.push(result.boxes.links);
-
-    const defaultAnchor = music.defaultAnchor ?? { x: 0.5, y: 1 };
-    const baseRect = anchorToRect(defaultAnchor.x, defaultAnchor.y, music.size.width, music.size.height, boxW, boxH, padding);
-    const resolvedMusic = resolveBlock(baseRect, overrides?.music, obstacles, boxW, boxH, padding);
-    result = { ...result, boxes: { ...result.boxes, music: { x: resolvedMusic.x, y: resolvedMusic.y, w: music.size.width, h: music.size.height } } };
-  }
-
-  // ── Buttons — 7th, lowest-priority block (link buttons, 2026-10-14) ──────
-  // Same cascade: every earlier block's FINAL rect is an obstacle. No
-  // `buttons` param: skip entirely, `result` unchanged.
-  if (buttons) {
-    const obstacles: Rect[] = [];
-    if (result.boxes.pfp) obstacles.push(result.boxes.pfp);
-    if (result.identityRect) obstacles.push(result.identityRect);
-    if (result.boxes.location) obstacles.push(result.boxes.location);
-    if (result.boxes.views) obstacles.push(result.boxes.views);
-    if (result.boxes.links) obstacles.push(result.boxes.links);
-    if (result.boxes.music) obstacles.push(result.boxes.music);
-
-    const defaultAnchor = buttons.defaultAnchor ?? { x: 0.5, y: 1 };
-    const baseRect = anchorToRect(defaultAnchor.x, defaultAnchor.y, buttons.size.width, buttons.size.height, boxW, boxH, padding);
-    const resolvedButtons = resolveBlock(baseRect, overrides?.buttons, obstacles, boxW, boxH, padding);
-    result = { ...result, boxes: { ...result.boxes, buttons: { x: resolvedButtons.x, y: resolvedButtons.y, w: buttons.size.width, h: buttons.size.height } } };
-  }
-
-  return result;
+  return { ...base, boxes, identityRect };
 }

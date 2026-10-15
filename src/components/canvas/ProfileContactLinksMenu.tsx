@@ -67,7 +67,7 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <MenuSection label="Links" pinned>
         {links.length > 0 && fitsInCard === false && (
-          <MenuNote tone="warn">No entra en la altura actual de la tarjeta: agrandala para que se vea.</MenuNote>
+          <MenuNote tone="warn">No entran donde los dejaste: arrastralos a un lugar libre de la tarjeta.</MenuNote>
         )}
         {links.map(link => {
           const platform = PLATFORM_LABELS[detectPlatform(link.url)];

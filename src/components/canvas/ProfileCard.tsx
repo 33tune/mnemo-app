@@ -15,17 +15,19 @@ import { CanvasChromeButton } from "./CanvasChromeButton";
 import CardLayers from "./CardLayers";
 import { profileEditButtonId, profileInspectorId } from "@/lib/editorSelection";
 import type { ProfileEditorFacts } from "./EditorHost";
-import { computeBlockLayout, type CompositionStrategy, type ElementBox, type BlockOverrides, type LinksBlockInput, type ButtonsBlockInput } from "@/lib/cardComposition";
-import { resolveLinkButtonStyle, linkButtonsBlockSize, stackedLinksAnchorY, linkButtonsPlaced, linkButtonsShortfall, LINK_BUTTONS_MAX } from "@/lib/linkButtons";
+import type { ElementBox, BlockOverrides } from "@/lib/cardComposition";
+import { resolveLinkButtonStyle, linkButtonsPlaced } from "@/lib/linkButtons";
+import { profileLayout, profileCardMinSize, formatViewCount, type TextMeasurer } from "@/lib/profileCardLayout";
+import { getTextMeasurer, useFontsVersion } from "@/lib/textMeasure";
 import { LinkButtonsBlock } from "./LinkButtonsBlock";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
   rectToAnchor, anchorToRect, snapAxis, snappedPoint, MAGNETIC_POINTS, centerAlignAnchor,
 } from "@/lib/blockConstraints";
-import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, computeRequiredCardHeight, centerCardPosition, shouldApplyGrowth, getFreeformCardBounds } from "@/lib/cardGeometry";
+import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, centerCardPosition, shouldApplyGrowth } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
-import { contactLinksNaturalSize, composedContentBottom, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
+import { CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
 import { withOpacity, resolveCardColors, cardIsLight, cardBaseColor } from "@/lib/cardColors";
 import { resolveCardTypography } from "@/lib/cardTypography";
@@ -82,12 +84,6 @@ export const CANVAS_TOP_OFFSET = 44;
  * card geometry never reads this. Parity with T.ui.size.editorTopbarH is
  * tested (this render file must not import the editor tokens). */
 export const EDITOR_CHROME_TOP = 60;
-
-function fmtNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 // ── Positionable fields (Free Mode) ─────────────────────────────────────────────
 // Single source of truth for every field that can be dragged/scaled in free layout.
@@ -308,6 +304,19 @@ function ProfileCard({
   // Views counter — fetched once per mount, same hook used by StatsCardWidget
   const { total: viewCount } = useProfileViews(ownerUserId);
 
+  // ── Real text measurement + the content floor (engine rewrite 2026-10-15)
+  // The measurer exists only after mount (the server render and the first
+  // client render must agree); useFontsVersion re-renders once fonts load.
+  useFontsVersion();
+  const [measure, setMeasure] = useState<TextMeasurer | undefined>(undefined);
+  useEffect(() => { setMeasure(getTextMeasurer()); }, []);
+  // The smallest height where everything fits at this width. A card saved
+  // smaller than that (before this engine) renders at the minimum right away
+  // — nothing is dropped, also on the public page — and the growth effect
+  // below persists it in the editor. space_mobile keeps its stored size.
+  const minSize = layout === "free" ? undefined : profileCardMinSize(card, card.w, { measure, viewCount });
+  const cardH = minSize && viewportW != null ? Math.max(card.h, minSize.h) : card.h;
+
   // Free-layout local position state (smooth drag without DB writes per frame)
   const [freePos, setFreePos] = useState<FreePos>(() => initFreePos(card));
   const isDraggingFree = useRef(false);
@@ -337,9 +346,9 @@ function ProfileCard({
   // to the card on mouseup (see startAnchorDrag) — no per-frame persistence.
   const [anchor, setAnchor] = useState(() => ({ x: card.pfpAnchorX ?? 0.5, y: card.pfpAnchorY ?? 0.5 }));
   const isDraggingAnchor = useRef(false);
-  // Winning strategy from the last computeComposition() call, fed back in as
-  // `incumbent` so hysteresis holds across the whole drag, not just at rest.
-  const incumbentRef = useRef<CompositionStrategy | undefined>(undefined);
+  // px the composed group can travel on each axis (computeBlockLayout's
+  // `travel`) — the photo drag's denominator; written after each layout.
+  const pfpTravelRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   useEffect(() => {
     if (isDraggingAnchor.current) return;
@@ -461,7 +470,7 @@ function ProfileCard({
     const startAnchor = { ...logoAnchor };
     const logoW = card.logo.w, logoH = card.logo.h;
     const rawAvailW = card.w - 2 * pad - logoW;
-    const rawAvailH = card.h - 2 * pad - logoH;
+    const rawAvailH = cardH - 2 * pad - logoH;
     let snappedX = snappedPoint(startAnchor.x, MAGNETIC_POINTS);
     let snappedY = snappedPoint(startAnchor.y, MAGNETIC_POINTS);
 
@@ -483,7 +492,7 @@ function ProfileCard({
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [canInteract, layout, isSel, logoAnchor, card.id, card.w, card.h, pad, card.logo, updateProfile]);
+  }, [canInteract, layout, isSel, logoAnchor, card.id, card.w, cardH, pad, card.logo, updateProfile]);
 
   const photoSizeKey   = card.photoSize ?? "md";
   // Variant nudge applies to the BASE (pre-clamp) diameter — whether that
@@ -495,7 +504,7 @@ function ProfileCard({
     variant === "guns" || variant === "poster" ? Math.max(card.pfpSizePx ?? PFP_PHOTO_SIZES[photoSizeKey], 88) :
     variant === "minimal" ? Math.min(card.pfpSizePx ?? PFP_PHOTO_SIZES[photoSizeKey], 56) :
     card.pfpSizePx ?? PFP_PHOTO_SIZES[photoSizeKey];
-  const avatarSize     = resolvePfpSize(photoSizeKey, pfpBaseNudged, card.w, card.h, pad);
+  const avatarSize     = resolvePfpSize(photoSizeKey, pfpBaseNudged, card.w, cardH, pad);
   const avatarRadiusPct = pfpRadiusToPercent(card.pfpRadius);
   const textAlign      = card.textAlign ?? "left";
   const nameFontSize   = card.nameFontSize ?? (variant === "guns" || variant === "poster" ? 17 : 15);
@@ -685,11 +694,12 @@ function ProfileCard({
     isDraggingAnchor.current = true;
     const startMX = e.clientX, startMY = e.clientY;
     const startAnchor = { ...anchor };
-    // Raw geometric room on each axis — deliberately NOT floored to a minimum.
-    // See nextAnchorAxis in anchorDrag.ts for why a degenerate axis (<=0) must
-    // freeze instead of becoming hypersensitive.
-    const rawAvailW = card.w - 2 * pad - avatarSize;
-    const rawAvailH = card.h - 2 * pad - avatarSize;
+    // The anchor positions the whole group (photo + texts + icons +
+    // buttons): it moves 1:1 with the mouse over the group's own travel.
+    // Deliberately NOT floored — see nextAnchorAxis in anchorDrag.ts for why
+    // a degenerate axis (<=0) must freeze instead of becoming hypersensitive.
+    const rawAvailW = layout === "free" ? card.w - 2 * pad - avatarSize : pfpTravelRef.current.x;
+    const rawAvailH = layout === "free" ? cardH - 2 * pad - avatarSize : pfpTravelRef.current.y;
     let snappedX = snappedPoint(startAnchor.x, PFP_CENTER_POINT);
     let snappedY = snappedPoint(startAnchor.y, PFP_CENTER_POINT);
 
@@ -711,7 +721,7 @@ function ProfileCard({
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [canInteract, layout, isSel, anchor, card.id, card.w, card.h, pad, avatarSize, updateProfile]);
+  }, [canInteract, layout, isSel, anchor, card.id, card.w, cardH, pad, avatarSize, updateProfile]);
 
   // ── Constrained-freeform block drag (Stage 3B.3-B) ────────────────────────
   // Same 1:1-with-the-mouse, persist-only-on-mouseup shape as startAnchorDrag
@@ -755,7 +765,7 @@ function ProfileCard({
     buttonsDidDragRef.current = false;
     const startMX = e.clientX, startMY = e.clientY;
     const rawAvailW = card.w - 2 * pad - blockW;
-    const rawAvailH = card.h - 2 * pad - blockH;
+    const rawAvailH = cardH - 2 * pad - blockH;
     const alignX = pfpBox ? centerAlignAnchor(pfpBox.x + pfpBox.w / 2, blockW, rawAvailW, pad) : undefined;
     const alignY = pfpBox ? centerAlignAnchor(pfpBox.y + pfpBox.h / 2, blockH, rawAvailH, pad) : undefined;
     const pointsX = alignX != null ? [...MAGNETIC_POINTS, alignX] : undefined;
@@ -787,7 +797,7 @@ function ProfileCard({
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [canInteract, layout, isSel, card.id, card.w, card.h, pad, updateProfile]);
+  }, [canInteract, layout, isSel, card.id, card.w, cardH, pad, updateProfile]);
 
   // ── Element renderers ─────────────────────────────────────────────────────
 
@@ -931,7 +941,7 @@ function ProfileCard({
         ...(typography.views.fontWeight != null ? { fontWeight: typography.views.fontWeight } : {}),
         ...viewsEffectStyle, ...style,
       }}>
-        {fmtNum(viewCount)} views
+        {formatViewCount(viewCount)} views
       </div>
     );
   }
@@ -1041,275 +1051,74 @@ function ProfileCard({
     );
   }
 
-  // ── Contact Links (Stage 4.2-B) ───────────────────────────────────────────
-  // Data + natural size only here — rendering/drag lives in renderComposed()
-  // below, growth (§8) in the effect right after. `contactLinks` absent/empty
-  // is the pre-4.2-B state: linksBlockInput below stays undefined, and
-  // computeBlockLayout takes the exact same code path it always did (see the
-  // "no links block" regression test in cardComposition.test.ts).
+  // ── Composed layout (engine rewrite 2026-10-15) ──────────────────────────
+  // profileCardLayout.ts builds the engine input from the card (the same
+  // builder the resize floor uses) — here with the LIVE drag state: the
+  // photo anchor and the block anchors (blockAnchors is synced from card.*
+  // whenever nothing is being dragged), so computeBlockLayout re-resolves on
+  // every mousemove. The icons and buttons nobody dragged flow under the
+  // texts; the whole group is anchored as one (cardComposition.ts).
+  // "free" mode doesn't use this engine at all.
   const contactLinks = card.contactLinks ?? [];
-  // Stage 4.2-C.2.1: user-configurable icon size (menu slider, see
-  // ProfileContactLinksMenu.tsx), clamped there to CONTACT_LINK_ICON_SIZE_MIN/MAX.
-  // Absent -> the original fixed constant, so every existing card renders
-  // byte-identical to before this stage.
   const linksIconSize = card.linksIconSize ?? CONTACT_LINK_ICON_SIZE;
-  const linksAvailWidth = Math.max(0, card.w - 2 * pad);
-  const linksNaturalSize = contactLinksNaturalSize(contactLinks.length, linksAvailWidth, linksIconSize);
-
-  // ── Link buttons (Linktree-style, 2026-10-14) ─────────────────────────────
-  // Sizing / look from linkButtons.ts (the one source any renderer reads).
-  // No buttons = no `buttons` argument: computeBlockLayout takes the exact
-  // path it always did (regression test in cardComposition.test.ts).
   const linkButtons = (card.linkButtons ?? []).filter(b => b.url);
   const buttonStyle = resolveLinkButtonStyle(card.linkButtonStyle, baseColor);
-  /** px the card is short of for the buttons (exact, see below). */
-  const buttonsNeedRef = useRef(0);
-  /** px the card must grow for ONE more button (0 = it already fits). */
-  const buttonsNextRef = useRef(0);
-  const buttonsNaturalSize = linkButtonsBlockSize(linkButtons.length, buttonStyle, linksAvailWidth);
+  const blockOverrides: BlockOverrides = {
+    identity: blockAnchors.identity, location: blockAnchors.location, views: blockAnchors.views,
+    links: blockAnchors.links, buttons: blockAnchors.buttons,
+  };
+  const composedResult = layout === "free" ? undefined
+    : profileLayout(card, { w: card.w, h: cardH, pfpAnchor: anchor, overrides: blockOverrides, measure, viewCount });
+  if (composedResult) pfpTravelRef.current = composedResult.travel;
 
-  // ── Composed layout (Stage 3B / 3B.3, extended in 4.2-B for Contact Links)
-  // ──────────────────────────────────────────────────────────────────────
-  // The user moves the PFP (startAnchorDrag → anchor) and, as of Stage 3B.3,
-  // may additionally override where the identity group (name+handle+
-  // descriptor+bio, moved as one block)/location/views/(4.2-B) links sit —
-  // see computeBlockLayout in cardComposition.ts. With none of the five
-  // set, this produces byte-identical output to the plain
-  // computeComposition() call it replaces. renderVertical/renderHorizontal
-  // above stay defined but unused — legacy cleanup is a separate later stage.
-  // Music left ProfileCard's composition entirely ("Product closeout" —
-  // it's now an independent canvas element, MusicCardWidget.tsx) — this
-  // never calls computeBlockLayout with a `music` argument anymore, which
-  // is exactly the "omit it" no-op path the engine already supported.
+  // ── Content floor + centering (engine rewrite 2026-10-15) ─────────────────
+  // The card is never shorter than its content (profileCardMinSize — the
+  // same floor the resize handles, Ctrl/⌘+arrows and Medidas clamp to), so
+  // nothing disappears: adding content grows the card right away, in the
+  // same history step when it happens inside a gesture (editorHistory.ts's
+  // isSystemLayoutWrite: an h/x/y-only write is the system's, never its own
+  // undo step). It only ever grows; removing content never shrinks it.
   //
-  // Hoisted out of renderComposed() (rather than computed inside it) so the
-  // growth effect right below can read the SAME boxes renderComposed() draws
-  // from, without a second computeBlockLayout() call — the links extension
-  // never moves an earlier, higher-priority block (see
-  // cardComposition.test.ts), so one result is valid for both "what to draw"
-  // and "how tall must the card be". Only computed for the composed layouts;
-  // "free" mode doesn't use this engine (or Contact Links) at all.
-  const composedResult = layout === "free" ? undefined : (() => {
-    // Local drag state (blockAnchors), not the raw card props — this is what
-    // makes computeBlockLayout re-resolve live on every mousemove-driven
-    // re-render during a drag (see startBlockDrag above). Falls back to the
-    // persisted value automatically: blockAnchors is synced from card.* by
-    // the effect above whenever nothing's being dragged.
-    const blockOverrides: BlockOverrides = {
-      identity: blockAnchors.identity,
-      location: blockAnchors.location,
-      views: blockAnchors.views,
-      links: blockAnchors.links,
-      buttons: blockAnchors.buttons,
-    };
-    // With buttons and an icons row never dragged, the icons sit right ABOVE
-    // the buttons (identity → icons → buttons). Without buttons this stays
-    // exactly the old input (undefined defaultAnchor).
-    const linksInput = (stack: boolean): LinksBlockInput | undefined =>
-      contactLinks.length > 0 ? {
-        size: linksNaturalSize,
-        ...(stack ? { defaultAnchor: { x: 0.5, y: stackedLinksAnchorY({ boxH: card.h, padding: pad, linksH: linksNaturalSize.height, buttonsH: buttonsNaturalSize.height }) } } : {}),
-      } : undefined;
-    const buttonsBlockInput: ButtonsBlockInput | undefined =
-      linkButtons.length > 0 ? { size: buttonsNaturalSize } : undefined;
-    const layoutInput: Parameters<typeof computeBlockLayout>[0] = {
-      format: card.format ?? "vertical",
-      boxW: card.w,
-      boxH: card.h,
-      padding: pad,
-      pfp: { anchorX: anchor.x, anchorY: anchor.y, size: avatarSize },
-      content: {
-        name:       { present: !!card.name,     length: card.name?.length ?? 0 },
-        // +1/+2: HandleLine/LocationLine below render "@handle" and "● location"
-        // — the engine must reserve space for the prefix it can't see here, or
-        // the estimate undershoots and the real text clips.
-        handle:     { present: !!card.handle,   length: (card.handle?.length ?? 0) + 1 },
-        bio:        { present: !!card.bio,      length: card.bio?.length ?? 0 },
-        descriptor: { present: !!card.status,   length: card.status?.length ?? 0 },
-        location:   { present: !!card.location, length: (card.location?.length ?? 0) + 2 },
-        views:      { present: !!card.showViews },
-      },
-      // Stage FASE 1: same override fields resolveCardTypography (render)
-      // reads — passed through raw (not the already-resolved `typography`
-      // object) so resolveTypographyMetrics applies the SAME defaults the
-      // engine always used when a field is absent. See cardTypography.ts.
-      typography: {
-        nameFontSize, bioFontSize: card.bioFontSize ?? 8,
-        nameLetterSpacing: card.nameLetterSpacing, nameLineHeight: card.nameLineHeight,
-        handleFontSize: card.handleFontSize, handleLetterSpacing: card.handleLetterSpacing,
-        descriptorFontSize: card.statusFontSize, descriptorLetterSpacing: card.descriptorLetterSpacing,
-        locationFontSize: card.locationFontSize, locationLetterSpacing: card.locationLetterSpacing,
-        bioLineHeight: card.bioLineHeight, viewsFontSize: card.viewsFontSize,
-        monoLineHeight: card.monoLineHeight,
-      },
-      incumbent: incumbentRef.current,
-      textAlign,
-    };
-    const stackIcons = linkButtons.length > 0 && !blockAnchors.links && !blockAnchors.buttons;
-    buttonsNeedRef.current = 0;
-    let r = computeBlockLayout(layoutInput, blockOverrides, linksInput(stackIcons), undefined, buttonsBlockInput);
-    // Buttons with no room (they would cover the content or fall off the
-    // card) are hidden — and then the icons row goes back to exactly where
-    // it is without buttons (one extra call, only in that case).
-    if (buttonsBlockInput && !linkButtonsPlaced(r, card.h, pad)) {
-      r = computeBlockLayout(layoutInput, blockOverrides, linksInput(false), undefined, buttonsBlockInput);
-    }
-    // Editor only: exactly how much taller the card must be for `count`
-    // buttons — the first height (10px steps, up to the max) where the
-    // engine places them. Growing re-flows the content, so no closed
-    // formula is exact. Feeds "Agrandar" (count = now) and adding a button
-    // (count + 1): one explicit, undoable edit each — never an effect.
-    buttonsNextRef.current = 0;
-    if (menuOpen) {
-      const needFor = (count: number): number => {
-        if (count <= 0) return 0;
-        const size = linkButtonsBlockSize(count, buttonStyle, linksAvailWidth);
-        const maxH = getFreeformCardBounds().maxH;
-        for (let h = card.h; h <= maxH; h += 10) {
-          const stacked = contactLinks.length > 0 && !blockAnchors.links && !blockAnchors.buttons
-            ? { size: linksNaturalSize, defaultAnchor: { x: 0.5, y: stackedLinksAnchorY({ boxH: h, padding: pad, linksH: linksNaturalSize.height, buttonsH: size.height }) } }
-            : linksInput(false);
-          if (linkButtonsPlaced(computeBlockLayout({ ...layoutInput, boxH: h }, blockOverrides, stacked, undefined, { size }), h, pad)) return h - card.h;
-        }
-        return Math.max(0, maxH - card.h);
-      };
-      if (buttonsBlockInput && !linkButtonsPlaced(r, card.h, pad)) buttonsNeedRef.current = needFor(linkButtons.length);
-      if (linkButtons.length < LINK_BUTTONS_MAX) buttonsNextRef.current = needFor(linkButtons.length + 1);
-    }
-    incumbentRef.current = r.strategy;
-    return r;
-  })();
-
-  // ── Vertical growth (Stage 4.2-B §8) ──────────────────────────────────────
-  // Structural only: the effect's dependency array is what content/blocks
-  // actually change how tall the card needs to be — link count, each
-  // block's natural height, format, padding, and where the existing
-  // content currently ends. Pure math
-  // (computeRequiredCardHeight in cardGeometry.ts) decides the number every
-  // render (cheap); this effect's only job is PERSISTING it, and only when
-  // it actually differs from stored state.
-  //
-  // extraBlocks is built here (Links entry, then Music entry, in that order)
-  // rather than calling a single-block helper per block: two SEPARATE calls
-  // to computeRequiredCardHeight (one per block) can't correctly stack more
-  // than one block — each would independently measure "room needed" from the
-  // same contentBottom and take a max, not a sum, under-reporting the
-  // required height whenever both are present. See computeRequiredCardHeight's
-  // doc comment in cardGeometry.ts.
-  //
-  // Stage 4.2-C.2.4: this effect also owns recentering (folded in from a
-  // previously separate "vertical recentering" effect) — x/y are recomputed
-  // via centerCardPosition() (cardGeometry.ts, the SAME formula
-  // useDragDrop.ts's resize-drag uses) whenever card.w/h or the viewport
-  // change. Keeping this as one effect, not two independent ones each
-  // writing part of the position, is the actual fix for the reported
-  // resize jump/drift: a separate y-only effect reacting to card.h a render
-  // cycle AFTER the resize-drag's own direct state update was a second,
-  // competing writer of position during the same gesture. During an active
-  // drag this effect is a pure no-op — the drag already set x/y/w/h
-  // synchronously to exactly what this same formula would compute, so the
-  // patch below ends up empty and no updateProfile call happens at all.
-  // Requires viewportW/viewportH from CanvasBoard.tsx — without them
-  // (undefined, e.g. space_mobile), recentering simply doesn't run; only
-  // the height-growth part still does.
-  const contentBottom = composedResult
-    ? composedContentBottom(composedResult.boxes, composedResult.identityRect)
-    : 0;
+  // Recentering (Stage 4.2-C.2.4) stays in this one effect: x/y come from
+  // centerCardPosition() — the same formula the resize drag uses — so there
+  // is never a second writer of the position during a gesture.
+  // Stage 4.2-C.2.5: paused while a resize gesture is active (the drag
+  // already clamps to the same floor, so it never fights this).
+  // space_mobile (no viewport props): never writes (mobile legacy rule).
   useEffect(() => {
-    if (layout === "free") return;
-    // Stage 4.2-C.2.5: manual resize gets exclusive control of size while
-    // it's in progress — growth must not fight the drag (see
-    // shouldApplyGrowth's doc comment in cardGeometry.ts for what
-    // running both at once actually caused: the reported vertical
-    // resize jump/oscillation). isResizing comes from CanvasBoard.tsx's
-    // own `resizing` state, already the single source of truth for "is a
-    // resize gesture active" — no second resize-state system here.
+    if (layout === "free" || viewportW == null || viewportH == null) return;
     if (!shouldApplyGrowth(isResizing)) return;
-    // Stage 4.2-C.2.6: Contact Links no longer contributes to extraBlocks —
-    // it's an optional block, not structural content (see
-    // computeBlockLayout()'s priority chain: pfp/identity/location/views
-    // are the base composition, links is appended after and can be
-    // displaced/hidden without the card ever needing to grow for it).
-    // Forcing the card taller to fit it was the actual cause of the
-    // "resize vertical snaps back up on release" bug — growth firing right
-    // after isResizing flips false, computing a requiredH the live drag's
-    // own floor (MIN_PROFILE_CARD_HEIGHT) never knew about. extraBlocks
-    // stays empty here (no structural block currently needs it either —
-    // computeComposition()'s own dropped-content handling, untouched,
-    // covers pfp/identity/location/views not fitting), so this call is
-    // effectively a no-op today; kept as-is (not deleted) so a genuinely
-    // structural future block has the exact same extension point Links
-    // used to.
-    const extraBlocks: { naturalHeight: number; gap: number }[] = [];
-    const requiredH = extraBlocks.length > 0
-      ? Math.round(computeRequiredCardHeight({ format: card.format, currentH: card.h, contentBottom, padding: pad, extraBlocks }))
-      : card.h;
-
     const patch: Partial<ProfileCardData> = {};
-    if (requiredH !== card.h) patch.h = requiredH;
-
-    if (viewportW != null && viewportH != null) {
-      const { x: cx, y: cy } = centerCardPosition(viewportW, viewportH, card.w, requiredH, CANVAS_TOP_OFFSET);
-      if (cx !== card.x) patch.x = cx;
-      if (cy !== card.y) patch.y = cy;
-    }
-
+    if (cardH !== card.h) patch.h = cardH;
+    const { x: cx, y: cy } = centerCardPosition(viewportW, viewportH, card.w, cardH, CANVAS_TOP_OFFSET);
+    if (cx !== card.x) patch.x = cx;
+    if (cy !== card.y) patch.y = cy;
     if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, isResizing, card.format, card.h, card.w, card.x, card.y, contentBottom, pad, card.id, viewportW, viewportH]);
+  }, [layout, isResizing, cardH, card.h, card.w, card.x, card.y, card.id, viewportW, viewportH]);
 
-  // Stage 4.2-C.2.6: Links is an optional block, not structural
-  // content — the card no longer grows to fit it (see the growth
-  // effect above). Since it doesn't shrink vertically to match
-  // whatever room is left, and the content layer clips with
-  // `overflow:hidden`, a block that doesn't fully fit would render
-  // silently cut off instead of just not showing at all. This is the
-  // guard that prevents that: don't render the block if its own already-
-  // resolved box (computeBlockLayout's output, untouched) would extend
-  // past the card's padded content area. No new bounds/positioning
-  // system — purely a visibility check on a box already computed.
-  // Reappears on its own, no new state, the next time renderComposed()
-  // runs with a tall-enough card.h (e.g. after growing back).
-  // Stage 4.2-C.2.7: lives in the component body (not inside
-  // renderComposed) only so the SAME verdict can also reach
-  // ProfileConfigMenu below — the predicate itself is unchanged.
+  // A block that does not fit is not drawn (the content layer clips, so it
+  // would render cut off). With the content floor above, only a block the
+  // user DRAGGED somewhere it cannot sit (overlapping a text) is ever
+  // hidden; the inspector says so (Stage 4.2-C.2.7).
   const blockFits = (box: ElementBox | undefined): boolean =>
-    !!box && box.y + box.h <= card.h - pad;
-
-  // Stage 4.2-C.2.7: a block that stops rendering because it no longer
-  // fits is otherwise invisible to the user — nothing in the menu where
-  // they configured it says why it vanished. This flag carries exactly
-  // the render-time verdict to the menu. `undefined` means "not
-  // applicable" (layout "free" doesn't use this engine, or Contact Links
-  // at all), which the menu treats as "say nothing" — never as "doesn't fit".
+    !!box && box.y + box.h <= cardH - pad + 0.5;
   const linksFits = composedResult ? blockFits(composedResult.boxes.links) : undefined;
-  // Link buttons: same verdict, plus how many px the card is short of —
-  // the inspector offers to grow the card by exactly that (one explicit,
-  // undoable edit; the card never grows by itself — Stage 4.2-C.2.6).
-  const buttonsFits = composedResult && linkButtons.length > 0 ? linkButtonsPlaced(composedResult, card.h, pad) : undefined;
-  const buttonsOverflow = buttonsFits === false && composedResult
-    ? (buttonsNeedRef.current || linkButtonsShortfall({
-        contentBottom, linksH: contactLinks.length > 0 ? linksNaturalSize.height : 0,
-        buttonsH: buttonsNaturalSize.height, cardH: card.h, padding: pad,
-        box: composedResult.boxes.buttons,
-      }))
-    : 0;
+  const buttonsFits = composedResult && linkButtons.length > 0 ? linkButtonsPlaced(composedResult, cardH, pad) : undefined;
 
   // Editor v3 Phase B: the inspector lives in EditorHost (CanvasBoard
   // level), so the render-time verdicts it shows travel up from here while
-  // it is open — the same values the inspector received as props before.
-  // Layout effect (review B-R4): reported before paint, so the host never
-  // shows a frame with missing / previous facts.
+  // it is open. Layout effect (review B-R4): reported before paint.
   useLayoutEffect(() => {
-    if (menuOpen) onEditorFacts?.(card.id, { linksFits, viewCount, buttonsFits, buttonsOverflow, buttonsGrowNext: buttonsNextRef.current });
-  }, [menuOpen, card.id, linksFits, viewCount, buttonsFits, buttonsOverflow, onEditorFacts, card.h, card.w, linkButtons.length]);
+    if (menuOpen) onEditorFacts?.(card.id, { linksFits, viewCount, buttonsFits });
+  }, [menuOpen, card.id, linksFits, viewCount, buttonsFits, onEditorFacts]);
 
   // Logo (Product closeout) — layout-independent (renders the same whether
   // the card is composed or "free"), so it's a standalone function called
   // once from the main return below, not inside renderComposed()/renderFree().
   function renderLogo() {
     if (!card.logo) return null;
-    const rect = anchorToRect(logoAnchor.x, logoAnchor.y, card.logo.w, card.logo.h, card.w, card.h, pad);
+    const rect = anchorToRect(logoAnchor.x, logoAnchor.y, card.logo.w, card.logo.h, card.w, cardH, pad);
     return (
       <div
         data-canvas-hot=""
@@ -1363,27 +1172,27 @@ function ProfileCard({
 
     const startIdentityDrag = (e: React.MouseEvent) => {
       if (!identityRect) return;
-      const start = blockAnchors.identity ?? rectToAnchor(identityRect, identityRect.w, identityRect.h, card.w, card.h, pad);
+      const start = blockAnchors.identity ?? rectToAnchor(identityRect, identityRect.w, identityRect.h, card.w, cardH, pad);
       startBlockDrag(e, "identity", start, identityRect.w, identityRect.h, pfpBox);
     };
     const startLocationDrag = (e: React.MouseEvent) => {
       if (!boxes.location) return;
-      const start = blockAnchors.location ?? rectToAnchor(boxes.location, boxes.location.w, boxes.location.h, card.w, card.h, pad);
+      const start = blockAnchors.location ?? rectToAnchor(boxes.location, boxes.location.w, boxes.location.h, card.w, cardH, pad);
       startBlockDrag(e, "location", start, boxes.location.w, boxes.location.h, pfpBox);
     };
     const startViewsDrag = (e: React.MouseEvent) => {
       if (!boxes.views) return;
-      const start = blockAnchors.views ?? rectToAnchor(boxes.views, boxes.views.w, boxes.views.h, card.w, card.h, pad);
+      const start = blockAnchors.views ?? rectToAnchor(boxes.views, boxes.views.w, boxes.views.h, card.w, cardH, pad);
       startBlockDrag(e, "views", start, boxes.views.w, boxes.views.h, pfpBox);
     };
     const startLinksDrag = (e: React.MouseEvent) => {
       if (!boxes.links) return;
-      const start = blockAnchors.links ?? rectToAnchor(boxes.links, boxes.links.w, boxes.links.h, card.w, card.h, pad);
+      const start = blockAnchors.links ?? rectToAnchor(boxes.links, boxes.links.w, boxes.links.h, card.w, cardH, pad);
       startBlockDrag(e, "links", start, boxes.links.w, boxes.links.h, pfpBox);
     };
     const startButtonsDrag = (e: React.MouseEvent) => {
       if (!boxes.buttons) return;
-      const start = blockAnchors.buttons ?? rectToAnchor(boxes.buttons, boxes.buttons.w, boxes.buttons.h, card.w, card.h, pad);
+      const start = blockAnchors.buttons ?? rectToAnchor(boxes.buttons, boxes.buttons.w, boxes.buttons.h, card.w, cardH, pad);
       startBlockDrag(e, "buttons", start, boxes.buttons.w, boxes.buttons.h, pfpBox);
     };
     return (
@@ -1536,7 +1345,7 @@ function ProfileCard({
         onMouseOver={handleInteractOver}
         onMouseLeave={handleInteractLeave}
         style={{
-          position: "absolute", left: card.x, top: card.y, width: card.w, height: card.h,
+          position: "absolute", left: card.x, top: card.y, width: card.w, height: cardH,
           zIndex: card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
           transform: `${parallaxTransform} rotate(${card.rotation}deg)`,
           willChange: "transform", userSelect: "none",

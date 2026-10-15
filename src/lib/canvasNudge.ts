@@ -7,8 +7,8 @@
  * Every writer here is one the mouse drag already uses:
  * - move:   applyGroupDragDelta (canvasSelectionGuards.ts) — clamps to the
  *           canvas bounds and never moves the ProfileCard;
- * - resize: profile → clampFreeformCardSize + centerCardPosition
- *           (cardGeometry.ts), text → the same 10..300 size clamp,
+ * - resize: profile → the content floor (clampProfileCardSize) +
+ *           centerCardPosition, text → the same 10..300 size clamp,
  *           everything else → computeResize + resizeMinimums (resizeMath.ts),
  *           images keeping their aspect ratio exactly like a side handle.
  */
@@ -76,15 +76,15 @@ export type NudgeResizeResult =
 /**
  * Keyboard resize of ONE element: +dx grows the width (left edge fixed),
  * +dy grows the height (top edge fixed) — a right/bottom side handle.
- * ProfileCard: freeform clamp + re-centered via centerCardPosition, i.e.
- * exactly what the resize drag writes. No content-height floor is needed:
- * ProfileCard's growth effect has extraBlocks = [] (Stage 4.2-C.2.6), so
- * computeRequiredCardHeight returns the current h and growth never writes
- * h — there is no second writer to race with (the C.2.5 problem). If a
- * structural block ever feeds extraBlocks again, the keyboard/Medidas
- * resize must clamp to that required height (or set isResizing) too.
+ * ProfileCard: clamped by `clampProfile` — the caller passes the card's
+ * content floor (profileCardLayout.ts's clampProfileCardSize, the same one
+ * the resize drag uses) — else the freeform bounds, then re-centered via
+ * centerCardPosition, i.e. exactly what the resize drag writes.
  */
-export function nudgeResize(el: NudgeEl, dx: number, dy: number, bounds: NudgeBounds): NudgeResizeResult | null {
+export function nudgeResize(
+  el: NudgeEl, dx: number, dy: number, bounds: NudgeBounds,
+  clampProfile: (w: number, h: number) => { w: number; h: number } = clampFreeformCardSize,
+): NudgeResizeResult | null {
   if (el.locked) return null;
   if (el.elementType === "text") {
     const sz = Number.isFinite(el.size) && (el.size ?? 0) > 0 ? (el.size as number) : 16;
@@ -94,7 +94,7 @@ export function nudgeResize(el: NudgeEl, dx: number, dy: number, bounds: NudgeBo
   const w = Number.isFinite(el.w) && (el.w ?? 0) > 0 ? (el.w as number) : 80;
   const h = Number.isFinite(el.h) && (el.h ?? 0) > 0 ? (el.h as number) : 60;
   if (el.elementType === "profile") {
-    const c = clampFreeformCardSize(w + dx, h + dy);
+    const c = clampProfile(w + dx, h + dy);
     const { x, y } = centerCardPosition(bounds.w, bounds.h, c.w, c.h, bounds.topOffset);
     return { kind: "box", x, y, w: c.w, h: c.h };
   }

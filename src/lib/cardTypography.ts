@@ -42,7 +42,7 @@ export const TYPOGRAPHY_METRICS = {
   nameCharW: 0.58, nameLineH: 1.3, nameLetterSpacing: 0,
   monoCharW: 0.6,  monoLineH: 1.4,   // handle/descriptor/location/views (Space Mono is fixed-width-ish)
   handleLetterSpacing: 0.4, descriptorLetterSpacing: 0.5, locationLetterSpacing: 0.3,
-  bioCharW: 0.55,  bioLineH: 1.5,
+  bioCharW: 0.55,  bioLineH: 1.6,   // = render's default (2026-10-15: 1.5 here clipped the bio's last line)
   monoFontSize: 9,                   // handle/descriptor default size
   locationFontSize: 8,
   viewsFontSize: 9,
@@ -163,11 +163,10 @@ export interface ResolvedCardTypography {
  * RENDER_DEFAULTS for line-height/weight (see file header's asymmetry note).
  * `nameFontSize` is passed in already-resolved (ProfileCard.tsx nudges it per
  * variant before this call — that's product logic, not a typography concern).
- * `handle`/`descriptor`/`location`/`views`' `lineHeight` is left `undefined`
- * when `card.monoLineHeight` is absent — the pre-existing render never set
- * an explicit line-height for these roles at all (relied on the browser
- * default), so omitting the CSS property entirely (not just passing a
- * "default" number) is what byte-identical actually requires here.
+ * `handle`/`descriptor`/`location`/`views`' `lineHeight` defaults to the
+ * engine's monoLineH (2026-10-15): the browser's "normal" line height is
+ * taller than the 1.4 rows the engine reserves for some fonts, and the rows
+ * clip (overflow:hidden), so render and engine now use the same number.
  */
 export function resolveCardTypography(card: RoleTypographyCardFields, nameFontSize: number): ResolvedCardTypography {
   return {
@@ -180,19 +179,19 @@ export function resolveCardTypography(card: RoleTypographyCardFields, nameFontSi
     handle: {
       fontSize: card.handleFontSize ?? TYPOGRAPHY_METRICS.monoFontSize,
       letterSpacing: card.handleLetterSpacing ?? TYPOGRAPHY_METRICS.handleLetterSpacing,
-      lineHeight: card.monoLineHeight,
+      lineHeight: card.monoLineHeight ?? TYPOGRAPHY_METRICS.monoLineH,
       fontWeight: card.handleFontWeight,
     },
     descriptor: {
       fontSize: card.statusFontSize ?? TYPOGRAPHY_METRICS.monoFontSize,
       letterSpacing: card.descriptorLetterSpacing ?? TYPOGRAPHY_METRICS.descriptorLetterSpacing,
-      lineHeight: card.monoLineHeight,
+      lineHeight: card.monoLineHeight ?? TYPOGRAPHY_METRICS.monoLineH,
       fontWeight: card.descriptorFontWeight,
     },
     location: {
       fontSize: card.locationFontSize ?? TYPOGRAPHY_METRICS.locationFontSize,
       letterSpacing: card.locationLetterSpacing ?? TYPOGRAPHY_METRICS.locationLetterSpacing,
-      lineHeight: card.monoLineHeight,
+      lineHeight: card.monoLineHeight ?? TYPOGRAPHY_METRICS.monoLineH,
       fontWeight: card.locationFontWeight,
     },
     bio: {
@@ -203,7 +202,7 @@ export function resolveCardTypography(card: RoleTypographyCardFields, nameFontSi
     views: {
       fontSize: card.viewsFontSize ?? TYPOGRAPHY_METRICS.viewsFontSize,
       letterSpacing: card.viewsLetterSpacing ?? RENDER_DEFAULTS.viewsLetterSpacing,
-      lineHeight: card.monoLineHeight,
+      lineHeight: card.monoLineHeight ?? TYPOGRAPHY_METRICS.monoLineH,
       fontWeight: card.viewsFontWeight,
     },
   };

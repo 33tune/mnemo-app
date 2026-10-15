@@ -19,8 +19,6 @@ interface ProfileInspectorProps {
   baseColor:  string;
   linksFits?: boolean;
   buttonsFits?: boolean;
-  buttonsOverflow?: number;
-  buttonsGrowNext?: number;
   viewCount?: number;
   canvas?:    { w: number; h: number; topOffset: number };
   /** Controlled (Editor v3 Phase B): the active object comes from the
@@ -46,7 +44,7 @@ interface ProfileInspectorProps {
 // (CanvasBoard level), CONTROLLED by the editor selection; it only restores
 // and records the body scroll per object (session memory).
 export default function ProfileInspector({
-  id, card, baseColor, linksFits, buttonsFits, buttonsOverflow, buttonsGrowNext, viewCount, canvas, object, onSelectObject, memory,
+  id, card, baseColor, linksFits, buttonsFits, viewCount, canvas, object, onSelectObject, memory,
   onChange, onClose, returnFocusTo, top, width, mode, height, collapsed, onExpand,
 }: ProfileInspectorProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -113,7 +111,7 @@ export default function ProfileInspector({
         {/* Liquid glass: "Tu tarjeta" — the card's own colors for every color row. */}
         <CardPaletteProvider value={cardPalette(card, effective)}>
           <ProfileConfigMenu object={object} card={card} baseColor={baseColor} linksFits={linksFits}
-            buttonsFits={buttonsFits} buttonsOverflow={buttonsOverflow} buttonsGrowNext={buttonsGrowNext}
+            buttonsFits={buttonsFits}
             canvas={canvas} onChange={onChange} goTo={goTo} />
         </CardPaletteProvider>
       </div>

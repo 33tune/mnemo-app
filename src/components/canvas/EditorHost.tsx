@@ -41,11 +41,8 @@ export interface ProfileEditorFacts {
    * undefined = not applicable (free layout / no links). */
   linksFits?: boolean;
   viewCount?: number;
-  /** Link buttons (2026-10-14): they fit; else how many px the card is short. */
+  /** Link buttons: they are drawn (false only when dragged where they cannot sit). */
   buttonsFits?: boolean;
-  buttonsOverflow?: number;
-  /** px the card must grow for one more button (0 = room already). */
-  buttonsGrowNext?: number;
 }
 
 export interface EditorHostLayout {
@@ -138,8 +135,6 @@ export function EditorHost({
       baseColor={cardBaseColor(profile, getProfileCardEffects(profile))}
       linksFits={facts?.linksFits}
       buttonsFits={facts?.buttonsFits}
-      buttonsOverflow={facts?.buttonsOverflow}
-      buttonsGrowNext={facts?.buttonsGrowNext}
       viewCount={facts?.viewCount}
       canvas={canvas}
       object={target.objectId}

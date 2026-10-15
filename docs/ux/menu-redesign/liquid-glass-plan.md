@@ -274,9 +274,38 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
     no se ven.
   - Sin dato = sin bloque: ninguna tarjeta existente cambia. `fontWeight` existe en el tipo sin control (600).
 
+- **Motor de la tarjeta reescrito (pedido del usuario, 2026-10-15).** La auditoría (450 configuraciones × alturas)
+  encontró que el motor viejo elegía entre 5 distribuciones por puntaje y el puntaje cambiaba con el tamaño. Al
+  redimensionar: el espacio entre líneas crecía con el alto (hasta 30 px), la distribución saltaba, se escondían
+  textos o botones al AGRANDAR, las filas se comprimían a la mitad, y los íconos y botones quedaban pegados al
+  borde de abajo. Cambios (`cardComposition.ts`, `profileCardLayout.ts`, `textMeasure.ts`):
+  - **Dos formas:** foto arriba o abajo de los textos, o foto al costado. La elige dónde está la foto (al costado →
+    al lado; si no → arriba o abajo). La otra forma solo se usa si un texto no entra a lo ancho. **Nunca cambia por
+    la altura**, así que redimensionar en vertical no hace saltar nada.
+  - **El grupo entero se ancla:** foto, textos, íconos y botones se mueven juntos según la posición de la foto
+    (centrada = todo centrado). Arrastrar la foto mueve el grupo 1:1.
+  - **Espacios fijos:** 10 px entre filas, foto→textos según el tamaño de la foto, 14 px antes de los íconos y de
+    los botones. Ninguno depende del tamaño de la tarjeta.
+  - **Íconos y botones debajo del texto** (si no los arrastraste). Si los arrastrás quedan donde los dejaste. Si
+    arrastrás la ubicación o las visitas, el resto del texto se cierra.
+  - **Alineación** (izquierda / centro / derecha) alinea también la foto y los íconos, no solo las filas.
+  - **Nunca se comprime una fila.**
+  - **Tope de achique (decisión del usuario):** la tarjeta no se puede achicar más que su contenido. El borde se
+    frena ahí (arrastre, Ctrl/⌘+flechas y Medidas usan el mismo tope). Para achicar más hay que sacar contenido.
+    Agregar contenido agranda la tarjeta sola, en el mismo paso de deshacer. Sacar contenido no la achica.
+    Una tarjeta guardada más chica que su contenido se dibuja en su mínimo (también en el perfil público) y el
+    editor lo guarda.
+  - **Medición real del texto:** el ancho de cada texto se mide con la fuente elegida y la bio cuenta sus líneas
+    reales (palabras y saltos de línea). Antes se estimaba con un ancho promedio que ignoraba la fuente.
+  - **Interlineados alineados:** la bio reserva 1,6 (antes 1,5 y se cortaba la última línea); las fuentes mono
+    tienen interlineado 1,4 explícito.
+  - Se quitaron "Agrandar la tarjeta para que entren" y el crecimiento por botón (ya no hacen falta).
+  - Pendiente / no hecho: el Logo sigue siendo un elemento libre que no participa del motor (puede quedar encima
+    del texto si lo ponés ahí). `space_mobile` no guarda el tamaño nuevo (regla de mobile legacy).
+
 ## 5. Verificaciones pendientes (QA en navegador real, con login)
 
-Todo se verificó con tests (`npm test` 668/668), `tsc`, `next build` y capturas del harness de Chromium (los
+Todo se verificó con tests (`npm test` 631/631), `tsc`, `next build` y capturas del harness de Chromium (los
 inspectores y el shell montados con datos de prueba, sin backend). **No se probó la app real con sesión iniciada.**
 Hay que probar en local:
 
@@ -303,3 +332,7 @@ Hay que probar en local:
 9. **Botones:** agregar, editar, quitar y reordenar (grip y ↑ ↓); cada Forma, Relleno y hover; fuente y tamaño;
    tarjeta corta → aviso y "Agrandar"; arrastrar el bloque sin navegar; en el perfil público abren el link en una
    pestaña nueva; guardar y recargar; `space_mobile` sin cambios (ahí todavía no aparecen).
+10. **Motor de la tarjeta:** redimensionar en alto y ancho con foto arriba / al costado / abajo: el espacio entre
+    líneas no cambia, nada desaparece ni salta, el borde se frena en el mínimo; agregar texto o botones agranda la
+    tarjeta y Ctrl+Z lo deshace junto; arrastrar la foto mueve el grupo 1:1; arrastrar ubicación, íconos y botones;
+    fuentes anchas (Syne, etc.) sin "…"; tarjetas viejas y perfil público.
