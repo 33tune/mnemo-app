@@ -93,6 +93,8 @@ planeado acá hasta confirmarlo.
 >   `cardComposition.ts` se borró): posiciones libres, resolución de choques solo cuando existen (la foto nunca la
 >   mueve otro bloque, cadena, elásticos con más líneas), guardado al soltar (`blockLayout: 2`) y tope = bloques
 >   pegados en su orden. Detalle en `liquid-glass-plan.md` § 4.
+>   **Merge a `main` (OK del usuario, 2026-10-15):** las Fases L0–L6, botones con link, temas Lima y el motor libre
+>   están en `main` (fast-forward desde `feature/myland-menus-v4`). Sigue pendiente la QA con login en navegador real.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
