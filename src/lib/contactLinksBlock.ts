@@ -6,7 +6,9 @@
  * constants + pure functions, same architectural family as the files it wraps.
  */
 import type { CardFormat } from "@/types";
-import type { ElementBox, ElementRole } from "./cardComposition";
+/** A laid-out box (px, card coordinates). */
+type ElementBox = { x: number; y: number; w: number; h: number };
+type ElementRole = "pfp" | "name" | "handle" | "bio" | "descriptor" | "location" | "views" | "links" | "music" | "buttons";
 import { computeLinksNaturalSize } from "./linksBlockSizing";
 import { computeRequiredCardHeight } from "./cardGeometry";
 

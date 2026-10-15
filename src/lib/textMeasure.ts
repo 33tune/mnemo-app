@@ -1,8 +1,8 @@
 "use client";
 /**
- * Real text measurement for the card's composition engine (2026-10-15):
- * the width of each text with the font the user picked, and the bio's real
- * line count (its words, its line breaks), on an offscreen canvas. Without
+ * Real text measurement for the card's layout engine (2026-10-15): the
+ * width of each text (and of each word, for wrapping) with the font the user
+ * picked, on an offscreen canvas. Without
  * it the engine estimates from an average character width that ignores the
  * font — wide fonts got cut with "…" and narrow ones wasted room.
  *
@@ -42,26 +42,6 @@ function rawWidth(c: CanvasRenderingContext2D, text: string, f: MeasureFont): nu
   return w;
 }
 
-/** Greedy wrap like the browser (white-space: pre-wrap): breaks at spaces,
- * keeps explicit line breaks, a word longer than the line overflows on its
- * own line. */
-function wrapLines(c: CanvasRenderingContext2D, text: string, f: MeasureFont, availWidth: number): number {
-  let lines = 0;
-  for (const paragraph of text.split("\n")) {
-    const words = paragraph.split(" ");
-    let line = "";
-    let count = 1;
-    for (const word of words) {
-      const candidate = line ? `${line} ${word}` : word;
-      if (!line || rawWidth(c, candidate, f) <= availWidth) { line = candidate; continue; }
-      count += 1;
-      line = word;
-    }
-    lines += count;
-  }
-  return Math.max(1, lines);
-}
-
 let measurer: TextMeasurer | undefined;
 
 /** The shared measurer, or undefined outside the browser. */
@@ -70,10 +50,7 @@ export function getTextMeasurer(): TextMeasurer | undefined {
   const c = context();
   if (!c) return undefined;
   listen();
-  measurer = {
-    width: (text, f) => rawWidth(c, text, f),
-    lines: (text, f, availWidth) => wrapLines(c, text, f, availWidth),
-  };
+  measurer = { width: (text, f) => rawWidth(c, text, f) };
   return measurer;
 }
 

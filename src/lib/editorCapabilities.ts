@@ -107,7 +107,9 @@ export const LIENZO = "Lienzo (arrastrar)";
 export const CAPAS = "Capas";
 
 const LEGACY_POS = "pre-composition position/scale (Stage 3 replaced it with block anchors); kept for old data";
-const BLOCK_DRAG = (block: string) => card(`${LIENZO} › bloque ${block}`, `${block}: ["${block}AnchorX", "${block}AnchorY"]`, "[fx]: latest.x");
+// Free layout engine (2026-10-15): one drag for every block (startPartDrag);
+// the drop saves every block's position in one patch (positionsPatch).
+const BLOCK_DRAG = (block: string) => card(`${LIENZO} › bloque ${block}`, "onMouseDown={down(\"" + block + "\")}", "positionsPatch(card, done, card.w, h)");
 const TEXT_PER_ROLE = "per-text effects (2026-10-14): legacy card-wide value, rendered by every role without its own and split into the roles on the first edit — edited in each text's Efectos del texto";
 const ROLE_COLOR = "text color is owned by each role (its object › Color › Color — Block 1: una propiedad, un dueño)";
 
@@ -126,8 +128,13 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   rotation: unsupported("ProfileCard is fixed and centered (no rotation)"),
   format: retired("only a soft FORMAT_BIAS tie-break since C.2.2; no longer chosen in the UI"),
   sizeScale: retired("legacy scale, replaced by free width/height"),
-  pfpAnchorX: card(`${LIENZO} › foto`, "pfpAnchorX: latest.x"),
-  pfpAnchorY: card(`${LIENZO} › foto`, "pfpAnchorY: latest.y"),
+  pfpAnchorX: BLOCK_DRAG("pfp"), pfpAnchorY: BLOCK_DRAG("pfp"),
+  blockLayout: system("set with the positions when a drag ends (profileCardLayout.ts positionsPatch)"),
+  "blockWidths.identity": system("width the engine gave a block to fit (positionsPatch)"),
+  "blockWidths.location": system("width the engine gave a block to fit (positionsPatch)"),
+  "blockWidths.views": system("width the engine gave a block to fit (positionsPatch)"),
+  "blockWidths.links": system("width the engine gave a block to fit (positionsPatch)"),
+  "blockWidths.buttons": system("width the engine gave a block to fit (positionsPatch)"),
   pfpSizePx: content(`${FOTO_OBJ} › Forma › Tamaño`, "id.setPfpSize(v)"),
   pfpRadius: content(`${FOTO_OBJ} › Forma › Forma`, "id.setPfpRadius(v)"),
   textAlign: type(`${TODOS} › Alineación y espaciado › Alineación`, "onChange({ textAlign: v"),
@@ -152,8 +159,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "linkButtonStyle.hover.lift": btns(`${BOTONES} › Al pasar el cursor › Elevar`, "ctl.setHover({ lift: v ? undefined : false })"),
   "linkButtonStyle.hover.glow": btns(`${BOTONES} › Al pasar el cursor › Brillo`, "ctl.setHover({ glow: v || undefined })"),
   "linkButtonStyle.hover.invert": btns(`${BOTONES} › Al pasar el cursor › Invertir`, "ctl.setHover({ invert: v || undefined })"),
-  buttonsAnchorX: card(`${LIENZO} › bloque buttons`, 'buttons:  ["buttonsAnchorX", "buttonsAnchorY"]', "[fx]: latest.x"),
-  buttonsAnchorY: card(`${LIENZO} › bloque buttons`, 'buttons:  ["buttonsAnchorX", "buttonsAnchorY"]', "[fx]: latest.x"),
+  buttonsAnchorX: BLOCK_DRAG("buttons"), buttonsAnchorY: BLOCK_DRAG("buttons"),
   musicAnchorX: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   musicAnchorY: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   music: retired("Music is an independent canvas element now (MusicCardData)"),

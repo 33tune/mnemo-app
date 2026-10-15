@@ -57,8 +57,11 @@ test("every part is an inspector object; no card-level object is a part", () => 
 });
 
 test("ProfileCard: data-role on every part wrapper it already renders (composed and free), no new hot controls", () => {
-  for (const r of ["name", "handle", "descriptor", "bio"]) assert.ok(CARD.includes(`<div {...partProps("${r}")} style={{ position: "absolute", left: boxes.`), r);
-  for (const r of ["photo", "location", "views", "links", "buttons", "logo"]) assert.ok(CARD.includes(`{...partProps("${r}")}`), r);
+  // Free layout engine (2026-10-15): every text row goes through row(role, …),
+  // which puts the part marker on the row's own wrapper.
+  assert.ok(CARD.includes("<div {...partProps(role)} style={{ position: \"absolute\", left: r.x, top: r.y"));
+  for (const r of ["name", "handle", "descriptor", "bio", "location", "views"]) assert.ok(CARD.includes(`row("${r}", `), r);
+  for (const r of ["photo", "links", "buttons", "logo"]) assert.ok(CARD.includes(`{...partProps("${r}")}`), r);
   assert.ok(CARD.includes("{...partProps(elemKey as PartRole)}"), "free layout wrappers");
   // The hit-stack is unchanged: text lines are NOT marked hot (only the
   // existing photo / links / logo / chrome markers, plus the link buttons,

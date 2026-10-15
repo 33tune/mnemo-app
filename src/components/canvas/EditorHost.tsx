@@ -41,7 +41,7 @@ export interface ProfileEditorFacts {
    * undefined = not applicable (free layout / no links). */
   linksFits?: boolean;
   viewCount?: number;
-  /** Link buttons: they are drawn (false only when dragged where they cannot sit). */
+  /** Everything fits (false only when the card is at its maximum size and still cannot hold it all). */
   buttonsFits?: boolean;
 }
 

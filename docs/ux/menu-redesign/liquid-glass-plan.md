@@ -303,9 +303,33 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
   - Pendiente / no hecho: el Logo sigue siendo un elemento libre que no participa del motor (puede quedar encima
     del texto si lo ponés ahí). `space_mobile` no guarda el tamaño nuevo (regla de mobile legacy).
 
+- **Motor libre de la tarjeta (decisiones del usuario, 2026-10-15) — reemplaza al motor de "dos formas" de arriba.**
+  El usuario compone; el motor solo actúa ante un choque real (`src/lib/cardSolver.ts`,
+  `src/lib/profileCardLayout.ts`, `ProfileCard.tsx`):
+  - Cada bloque (foto, texto = nombre + @usuario + frase + bio, ubicación, visitas, íconos, botones) tiene una
+    posición **deseada** (la que dejó el usuario, anclas normalizadas) y una **resuelta**, calculada siempre desde
+    cero (sin acumulación ni recálculos en cadena).
+  - **Sin choque, nada se mueve.** Con choque, se corre lo que molesta al lugar libre más cercano, en cadena, por
+    prioridad: la **foto es el núcleo** (nunca la mueve otro bloque), después el bloque arrastrado, después el
+    resto. Lo que estaba apilado justo debajo de un bloque empujado lo acompaña (se conserva el orden).
+  - Los bloques elásticos se angostan para entrar al lado de algo: los textos toman **más líneas** (todos los
+    textos envuelven, nada se corta con "…"), los íconos pasan a otra fila, los botones se angostan (mínimo 112 px).
+  - Mientras arrastrás: el bloque sigue al mouse 1:1 (el arrastre arranca a los 4 px, un click no mueve nada),
+    imán con guías (bordes y centro de la tarjeta y de los otros bloques), continuidad entre cuadros, preferencia
+    por el sentido del empuje y, si no hay lugar, la **tarjeta crece hacia abajo** en vez de mandar un bloque lejos.
+    Todo es reversible dentro del arrastre. **Al soltar** se guardan las posiciones de todos los bloques (un solo
+    paso de deshacer, `blockLayout: 2`, `blockWidths` para un bloque que quedó angosto).
+  - **Tope de achique:** la medida mínima donde los bloques, en el orden de tu composición, quedan pegados sin
+    superponerse (compactación vertical). Ahí el borde se frena; nunca desaparece nada.
+  - Tarjetas sin posiciones guardadas: disposición inicial apilada y centrada; una tarjeta posicionada con el motor
+    anterior conserva esas posiciones. Los botones siguen el ancho de la tarjeta.
+  - Pendiente: el Logo sigue siendo un elemento libre fuera del motor (puede quedar encima de algo). En un caso
+    extremo (foto arrastrada en diagonal por el medio de una tarjeta llena, al alto máximo de 636 px) los botones
+    se acomodan al costado. Sin QA en navegador real con login.
+
 ## 5. Verificaciones pendientes (QA en navegador real, con login)
 
-Todo se verificó con tests (`npm test` 631/631), `tsc`, `next build` y capturas del harness de Chromium (los
+Todo se verificó con tests (`npm test` 630/630), `tsc`, `next build` y capturas del harness de Chromium (los
 inspectores y el shell montados con datos de prueba, sin backend). **No se probó la app real con sesión iniciada.**
 Hay que probar en local:
 
@@ -336,3 +360,7 @@ Hay que probar en local:
     líneas no cambia, nada desaparece ni salta, el borde se frena en el mínimo; agregar texto o botones agranda la
     tarjeta y Ctrl+Z lo deshace junto; arrastrar la foto mueve el grupo 1:1; arrastrar ubicación, íconos y botones;
     fuentes anchas (Syne, etc.) sin "…"; tarjetas viejas y perfil público.
+11. **Motor libre:** arrastrar la foto por encima del texto y a las 4 esquinas; arrastrar el texto, los íconos y
+    los botones a cualquier lugar y encima de la foto; un click no mueve nada; achicar la tarjeta hasta el tope
+    (bloques pegados, nada desaparece); textos largos en tarjetas angostas; guardar, recargar, deshacer y rehacer;
+    perfil público igual al editor.

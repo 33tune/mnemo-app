@@ -89,6 +89,10 @@ planeado acá hasta confirmarlo.
 >   medición real del texto y **tope de achique por contenido** (`profileCardLayout.ts`, usado por render, resize,
 >   Ctrl/⌘+flechas y Medidas). Supera lo que dice "Arquitectura" sobre las 5 topologías, la PFP autoritativa sola,
 >   Links "no estructural" y el growth con `extraBlocks`. Detalle en `liquid-glass-plan.md` § 4.
+>   **Ese motor fue reemplazado el mismo día por el MOTOR LIBRE** (`cardSolver.ts` + `profileCardLayout.ts`;
+>   `cardComposition.ts` se borró): posiciones libres, resolución de choques solo cuando existen (la foto nunca la
+>   mueve otro bloque, cadena, elásticos con más líneas), guardado al soltar (`blockLayout: 2`) y tope = bloques
+>   pegados en su orden. Detalle en `liquid-glass-plan.md` § 4.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

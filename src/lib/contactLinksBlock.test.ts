@@ -5,7 +5,7 @@ import {
   CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX, CONTACT_LINK_GAP,
 } from "./contactLinksBlock";
 import { getCardConstraints } from "./cardGeometry";
-import type { ElementBox } from "./cardComposition";
+type ElementBox = { x: number; y: number; w: number; h: number };
 
 // ── Data: 0 / 1 / many links (Stage 4.2-B §11 "Data") ────────────────────────
 

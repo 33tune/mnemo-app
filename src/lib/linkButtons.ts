@@ -9,12 +9,10 @@
  * LinkButtonsBlock with `resolveLinkButtonStyle` + `linkButtonsBlockSize`;
  * nothing here assumes the desktop canvas).
  *
- * Engine contract (engine rewrite 2026-10-15): the 7th, lowest-priority
- * block of computeBlockLayout. Never dragged, it flows under the texts and
- * the icons row, as part of the anchored group; the card's content floor
- * (profileCardLayout.ts) keeps it always inside the card. Dragged, it sits
- * at its anchor and is hidden only when it cannot sit there
- * (linkButtonsPlaced).
+ * Layout (free layout engine, 2026-10-15): one more block of the card
+ * (profileCardLayout.ts) — as wide as the card allows by default ("full") or
+ * its label's width ("fit"), and narrower when it has to fit beside another
+ * block, down to BUTTONS_MIN_W; the label cuts with "…" only then.
  */
 import type { CSSProperties } from "react";
 import type { LinkButtonStyle } from "@/types";
@@ -110,23 +108,6 @@ export function linkButtonCss(style: ResolvedLinkButtonStyle, fontFamily: string
     transform: hovered && style.hover.lift ? "translateY(-2px)" : undefined,
     transition: "transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, color 160ms ease",
   };
-}
-
-interface Box { x: number; y: number; w: number; h: number }
-const overlaps = (a: Box, b: Box) =>
-  Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
-
-/** The buttons got a real place: inside the padded card AND not on top of
- * any earlier block (the engine resolves overlaps when there is room; with
- * none it can only clamp). Otherwise ProfileCard hides them. */
-export function linkButtonsPlaced(
-  layout: { boxes: Partial<Record<string, Box>>; identityRect?: Box }, cardH: number, padding: number,
-): boolean {
-  const b = layout.boxes.buttons;
-  if (!b || b.y + b.h > cardH - padding + 0.5) return false;
-  const others = [layout.boxes.pfp, layout.identityRect, layout.boxes.location, layout.boxes.views, layout.boxes.links]
-    .filter((o): o is Box => !!o);
-  return !others.some(o => overlaps(o, b));
 }
 
 /** "https://" added when missing (what the <a> opens). */

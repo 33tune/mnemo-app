@@ -37,7 +37,7 @@ export interface SectionContext {
   /** Stage 4.2-C.2.7: render-time verdict from ProfileCard's blockFits() —
    * only an explicit `false` warns. */
   linksFits?: boolean;
-  /** Link buttons: drawn (false only when dragged where they cannot sit). */
+  /** Everything fits (false only when the card is at its maximum size and still cannot hold it all). */
   buttonsFits?: boolean;
   /** Iteration 0 (O1 "Medidas"): the canvas the card is centered in.
    * Absent (space_mobile) = no Medidas. */

@@ -341,10 +341,10 @@ export type ProfileCardData = {
   // Legacy-safe: absent on any card means "vertical" default (see cardGeometry.ts).
   format?:         CardFormat;
   sizeScale?:      number; // 0-1, see resolveCardSize() in cardGeometry.ts
-  // Composition (Stage 3B) — where the user dragged the PFP, 0-1 normalized
-  // within the card's padded content area. Feeds computeComposition() in
-  // cardComposition.ts. Independent of the legacy photoX/photoY (free mode,
-  // 0-100, % of the whole card) below — do not conflate the two.
+  // Where the photo is, 0-1 normalized within the card's padded content area
+  // (anchorToRect). The free layout engine (2026-10-15, profileCardLayout.ts /
+  // cardSolver.ts) reads it like every block anchor below. Independent of the
+  // legacy photoX/photoY (free mode, 0-100, % of the whole card).
   pfpAnchorX?:     number;
   pfpAnchorY?:     number;
   // PFP size/shape (Stage 3B.2-B) — continuous overrides. Absent means "use
@@ -352,15 +352,11 @@ export type ProfileCardData = {
   // renders unchanged. See resolvePfpSize() in cardGeometry.ts.
   pfpSizePx?:      number;
   pfpRadius?:      number; // 0-100: 0 = square corners, 100 = full circle.
-  // Text alignment of the identity/content block — orthogonal to where the
-  // composition engine places that block (anchor-driven). See cardComposition.ts.
+  // Text alignment inside each text block (and of the starting arrangement).
   textAlign?:      "left" | "center" | "right";
-  // Block position overrides (Stage 3B.3) — same normalized-anchor model as
-  // pfpAnchorX/Y (0-1 within the card's padded content area), one pair per
-  // semantic block. Absent means "no override, use the automatic base
-  // composition" (computeComposition's existing placement) — every existing
-  // card has none of these set and renders exactly as before. See
-  // computeBlockLayout() in cardComposition.ts. Independent of the legacy
+  // Block positions — same normalized-anchor model as pfpAnchorX/Y, one pair
+  // per block, saved when a drag ends (positionsPatch). See
+  // profileCardLayout.ts for cards without them. Independent of the legacy
   // nameX/nameY/etc. (free mode) below — do not conflate the two.
   identityAnchorX?: number; // Name + Handle + Descriptor + Bio, moved as one group
   identityAnchorY?: number;
@@ -368,30 +364,32 @@ export type ProfileCardData = {
   locationAnchorY?: number;
   viewsAnchorX?:    number;
   viewsAnchorY?:    number;
-  // Links block anchor (Stage 4.2-A infrastructure, wired to a real block in
-  // Stage 4.2-B) — same model as the three above. See computeBlockLayout()'s
-  // LinksBlockInput in cardComposition.ts.
+  // Icons row (Contact Links) anchor — same model as the three above.
   linksAnchorX?:    number;
   linksAnchorY?:    number;
   // Contact Links (Stage 4.2-B) — the internal block those anchors position.
-  // Absent/empty means "no Contact Links block", and every existing card
-  // renders exactly as before (see cardComposition.ts's regression test).
+  // Absent/empty means "no Contact Links block".
   contactLinks?:    ContactLink[];
   // Icon diameter override for Contact Links (Stage 4.2-C.2.1, menu slider —
   // see ProfileContactLinksMenu.tsx). Absent -> CONTACT_LINK_ICON_SIZE
   // (contactLinksBlock.ts), same as before this field existed. Clamped to
   // CONTACT_LINK_ICON_SIZE_MIN/MAX at the menu input boundary.
   linksIconSize?:   number;
-  // Link buttons (Linktree-style, user decision 2026-10-14): a 7th internal
-  // block, after the Contact Links icons — see computeBlockLayout()'s
-  // ButtonsBlockInput and src/lib/linkButtons.ts (pure sizing / style, the
+  // Link buttons (Linktree-style, user decision 2026-10-14): one more block
+  // of the card — src/lib/linkButtons.ts holds the pure style / sizing (the
   // ONE place any renderer — today ProfileCard, later mobile — reads them).
-  // Absent / empty = no block: every existing card renders exactly as before.
+  // Absent / empty = no block.
   linkButtons?:     LinkButton[];
   /** One style for every button (consistent, like Linktree). */
   linkButtonStyle?: LinkButtonStyle;
   buttonsAnchorX?:  number;
   buttonsAnchorY?:  number;
+  /** Free layout engine (2026-10-15): 2 = every block's position is saved
+   * (the anchors above, pfp included) — set by the first drag that ends.
+   * Absent: the starting arrangement (profileCardLayout.ts). */
+  blockLayout?:     2;
+  /** Width of a block the engine made narrower to fit (its texts wrap). */
+  blockWidths?:     Partial<Record<"identity" | "location" | "views" | "links" | "buttons", number>>;
   // DEPRECATED — Music left ProfileCard's internal composition (it's now an
   // independent canvas element, MusicCardData/MusicCardWidget.tsx, with its
   // own audioUrl/title/artist/volume). These 4 fields are kept ONLY for

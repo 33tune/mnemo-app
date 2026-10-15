@@ -19,7 +19,7 @@ interface Props {
   baseColor: string;
   /** ProfileCard's render verdict (EditorHost facts). The card grows to fit
    * its content by itself (profileCardLayout.ts), so this is false only when
-   * the buttons were dragged where they cannot sit. */
+   * the card is at its maximum size and still cannot hold everything. */
   fits?: boolean;
   onChange: (patch: Partial<ProfileCardData>) => void;
 }
@@ -67,7 +67,7 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <MenuSection label="Botones" pinned>
         {buttons.length > 0 && fits === false && (
-          <MenuNote tone="warn">No entran donde los dejaste: arrastralos a un lugar libre de la tarjeta.</MenuNote>
+          <MenuNote tone="warn">La tarjeta llegó a su tamaño máximo y no entra todo: sacá contenido o achicá textos y botones.</MenuNote>
         )}
         {buttons.length > 0 && (
           <ButtonList buttons={buttons} editingId={editingId} draft={draft} setDraft={setDraft}
