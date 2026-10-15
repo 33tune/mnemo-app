@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ProfileCardData } from "@/types";
 import {
-  profileLayout, profileCardMinSize, clampProfileCardSize, positionsPatch, formatViewCount,
+  profileLayout, profileCardMinSize, clampProfileCardSize, positionsPatch, formatViewCount, graphemes,
   type DragState, type BlockKey, type Rect,
 } from "./profileCardLayout";
 import { getFreeformCardBounds } from "./cardGeometry";
@@ -151,6 +151,36 @@ test("measured text drives the sizes (real fonts)", () => {
   const est = profileLayout(CARD);
   const real = profileLayout(CARD, { measure });
   assert.notEqual(real.rects.identity!.h, est.rects.identity!.h);
+});
+
+test("a word with no spaces (handle, pasted link, emotes) breaks into more lines: never wider than the card", () => {
+  const long = "x".repeat(80);
+  const emotes = "🌸✨🖤👨‍👩‍👧🇦🇷👍🏽".repeat(12);
+  const cases: Partial<ProfileCardData>[] = [
+    { name: long }, { handle: long }, { status: long }, { location: long }, { bio: long }, { bio: emotes },
+  ];
+  for (const c of cases) {
+    const card = { ...CARD, ...c, w: 240, h: 636 } as ProfileCardData;
+    const l = profileLayout(card);
+    assert.ok(l.fits, JSON.stringify(Object.keys(c)));
+    assertClean(l.rects, 240, 636, 20, Object.keys(c)[0]);
+    assert.equal(profileCardMinSize(card, 240).w, 240, `${Object.keys(c)[0]}: the width floor is not the word`);
+  }
+  const bio = profileLayout({ ...CARD, bio: long, w: 240, h: 636 } as ProfileCardData).rows.bio!;
+  assert.ok(bio.lines > 1, "the long word takes more lines");
+});
+
+test("stretch for a long word, then shrink back: the card is not locked wide", () => {
+  const card = { ...CARD, bio: "a".repeat(120), w: 600, h: 400 } as ProfileCardData;
+  const back = clampProfileCardSize(card, 240, 400);
+  assert.equal(back.w, 240);
+  const l = profileLayout({ ...card, ...back } as ProfileCardData);
+  assert.ok(l.fits);
+  assertClean(l.rects, back.w, back.h);
+});
+
+test("an emoji built from several code points is one piece (never split)", () => {
+  assert.deepEqual(graphemes("👨‍👩‍👧🇦🇷👍🏽a"), ["👨‍👩‍👧", "🇦🇷", "👍🏽", "a"]);
 });
 
 test("views counter format", () => {

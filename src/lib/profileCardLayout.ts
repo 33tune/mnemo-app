@@ -102,11 +102,34 @@ export interface TextRowSpec {
   linesAt(w: number): number;
 }
 
+/** The visible characters of a string: an emoji with modifiers, a flag or a
+ * family (ZWJ) is ONE piece, exactly where the browser can break a word. */
+const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl
+  ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : undefined;
+export function graphemes(s: string): string[] {
+  return segmenter ? Array.from(segmenter.segment(s), g => g.segment) : Array.from(s);
+}
+
+/**
+ * A text row. It wraps like the card renders it (`overflow-wrap: anywhere`):
+ * a word that does not fit goes to the next line, and a word longer than a
+ * whole line (no spaces: a handle, a pasted link, emotes one after the
+ * other) breaks between its characters. So the narrowest a row can be is
+ * its widest character, never its longest word (bug 2026-10-15: a long
+ * word made the block wider than the card and locked the card's width).
+ */
 function makeRow(text: string, lineH: number, widthOf: (s: string) => number, explicitBreaks: boolean): TextRowSpec {
   const paragraphs = explicitBreaks ? text.split("\n") : [text.replace(/\n/g, " ")];
-  const words = paragraphs.map(p => p.split(" "));
+  const words = paragraphs.map(p => p.split(" ").map(w => ({ w: widthOf(w), text: w })));
   const natW = Math.max(...paragraphs.map(p => widthOf(p))) + SAFETY;
-  const minW = Math.max(...words.flat().map(w => widthOf(w))) + SAFETY;
+  const pieces = new Map<string, number[]>();
+  const piecesOf = (word: string) => {
+    let hit = pieces.get(word);
+    if (!hit) { hit = graphemes(word).map(g => widthOf(g)); pieces.set(word, hit); }
+    return hit;
+  };
+  const widestChar = Math.max(0, ...words.flat().flatMap(w => piecesOf(w.text)));
+  const minW = widestChar + SAFETY;
   const space = widthOf(" ");
   const cache = new Map<number, number>();
   return {
@@ -115,16 +138,20 @@ function makeRow(text: string, lineH: number, widthOf: (s: string) => number, ex
       const key = Math.round(w);
       const hit = cache.get(key);
       if (hit != null) return hit;
-      const avail = Math.max(1, w - SAFETY);
+      const avail = Math.max(widestChar, w - SAFETY);
       let lines = 0;
       for (const p of words) {
-        let lineW = -1, count = 1;
+        let lineW = 0, count = 1, empty = true;
         for (const word of p) {
-          const ww = widthOf(word);
-          if (lineW < 0) { count += Math.max(0, Math.ceil(ww / avail) - 1); lineW = ww > avail ? ww % avail : ww; continue; }
-          if (lineW + space + ww <= avail) { lineW += space + ww; continue; }
-          count += Math.max(1, Math.ceil(ww / avail));
-          lineW = ww > avail ? ww % avail : ww;
+          const need = empty ? word.w : lineW + space + word.w;
+          if (need <= avail) { lineW = need; empty = false; continue; }
+          if (!empty) { count++; lineW = 0; empty = true; }
+          if (word.w <= avail) { lineW = word.w; empty = false; continue; }
+          // Longer than a whole line: break between characters.
+          for (const g of piecesOf(word.text)) {
+            if (!empty && lineW + g > avail) { count++; lineW = 0; }
+            lineW += g; empty = false;
+          }
         }
         lines += count;
       }

@@ -326,6 +326,10 @@ Retomar desde la última línea. Cada fase: código → `npm test` / `tsc` / `ne
   - Pendiente: el Logo sigue siendo un elemento libre fuera del motor (puede quedar encima de algo). En un caso
     extremo (foto arrastrada en diagonal por el medio de una tarjeta llena, al alto máximo de 636 px) los botones
     se acomodan al costado. Sin QA en navegador real con login.
+- **Palabras largas (bug del usuario, 2026-10-15):** el ancho mínimo de un texto era su palabra más larga; una
+  palabra sin espacios (o emotes pegados) dejaba el bloque más ancho que la tarjeta y trababa el achique en ese
+  ancho. Ahora `makeRow` parte las palabras que no entran entre caracteres (grafemas: un emoji compuesto nunca se
+  corta), igual que el render (`overflow-wrap: anywhere`); el mínimo es el carácter más ancho.
 
 ## 5. Verificaciones pendientes (QA en navegador real, con login)
 
@@ -364,3 +368,6 @@ Hay que probar en local:
     los botones a cualquier lugar y encima de la foto; un click no mueve nada; achicar la tarjeta hasta el tope
     (bloques pegados, nada desaparece); textos largos en tarjetas angostas; guardar, recargar, deshacer y rehacer;
     perfil público igual al editor.
+12. **Palabras largas:** una bio, un @usuario, un nombre o una ubicación sin espacios (letras o emotes pegados)
+    en una tarjeta angosta: se parten en renglones dentro de la tarjeta; después de estirarla se puede volver a
+    achicar.
