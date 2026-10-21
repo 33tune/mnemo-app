@@ -51,7 +51,7 @@ export function useTypographyActions(card: ProfileCardData, baseColor: string, o
   const typography = resolveCardTypography(card, nameFontSize);
   const colors = resolveCardColors(baseColor, {
     name: card.nameColor, handle: card.handleColor, descriptor: card.descriptorColor,
-    location: card.locationColor, bio: card.bioColor, views: card.viewsColor,
+    location: card.locationColor, bio: card.bioColor, views: card.viewsColor, about: card.aboutColor,
   });
 
   // Block 1 (single owner): Location/Views text color used to have two
@@ -229,7 +229,7 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
   // Sombra / Brillo / Pulso / Contorno / Desenfoque follow its fill effects.
   const SAMPLE: Record<TextRole, string | undefined> = {
     name: card.name, handle: card.handle ? `@${card.handle}` : undefined, descriptor: card.status,
-    location: card.location, bio: card.bio, views: "1.284",
+    location: card.location, bio: card.bio, views: "1.284", about: card.aboutText,
   };
   const extra = { sample: (SAMPLE[role] ?? "").trim().slice(0, 2) || "Aa", fxTiles, fxActive };
   switch (role) {
@@ -329,6 +329,24 @@ export function RoleTextSection({ card, baseColor, onChange, role }: SectionProp
           // No letterSpacing props: bio never had that concept (see
           // cardTypography.ts) — omitting them hides the row entirely.
           {...makeGradientHandlers("bio")} {...extra}
+        />
+      );
+    case "about":
+      // "Sobre mí" (2026-10-21): the bio's controls on its own fields.
+      return (
+        <RoleTypographyFields
+          label="Sobre mí"
+          fontModified={card.aboutFont !== undefined} onFontReset={() => onChange({ aboutFont: undefined })}
+          sizeModified={card.aboutFontSize !== undefined} onSizeReset={() => onChange({ aboutFontSize: undefined })}
+          weightModified={card.aboutFontWeight !== undefined} onWeightReset={() => onChange({ aboutFontWeight: undefined })}
+          lineHeightModified={card.aboutLineHeight !== undefined} onLineHeightReset={() => onChange({ aboutLineHeight: undefined })}
+          color={colors.about} hasColorOverride={!!card.aboutColor}
+          onColorChange={v => onChange({ aboutColor: v })} onColorClear={() => onChange({ aboutColor: undefined })}
+          font={card.aboutFont ?? MONO_ROLE_FONT_DEFAULT} onFontChange={v => onChange({ aboutFont: v })}
+          fontSize={typography.about.fontSize} fontSizeMin={R.about.fontSize[0]} fontSizeMax={R.about.fontSize[1]} onFontSizeChange={v => onChange({ aboutFontSize: v })}
+          weight={typography.about.fontWeight ?? ROLE_WEIGHT_FALLBACK} onWeightChange={v => onChange({ aboutFontWeight: v })}
+          lineHeight={typography.about.lineHeight} lineHeightMin={R.about.lineHeight![0]} lineHeightMax={R.about.lineHeight![1]} onLineHeightChange={v => onChange({ aboutLineHeight: v })}
+          {...makeGradientHandlers("about")} {...extra}
         />
       );
     case "views":

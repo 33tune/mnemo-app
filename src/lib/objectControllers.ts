@@ -145,7 +145,7 @@ export function identityController(card: ProfileCardData, write: Write<Partial<P
 
 // ── Metadata (Frase / Ubicación / Bio / Visitas) ───────────────────────────
 
-type MetadataKey = "status" | "location" | "bio";
+type MetadataKey = "status" | "location" | "bio" | "aboutText";
 
 export function metadataController(write: Write<Partial<ProfileCardData>>) {
   return {

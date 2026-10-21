@@ -49,6 +49,9 @@ export const TYPOGRAPHY_METRICS = {
   viewsWidthPx: 84,                  // "12.3K views" @ letterSpacing 1.5 + uppercase — not length-dependent
 } as const;
 
+/** "Sobre mí" default size: a paragraph, one step above the bio's 8. */
+export const ABOUT_FONT_SIZE = 9;
+
 // Render-only defaults — these never fed measurement before this stage either
 // (see file header). Kept here (not duplicated in ProfileCard.tsx) so
 // resolveCardTypography is the one place that knows them.
@@ -142,6 +145,10 @@ export interface RoleTypographyCardFields {
   locationFontWeight?: number;
   bioFontWeight?: number;
   viewsFontWeight?: number;
+  /** "Sobre mí" (2026-10-21): the bio's model (size, line height, weight). */
+  aboutFontSize?: number;
+  aboutLineHeight?: number;
+  aboutFontWeight?: number;
   /** Stage FASE 2: the one mono role FASE 1 left non-overridable — render
    * only, views' width was never letter-spacing-derived. */
   viewsLetterSpacing?: number;
@@ -153,6 +160,7 @@ export interface ResolvedCardTypography {
   descriptor: { fontSize: number; letterSpacing: number; lineHeight?: number; fontWeight?: number };
   location: { fontSize: number; letterSpacing: number; lineHeight?: number; fontWeight?: number };
   bio: { fontSize: number; lineHeight: number; fontWeight?: number };
+  about: { fontSize: number; lineHeight: number; fontWeight?: number };
   views: { fontSize: number; letterSpacing: number; lineHeight?: number; fontWeight?: number };
 }
 
@@ -198,6 +206,11 @@ export function resolveCardTypography(card: RoleTypographyCardFields, nameFontSi
       fontSize: card.bioFontSize ?? 8,
       lineHeight: card.bioLineHeight ?? RENDER_DEFAULTS.bioLineHeight,
       fontWeight: card.bioFontWeight,
+    },
+    about: {
+      fontSize: card.aboutFontSize ?? ABOUT_FONT_SIZE,
+      lineHeight: card.aboutLineHeight ?? RENDER_DEFAULTS.bioLineHeight,
+      fontWeight: card.aboutFontWeight,
     },
     views: {
       fontSize: card.viewsFontSize ?? TYPOGRAPHY_METRICS.viewsFontSize,

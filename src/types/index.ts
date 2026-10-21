@@ -6,7 +6,7 @@ export type CanvasMode = 'home' | 'space' | 'space_mobile';
 // background/textColor/iconColor/radius only, deliberately excludes anything
 // that would change the box computeBlockLayout() measures (padding, border
 // width, size) — see that file's header for why.
-export type BlockStyleKey = "identity" | "location" | "views" | "links";
+export type BlockStyleKey = "identity" | "location" | "views" | "links" | "about";
 
 /** A Linktree-style button inside ProfileCard (2026-10-14). The platform
  * icon is derived from `url` on render (detectPlatform), never stored. */
@@ -138,7 +138,7 @@ export interface RoleTextEffect {
   /** filter: blur(px) on this role's glyphs. */
   blur?:            number;
 }
-export type TextRole = "name" | "handle" | "descriptor" | "location" | "bio" | "views";
+export type TextRole = "name" | "handle" | "descriptor" | "location" | "bio" | "views" | "about";
 
 // Stage FASE 3: shared by CardEffects.glow.animation and
 // CardEffects.pfp.glow.animation — same shape, same resolver
@@ -382,6 +382,12 @@ export type ProfileCardData = {
   linkButtons?:     LinkButton[];
   /** One style for every button (consistent, like Linktree). */
   linkButtonStyle?: LinkButtonStyle;
+  /** "Sobre mí" (2026-10-21): a free paragraph, its own block in the
+   * layout engine (Perfil › Sobre mí). Plain text, up to ABOUT_MAX chars,
+   * line breaks kept. Absent / empty = no block. */
+  aboutText?:       string;
+  aboutAnchorX?:    number;
+  aboutAnchorY?:    number;
   buttonsAnchorX?:  number;
   buttonsAnchorY?:  number;
   /** Free layout engine (2026-10-15): 2 = every block's position is saved
@@ -389,7 +395,7 @@ export type ProfileCardData = {
    * Absent: the starting arrangement (profileCardLayout.ts). */
   blockLayout?:     2;
   /** Width of a block the engine made narrower to fit (its texts wrap). */
-  blockWidths?:     Partial<Record<"identity" | "location" | "views" | "links" | "buttons", number>>;
+  blockWidths?:     Partial<Record<"identity" | "location" | "views" | "links" | "buttons" | "about", number>>;
   // DEPRECATED — Music left ProfileCard's internal composition (it's now an
   // independent canvas element, MusicCardData/MusicCardWidget.tsx, with its
   // own audioUrl/title/artist/volume). These 4 fields are kept ONLY for
@@ -516,6 +522,11 @@ export type ProfileCardData = {
   descriptorFontWeight?: number;
   locationFontWeight?:   number;
   bioFontWeight?:        number;
+  // "Sobre mí" (2026-10-21): the same text style as the bio, its own fields.
+  aboutFont?:            TextFont;
+  aboutFontSize?:        number;
+  aboutFontWeight?:      number;
+  aboutLineHeight?:      number;
   viewsFontWeight?:      number;
   // Stage FASE 1: per-role text color, resolved via resolveCardColors
   // (cardColors.ts). Absent = the exact opacity-derived color each role
@@ -527,6 +538,7 @@ export type ProfileCardData = {
   descriptorColor?: string;
   locationColor?:   string;
   bioColor?:        string;
+  aboutColor?:      string;
   viewsColor?:      string;
   linksIconColor?:  string;
   /** Contact Links icons at rest, 0-1 (hover = 1). Absent = CONTACT_LINK_ICON_OPACITY. */

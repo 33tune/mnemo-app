@@ -47,11 +47,11 @@ test("part picker: groups (Tarjeta / Perfil / Contenido), every part of the grou
   assert.ok(LIST.includes("onSelect(lastInGroup.current[g.id] ?? g.parts[0]);"), "a group opens its last used part");
   assert.deepEqual(PART_GROUPS.map(g => [g.label, g.parts]), [
     ["Tarjeta", ["cardBg", "cardFx", "allText"]],
-    ["Perfil", ["photo", "name", "handle", "descriptor", "location", "bio"]],
+    ["Perfil", ["photo", "name", "handle", "descriptor", "location", "bio", "about"]],
     ["Contenido", ["links", "buttons", "logo", "views"]],
   ]);
   assert.equal(new Set(PART_ORDER).size, INSPECTOR_OBJECTS.length, "every part is in exactly one group");
-  assert.ok(PART_GROUPS.every(g => g.parts.length <= 6), "a group fits the 6-column row");
+  assert.ok(PART_GROUPS.every(g => g.parts.length <= 7), "a group fits the 7-column row");
   for (const id of PART_ORDER) assert.equal(partGroupOf(id).parts.includes(id), true);
 });
 

@@ -234,7 +234,7 @@ test("sheet breakpoint leaves room for the widest card between the rail and the 
   assert.equal(T.ui.size.inspectorW, 344, "design: dock 344px");
   assert.equal(T.ui.size.dockMargin, 16);
   assert.equal(T.ui.radius.dock, 30);
-  assert.equal(T.ui.size.objChip, 44);
+  assert.equal(T.ui.size.objChip, 40, "design was 44; 40 since Perfil has seven parts (2026-10-21)");
 });
 
 test("the docked inspector and the part picker are styled by editor.css (incl. forced colors / reduced motion)", () => {

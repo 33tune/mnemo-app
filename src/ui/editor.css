@@ -429,17 +429,18 @@
    ring in the panel color; a hairline before the card group. Scrolls
    sideways with no scrollbar. */
 :where([data-mnemo-editor]) .mn-partpicker { display: flex; flex-direction: column; gap: 12px; }
-/* Six columns always (Perfil fills them; Tarjeta / Contenido take the first
-   three), so the parts line up when the group changes. */
+/* Seven columns always (Perfil fills them since "Sobre mí", 2026-10-21;
+   Tarjeta / Contenido take the first ones), so the parts line up when the
+   group changes. */
 :where([data-mnemo-editor]) .mn-parts {
-  position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; padding: 2px 0 0;
+  position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0; padding: 2px 0 0;
 }
 :where([data-mnemo-editor]) .mn-partcell { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; animation: mn-fade 220ms var(--ui-motion-ease) both; }
 :where([data-mnemo-editor]) .mn-part__label {
   /* Names may spill a few px past their 1/6 column (Ubicación); the
      neighbors are short, so no name is ever cut. */
-  white-space: nowrap; cursor: pointer; user-select: none; letter-spacing: -0.01em;
-  font: 500 11.5px/14px var(--ui-font-sans); color: var(--ui-text-secondary);
+  white-space: nowrap; cursor: pointer; user-select: none; letter-spacing: -0.02em;
+  font: 500 10.5px/14px var(--ui-font-sans); color: var(--ui-text-secondary);
 }
 :where([data-mnemo-editor]) .mn-partcell[data-selected] .mn-part__label { color: var(--ui-text-primary); font-weight: 650; }
 @media (prefers-reduced-motion: reduce) { :where([data-mnemo-editor]) .mn-partcell { animation: none; } }

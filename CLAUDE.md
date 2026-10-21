@@ -100,6 +100,11 @@ planeado acá hasta confirmarlo.
 >   "Card de presentación" salió del menú Agregar. Los botones con link suman "Peso" (pesos cargados) junto a la fuente.
 >   Íconos de Links (Contenido › Íconos): Color (`linksIconColor`; un color viejo en `blockStyle.links.iconColor` se
 >   mueve ahí al elegir otro), Opacidad (`linksIconOpacity`, 10–100 %, al pasar el mouse siempre 100 %) y Tamaño hasta 48 px.
+>   **"Sobre mí" (2026-10-21, pedido del usuario):** texto libre de hasta 240 caracteres (`aboutText`, saltos de línea
+>   respetados, texto plano) como 7.º texto (`TextRole` "about") y bloque propio del motor libre (`aboutAnchorX/Y`,
+>   entre Visitas e Íconos), con fuente/tamaño/peso/interlineado/color (`about*`), efectos de texto, Estilo del bloque y
+>   la alineación general de los textos (sin alineación propia). Parte "Sobre mí" en Perfil (7 partes: el selector pasó
+>   a 7 columnas y los chips a 40 px). En un layout ya guardado aparece debajo de todo sin mover nada.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

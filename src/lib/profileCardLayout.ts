@@ -59,7 +59,9 @@ const SAFETY = 3;
 /** Buttons never get narrower than this (or their natural width if smaller). */
 export const BUTTONS_MIN_W = 112;
 
-export type TextRole = "name" | "handle" | "descriptor" | "bio" | "location" | "views";
+export type TextRole = "name" | "handle" | "descriptor" | "bio" | "location" | "views" | "about";
+/** "Sobre mí" (2026-10-21): max characters. */
+export const ABOUT_MAX = 240;
 export const IDENTITY_ROWS = ["name", "handle", "descriptor", "bio"] as const;
 
 /** "12.3K" — the views counter, as rendered. */
@@ -99,6 +101,8 @@ export interface TextRowSpec {
   lineH: number;
   natW: number;
   minW: number;
+  /** Lines at any width >= natW: one per paragraph (explicit line breaks). */
+  minLines: number;
   linesAt(w: number): number;
 }
 
@@ -133,7 +137,7 @@ function makeRow(text: string, lineH: number, widthOf: (s: string) => number, ex
   const space = widthOf(" ");
   const cache = new Map<number, number>();
   return {
-    text, lineH, natW, minW,
+    text, lineH, natW, minW, minLines: words.length,
     linesAt(w: number) {
       const key = Math.round(w);
       const hit = cache.get(key);
@@ -184,11 +188,13 @@ export function profileTextRows(card: ProfileCardData, o: { measure?: TextMeasur
     location: font(getFontStyle(card.locationFont, MONO), typo.location),
     bio: font(getFontStyle(card.bioFont, MONO), typo.bio),
     views: font(getFontStyle(card.viewsFont, MONO), typo.views, true),
+    about: font(getFontStyle(card.aboutFont, MONO), typo.about),
   };
   const charW: Record<TextRole, number> = {
     name: TYPOGRAPHY_METRICS.nameCharW, bio: TYPOGRAPHY_METRICS.bioCharW,
     handle: TYPOGRAPHY_METRICS.monoCharW, descriptor: TYPOGRAPHY_METRICS.monoCharW,
     location: TYPOGRAPHY_METRICS.monoCharW, views: TYPOGRAPHY_METRICS.monoCharW,
+    about: TYPOGRAPHY_METRICS.bioCharW,
   };
   const widthOf = (role: TextRole) => (s: string) => {
     const f = fonts[role];
@@ -202,6 +208,7 @@ export function profileTextRows(card: ProfileCardData, o: { measure?: TextMeasur
     location: typo.location.fontSize * metrics.monoLineH,
     bio: typo.bio.fontSize * metrics.bioLineH,
     views: typo.views.fontSize * metrics.monoLineH,
+    about: typo.about.fontSize * typo.about.lineHeight,
   };
   const texts: Record<TextRole, string | undefined> = {
     name: card.name || undefined,
@@ -210,11 +217,12 @@ export function profileTextRows(card: ProfileCardData, o: { measure?: TextMeasur
     location: card.location ? `● ${card.location}` : undefined,
     bio: card.bio || undefined,
     views: card.showViews ? `${formatViewCount(o.viewCount ?? 0)} views` : undefined,
+    about: card.aboutText?.trim() ? card.aboutText : undefined,
   };
   const rows: ProfileTextRows["rows"] = {};
   for (const role of Object.keys(texts) as TextRole[]) {
     const t = texts[role];
-    if (t) rows[role] = makeRow(t, lineH[role], widthOf(role), role === "bio");
+    if (t) rows[role] = makeRow(t, lineH[role], widthOf(role), role === "bio" || role === "about");
   }
   return { rows, fonts };
 }
@@ -230,7 +238,7 @@ export function layoutRows(rows: TextRowSpec[], w: number, align: TextAlign): { 
   const boxes: RowBox[] = [];
   let y = 0;
   for (const r of rows) {
-    const lines = r.natW <= w + 0.5 ? 1 : r.linesAt(w);
+    const lines = r.natW <= w + 0.5 ? r.minLines : r.linesAt(w);
     const rw = lines > 1 ? w : Math.min(r.natW, w);
     const x = align === "center" ? (w - rw) / 2 : align === "right" ? w - rw : 0;
     boxes.push({ x, y, w: rw, h: lines * r.lineH, lines });
@@ -284,6 +292,7 @@ export function profileBlocks(card: ProfileCardData, o: ProfileLayoutOptions = {
   if (identity) specs.identity = identity;
   if (text.rows.location) specs.location = textBlock([text.rows.location], align);
   if (text.rows.views) specs.views = textBlock([text.rows.views], align);
+  if (text.rows.about) specs.about = textBlock([text.rows.about], align);
 
   const linkCount = (card.contactLinks ?? []).length;
   if (linkCount > 0) {
@@ -327,10 +336,11 @@ export const ANCHOR_FIELDS: Record<BlockKey, AnchorKeys> = {
   identity: { x: "identityAnchorX", y: "identityAnchorY" },
   location: { x: "locationAnchorX", y: "locationAnchorY" },
   views: { x: "viewsAnchorX", y: "viewsAnchorY" },
+  about: { x: "aboutAnchorX", y: "aboutAnchorY" },
   links: { x: "linksAnchorX", y: "linksAnchorY" },
   buttons: { x: "buttonsAnchorX", y: "buttonsAnchorY" },
 };
-const STACK: BlockKey[] = ["pfp", "identity", "location", "views", "links", "buttons"];
+const STACK: BlockKey[] = ["pfp", "identity", "location", "views", "about", "links", "buttons"];
 
 function anchorOf(card: ProfileCardData, key: BlockKey): { x: number; y: number } | undefined {
   const f = ANCHOR_FIELDS[key];
@@ -477,6 +487,7 @@ export function profileLayout(card: ProfileCardData, o: ProfileLayoutOptions & {
   place("identity", b.identityRoles);
   if (b.text.rows.location) place("location", ["location"]);
   if (b.text.rows.views) place("views", ["views"]);
+  if (b.text.rows.about) place("about", ["about"]);
   return { rects: solved.rects, fits: solved.fits, neededH: solved.neededH, rows, blocks: b };
 }
 

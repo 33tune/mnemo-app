@@ -19,7 +19,7 @@
 import type { ObjectId } from "./inspectorObjects";
 
 /** The card's parts that exist on the canvas, as inspector objects. */
-export const PART_ROLES = ["photo", "name", "handle", "descriptor", "location", "bio", "views", "links", "buttons", "logo"] as const satisfies readonly ObjectId[];
+export const PART_ROLES = ["photo", "name", "handle", "descriptor", "location", "bio", "about", "views", "links", "buttons", "logo"] as const satisfies readonly ObjectId[];
 export type PartRole = (typeof PART_ROLES)[number];
 
 /** The attribute ProfileCard puts on each part's wrapper. */

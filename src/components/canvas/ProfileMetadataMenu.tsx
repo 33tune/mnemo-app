@@ -4,6 +4,7 @@ import { MenuSection, SwitchRow, TextInput, TextArea } from "@/ui";
 import { getFontStyle } from "@/lib/fontList";
 import BlockStyleFields from "./BlockStyleFields";
 import { metadataController } from "@/lib/objectControllers";
+import { ABOUT_MAX } from "@/lib/profileCardLayout";
 
 type MetadataPatch = Partial<ProfileCardData>;
 
@@ -15,7 +16,7 @@ interface ProfileMetadataMenuProps {
   only: MetadataPart;
 }
 
-export type MetadataPart = "descriptor" | "location" | "bio" | "views" | "locationBlock" | "viewsBlock";
+export type MetadataPart = "descriptor" | "location" | "bio" | "about" | "views" | "locationBlock" | "viewsBlock" | "aboutBlock";
 
 // CONTENT: qué querés mostrar. Tamaño/fuente/color de estos campos viven en
 // TEXT, no acá — ver [[ProfileTypographyMenu]]. El estilo (background/color/
@@ -52,6 +53,13 @@ export default function ProfileMetadataMenu({ card, onChange, only }: ProfileMet
         <TextArea value={bio ?? ""} onChange={v => meta.setText("bio", v)}
           placeholder="Contá algo de vos" maxLength={120} rows={3} fontFamily={getFontStyle(card.bioFont ?? mono)} />
       </MenuSection>}
+
+      {/* "Sobre mí" (2026-10-21): plain text, line breaks kept. */}
+      {only === "about" && <MenuSection label="Contenido" pinned>
+        <TextArea value={card.aboutText ?? ""} onChange={v => meta.setText("aboutText", v)}
+          placeholder="Contá quién sos, qué hacés, lo que quieras" maxLength={ABOUT_MAX} rows={5} fontFamily={getFontStyle(card.aboutFont ?? mono)} />
+      </MenuSection>}
+      {only === "aboutBlock" && <BlockStyleFields card={card} blockKey="about" onChange={onChange} scope="Sobre mí" />}
 
       {only === "views" && <MenuSection label="Contador" pinned>
         <SwitchRow label="Mostrar cantidad" icon="eye" value={!!showViews} onChange={v => meta.setShowViews(v)} />

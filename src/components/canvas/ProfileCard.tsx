@@ -467,7 +467,7 @@ function ProfileCard({
   const resolvedColors = resolveCardColors(baseColor, {
     name: card.nameColor, handle: card.handleColor, descriptor: card.descriptorColor,
     location: card.locationColor, bio: card.bioColor, views: card.viewsColor,
-    linksIcon: card.linksIconColor,
+    linksIcon: card.linksIconColor, about: card.aboutColor,
   });
   const typography = resolveCardTypography(card, nameFontSize);
   // Stage FASE 1: card-wide shadow/glow/stroke/blur (effectiveEffects.text).
@@ -485,12 +485,13 @@ function ProfileCard({
   const locationEffectStyle   = resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location);
   const bioEffectStyle        = resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio);
   const viewsEffectStyle      = resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views);
+  const aboutEffectStyle      = resolveTextEffectStyle(effectiveEffects.text, textRoles?.about, resolvedColors.about);
   // Product closeout — shimmer fix: shimmer no longer requires gradient to
   // be set (see textEffects.ts's header), so "is shimmer active anywhere"
   // is now just "is `shimmer` present", not "gradient AND shimmer".
   const anyShimmerActive = !!(
     textRoles?.name?.shimmer || textRoles?.handle?.shimmer || textRoles?.descriptor?.shimmer ||
-    textRoles?.location?.shimmer || textRoles?.bio?.shimmer || textRoles?.views?.shimmer
+    textRoles?.location?.shimmer || textRoles?.bio?.shimmer || textRoles?.views?.shimmer || textRoles?.about?.shimmer
   );
   // Product closeout: Name's per-letter bounce animation. The parent gets
   // shadow/glow/stroke/blur only; gradient/shimmer go on each letter span
@@ -507,6 +508,7 @@ function ProfileCard({
   const locationBlockStyle = resolveBlockStyle(card, "location");
   const viewsBlockStyle    = resolveBlockStyle(card, "views");
   const linksBlockStyle    = resolveBlockStyle(card, "links");
+  const aboutBlockStyle    = resolveBlockStyle(card, "about");
 
   // Stage FASE 2: PFP border/shadow/glow, resolved from effectiveEffects.pfp
   // (card.effects.pfp — flows through getProfileCardEffects()'s `...card.effects`
@@ -783,6 +785,18 @@ function ProfileCard({
     );
   }
 
+  /** "Sobre mí" (2026-10-21): plain text (React escapes it), line breaks kept. */
+  function AboutText({ style }: { style?: CSSProperties }) {
+    return (
+      <div style={{
+        fontFamily: fontStyle(card.aboutFont, MONO), fontSize: typography.about.fontSize, color: resolvedColors.about,
+        lineHeight: typography.about.lineHeight, whiteSpace: "pre-wrap" as CSSProperties["whiteSpace"], textAlign,
+        ...(typography.about.fontWeight != null ? { fontWeight: typography.about.fontWeight } : {}),
+        ...aboutEffectStyle, ...style,
+      } as CSSProperties}>{card.aboutText}</div>
+    );
+  }
+
   function ViewsLine({ style }: { style?: CSSProperties }) {
     const color = viewsBlockStyle.textColor ?? resolvedColors.views;
     return (
@@ -1008,7 +1022,7 @@ function ProfileCard({
     // Texts wrap onto more lines instead of being cut (the engine sized the
     // rows for exactly that).
     const wrap: CSSProperties = { whiteSpace: "normal", overflowWrap: "anywhere" };
-    const row = (role: "name" | "handle" | "descriptor" | "bio" | "location" | "views", content: React.ReactNode) => {
+    const row = (role: "name" | "handle" | "descriptor" | "bio" | "location" | "views" | "about", content: React.ReactNode) => {
       const r = rows[role];
       if (!r) return null;
       return (
@@ -1068,6 +1082,18 @@ function ProfileCard({
             onMouseDown={down("views")}
           >
             {row("views", ViewsLine({ style: wrap }))}
+          </div>
+        )}
+        {rects.about && card.aboutText?.trim() && (
+          <div
+            style={{
+              ...box(rects.about), transition: motion("about"), cursor: grab,
+              borderRadius: aboutBlockStyle.radius, background: aboutBlockStyle.bg,
+              ...dragOutline("about"),
+            }}
+            onMouseDown={down("about")}
+          >
+            {row("about", AboutText({ style: { overflowWrap: "anywhere" } }))}
           </div>
         )}
         {rects.links && contactLinks.length > 0 && (

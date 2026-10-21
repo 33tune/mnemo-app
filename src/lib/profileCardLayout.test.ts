@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ProfileCardData } from "@/types";
 import {
-  profileLayout, profileCardMinSize, clampProfileCardSize, positionsPatch, formatViewCount, graphemes,
+  profileLayout, profileCardMinSize, clampProfileCardSize, positionsPatch, formatViewCount, graphemes, ABOUT_MAX,
   type DragState, type BlockKey, type Rect,
 } from "./profileCardLayout";
 import { getFreeformCardBounds } from "./cardGeometry";
@@ -181,6 +181,46 @@ test("stretch for a long word, then shrink back: the card is not locked wide", (
 
 test("an emoji built from several code points is one piece (never split)", () => {
   assert.deepEqual(graphemes("👨‍👩‍👧🇦🇷👍🏽a"), ["👨‍👩‍👧", "🇦🇷", "👍🏽", "a"]);
+});
+
+test("Sobre mí: its own block under the texts, above icons and buttons; wraps, keeps line breaks", () => {
+  const about = "Hago fanzines y mezclo vinilos.\nJunto plantas raras y escribo de noche.";
+  const l = profileLayout({ ...CARD, aboutText: about, h: 636 } as ProfileCardData);
+  const r = l.rects;
+  assert.ok(r.about, "the block exists");
+  assert.ok(r.about!.y > r.views!.y && r.links!.y > r.about!.y && r.buttons!.y > r.links!.y, "order: texts, Sobre mí, icons, buttons");
+  assert.ok(l.rows.about!.lines >= 2, "the line break is kept");
+  assertClean(r, 320, 636);
+  assert.equal(profileLayout({ ...CARD, aboutText: "   " } as ProfileCardData).rects.about, undefined, "blank = no block");
+});
+
+test("Sobre mí at 240 chars in a narrow card: more lines, never wider than the card, the floor grows", () => {
+  const text = "palabra ".repeat(30).slice(0, ABOUT_MAX);
+  const card = { ...CARD, aboutText: text, w: 240, h: 636 } as ProfileCardData;
+  const l = profileLayout(card);
+  assert.ok(l.fits);
+  assertClean(l.rects, 240, 636);
+  assert.ok(profileCardMinSize(card, 240).h > profileCardMinSize({ ...CARD, w: 240 } as ProfileCardData, 240).h);
+});
+
+test("Sobre mí added to a saved layout: every block keeps its place; it goes under them", () => {
+  const base = profileLayout(CARD).rects;
+  const done = profileLayout(CARD, { drag: { key: "views", x: 20, y: 30, base } as DragState });
+  const saved = { ...CARD, ...positionsPatch(CARD, done, 320, 560), h: 636 } as ProfileCardData;
+  const before = profileLayout(saved).rects;
+  const after = profileLayout({ ...saved, aboutText: "Hola, soy Mara." } as ProfileCardData).rects;
+  for (const k of ["pfp", "identity", "location", "views", "links", "buttons"] as BlockKey[]) {
+    assert.deepEqual({ x: after[k]!.x, y: after[k]!.y }, { x: before[k]!.x, y: before[k]!.y }, k);
+  }
+  assert.ok(after.about!.y >= Math.max(...Object.values(before).map(r => r!.y + r!.h)));
+});
+
+test("Sobre mí can be dragged like any block; the photo never moves for it", () => {
+  const card = { ...CARD, aboutText: "Hola, soy Mara.", h: 636 } as ProfileCardData;
+  const base = profileLayout(card).rects;
+  const l = profileLayout(card, { drag: { key: "about", x: base.pfp!.x, y: base.pfp!.y, base } as DragState });
+  assert.deepEqual(l.rects.pfp, base.pfp);
+  assertClean(l.rects, 320, Math.max(636, l.neededH));
 });
 
 test("views counter format", () => {

@@ -31,7 +31,7 @@
  * Pure: sizes come from BlockSpec (the caller measures the real text).
  */
 
-export type BlockKey = "pfp" | "identity" | "location" | "views" | "links" | "buttons";
+export type BlockKey = "pfp" | "identity" | "location" | "views" | "about" | "links" | "buttons";
 
 export interface Rect { x: number; y: number; w: number; h: number }
 
@@ -98,7 +98,7 @@ const EPS = 0.5;
 /** Max vertical gap for "resting right under" (stacked blocks). */
 const REST_GAP = 24;
 
-export const PRIORITY: BlockKey[] = ["pfp", "identity", "location", "views", "links", "buttons"];
+export const PRIORITY: BlockKey[] = ["pfp", "identity", "location", "views", "about", "links", "buttons"];
 
 /** Priority with `dragged` right after the photo. */
 export function priorityFor(dragged?: BlockKey): BlockKey[] {

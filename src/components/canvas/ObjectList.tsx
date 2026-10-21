@@ -21,7 +21,7 @@ const platformLabel = (url: string) => PLATFORM_LABELS[detectPlatform(url)];
 
 /** Each part's glyph (design menu-schema.js OBJECTS[*].icon). */
 const PART_ICON: Record<ObjectId, IconName> = {
-  photo: "user", name: "text", handle: "at", descriptor: "quote", location: "pin", bio: "align-left", views: "eye",
+  photo: "user", name: "text", handle: "at", descriptor: "quote", location: "pin", bio: "align-left", about: "about", views: "eye",
   links: "link", buttons: "align-justify", logo: "shapes", cardBg: "palette", cardFx: "sparkles", allText: "case",
 };
 export const partIcon = (id: ObjectId): IconName => PART_ICON[id];

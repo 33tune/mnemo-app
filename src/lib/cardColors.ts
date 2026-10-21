@@ -69,6 +69,8 @@ export const DEFAULT_ROLE_OPACITY = {
   bio: 0.42,
   views: 0.45,
   linksIcon: 0.45,
+  /** "Sobre mí" (2026-10-21): a paragraph — as readable as the Frase. */
+  about: 0.72,
 } as const;
 
 export interface CardColorOverrides {
@@ -79,6 +81,7 @@ export interface CardColorOverrides {
   bio?: string;
   views?: string;
   linksIcon?: string;
+  about?: string;
 }
 
 export interface ResolvedCardColors {
@@ -89,6 +92,7 @@ export interface ResolvedCardColors {
   bio: string;
   views: string;
   linksIcon: string;
+  about: string;
 }
 
 /**
@@ -105,6 +109,7 @@ export function resolveCardColors(baseColor: string, overrides?: CardColorOverri
     bio:        overrides?.bio        ?? withOpacity(baseColor, DEFAULT_ROLE_OPACITY.bio),
     views:      overrides?.views      ?? withOpacity(baseColor, DEFAULT_ROLE_OPACITY.views),
     linksIcon:  overrides?.linksIcon  ?? withOpacity(baseColor, DEFAULT_ROLE_OPACITY.linksIcon),
+    about:      overrides?.about      ?? withOpacity(baseColor, DEFAULT_ROLE_OPACITY.about),
   };
 }
 

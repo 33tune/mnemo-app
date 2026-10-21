@@ -71,7 +71,7 @@ const metadata = (only: MetadataPart): Section => ({
   num: N1,
   render: c => <ProfileMetadataMenu only={only} card={c.card} onChange={c.onChange} />,
 });
-const roleText = (role: Extract<ObjectId, "name" | "handle" | "descriptor" | "location" | "bio" | "views">): Section => ({
+const roleText = (role: Extract<ObjectId, "name" | "handle" | "descriptor" | "location" | "bio" | "views" | "about">): Section => ({
   key: `text-${role}`,
   render: c => <RoleTextSection role={role} card={c.card} baseColor={c.baseColor} onChange={c.onChange} />,
 });
@@ -122,6 +122,11 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
     metadata("bio"),
     roleText("bio"),
     identity("identityBlock"),
+  ],
+  about: [
+    metadata("about"),
+    roleText("about"),
+    metadata("aboutBlock"),
   ],
   views: [
     metadata("views"),

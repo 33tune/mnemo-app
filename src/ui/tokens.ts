@@ -383,8 +383,9 @@ export const T = {
        * left edge — 16 margin + 56 capsule (44 buttons + 2 x 6 padding). */
       railW: 72,
       editorTopbarH: 60,
-      /** Part picker button (DS --glass-h-part). */
-      objChip: 44,
+      /** Part picker button (DS --glass-h-part was 44; 40 since Perfil has
+       * seven parts, 2026-10-21 — a gap between chips in the 360px dock). */
+      objChip: 40,
       /** DS controls: switch 51x31 / knob 27, buttons 36, tiles 92, hit 44. */
       switchW: 51, switchH: 31, knob: 27, thumb: 18, button: 36, tileH: 92, touch: 44,
     },

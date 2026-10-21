@@ -41,7 +41,7 @@ test("resolveCardColors: partial override only changes that role", () => {
 test("resolveCardColors: full override matches every given hex exactly", () => {
   const overrides = {
     name: "#111111", handle: "#222222", descriptor: "#333333",
-    location: "#444444", bio: "#555555", views: "#666666", linksIcon: "#777777",
+    location: "#444444", bio: "#555555", views: "#666666", linksIcon: "#777777", about: "#888888",
   };
   const c = resolveCardColors("#ffffff", overrides);
   assert.deepEqual(c, overrides);

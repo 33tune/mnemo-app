@@ -231,6 +231,7 @@ export const ROLE_TYPOGRAPHY_RANGES: Record<TextRole, { fontSize: Range; lineHei
   location:   { fontSize: [7, 18] },
   bio:        { fontSize: [7, 18], lineHeight: [1, 2.4] },
   views:      { fontSize: [7, 18] },
+  about:      { fontSize: [7, 18], lineHeight: [1, 2.4] },
   monoLineHeight: [0.9, 2],
 };
 

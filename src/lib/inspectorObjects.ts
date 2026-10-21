@@ -133,6 +133,9 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
     chip: ({ card }) => text(card.location, "Ubicación") },
   { id: "bio", caption: "Bio", placeholder: "Bio", kind: "role", group: "text", role: "bio", blockKey: "identity",
     chip: ({ card }) => text(card.bio, "Bio") },
+  // "Sobre mí" (2026-10-21): a free paragraph, its own block.
+  { id: "about", caption: "Sobre mí", placeholder: "Sobre mí", kind: "role", group: "text", role: "about", blockKey: "about",
+    chip: ({ card }) => text(card.aboutText, "Sobre mí") },
   { id: "views", caption: "Visitas", placeholder: "Visitas", kind: "role", group: "text", role: "views", blockKey: "views",
     chip: ({ card, viewCount }) => {
       const state = !card.showViews ? "oculto" : viewCount != null ? formatViewCount(viewCount) : "visible";
@@ -208,6 +211,7 @@ const ROLE_KEYS: Record<TextRole, readonly (keyof ProfileCardData)[]> = {
   location:   ["locationColor", "locationFont", "locationFontSize", "locationFontWeight", "locationLetterSpacing"],
   bio:        ["bioColor", "bioFont", "bioFontSize", "bioFontWeight", "bioLineHeight"],
   views:      ["viewsColor", "viewsFont", "viewsFontSize", "viewsFontWeight", "viewsLetterSpacing"],
+  about:      ["aboutColor", "aboutFont", "aboutFontSize", "aboutFontWeight", "aboutLineHeight"],
 };
 
 export function objectModified(id: ObjectId, card: ProfileCardData): boolean {
@@ -280,7 +284,7 @@ export type PartGroupId = "card" | "profile" | "content";
 export interface PartGroup { id: PartGroupId; label: string; parts: readonly ObjectId[] }
 export const PART_GROUPS: readonly PartGroup[] = [
   { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText"] },
-  { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio"] },
+  { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio", "about"] },
   { id: "content", label: "Contenido", parts: ["links", "buttons", "logo", "views"] },
 ];
 export function partGroupOf(id: ObjectId): PartGroup {
@@ -321,6 +325,7 @@ export const OBJECT_FILES: Record<ObjectId, readonly string[]> = {
   location:   [METADATA, TYPOGRAPHY],
   bio:        [IDENTITY, METADATA, TYPOGRAPHY],
   views:      [METADATA, TYPOGRAPHY],
+  about:      [METADATA, TYPOGRAPHY],
   photo:      [IDENTITY],
   links:      [`${C}ProfileContactLinksMenu.tsx`],
   buttons:    [`${C}ProfileLinkButtonsMenu.tsx`],

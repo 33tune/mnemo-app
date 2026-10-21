@@ -94,7 +94,7 @@ const imgInsp  = at("ImageInspector.tsx");
 export const P = "Card de presentación";
 const obj = (caption: string) => `${P} › ${caption}`;
 const NOMBRE = obj("Nombre"), USUARIO = obj("@usuario"), FRASE = obj("Frase"), UBICACION = obj("Ubicación");
-const BIO = obj("Bio"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS = obj("Links"), LOGO = obj("Logo");
+const BIO = obj("Bio"), SOBRE_MI = obj("Sobre mí"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS = obj("Links"), LOGO = obj("Logo");
 const FONDO = obj("Fondo de la card");
 const BOTONES = obj("Botones");
 const EFECTOS = obj("Efectos de la card");
@@ -135,6 +135,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "blockWidths.views": system("width the engine gave a block to fit (positionsPatch)"),
   "blockWidths.links": system("width the engine gave a block to fit (positionsPatch)"),
   "blockWidths.buttons": system("width the engine gave a block to fit (positionsPatch)"),
+  "blockWidths.about": system("width the engine gave a block to fit (positionsPatch)"),
   pfpSizePx: content(`${FOTO_OBJ} › Forma › Tamaño`, "id.setPfpSize(v)"),
   pfpRadius: content(`${FOTO_OBJ} › Forma › Forma`, "id.setPfpRadius(v)"),
   textAlign: type(`${TODOS} › Alineación y espaciado › Alineación`, "onChange({ textAlign: v"),
@@ -179,6 +180,13 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   status: meta(`${FRASE} › Contenido`, 'meta.setText("status", v)'),
   location: meta(`${UBICACION} › Contenido`, 'meta.setText("location", v)'),
   bio: meta(`${BIO} › Contenido`, 'meta.setText("bio", v)'),
+  aboutText: meta(`${SOBRE_MI} › Contenido`, 'meta.setText("aboutText", v)'),
+  aboutAnchorX: BLOCK_DRAG("about"), aboutAnchorY: BLOCK_DRAG("about"),
+  aboutFont: type(`${SOBRE_MI} › ${TIPO} › Fuente`, "onChange({ aboutFont: v })"),
+  aboutFontSize: type(`${SOBRE_MI} › ${TIPO} › Tamaño`, "onChange({ aboutFontSize: v })"),
+  aboutFontWeight: type(`${SOBRE_MI} › ${TIPO} › Peso`, "onChange({ aboutFontWeight: v })"),
+  aboutLineHeight: type(`${SOBRE_MI} › ${TIPO} › Espaciado › Interlineado`, "onChange({ aboutLineHeight: v })"),
+  aboutColor: type(`${SOBRE_MI} › ${COLOR} › Color`, "onChange({ aboutColor: v })"),
   photoX: retired(LEGACY_POS), photoY: retired(LEGACY_POS), photoScale: retired(LEGACY_POS),
   photoSize: by("pfpSizePx", "legacy size preset, read as the fallback of the PFP size slider"),
   textX: retired(LEGACY_POS), textY: retired(LEGACY_POS), textScale: retired(LEGACY_POS),
@@ -333,7 +341,7 @@ export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
 // ── Per-role text effects (card.effects.textRoles.<role>) ──────────────────
 
 const ROLE_LABEL: Record<TextRole, string> = {
-  name: "Nombre", handle: "@usuario", descriptor: "Frase", location: "Ubicación", bio: "Bio", views: "Visitas",
+  name: "Nombre", handle: "@usuario", descriptor: "Frase", location: "Ubicación", bio: "Bio", views: "Visitas", about: "Sobre mí",
 };
 const ROLE_FIELDS = "RoleTypographyFields.tsx";
 const TYPE_MENU = "ProfileTypographyMenu.tsx";
@@ -374,7 +382,7 @@ function roleCaps(role: TextRole): Record<RoleEffectLeaf, Capability> {
 }
 export const ROLE_EFFECT_CAPS: Record<TextRole, Record<RoleEffectLeaf, Capability>> = {
   name: roleCaps("name"), handle: roleCaps("handle"), descriptor: roleCaps("descriptor"),
-  location: roleCaps("location"), bio: roleCaps("bio"), views: roleCaps("views"),
+  location: roleCaps("location"), bio: roleCaps("bio"), views: roleCaps("views"), about: roleCaps("about"),
 };
 
 // ── Block styles (card.blockStyle.<block>) ─────────────────────────────────
@@ -385,6 +393,7 @@ const BLOCK_HOST: Record<BlockStyleKey, [file: string, ui: string]> = {
   location: ["ProfileMetadataMenu.tsx", `${UBICACION} › Contenido › Estilo del bloque`],
   views:    ["ProfileMetadataMenu.tsx", `${VISITAS} › Contador › Estilo del bloque`],
   links:    ["ProfileContactLinksMenu.tsx", `${LINKS} › Estilo del bloque`],
+  about:    ["ProfileMetadataMenu.tsx", `${SOBRE_MI} › Estilo del bloque`],
 };
 function blockCaps(block: BlockStyleKey): Record<keyof BlockStyleOverride, Capability> {
   const [file, ui] = BLOCK_HOST[block];
@@ -404,7 +413,7 @@ function blockCaps(block: BlockStyleKey): Record<keyof BlockStyleOverride, Capab
   };
 }
 export const BLOCK_STYLE_CAPS: Record<BlockStyleKey, Record<keyof BlockStyleOverride, Capability>> = {
-  identity: blockCaps("identity"), location: blockCaps("location"), views: blockCaps("views"), links: blockCaps("links"),
+  identity: blockCaps("identity"), location: blockCaps("location"), views: blockCaps("views"), links: blockCaps("links"), about: blockCaps("about"),
 };
 
 // ── Music ───────────────────────────────────────────────────────────────────

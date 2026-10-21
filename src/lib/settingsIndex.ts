@@ -58,6 +58,13 @@ export const SETTINGS_INDEX: Readonly<Record<SearchObject, readonly SettingsCard
     ["Efectos del texto", "sparkles", ["Gradiente", "Shimmer", "Sombra", "Brillo", "Pulso", "Contorno", "Desenfoque"]],
     ["Estilo del bloque", "frame", []],
   ],
+  about: [
+    ["Contenido", null, []],
+    ["Tipografía", "case", ["Tamaño", "Peso", "Interlineado"]],
+    ["Color", "palette", ["Color"]],
+    ["Efectos del texto", "sparkles", ["Gradiente", "Shimmer", "Sombra", "Brillo", "Pulso", "Contorno", "Desenfoque"]],
+    ["Estilo del bloque", "frame", []],
+  ],
   views: [
     ["Contador", null, ["Mostrar cantidad"]],
     ["Tipografía", "case", ["Tamaño", "Peso", "Interletrado"]],
