@@ -132,7 +132,7 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
     identity("photo"),
   ],
   links: [
-    { key: "links", num: N1, render: c => <ProfileContactLinksMenu card={c.card} fitsInCard={c.linksFits} onChange={c.onChange} /> },
+    { key: "links", num: N1, render: c => <ProfileContactLinksMenu card={c.card} baseColor={c.baseColor} fitsInCard={c.linksFits} onChange={c.onChange} /> },
   ],
   buttons: [
     { key: "buttons", num: N1, render: c => <ProfileLinkButtonsMenu card={c.card} baseColor={c.baseColor} fits={c.buttonsFits}

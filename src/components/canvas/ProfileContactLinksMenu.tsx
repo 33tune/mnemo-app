@@ -1,16 +1,19 @@
 "use client";
 import { useState } from "react";
 import type { ContactLink, ProfileCardData } from "@/types";
-import { MenuSection, MenuNote, SliderRow, TextInput, IconButton, refocusFieldControl } from "@/ui";
+import { MenuSection, MenuNote, SliderRow, ColorRow, TextInput, IconButton, refocusFieldControl } from "@/ui";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
-import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX } from "@/lib/contactLinksBlock";
+import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX, CONTACT_LINK_ICON_OPACITY } from "@/lib/contactLinksBlock";
+import { DEFAULT_ROLE_OPACITY, withOpacity } from "@/lib/cardColors";
 import BlockStyleFields from "./BlockStyleFields";
 import { linksController } from "@/lib/objectControllers";
 
 type ContactLinksPatch = Partial<ProfileCardData>;
 
 interface Props {
-  card: Pick<ProfileCardData, "contactLinks" | "linksIconSize" | "blockStyle" | "blockStylePaused">;
+  card: Pick<ProfileCardData, "contactLinks" | "linksIconSize" | "linksIconColor" | "linksIconOpacity" | "blockStyle" | "blockStylePaused">;
+  /** The card's text color: the icons' default is it at 45%. */
+  baseColor: string;
   /** Stage 4.2-C.2.7: whether the block's resolved box still fits in the
    * card's padded content area (ProfileCard.tsx's blockFits). `undefined` =
    * not applicable; only an explicit `false` shows the note below. */
@@ -24,14 +27,19 @@ interface Props {
 // en el canvas: todo pasa por este menú. Tamaño de ícono y el override de
 // estilo del bloque (background/color de ícono/radio) viven acá, junto al
 // contenido (Stage FASE 2) — no en una pestaña de estilo aparte.
-export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: Props) {
-  const { contactLinks, linksIconSize } = card;
+export default function ProfileContactLinksMenu({ card, baseColor, fitsInCard, onChange }: Props) {
+  const { contactLinks, linksIconSize, linksIconOpacity } = card;
   const links = contactLinks ?? [];
   const [newUrl, setNewUrl] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editUrl, setEditUrl] = useState("");
   // Editor v3 Phase C: writes go through the links controller.
   const linksCtl = linksController(links, onChange);
+  // The icons' color (2026-10-21: in Íconos, next to the size). A color
+  // stored the old way (Estilo del bloque › Ícono) still wins in render; the
+  // controller moves it here on the next pick.
+  const ownIconColor = card.blockStyle?.links?.iconColor ?? card.linksIconColor;
+  const iconColor = ownIconColor ?? withOpacity(baseColor, DEFAULT_ROLE_OPACITY.linksIcon);
 
   function addLink() {
     const url = newUrl.trim();
@@ -127,16 +135,30 @@ export default function ProfileContactLinksMenu({ card, fitsInCard, onChange }: 
         <span className="mn-linkrow__count">{links.length}/{CONTACT_LINKS_MAX} · la plataforma se detecta sola</span>
       </MenuSection>
 
-      <MenuSection label="Íconos" icon="maximize" summary={`${linksIconSize ?? CONTACT_LINK_ICON_SIZE} px`}
-        changed={linksIconSize != null ? 1 : 0} onReset={() => linksCtl.resetIconSize()}>
+      <MenuSection label="Íconos" icon="maximize"
+        summary={`${linksIconSize ?? CONTACT_LINK_ICON_SIZE} px · ${Math.round((linksIconOpacity ?? CONTACT_LINK_ICON_OPACITY) * 100)}%`}
+        swatch={iconColor}
+        changed={[linksIconSize, ownIconColor, linksIconOpacity].filter(v => v != null).length}
+        onReset={() => linksCtl.resetIcons(card.blockStyle)}>
+        <ColorRow label="Color" value={iconColor} onChange={v => linksCtl.setIconColor(v, card.blockStyle)}
+          state={ownIconColor ? "modified" : "inherited"} inheritedLabel="Color de los textos"
+          onReset={() => linksCtl.setIconColor(undefined, card.blockStyle)} />
         <SliderRow
           label="Tamaño" icon="maximize" min={CONTACT_LINK_ICON_SIZE_MIN} max={CONTACT_LINK_ICON_SIZE_MAX} step={1}
           value={linksIconSize ?? CONTACT_LINK_ICON_SIZE} unit="px" fmt={v => `${Math.round(v)} px`}
           onChange={v => linksCtl.setIconSize(v)}
+          state={linksIconSize != null ? "modified" : undefined} onReset={() => linksCtl.resetIconSize()}
         />
+        <SliderRow
+          label="Opacidad" icon="eye" min={0.1} max={1} step={0.01}
+          value={linksIconOpacity ?? CONTACT_LINK_ICON_OPACITY} fmt={v => `${Math.round(v * 100)}%`}
+          onChange={v => linksCtl.setIconOpacity(v)}
+          state={linksIconOpacity != null ? "modified" : undefined} onReset={() => linksCtl.resetIconOpacity()}
+        />
+        <MenuNote>Al pasar el mouse, cada ícono se ve entero y con el color de su plataforma.</MenuNote>
       </MenuSection>
 
-      <BlockStyleFields card={card} blockKey="links" showIconColor onChange={onChange} scope="Links" />
+      <BlockStyleFields card={card} blockKey="links" onChange={onChange} scope="Links" />
     </div>
   );
 }

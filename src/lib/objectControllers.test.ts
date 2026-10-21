@@ -162,3 +162,16 @@ test("review round wiring: selection, uploads, shared widgets, blur commits, pop
   assert.ok(BOARD.includes("gestureBaselineRef.current = { elements: elementsRef.current, room: { ...roomRef.current } };\n    try { setElementGeometryNow(id, target); }")
     || BOARD.includes("try { setElementGeometryNow(id, target); }"), "Medidas by Enter has a baseline");
 });
+
+test("links icons (2026-10-21): color, opacity and reset; a color stored in the block style moves to Íconos", () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const ctl = linksController([], p => writes.push(p as Record<string, unknown>));
+  ctl.setIconColor("#ff0000", { links: { iconColor: "#00ff00", radius: 6 } });
+  assert.deepEqual(writes.at(-1), { linksIconColor: "#ff0000", blockStyle: { links: { radius: 6 } } });
+  ctl.setIconColor("#ff0000", undefined);
+  assert.deepEqual(writes.at(-1), { linksIconColor: "#ff0000" });
+  ctl.setIconOpacity(0.4);
+  assert.deepEqual(writes.at(-1), { linksIconOpacity: 0.4 });
+  ctl.resetIcons(undefined);
+  assert.deepEqual(writes.at(-1), { linksIconSize: undefined, linksIconColor: undefined, linksIconOpacity: undefined });
+});

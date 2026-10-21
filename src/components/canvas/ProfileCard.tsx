@@ -27,7 +27,7 @@ import {
 import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, centerCardPosition, shouldApplyGrowth } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
-import { CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "@/lib/contactLinksBlock";
+import { CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP, CONTACT_LINK_ICON_OPACITY } from "@/lib/contactLinksBlock";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
 import { withOpacity, resolveCardColors, cardIsLight, cardBaseColor } from "@/lib/cardColors";
 import { resolveCardTypography } from "@/lib/cardTypography";
@@ -125,9 +125,9 @@ function fontStyle(font: TextFont | undefined, fallback = SANS): string {
 // LinkItemFrame in LinksCardWidget.tsx and only opening the URL when neither
 // the config menu nor a just-finished drag is what's actually being clicked.
 function ContactLinkIcon({
-  link, color, size, menuOpen, didDragRef,
+  link, color, size, opacity, menuOpen, didDragRef,
 }: {
-  link: ContactLink; color: string; size: number; menuOpen: boolean;
+  link: ContactLink; color: string; size: number; opacity: number; menuOpen: boolean;
   didDragRef?: React.RefObject<boolean>;
 }) {
   const [hov, setHov] = useState(false);
@@ -161,7 +161,7 @@ function ContactLinkIcon({
       style={{
         display: "flex", alignItems: "center", justifyContent: "center",
         width: size, height: size, flexShrink: 0,
-        opacity: hov ? 1 : 0.75, transition: "opacity 0.15s ease", textDecoration: "none",
+        opacity: hov ? 1 : opacity, transition: "opacity 0.15s ease", textDecoration: "none",
       }}
     >
       <PlatformIcon platform={platform} size={size} color={hov ? PLATFORM_COLORS[platform] : color} />
@@ -1088,7 +1088,7 @@ function ProfileCard({
           >
             {contactLinks.filter(l => l.url).map(link => (
               <ContactLinkIcon
-                key={link.id} link={link} color={linksBlockStyle.iconColor ?? resolvedColors.linksIcon} size={linksIconSize} menuOpen={menuOpen}
+                key={link.id} link={link} color={linksBlockStyle.iconColor ?? resolvedColors.linksIcon} size={linksIconSize} opacity={card.linksIconOpacity ?? CONTACT_LINK_ICON_OPACITY} menuOpen={menuOpen}
                 didDragRef={isAnchorDraggable ? linksDidDragRef : undefined}
               />
             ))}

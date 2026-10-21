@@ -143,7 +143,8 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   viewsAnchorX: BLOCK_DRAG("views"), viewsAnchorY: BLOCK_DRAG("views"),
   linksAnchorX: BLOCK_DRAG("links"), linksAnchorY: BLOCK_DRAG("links"),
   contactLinks: links(`${LINKS}`, "linksCtl.add(url)", "linksCtl.remove(id)"),
-  linksIconSize: links(`${LINKS} › Tamaño de ícono`, "linksCtl.setIconSize(v)"),
+  linksIconSize: links(`${LINKS} › Íconos › Tamaño`, "linksCtl.setIconSize(v)"),
+  linksIconOpacity: links(`${LINKS} › Íconos › Opacidad`, "linksCtl.setIconOpacity(v)"),
   // Link buttons (Linktree-style, 2026-10-14).
   linkButtons: btns(`${BOTONES}`, "ctl.add(label.trim() || u.replace", "ctl.remove(id)", "ctl.move(from, to)", "ctl.update(editingId, { label: draft.label.trim()"),
   "linkButtonStyle.shape": btns(`${BOTONES} › Estilo › Forma`, 'ctl.setStyle({ shape: v as LinkButtonStyle["shape"] })'),
@@ -226,7 +227,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   locationColor: type(`${UBICACION} › ${COLOR} › Color`, "onChange({ locationColor: v"),
   bioColor: type(`${BIO} › ${COLOR} › Color`, "onChange({ bioColor: v })"),
   viewsColor: type(`${VISITAS} › ${COLOR} › Color`, "onChange({ viewsColor: v"),
-  linksIconColor: by("blockStyle.links.iconColor", "the icon color lives with Contact Links (FASE 2), via its block style"),
+  linksIconColor: links(`${LINKS} › Íconos › Color`, "linksCtl.setIconColor(v, card.blockStyle)"),
   bgColor: by("effects.bg.color", "legacy field merged by getProfileCardEffects (read effective, write raw)"),
   bgImage: by("effects.bg.image", "legacy field merged by getProfileCardEffects"),
   bgMode: by("effects.bg.imageMode", "legacy field merged by getProfileCardEffects"),
@@ -398,7 +399,7 @@ function blockCaps(block: BlockStyleKey): Record<keyof BlockStyleOverride, Capab
         ? retired("never wired in render (blockStyle.ts: Identity has its own per-role colors); each role's Color › Color owns it")
         : by(`${block}Color`, ROLE_COLOR),
     iconColor: block === "links"
-      ? route(`${ui} › Color de ícono`, ev(file, 'blockKey="links" showIconColor'), ev("BlockStyleFields.tsx", "patch({ iconColor: v })"))
+      ? by("linksIconColor", "the icon color moved to Links › Íconos › Color (2026-10-21); a stored value still renders and the new control moves it")
       : unsupported("no icons in this block"),
   };
 }

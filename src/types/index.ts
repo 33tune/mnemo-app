@@ -529,6 +529,8 @@ export type ProfileCardData = {
   bioColor?:        string;
   viewsColor?:      string;
   linksIconColor?:  string;
+  /** Contact Links icons at rest, 0-1 (hover = 1). Absent = CONTACT_LINK_ICON_OPACITY. */
+  linksIconOpacity?: number;
   // Stage FASE 1: first version of per-block visual overrides — background/
   // textColor/iconColor/radius ONLY (deliberately no padding/border/size —
   // those change the box computeBlockLayout() measures, see blockStyle.ts's

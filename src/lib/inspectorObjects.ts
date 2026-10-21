@@ -219,7 +219,7 @@ export function objectModified(id: ObjectId, card: ProfileCardData): boolean {
   }
   switch (id) {
     case "photo":   return set(card.pfpSizePx) || set(card.pfpRadius) || set(fx?.pfp);
-    case "links":   return set(card.linksIconSize) || set(card.linksIconColor) || set(card.blockStyle?.links);
+    case "links":   return set(card.linksIconSize) || set(card.linksIconColor) || set(card.linksIconOpacity) || set(card.blockStyle?.links);
     case "logo":    return !!card.logo && (set(card.logo.opacity) || set(card.logo.rotation) || set(card.logo.zIndex));
     case "cardBg":  return set(fx?.bg) || set(fx?.gradient) || set(fx?.border?.radius);
     case "cardFx": {

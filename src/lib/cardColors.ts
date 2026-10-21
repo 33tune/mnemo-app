@@ -61,7 +61,7 @@ export function inheritableColorState(override: string | undefined | null): "mod
 // stage (name 0.95, handle/location/views 0.45 aka "faintColor", descriptor
 // 0.72 aka "secondaryColor", bio 0.42 — bio's was always its own one-off,
 // never shared with any named constant).
-const DEFAULT_ROLE_OPACITY = {
+export const DEFAULT_ROLE_OPACITY = {
   name: 0.95,
   handle: 0.45,
   descriptor: 0.72,

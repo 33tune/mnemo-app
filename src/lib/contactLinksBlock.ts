@@ -20,7 +20,9 @@ export const CONTACT_LINK_ICON_SIZE = 20;
 /** Reasonable resize bounds for `linksIconSize` — small enough to stay
  * legible, large enough to never overwhelm the card. */
 export const CONTACT_LINK_ICON_SIZE_MIN = 14;
-export const CONTACT_LINK_ICON_SIZE_MAX = 32;
+export const CONTACT_LINK_ICON_SIZE_MAX = 48;
+/** Icon opacity at rest (hover always shows them at full). Absent = this. */
+export const CONTACT_LINK_ICON_OPACITY = 0.75;
 /** Gap between Contact Link icons, and between the Contact Links block and
  * whatever content sits above it. */
 export const CONTACT_LINK_GAP = 10;

@@ -192,12 +192,29 @@ export function logoController(logo: Logo | undefined, write: Write<Partial<Pick
 
 // ── Contact links ──────────────────────────────────────────────────────────
 
+function legacyIconColorCleared(blockStyle?: ProfileCardData["blockStyle"]): Partial<ProfileCardData> {
+  const links = blockStyle?.links;
+  if (!links?.iconColor) return {};
+  const { iconColor: _drop, ...rest } = links;
+  return { blockStyle: { ...blockStyle, links: rest } };
+}
+
 export function linksController(links: ContactLink[], write: Write<Partial<ProfileCardData>>, newId: () => string = () => crypto.randomUUID()) {
   return {
     add: (url: string) => write({ contactLinks: [...links, { id: newId(), url }] }),
     update: (id: string, url: string) => write({ contactLinks: links.map(l => l.id === id ? { ...l, url } : l) }),
     remove: (id: string) => write({ contactLinks: links.filter(l => l.id !== id) }),
     setIconSize: (v: number) => write({ linksIconSize: v }),
+    setIconOpacity: (v: number) => write({ linksIconOpacity: v }),
+    resetIconOpacity: () => write({ linksIconOpacity: undefined }),
+    /** The icons' color (Íconos › Color, 2026-10-21). A color stored the old
+     * way (blockStyle.links.iconColor) wins in render, so it moves here —
+     * the same write clears it. `undefined` = back to the default. */
+    setIconColor: (v: string | undefined, blockStyle?: ProfileCardData["blockStyle"]) =>
+      write({ linksIconColor: v, ...legacyIconColorCleared(blockStyle) }),
+    /** "Restablecer" of the Íconos card: size, color and opacity. */
+    resetIcons: (blockStyle?: ProfileCardData["blockStyle"]) =>
+      write({ linksIconSize: undefined, linksIconColor: undefined, linksIconOpacity: undefined, ...legacyIconColorCleared(blockStyle) }),
     /** Liquid glass "Restablecer card" (Íconos): deletes the raw key. */
     resetIconSize: () => write({ linksIconSize: undefined }),
   };

@@ -98,6 +98,8 @@ planeado acá hasta confirmarlo.
 >   **La card siempre existe (decisión del usuario, 2026-10-21):** Supr/Backspace nunca la borra (ni sola ni en
 >   multiselección); un MyLand editable que termina de cargar sin card recibe una en blanco (no es paso de deshacer);
 >   "Card de presentación" salió del menú Agregar. Los botones con link suman "Peso" (pesos cargados) junto a la fuente.
+>   Íconos de Links (Contenido › Íconos): Color (`linksIconColor`; un color viejo en `blockStyle.links.iconColor` se
+>   mueve ahí al elegir otro), Opacidad (`linksIconOpacity`, 10–100 %, al pasar el mouse siempre 100 %) y Tamaño hasta 48 px.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
