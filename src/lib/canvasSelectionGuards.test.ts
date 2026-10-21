@@ -57,9 +57,9 @@ test("filterTrashDeletion removes non-profile elements normally when profile isn
   assert.deepEqual(result.map(e => e.id), ["profile-1"]);
 });
 
-test("resolveBulkDeleteIds passes a solo selection through unchanged, including a solo profile", () => {
+test("resolveBulkDeleteIds never deletes the profile, even selected alone (it always exists)", () => {
   const start = els();
-  assert.deepEqual(resolveBulkDeleteIds(new Set(["profile-1"]), start), new Set(["profile-1"]));
+  assert.deepEqual(resolveBulkDeleteIds(new Set(["profile-1"]), start), new Set());
   assert.deepEqual(resolveBulkDeleteIds(new Set(["image-1"]), start), new Set(["image-1"]));
 });
 

@@ -86,7 +86,7 @@ interface Props {
  * (fontWeights.ts, CLAUDE.md), written in that weight; a radiogroup. A
  * stored weight the font does not load stays as "<n> · sintético" (dimmer)
  * and is never rewritten. System fonts keep 100–900. */
-function WeightControl({ font, family, weight, onChange, modified, onReset }: {
+export function WeightControl({ font, family, weight, onChange, modified, onReset }: {
   font: string; family: string; weight: number; onChange: (v: number) => void; modified?: boolean; onReset?: () => void;
 }) {
   const options = weightOptions(font, weight);
@@ -113,7 +113,7 @@ function WeightControl({ font, family, weight, onChange, modified, onReset }: {
   );
 }
 
-function fontDetail(font: string, modified: boolean): string {
+export function fontDetail(font: string, modified: boolean): string {
   const loaded = LOADED_FONT_WEIGHTS[font];
   const weights = isLoadedFont(font) ? `${loaded.length} ${loaded.length === 1 ? "peso" : "pesos"}` : "del sistema";
   return modified ? weights : `Predeterminada · ${weights}`;

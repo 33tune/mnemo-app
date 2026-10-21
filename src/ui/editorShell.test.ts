@@ -179,6 +179,9 @@ test("Liquid glass L5: floating rail capsule, dock 16px from the top, Agregar me
   assert.ok(T.ui.size.railW + 16 + getFreeformCardBounds().maxW + 16 + T.ui.size.inspectorW + T.ui.size.dockMargin <= T.ui.breakpoint.inspectorSheet);
   assert.ok(RAIL.includes('className="mn-rail__ind"') && RAIL.includes("translateY(${active * RAIL_STEP}px)"));
   assert.ok(BOARD.includes("top={editorShell ? (sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin) : CANVAS_TOP_OFFSET}"));
-  for (const k of ['label:"Texto"', 'label:"Imagen"', 'label:"Music"', 'label:"Card de presentación"', 'className="mn-addmenu__well"']) assert.ok(BOARD.includes(k), k);
+  for (const k of ['label:"Texto"', 'label:"Imagen"', 'label:"Music"', 'className="mn-addmenu__well"']) assert.ok(BOARD.includes(k), k);
+  // The card always exists (created blank on load), so Agregar never offers it.
+  assert.ok(!BOARD.includes('label:"Card de presentación"'), "no 'Card de presentación' in Agregar");
+  assert.ok(BOARD.includes('enqueueOp({ type: "add_profile", profile: p }, { record: false })'), "the blank card is not an undo step");
   assert.ok(BOARD.includes("{railShown && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && ("), "the hint only with nothing selected");
 });

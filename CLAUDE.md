@@ -95,6 +95,9 @@ planeado acá hasta confirmarlo.
 >   pegados en su orden. Detalle en `liquid-glass-plan.md` § 4.
 >   **Merge a `main` (OK del usuario, 2026-10-15):** las Fases L0–L6, botones con link, temas Lima y el motor libre
 >   están en `main` (fast-forward desde `feature/myland-menus-v4`). Sigue pendiente la QA con login en navegador real.
+>   **La card siempre existe (decisión del usuario, 2026-10-21):** Supr/Backspace nunca la borra (ni sola ni en
+>   multiselección); un MyLand editable que termina de cargar sin card recibe una en blanco (no es paso de deshacer);
+>   "Card de presentación" salió del menú Agregar. Los botones con link suman "Peso" (pesos cargados) junto a la fuente.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
@@ -933,7 +936,7 @@ Separación: **estado de edición** (`effectBinding.ts`) · **capacidades**
 - **Atajos con foco en un hijo:** si el foco queda en un hijo enfocable del
   canvas (un link de Contact Links, el play de Music), los atajos del canvas
   no actúan hasta volver a clickear el canvas. Es intencional.
-- **Esc, Esc, Backspace** borra la card. Es el diseño acordado y tiene undo.
+- ~~**Esc, Esc, Backspace** borra la card.~~ Ya no: la card nunca se borra (2026-10-21).
 - **Mobile:** `MobilePublicCanvas`/`space_mobile` no recibieron O2, nudge
   ni Medidas (regla de mobile legacy).
 - **Cards legacy:** su toolbar de capas sigue con `div`s (P4B).

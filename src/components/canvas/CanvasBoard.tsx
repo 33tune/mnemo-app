@@ -513,6 +513,8 @@ export default function CanvasBoard({
   const statsCards   = useMemo(() => elements.filter(e => e.elementType === "stats")       as (StatsCardData     & { elementType: "stats" })[], [elements]);
 
   const trashRef          = useRef<HTMLDivElement>(null);
+  /** The canvas mode whose load finished completely (see the ensure-card effect). */
+  const fullyLoadedModeRef = useRef<string | null>(null);
   const canvasWrapperRef  = useRef<HTMLDivElement>(null);
   const cardDivRefs    = useRef<Record<string, HTMLDivElement | null>>({});
   const bgImageRef     = useRef<HTMLInputElement>(null);
@@ -2000,10 +2002,9 @@ export default function CanvasBoard({
       if (e.key === "Delete" || e.key === "Backspace") {
         const rawIds = selIdsRef.current;
         if (!rawIds.size) return;
-        // A deliberate solo selection can still delete the Presentation Card
-        // (that's the only way to remove one today), but a multi-select bulk
-        // delete must never sweep it up as a passenger — same singleton
-        // guard as drag-to-trash/marquee.
+        // The Presentation Card is never deleted (user decision 2026-10-21:
+        // it is the core of the profile and always exists, even blank) —
+        // alone or as a passenger in a multi-selection.
         const ids = resolveBulkDeleteIds(rawIds, elementsRef.current);
         if (!ids.size) return;
         // Every selectable kind is deleted (Iteration 0), through the
@@ -2292,6 +2293,7 @@ export default function CanvasBoard({
       setHiddenMap({});
       setPlacementsMap({});
       hasLoadedRef.current = false;
+      fullyLoadedModeRef.current = null;
       savingRef.current = false;
       lastSavedStateRef.current = null;
       userInteractedRef.current = false;
@@ -2595,6 +2597,7 @@ export default function CanvasBoard({
       });
 
       hasLoadedRef.current = true;
+      fullyLoadedModeRef.current = canvasModeRef.current;
       setPublishState("idle");
       setIsLoading(false);
     }
@@ -2914,6 +2917,9 @@ export default function CanvasBoard({
     el.src=src;
   }
 
+  /** Creates the blank Presentation Card. Not an undo step and not selected:
+   * the card always exists (user decision 2026-10-21), so it is created as
+   * soon as an editable MyLand finishes loading without one. */
   function addProfile() {
     if (!canInteract) return;
     if (profiles.length > 0) return;
@@ -2948,10 +2954,21 @@ export default function CanvasBoard({
       bgColor: "", bgImage: "", borderRadius: 20, opacity: 1,
       isPublic: inSpace ? true : undefined,
     };
-    enqueueOp({ type: "add_profile", profile: p });
-    setSelectedIds(new Set([p.id]));
-    setMenuOpen(false);
+    enqueueOp({ type: "add_profile", profile: p }, { record: false });
   }
+
+  // The card always exists: an editable MyLand that finished loading without
+  // one gets a blank card, once per load.
+  // Only after a COMPLETE load of this canvas (snapshot + ops), so a card
+  // that exists but has not arrived yet is never duplicated.
+  const ensuredCardRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isLoading || fullyLoadedModeRef.current !== canvasMode || !canEdit || !canInteract || !inSpace) return;
+    if (profiles.length > 0 || ensuredCardRef.current === canvasMode) return;
+    ensuredCardRef.current = canvasMode;
+    addProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, canEdit, canInteract, inSpace, canvasMode, profiles.length]);
 
   function addGuestbook() {
     if (!canInteract) return;
@@ -4399,15 +4416,14 @@ export default function CanvasBoard({
             // the gallery render/replay paths stay for pre-existing data.
             // Iteration 0: activating an item closes the menu and returns
             // focus to "+" (it used to drop to <body>). "Card de
-            // presentación" is hidden once the singleton exists (addProfile
-            // was a silent no-op then).
+            // presentación" is not offered: the card always exists (it is
+            // created blank on load — see the ensure-card effect).
             // Liquid glass (L5, DS add menu): 60px items — icon well, the
             // element's name (the same names its dock uses) and a one-line
             // hint. Same handlers.
             {label:"Texto",  sub:"Título, frase, lo que quieras", icon:"text" as IconName,  fn:()=>{setAddingText(true);      closeAddMenu();}},
             {label:"Imagen", sub:"Foto, logo o GIF",              icon:"image" as IconName, fn:()=>{imageRef.current?.click();closeAddMenu();}},
             {label:"Music",  sub:"Un reproductor con tu canción", icon:"music" as IconName, fn:()=>{addMusicCard();           closeAddMenu();}},
-            ...(profiles.length === 0 ? [{label:"Card de presentación", sub:"Tu tarjeta: foto, nombre y links", icon:"card" as IconName, fn:()=>{addProfile(); closeAddMenu();}}] : []),
           ].map(item=>(
             <button key={item.label} type="button" className="mn-glassmenu__item mn-addmenu__item" onClick={item.fn}>
               <span className="mn-addmenu__well" aria-hidden><Icon name={item.icon} size={18} /></span>

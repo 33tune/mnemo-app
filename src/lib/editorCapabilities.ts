@@ -152,7 +152,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "linkButtonStyle.textColor": btns(`${BOTONES} › Estilo › Color del texto`, "ctl.setStyle({ textColor: v })"),
   "linkButtonStyle.font": btns(`${BOTONES} › Estilo › Fuente`, "ctl.setStyle({ font: v })"),
   "linkButtonStyle.fontSize": btns(`${BOTONES} › Estilo › Tamaño`, "ctl.setStyle({ fontSize: v })"),
-  "linkButtonStyle.fontWeight": unsupported("no control yet: the buttons use 600 (linkButtons.ts LINK_BUTTON_DEFAULT_WEIGHT)"),
+  "linkButtonStyle.fontWeight": btns(`${BOTONES} › Estilo › Peso`, "ctl.setStyle({ fontWeight: v })"),
   "linkButtonStyle.showIcon": btns(`${BOTONES} › Estilo › Ícono de la red`, "ctl.setStyle({ showIcon: v ? undefined : false })"),
   "linkButtonStyle.width": btns(`${BOTONES} › Distribución › Ancho`, 'ctl.setStyle({ width: v as LinkButtonStyle["width"] })'),
   "linkButtonStyle.gap": btns(`${BOTONES} › Distribución › Separación`, "ctl.setStyle({ gap: v })"),

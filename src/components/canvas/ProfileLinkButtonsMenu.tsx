@@ -6,7 +6,8 @@ import {
   TextInput, IconButton, Icon, refocusFieldControl,
 } from "@/ui";
 import { detectPlatform, PlatformIcon } from "./SocialIcons";
-import { CANVAS_FONTS } from "@/lib/fontList";
+import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
+import { WeightControl, fontDetail } from "./RoleTypographyFields";
 import { linkButtonsController } from "@/lib/objectControllers";
 import {
   LINK_BUTTONS_MAX, LINK_BUTTON_LABEL_MAX, LINK_BUTTON_FONT_SIZE, LINK_BUTTON_GAP,
@@ -59,7 +60,7 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
 
   const shapeName = SHAPES.find(s => s.id === r.shape)?.label ?? "";
   const fillName = FILLS.find(f => f.id === r.fill)?.label ?? "";
-  const styleChanged = ["shape", "fill", "color", "textColor", "font", "fontSize", "showIcon"].filter(k => style?.[k as keyof LinkButtonStyle] !== undefined).length;
+  const styleChanged = ["shape", "fill", "color", "textColor", "font", "fontSize", "fontWeight", "showIcon"].filter(k => style?.[k as keyof LinkButtonStyle] !== undefined).length;
   const layoutChanged = ["width", "gap"].filter(k => style?.[k as keyof LinkButtonStyle] !== undefined).length;
   const hoverOn = [r.hover.lift && "Elevar", r.hover.glow && "Brillo", r.hover.invert && "Invertir"].filter(Boolean) as string[];
 
@@ -94,8 +95,8 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
       </MenuSection>
 
       <MenuSection label="Estilo" icon="palette" changed={styleChanged} swatch={r.fill === "solid" ? r.color : undefined}
-        summary={`${shapeName} · ${fillName} · ${r.fontSize} px`}
-        onReset={() => ctl.setStyle({ shape: undefined, fill: undefined, color: undefined, textColor: undefined, font: undefined, fontSize: undefined, showIcon: undefined })}>
+        summary={`${shapeName} · ${fillName} · ${CANVAS_FONTS.find(f => f.key === r.font)?.label ?? r.font} ${r.fontSize} px`}
+        onReset={() => ctl.setStyle({ shape: undefined, fill: undefined, color: undefined, textColor: undefined, font: undefined, fontSize: undefined, fontWeight: undefined, showIcon: undefined })}>
         <MenuRow label="Forma" state={style?.shape ? "modified" : undefined} onReset={() => ctl.setStyle({ shape: undefined })}>
           <div style={{ width: 212 }}><Tabs tabs={SHAPES} active={r.shape} onChange={v => ctl.setStyle({ shape: v as LinkButtonStyle["shape"] })} /></div>
         </MenuRow>
@@ -107,7 +108,9 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
         <ColorRow label="Color del texto" value={r.textColor} onChange={v => ctl.setStyle({ textColor: v })}
           state={style?.textColor ? "modified" : "inherited"} inheritedLabel="Automático" onReset={() => ctl.setStyle({ textColor: undefined })} />
         <FontField value={r.font} onChange={v => ctl.setStyle({ font: v })} fonts={CANVAS_FONTS} label="Fuente de los botones"
-          detail={style?.font ? undefined : "Predeterminada"} modified={!!style?.font} onReset={() => ctl.setStyle({ font: undefined })} sample="Aa" />
+          detail={fontDetail(r.font, !!style?.font)} modified={!!style?.font} onReset={() => ctl.setStyle({ font: undefined })} sample="Aa" />
+        <WeightControl font={r.font} family={getFontStyle(r.font)} weight={r.fontWeight}
+          onChange={v => ctl.setStyle({ fontWeight: v })} modified={style?.fontWeight != null} onReset={() => ctl.setStyle({ fontWeight: undefined })} />
         <SliderRow label="Tamaño" icon="maximize" min={LINK_BUTTON_FONT_SIZE.min} max={LINK_BUTTON_FONT_SIZE.max} step={1} value={r.fontSize} unit="px" fmt={px}
           onChange={v => ctl.setStyle({ fontSize: v })} state={style?.fontSize != null ? "modified" : undefined} onReset={() => ctl.setStyle({ fontSize: undefined })} />
         <SwitchRow label="Ícono de la red" icon="link" value={r.showIcon} onChange={v => ctl.setStyle({ showIcon: v ? undefined : false })} />

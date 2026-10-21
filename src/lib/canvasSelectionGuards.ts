@@ -73,17 +73,15 @@ export function filterTrashDeletion<T extends { id: string; elementType: string 
 }
 
 /**
- * Resolves which ids a bulk keyboard Delete/Backspace should actually
- * remove: a deliberate solo selection can still delete the Presentation
- * Card (the only way to remove one today), but a multi-select bulk delete
- * must never sweep it up as a passenger — mirrors the DELETE/BACKSPACE
- * handler in CanvasBoard.tsx.
+ * Resolves which ids a keyboard Delete/Backspace should actually remove:
+ * never the Presentation Card — alone or in a multi-selection (user
+ * decision 2026-10-21: it is the core of the profile and always exists) —
+ * mirrors the DELETE/BACKSPACE handler in CanvasBoard.tsx.
  */
 export function resolveBulkDeleteIds<T extends { id: string; elementType: string }>(
   selectedIds: Set<string>,
   elements: T[],
 ): Set<string> {
-  if (selectedIds.size <= 1) return selectedIds;
   const byId = new Map(elements.map(el => [el.id, el]));
   return new Set([...selectedIds].filter(id => byId.get(id)?.elementType !== "profile"));
 }
