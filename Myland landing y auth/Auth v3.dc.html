@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>myLand — Entrar</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&amp;family=Funnel+Display:wght@500;700;800&amp;display=swap">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/colors.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/typography.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/motion.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/components/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/styles.css">
+<script src="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/_ds_bundle.js"></script>
+<style>
+:root{--ml-display:'Unbounded',sans-serif}
+body{margin:0;background:#F3F0EB;color:#141118;-webkit-font-smoothing:antialiased}
+a{color:#141118;text-decoration:none}a:hover{color:#D42A70}
+::selection{background:#FFE14D;color:#141118}
+input::placeholder{color:rgba(20,17,24,.35)}
+@keyframes ml-fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes ml-spin{to{transform:rotate(360deg)}}
+@keyframes ml-pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes ml-colA{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+@keyframes ml-colB{from{transform:translateY(-50%)}to{transform:translateY(0)}}
+@keyframes ml-letter{0%{opacity:0;transform:translateY(.4em) scale(.6) rotate(-12deg)}60%{opacity:1;transform:translateY(-.06em) scale(1.08) rotate(3deg)}100%{opacity:1;transform:none}}
+@keyframes ml-shine{0%,60%{transform:translateX(-120%) skewX(-20deg)}100%{transform:translateX(220%) skewX(-20deg)}}
+@keyframes ml-panel{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes ml-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div ref="{{ rootRef }}" class="lg" data-editor-theme="light" style="position:relative;min-height:100vh;display:flex;flex-wrap:wrap;background:#F3F0EB;color:#141118;font-family:var(--font-sans)">
+
+  <!-- STAGE -->
+  <aside data-stage="1" style="position:relative;flex:{{ stageFlex }};min-width:0;box-sizing:border-box;padding:12px;position:{{ stagePos }};top:0;height:{{ stageH }}">
+    <div style="position:relative;height:100%;min-height:{{ stageMinH }};border-radius:clamp(28px,3vw,40px);overflow:hidden;background:#FF4F94;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;padding:{{ stagePad }}">
+      <div aria-hidden="true" style="position:absolute;right:-14%;bottom:-18%;width:min(70vw,640px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#fff 0 12%,#5AC8FA 22%,#D4FF3F 33%,#FFE14D 44%,#FF7A2E 55%,rgba(255,79,148,0) 70%);pointer-events:none"></div>
+      <sc-if value="{{ cols }}" hint-placeholder-val="{{ true }}">
+        <div aria-hidden="true" style="position:absolute;right:3%;top:-12%;bottom:-12%;width:44%;display:flex;gap:14px;transform:rotate(-8deg);pointer-events:none">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;animation:ml-colA 30s linear infinite">
+            <sc-for list="{{ colA }}" as="c" hint-placeholder-count="10"><div style="position:relative;flex:none;width:100%;aspect-ratio:{{ c.r }};border-radius:20px;background:{{ c.bg }};box-shadow:0 0 0 {{ c.frame }} #fff,0 24px 40px -20px rgba(20,17,24,.45)"><span class="lg-glass" style="position:absolute;left:8px;bottom:8px;height:22px;padding:0 8px;display:flex;align-items:center;border-radius:999px;font:650 10px var(--font-sans);color:#141118">{{ c.label }}</span></div></sc-for>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;animation:ml-colB 36s linear infinite">
+            <sc-for list="{{ colB }}" as="c" hint-placeholder-count="10"><div style="position:relative;flex:none;width:100%;aspect-ratio:{{ c.r }};border-radius:20px;background:{{ c.bg }};box-shadow:0 0 0 {{ c.frame }} #fff,0 24px 40px -20px rgba(20,17,24,.45)"><span class="lg-glass" style="position:absolute;left:8px;bottom:8px;height:22px;padding:0 8px;display:flex;align-items:center;border-radius:999px;font:650 10px var(--font-sans);color:#141118">{{ c.label }}</span></div></sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <div data-three="1" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none"></div>
+      <div aria-hidden="true" style="position:absolute;right:12%;top:14%;animation:ml-bob 5s ease-in-out infinite"><div style="width:clamp(34px,4.4vw,72px);height:clamp(34px,4.4vw,72px);border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%);box-shadow:0 24px 40px -16px rgba(120,60,0,.45)"></div></div>
+      <div aria-hidden="true" style="position:absolute;left:46%;bottom:22%;animation:ml-bob 6s 1s ease-in-out infinite"><div style="width:clamp(22px,2.6vw,42px);height:clamp(22px,2.6vw,42px);border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></div></div>
+
+      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <a href="Landing v9.dc.html" style="display:flex;align-items:center;gap:8px;height:46px;padding:0 16px 0 10px;border-radius:999px;background:#fff;color:#141118"><img src="assets/logo.png" alt="" style="width:28px;height:auto"><span style="font:800 19px/1 var(--font-display);letter-spacing:-0.055em">myLand</span></a>
+        <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><a href="Landing v9.dc.html" aria-label="Cerrar" title="Cerrar" style="width:46px;height:46px;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.5);color:#141118"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="close" size="17" hint-size="17px,17px"></x-import></a></sc-if>
+      </div>
+
+      <div data-tilt="1" style="position:relative;margin-top:{{ stageGap }};will-change:transform">
+        <span style="display:inline-flex;height:30px;padding:0 12px;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 12px var(--font-mono);letter-spacing:.08em">{{ stageKicker }}</span>
+        <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:16px;font:700 clamp(20px,2.4vw,36px)/1 var(--font-sans);letter-spacing:-0.03em;opacity:.6">myland.lol/</div>
+          <div data-handle-target="1" style="margin-top:6px;font-family:var(--ml-display);font-weight:800;font-size:{{ handleSize }};line-height:.92;letter-spacing:-0.045em;overflow-wrap:anywhere;max-width:100%"><sc-for list="{{ letters }}" as="l" hint-placeholder-count="9"><span style="display:inline-block;animation:ml-letter .55s {{ l.d }} cubic-bezier(.34,1.56,.64,1) both">{{ l.ch }}</span></sc-for></div>
+        </sc-if>
+        <sc-if value="{{ isLoginish }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;font-family:var(--ml-display);font-weight:800;font-size:{{ loginSize }};line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">Tu sala te espera</div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ showChecks }}" hint-placeholder-val="{{ true }}">
+        <div style="position:relative;display:flex;flex-wrap:wrap;gap:8px;margin-top:28px">
+          <sc-for list="{{ checks }}" as="c" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 16px 0 8px;border-radius:999px;background:{{ c.chip }};font:650 14px var(--font-sans);color:#141118;transition:background .3s">
+              <span style="width:28px;height:28px;border-radius:999px;display:grid;place-items:center;background:{{ c.bg }};color:#fff;transition:background .4s var(--glass-spring)"><sc-if value="{{ c.done }}" hint-placeholder-val="{{ false }}"><span style="display:grid;animation:ml-pop .4s var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="check" size="15" hint-size="15px,15px"></x-import></span></sc-if></span>{{ c.label }}
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ showLoginNote }}" hint-placeholder-val="{{ false }}">
+        <div style="position:relative;margin-top:28px;font:600 16px/1.45 var(--font-sans);max-width:380px">Tu tarjeta, tus links y tu sala siguen exactamente donde los dejaste.</div>
+      </sc-if>
+    </div>
+  </aside>
+
+  <!-- PANEL -->
+  <main style="position:relative;flex:{{ panelFlex }};min-width:0;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;padding:{{ panelPad }};min-height:{{ panelMinH }}">
+    <div class="{{ cardCls }}" style="width:100%;max-width:440px;margin:0 auto;box-sizing:border-box;padding:{{ cardPad }};border-radius:32px;animation:ml-panel .7s .15s cubic-bezier(.16,1,.3,1) both">
+      <sc-if value="{{ showForm }}" hint-placeholder-val="{{ true }}">
+        <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ tabs }}" value="{{ mode }}" onChange="{{ setMode }}" hint-size="100%,44px"></x-import>
+        </sc-if>
+        <div data-form="1">
+          <h1 style="margin:28px 0 0;font-family:var(--ml-display);font-weight:800;font-size:clamp(30px,3.2vw,40px);line-height:.95;letter-spacing:-0.045em;text-transform:uppercase">{{ title }}</h1>
+          <p style="margin:12px 0 0;font:500 15px/1.45 var(--font-sans);color:#5A5360">{{ subtitle }}</p>
+
+          <form onSubmit="{{ submit }}" noValidate="true" style="margin-top:24px;display:flex;flex-direction:column;gap:16px">
+            <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <label for="f-handle" style="font:600 13px var(--font-sans);color:#5A5360">Tu nombre en myLand</label>
+                <div style="display:flex;align-items:center;height:54px;border-radius:16px;background:#fff;padding:0 16px;box-shadow:{{ handleRing }};transition:box-shadow .25s">
+                  <span style="font:500 16px var(--font-sans);color:rgba(20,17,24,.45)">myland.lol/</span>
+                  <input id="f-handle" value="{{ handle }}" onChange="{{ onHandle }}" disabled="{{ loading }}" placeholder="tu-nombre" spellCheck="false" autoComplete="username" style="flex:1;min-width:0;height:100%;border:none;outline:none;background:transparent;font:650 16px var(--font-sans);color:#141118;padding:0 4px">
+                  <span style="width:9px;height:9px;border-radius:99px;flex:none;background:{{ hDot }};transition:background .3s"></span>
+                </div>
+                <div style="font:550 12px var(--font-sans);color:{{ hColor }};min-height:16px">{{ hText }}</div>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label for="f-email" style="font:600 13px var(--font-sans);color:#5A5360">Email</label>
+              <input id="f-email" type="email" value="{{ email }}" onChange="{{ onEmail }}" onBlur="{{ blurEmail }}" disabled="{{ loading }}" placeholder="vos@email.com" autoComplete="email" inputMode="email" style="height:54px;border:none;outline:none;border-radius:16px;background:#fff;padding:0 16px;font:550 16px var(--font-sans);color:#141118;box-shadow:{{ emailRing }};transition:box-shadow .25s,transform .35s var(--glass-spring)" style-focus="box-shadow:0 0 0 2px #fff,0 0 0 4px #FF4F94;transform:scale(1.015)">
+              <sc-if value="{{ emailErr }}" hint-placeholder-val="{{ false }}"><div style="font:550 12px var(--font-sans);color:#C62A22">{{ emailErr }}</div></sc-if>
+            </div>
+
+            <sc-if value="{{ needsPass }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between">
+                  <label for="f-pass" style="font:600 13px var(--font-sans);color:#5A5360">Contraseña</label>
+                  <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{ goReset }}" style="border:none;background:none;padding:0;cursor:pointer;font:600 13px var(--font-sans);color:#141118;text-decoration:underline;text-underline-offset:3px" style-hover="color:#D42A70">¿Te la olvidaste?</button></sc-if>
+                </div>
+                <div style="position:relative">
+                  <input id="f-pass" type="{{ passType }}" value="{{ pass }}" onChange="{{ onPass }}" onBlur="{{ blurPass }}" disabled="{{ loading }}" placeholder="{{ passPh }}" autoComplete="{{ passAuto }}" style="width:100%;box-sizing:border-box;height:54px;border:none;outline:none;border-radius:16px;background:#fff;padding:0 54px 0 16px;font:550 16px var(--font-sans);color:#141118;box-shadow:{{ passRing }};transition:box-shadow .25s,transform .35s var(--glass-spring)" style-focus="box-shadow:0 0 0 2px #fff,0 0 0 4px #FF4F94;transform:scale(1.015)">
+                  <button type="button" onClick="{{ togglePass }}" aria-label="{{ eyeLabel }}" title="{{ eyeLabel }}" style="position:absolute;right:5px;top:5px;width:44px;height:44px;border:none;border-radius:12px;background:transparent;color:#5A5360;display:grid;place-items:center;cursor:pointer" style-hover="background:#F3F0EB"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ eyeIcon }}" size="17" hint-size="17px,17px"></x-import></button>
+                </div>
+                <sc-if value="{{ showStrength }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:4px"><sc-for list="{{ bars }}" as="b" hint-placeholder-count="4"><span style="height:5px;border-radius:9px;background:{{ b.c }};transition:background .3s"></span></sc-for></div>
+                    <span style="font:600 12px var(--font-sans);color:#141118;min-width:48px;text-align:right">{{ strengthLabel }}</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ passErr }}" hint-placeholder-val="{{ false }}"><div style="font:550 12px var(--font-sans);color:#C62A22">{{ passErr }}</div></sc-if>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ error }}" hint-placeholder-val="{{ false }}">
+              <div role="alert" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:18px;background:#FFE3E1;color:#7A1712;font:550 14px/1.4 var(--font-sans);animation:ml-fade .35s both">
+                <span style="flex:none;width:22px;height:22px;border-radius:99px;background:#FF5F57;color:#fff;display:grid;place-items:center;font:700 13px var(--font-sans)">!</span>
+                <div style="flex:1">{{ error }}<sc-if value="{{ errorAction }}" hint-placeholder-val="{{ false }}"> <button type="button" onClick="{{ errorFix }}" style="border:none;background:none;padding:0;cursor:pointer;font:700 14px var(--font-sans);color:#141118;text-decoration:underline;text-underline-offset:3px">{{ errorAction }}</button></sc-if></div>
+              </div>
+            </sc-if>
+
+            <button type="submit" disabled="{{ loading }}" style-before="content:'';position:absolute;top:0;bottom:0;left:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:ml-shine 3.2s ease-in-out infinite;pointer-events:none" style="position:relative;overflow:hidden;margin-top:4px;height:58px;border:none;border-radius:999px;background:#141118;color:#fff;font:700 16px var(--font-sans);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;opacity:{{ btnOpacity }};transition:transform .3s var(--glass-spring),background .2s" style-hover="background:#FF4F94;color:#141118" style-active="transform:scale(.96)">
+              <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}"><span style="width:18px;height:18px;border-radius:99px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:ml-spin .7s linear infinite"></span></sc-if>{{ cta }}
+            </button>
+          </form>
+
+          <sc-if value="{{ showGoogle }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:14px;margin:20px 0;font:550 12px var(--font-sans);color:#7A7380"><span style="flex:1;height:1px;background:rgba(20,17,24,.12)"></span>o<span style="flex:1;height:1px;background:rgba(20,17,24,.12)"></span></div>
+            <button type="button" onClick="{{ google }}" disabled="{{ loading }}" style="width:100%;height:54px;border:none;border-radius:999px;background:#fff;color:#141118;font:600 15px var(--font-sans);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 0 0 1px rgba(20,17,24,.1);transition:transform .3s var(--glass-spring)" style-hover="box-shadow:0 0 0 1.5px #141118" style-active="transform:scale(.96)">
+              <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path></svg>
+              {{ googleLabel }}
+            </button>
+          </sc-if>
+
+          <div style="margin-top:22px;text-align:center;font:500 13px/1.5 var(--font-sans);color:#5A5360">
+            <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ true }}">Al crear tu cuenta aceptás los <a href="#" style="color:#141118;text-decoration:underline;text-underline-offset:3px">Términos</a> y la <a href="#" style="color:#141118;text-decoration:underline;text-underline-offset:3px">Privacidad</a>.</sc-if>
+            <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">¿Todavía no tenés tu myLand? <button type="button" onClick="{{ goRegister }}" style="border:none;background:none;padding:0;cursor:pointer;font:700 13px var(--font-sans);color:#D42A70">Reclamalo</button></sc-if>
+            <sc-if value="{{ isReset }}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{ goLogin }}" style="border:none;background:none;padding:0;cursor:pointer;font:700 13px var(--font-sans);color:#141118">Volver a entrar</button></sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:flex-start;animation:ml-fade .5s both">
+          <div style="width:72px;height:72px;border-radius:24px;display:grid;place-items:center;background:#FFE14D;color:#141118;transform:rotate(-6deg);animation:ml-pop .6s var(--glass-spring) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="mail" size="28" hint-size="28px,28px"></x-import></div>
+          <h1 style="margin:26px 0 0;font-family:var(--ml-display);font-weight:800;font-size:clamp(30px,3.2vw,40px);line-height:.95;letter-spacing:-0.045em;text-transform:uppercase">Revisá tu email</h1>
+          <p style="margin:12px 0 0;font:500 15px/1.5 var(--font-sans);color:#5A5360">{{ sentText }} <span style="color:#141118;font-weight:700;overflow-wrap:anywhere">{{ sentEmail }}</span>.</p>
+          <a href="https://mail.google.com" target="_blank" style="margin-top:28px;width:100%;height:58px;border-radius:999px;background:#141118;color:#fff;font:700 16px var(--font-sans);display:flex;align-items:center;justify-content:center;gap:8px">Abrir mi email<x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-up-right" size="17" hint-size="17px,17px"></x-import></a>
+          <div style="margin-top:10px;width:100%;display:flex;gap:8px">
+            <button type="button" onClick="{{ resend }}" disabled="{{ resendDisabled }}" style="flex:1;height:50px;border:none;border-radius:999px;background:#fff;box-shadow:0 0 0 1px rgba(20,17,24,.1);color:{{ resendColor }};font:600 14px var(--font-sans);cursor:pointer">{{ resendLabel }}</button>
+            <button type="button" onClick="{{ backToForm }}" style="flex:1;height:50px;border:none;border-radius:999px;background:#fff;box-shadow:0 0 0 1px rgba(20,17,24,.1);color:#141118;font:600 14px var(--font-sans);cursor:pointer">Usar otro email</button>
+          </div>
+          <p style="margin:20px 0 0;font:500 13px/1.5 var(--font-sans);color:#5A5360">¿No llega? Fijate en spam o promociones.</p>
+        </div>
+      </sc-if>
+    </div>
+  </main>
+
+  <sc-if value="{{ intro }}" hint-placeholder-val="{{ false }}">
+    <div ref="{{ introRef }}" style="position:fixed;inset:0;z-index:100;background:#FF4F94;color:#141118;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center">
+      <div style="height:30px;padding:0 12px;display:flex;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 12px var(--font-mono);letter-spacing:.1em">RESERVADO</div>
+      <div style="margin-top:22px;font:700 clamp(22px,3vw,40px)/1 var(--font-sans);letter-spacing:-0.03em;opacity:.6">myland.lol/</div>
+      <div style="font-family:var(--ml-display);font-weight:800;font-size:clamp(48px,11vw,190px);line-height:.95;letter-spacing:-0.045em;max-width:100%;overflow-wrap:anywhere">{{ stageHandle }}</div>
+      <div style="margin-top:36px;width:min(280px,60vw);height:4px;border-radius:9px;background:#141118"></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ success }}" hint-placeholder-val="{{ false }}">
+    <div ref="{{ okRef }}" style="position:fixed;inset:0;z-index:100;background:#FFE14D;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center;overflow:hidden">
+      <sc-for list="{{ burst }}" as="b" hint-placeholder-count="12"><span data-burst="1" aria-hidden="true" style="position:absolute;left:50%;top:50%;width:{{ b.s }};height:{{ b.s }};margin:{{ b.m }};border-radius:50%;background:{{ b.bg }};pointer-events:none"></span></sc-for>
+      <img src="assets/logo.png" alt="" style="width:92px;height:auto;animation:ml-pop .7s var(--glass-spring) both">
+      <div style="font-family:var(--ml-display);font-weight:800;font-size:clamp(36px,6vw,88px);line-height:.92;letter-spacing:-0.045em;text-transform:uppercase;animation:ml-fade .6s .2s both">Entrando a tu sala</div>
+      <div style="width:min(240px,60vw);height:4px;border-radius:9px;background:rgba(20,17,24,.15);overflow:hidden"><div ref="{{ outBarRef }}" style="height:100%;width:0;background:#141118"></div></div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;previewState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Normal&quot;,&quot;Cargando&quot;,&quot;Error&quot;,&quot;Sin conexión&quot;,&quot;Email enviado&quot;],&quot;default&quot;:&quot;Normal&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Estados&quot;},&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Unbounded&quot;,&quot;Funnel Display&quot;,&quot;Bricolage Grotesque&quot;],&quot;default&quot;:&quot;Unbounded&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Tipografía&quot;}}">
+class Component extends DCLogic {
+  TAKEN = new Set(["login","dashboard","auth","api","admin","settings","myland","nico","ana","sofi","juan"]);
+  DISPLAY = { "Unbounded": "'Unbounded',sans-serif", "Funnel Display": "'Funnel Display',sans-serif", "Bricolage Grotesque": "'Bricolage Grotesque',sans-serif" };
+  rootRef = React.createRef(); introRef = React.createRef(); outBarRef = React.createRef(); okRef = React.createRef();
+  IRI = ["radial-gradient(110% 80% at 15% 10%,#FFE14D,transparent 60%),radial-gradient(100% 100% at 90% 90%,#FF4F94,transparent 62%),#FFD3E4","radial-gradient(110% 80% at 85% 10%,#5AC8FA,transparent 60%),radial-gradient(100% 100% at 10% 90%,#D4FF3F,transparent 62%),#EAF7FF","radial-gradient(110% 80% at 80% 15%,#FF7A2E,transparent 60%),radial-gradient(100% 100% at 15% 90%,#FF4F94,transparent 62%),#FFE4D2","radial-gradient(110% 80% at 20% 15%,#D4FF3F,transparent 60%),radial-gradient(100% 100% at 85% 90%,#FFE14D,transparent 62%),#F6FFD9","radial-gradient(110% 80% at 80% 10%,#FF4F94,transparent 60%),radial-gradient(100% 100% at 15% 90%,#5AC8FA,transparent 62%),#FFE9F2"];
+  FMT = [["Vertical",.72,0],["Cuadrada",1,1],["Horizontal",1.6,0],["Celular",.5625,0],["Tarjeta",1.25,1]];
+  constructor(props) {
+    super(props);
+    const q = new URLSearchParams(location.search);
+    const h = (q.get("handle") || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 20);
+    this.state = { mode: q.get("mode") === "login" ? "login" : "register", handle: h, hStatus: h.length >= 3 ? (this.TAKEN.has(h) ? "taken" : "ok") : "idle", email: "", pass: "", show: false, loading: false, gLoading: false, error: "", errorKind: "", sent: false, success: false, emailTouched: false, passTouched: false, mobile: innerWidth < 900, intro: q.get("from") === "claim" && h.length >= 3, resendIn: 0 };
+  }
+  componentDidMount() {
+    this._ps = Object.assign({}, this.state); this._pp = Object.assign({}, this.props);
+    this.onResize = () => { const m = innerWidth < 900; if (m !== this.state.mobile) this.setState({ mobile: m }, () => this.three && this.three.resize()); else this.three && this.three.resize(); };
+    addEventListener("resize", this.onResize);
+    this.applyFont();
+    if (this.state.intro) this.playIntro();
+    this.applyPreview();
+    this.mx = this.my = this.tx = this.ty = 0;
+    this.onMove = e => { this.mx = e.clientX / innerWidth - .5; this.my = e.clientY / innerHeight - .5; };
+    addEventListener("pointermove", this.onMove, { passive: true });
+    this.reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.initThree();
+    const loop = t => { this.raf = requestAnimationFrame(loop); this.tx += (this.mx - this.tx) * .06; this.ty += (this.my - this.ty) * .06; if (this.three) this.three.render(t, 0, this.tx, this.ty); const tl = this.rootRef.current && this.rootRef.current.querySelector("[data-tilt]"); if (tl && !this.reduce) tl.style.transform = "perspective(900px) rotateY(" + (this.tx * 10).toFixed(2) + "deg) rotateX(" + (-this.ty * 8).toFixed(2) + "deg) translate3d(" + (this.tx * 18).toFixed(1) + "px," + (this.ty * 12).toFixed(1) + "px,0)"; };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); removeEventListener("pointermove", this.onMove); this.three && this.three.dispose(); removeEventListener("resize", this.onResize); clearTimeout(this.t); clearTimeout(this.ht); clearInterval(this.ri); }
+  componentDidUpdate() {
+    const ps = this._ps || {}, pp = this._pp || {}; this._ps = Object.assign({}, this.state); this._pp = Object.assign({}, this.props);
+    if (pp.previewState !== this.props.previewState) this.applyPreview();
+    if (pp.displayFont !== this.props.displayFont) this.applyFont();
+    if (ps.mode !== this.state.mode) { const ord = { register: 0, login: 1, reset: 2 }; const dir = ord[this.state.mode] > ord[ps.mode] ? 1 : -1; const f = this.rootRef.current && this.rootRef.current.querySelector("[data-form]"); f && f.animate && f.animate([{ opacity: 0, transform: "translateX(" + (dir * 40) + "px)", filter: "blur(6px)" }, { opacity: 1, transform: "none", filter: "blur(0)" }], { duration: 480, easing: "cubic-bezier(.16,1,.3,1)" }); }
+    if (!ps.success && this.state.success) { const ov = this.okRef.current; if (ov) { const b = this.btnPos || { x: innerWidth / 2, y: innerHeight / 2 }; const at = "at " + b.x + "px " + b.y + "px"; ov.animate([{ clipPath: "circle(0px " + at + ")" }, { clipPath: "circle(150vmax " + at + ")" }], { duration: 800, easing: "cubic-bezier(.7,0,.2,1)", fill: "both" }); ov.querySelectorAll("[data-burst]").forEach((el, i) => { const a = i / 12 * Math.PI * 2 + Math.random() * .4, d = 160 + Math.random() * 220; el.animate([{ transform: "translate(0,0) scale(0)", opacity: 1 }, { transform: "translate(" + Math.cos(a) * d + "px," + Math.sin(a) * d + "px) scale(1)", opacity: 1, offset: .7 }, { transform: "translate(" + Math.cos(a) * d * 1.15 + "px," + (Math.sin(a) * d * 1.15 + 60) + "px) scale(.8)", opacity: 0 }], { duration: 1500, delay: 350, easing: "cubic-bezier(.16,1,.3,1)", fill: "both" }); }); } }
+    if (!ps.success && this.state.success) { const b = this.outBarRef.current; b && b.animate([{ width: "0%" }, { width: "100%" }], { duration: 1400, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }); }
+  }
+  applyFont() { const r = this.rootRef.current; r && r.style.setProperty("--ml-display", this.DISPLAY[this.props.displayFont] || this.DISPLAY.Unbounded); }
+  applyPreview() {
+    const p = this.props.previewState; if (!p || p === "Normal") return;
+    const base = { email: "vos@email.com", pass: "myland2026!", handle: this.state.handle || "tu-nombre", hStatus: "ok", loading: false, error: "", sent: false, success: false, intro: false };
+    if (p === "Cargando") this.setState({ ...base, loading: true });
+    if (p === "Error") this.setState({ ...base, error: this.state.mode === "login" ? "Email o contraseña incorrectos." : "Ese email ya tiene una cuenta.", errorKind: this.state.mode === "login" ? "creds" : "exists" });
+    if (p === "Email enviado") this.setState({ ...base, sent: true, resendIn: 30 });
+    if (p === "Sin conexión") this.setState({ ...base, error: "No pudimos conectarnos. Revisá tu internet y probá de nuevo.", errorKind: "network" });
+  }
+  playIntro() {
+    const run = () => {
+      const ov = this.introRef.current; if (!ov) return;
+      const tg = this.rootRef.current.querySelector("[data-handle-target]");
+      const r = tg ? tg.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0 };
+      const at = `at ${r.left + Math.min(r.width, 220) / 2}px ${r.top + r.height / 2}px`;
+      const a = ov.animate([{ clipPath: `circle(150vmax ${at})` }, { clipPath: `circle(0px ${at})` }], { duration: 900, delay: 350, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" });
+      a.onfinish = () => this.setState({ intro: false });
+      tg && tg.animate([{ opacity: 0, transform: "translateY(30px) scale(1.1)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 700, easing: "cubic-bezier(.16,1,.3,1)", fill: "backwards" });
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
+  }
+  setMode = m => this.setState({ mode: m, error: "", sent: false, passTouched: false });
+  onHandle = e => {
+    const h = e.target.value.replace(/\s+/g, "").toLowerCase().slice(0, 20);
+    clearTimeout(this.ht);
+    if (!h) return this.setState({ handle: h, hStatus: "idle" });
+    if (!/^[a-z0-9_-]*$/.test(h)) return this.setState({ handle: h, hStatus: "invalid" });
+    if (h.length < 3) return this.setState({ handle: h, hStatus: "short" });
+    this.setState({ handle: h, hStatus: "checking" });
+    this.ht = setTimeout(() => this.setState({ hStatus: this.TAKEN.has(h) ? "taken" : "ok" }), 500);
+  };
+  emailOk() { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(this.state.email); }
+  strength() { const p = this.state.pass; let s = 0; if (p.length >= 8) s++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^A-Za-z0-9]/.test(p) || p.length >= 14) s++; return p ? Math.max(1, s) : 0; }
+  shake() { const r = this.rootRef.current; const f = r && r.querySelector("form"); f && f.animate && f.animate([{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(8px)" }, { transform: "translateX(-4px)" }, { transform: "translateX(0)" }], { duration: 420 }); }
+  submit = e => {
+    e.preventDefault();
+    const s = this.state;
+    const sb = this.rootRef.current && this.rootRef.current.querySelector("button[type=submit]"); if (sb) { const r = sb.getBoundingClientRect(); this.btnPos = { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+    this.setState({ emailTouched: true, passTouched: true, error: "" });
+    const bad = !this.emailOk() || (s.mode !== "reset" && (s.mode === "register" ? s.pass.length < 8 : !s.pass)) || (s.mode === "register" && s.hStatus !== "ok");
+    if (bad) { this.shake(); return; }
+    this.setState({ loading: true });
+    this.t = setTimeout(() => {
+      const em = this.state.email.toLowerCase();
+      if (!navigator.onLine) return this.fail("No pudimos conectarnos. Revisá tu internet y probá de nuevo.", "network");
+      if (s.mode === "register") { if (em.startsWith("usado")) return this.fail("Ese email ya tiene una cuenta.", "exists"); return this.setState({ loading: false, sent: true, resendIn: 30 }, () => this.tick()); }
+      if (s.mode === "reset") return this.setState({ loading: false, sent: true, resendIn: 30 }, () => this.tick());
+      if (em.includes("error") || this.state.pass === "error") return this.fail("Email o contraseña incorrectos.", "creds");
+      this.setState({ loading: false, success: true });
+    }, 1500);
+  };
+  async initThree() {
+    if (this.three || this.threeLoading) return; this.threeLoading = true;
+    try {
+      const T = await import("https://esm.sh/three@0.160.0");
+      const host = this.rootRef.current && this.rootRef.current.querySelector("[data-three]");
+      if (!host || !(this.props.decor ?? true)) { this.threeLoading = false; return; }
+      const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+      renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+      renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
+      host.appendChild(renderer.domElement);
+      const scene = new T.Scene(), cam = new T.PerspectiveCamera(32, 1, 0.1, 100); cam.position.set(0, 0, 13);
+      const env = new T.Scene(); env.background = new T.Color("#d9d2de");
+      const panel = (c, w, h, x, y, z, ry) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: c, side: T.DoubleSide })); m.position.set(x, y, z); m.rotation.y = ry || 0; m.lookAt(0, 0, 0); env.add(m); };
+      panel(new T.Color(9, 9, 9), 8, 4, 0, 7, 3); panel(new T.Color(4, 1.2, 2.4), 6, 6, -8, 0, 2); panel(new T.Color(1.4, 3.4, 4.5), 6, 6, 8, 1, -2); panel(new T.Color(3.4, 3, .6), 10, 3, 0, -7, 4); panel(new T.Color(6, 6, 6), 4, 8, 3, 2, 9);
+      const pm = new T.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.035).texture;
+      const dl = new T.DirectionalLight(0xffffff, 1.4); dl.position.set(4, 6, 8); scene.add(dl); scene.add(new T.AmbientLight(0xffffff, 0.25));
+      const mat = (c, o) => new T.MeshPhysicalMaterial(Object.assign({ color: c, roughness: .12, metalness: 0, clearcoat: 1, clearcoatRoughness: .06 }, o || {}));
+      const objs = [];
+      const add = (mesh, d, m, spin) => { const g = new T.Group(); g.add(mesh); scene.add(g); objs.push({ g, mesh, d, m, spin, base: mesh.rotation.clone() }); return g; };
+      const cross = new T.Group(); const cm = mat("#2F7BFF", { iridescence: .6, iridescenceIOR: 1.6, roughness: .05 });
+      const c1 = new T.Mesh(new T.CapsuleGeometry(.42, 1.7, 16, 48), cm); c1.rotation.z = Math.PI / 4; const c2 = c1.clone(); c2.rotation.z = -Math.PI / 4; cross.add(c1, c2);
+      add(cross, [-.78, .02, .78], [.62, .3, .6], [.004, .007, .002]);
+      const sh = new T.Shape(); const N = 4, R = 1, r = .38; for (let i = 0; i < N * 2; i++) { const a = i / (N * 2) * Math.PI * 2 + Math.PI / 2, rr = i % 2 ? r : R; i ? sh.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : sh.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } sh.closePath();
+      const sg = new T.ExtrudeGeometry(sh, { depth: .35, bevelEnabled: true, bevelThickness: .22, bevelSize: .18, bevelSegments: 10, curveSegments: 24 }); sg.center();
+      add(new T.Mesh(sg, mat("#FF6A1A", { roughness: .22 })), [-.9, -.35, .8], [-.75, .3, .55], [.006, .004, .009]);
+      add(new T.Mesh(new T.SphereGeometry(.62, 64, 64), mat("#FFD21F", { roughness: .08 })), [.92, -.45, .9], [.86, -.2, .62], [0, .004, 0]);
+      add(new T.Mesh(new T.SphereGeometry(.3, 48, 48), mat("#FFD21F", { roughness: .08 })), [.3, -.55, .8], [-.5, .45, .62], [0, .004, 0]);
+      add(new T.Mesh(new T.SphereGeometry(.2, 48, 48), mat("#FFD21F", { roughness: .08 })), [-.25, -.85, 1], null, [0, .004, 0]);
+      add(new T.Mesh(new T.TorusGeometry(.62, .26, 48, 120), mat("#FF4F94", { iridescence: .5, roughness: .1 })), [.97, .95, .8], [.88, -.72, .6], [.008, .005, .003]);
+      add(new T.Mesh(new T.SphereGeometry(.5, 64, 64), mat("#e8e8ee", { metalness: 1, roughness: .04 })), [-.97, .92, .6], null, [0, .003, 0]);
+      const bg = new T.IcosahedronGeometry(.55, 6); const p = bg.attributes.position, v = new T.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = 1 + .16 * Math.sin(v.x * 5) * Math.sin(v.y * 4) * Math.sin(v.z * 6); v.multiplyScalar(n); p.setXYZ(i, v.x, v.y, v.z); } bg.computeVertexNormals();
+      add(new T.Mesh(bg, mat("#C8F53A", { roughness: .2 })), [-.2, -.15, .6], null, [.003, .006, .004]);
+      let W = 1, H = 1, halfW = 1, halfH = 1;
+      const resize = () => { W = host.clientWidth || 1; H = host.clientHeight || 1; renderer.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix(); halfH = Math.tan(cam.fov * Math.PI / 360) * cam.position.z; halfW = halfH * cam.aspect; };
+      resize();
+      const t0 = performance.now();
+      const render = (t, s, tx, ty) => {
+        if (s > 1.3) return;
+        const mob = W < 820, k = (t - t0) / 1000;
+        objs.forEach((o, i) => {
+          const pos = mob ? o.m : o.d; o.g.visible = !!pos; if (!pos) return;
+          const intro = Math.min(1, Math.max(0, (k - .5 - i * .12) / .9)); const e = intro === 1 ? 1 : 1 - Math.pow(2, -10 * intro) * Math.cos(intro * 10.5);
+          const sc = pos[2] * (mob ? .8 : 1) * Math.max(0, e);
+          o.g.scale.setScalar(sc);
+          const depth = .6 + i * .15;
+          o.g.position.set(pos[0] * halfW - tx * depth * .9, pos[1] * halfH + Math.sin(k * .8 + i) * .14 + ty * depth * .6 + s * halfH * (1.2 + i * .25), 0);
+          o.mesh.rotation.x = o.base.x + k * o.spin[0] * 60 + s * 2 + ty * .6; o.mesh.rotation.y = o.base.y + k * o.spin[1] * 60 + tx * .8; o.mesh.rotation.z = o.base.z + k * o.spin[2] * 60;
+        });
+        renderer.render(scene, cam);
+      };
+      this.three = { render, resize, dispose: () => { renderer.dispose(); renderer.domElement.remove(); } };
+    } catch (err) { console.warn("3D off", err && err.message); }
+    this.threeLoading = false;
+  }
+  fail(msg, kind) { this.setState({ loading: false, error: msg, errorKind: kind }, () => this.shake()); }
+  tick() { clearInterval(this.ri); this.ri = setInterval(() => this.setState(s => { if (s.resendIn <= 1) clearInterval(this.ri); return { resendIn: Math.max(0, s.resendIn - 1) }; }), 1000); }
+  renderVals() {
+    const s = this.state, reg = s.mode === "register", login = s.mode === "login", reset = s.mode === "reset", m = s.mobile;
+    const H = { idle: ["Elegí tu nombre. Va a ser tu link.", "#5A5360", "rgba(20,17,24,.2)"], short: ["Mínimo 3 caracteres.", "#5A5360", "rgba(20,17,24,.2)"], invalid: ["Solo letras, números, - y _", "#C62A22", "#FF5F57"], checking: ["Buscando…", "#5A5360", "#5AC8FA"], ok: ["Disponible. Reservado para vos.", "#1C7A45", "#2FC46F"], taken: ["Ya está en uso. Probá con otro.", "#C62A22", "#FF5F57"] }[s.hStatus];
+    const emailErr = s.emailTouched && !this.emailOk() ? (s.email ? "Revisá el email: falta algo." : "Escribí tu email.") : "";
+    const passErr = s.passTouched && !reset ? (reg && s.pass.length < 8 ? (s.pass ? "Mínimo 8 caracteres." : "Elegí una contraseña.") : login && !s.pass ? "Escribí tu contraseña." : "") : "";
+    const st = this.strength(); const sc = ["rgba(20,17,24,.12)", "#FF5F57", "#FF7A2E", "#FFE14D", "#2FC46F"][st];
+    const base = "0 0 0 1px rgba(20,17,24,.1)", bad = "0 0 0 1.5px #FF5F57";
+    const len = (s.handle || "tu-nombre").length;
+    return {
+      rootRef: this.rootRef, introRef: this.introRef, outBarRef: this.outBarRef,
+      mobile: m, stageFlex: m ? "1 1 100%" : "1 1 0", stagePos: m ? "relative" : "sticky", stageH: m ? "auto" : "100vh",
+      stageMinH: m ? "0" : "calc(100vh - 24px)", stagePad: m ? "14px 14px 22px 18px" : "28px clamp(28px,3.4vw,52px) 40px",
+      stageGap: m ? "28px" : "0", showChecks: reg && !m, showLoginNote: !reg && !m,
+      handleSize: m ? (len > 10 ? "clamp(34px,10vw,56px)" : "clamp(44px,14vw,72px)") : (len > 12 ? "clamp(48px,5.6vw,104px)" : "clamp(64px,8vw,150px)"),
+      loginSize: m ? "clamp(36px,10vw,52px)" : "clamp(56px,6.8vw,124px)",
+      panelFlex: m ? "1 1 100%" : "0 0 min(560px,44vw)", panelPad: m ? "20px 20px 40px" : "40px clamp(28px,3vw,56px)", panelMinH: m ? "0" : "100vh",
+      mode: s.mode, isRegister: reg, isLogin: login, isReset: reset, isLoginish: !reg,
+      tabs: [{ id: "register", label: "Crear cuenta" }, { id: "login", label: "Entrar" }], setMode: this.setMode, showTabs: !reset,
+      stageKicker: reg ? "TU NOMBRE, RESERVADO" : reset ? "RECUPERAR CUENTA" : "HOLA DE NUEVO",
+      stageHandle: s.handle || "tu-nombre",
+      checks: [{ label: "Nombre", done: s.hStatus === "ok" }, { label: "Cuenta", done: this.emailOk() && s.pass.length >= 8 }, { label: "Tu sala", done: s.sent }].map(c => ({ ...c, bg: c.done ? "#141118" : "rgba(20,17,24,.15)", chip: c.done ? "#fff" : "rgba(255,255,255,.5)" })),
+      showForm: !s.sent, sent: s.sent,
+      title: reg ? "Creá tu myLand" : reset ? "Recuperá tu cuenta" : "Hola de nuevo",
+      subtitle: reg ? "Un paso más y tu sala está lista para armar." : reset ? "Te mandamos un link para elegir una contraseña nueva." : "Entrá para seguir armando tu sala.",
+      handle: s.handle, onHandle: this.onHandle, hText: H[0], hColor: H[1], hDot: H[2],
+      handleRing: s.hStatus === "taken" || s.hStatus === "invalid" ? bad : s.hStatus === "ok" ? "0 0 0 1.5px #2FC46F" : base,
+      email: s.email, onEmail: e => this.setState({ email: e.target.value.trim(), error: "" }), blurEmail: () => s.email && this.setState({ emailTouched: true }), emailErr, emailRing: emailErr ? bad : base,
+      needsPass: !reset, pass: s.pass, onPass: e => this.setState({ pass: e.target.value, error: "" }), blurPass: () => s.pass && this.setState({ passTouched: true }), passErr, passRing: passErr ? bad : base,
+      passType: s.show ? "text" : "password", togglePass: () => this.setState({ show: !s.show }), eyeIcon: s.show ? "eye-off" : "eye", eyeLabel: s.show ? "Ocultar contraseña" : "Mostrar contraseña",
+      passPh: reg ? "Mínimo 8 caracteres" : "Tu contraseña", passAuto: reg ? "new-password" : "current-password",
+      showStrength: reg && !!s.pass, bars: [1, 2, 3, 4].map(i => ({ c: i <= st ? sc : "rgba(20,17,24,.12)" })), strengthLabel: ["", "Débil", "Ok", "Buena", "Fuerte"][st],
+      goReset: () => this.setState({ mode: "reset", error: "" }), goLogin: () => this.setMode("login"), goRegister: () => this.setMode("register"),
+      error: s.error, errorAction: { exists: "Entrar", creds: "Recuperar contraseña", network: "Reintentar" }[s.errorKind] || "",
+      errorFix: () => { if (s.errorKind === "exists") this.setMode("login"); else if (s.errorKind === "creds") this.setState({ mode: "reset", error: "" }); else this.submit({ preventDefault() {} }); },
+      loading: s.loading || s.gLoading, btnOpacity: s.loading ? 0.85 : 1,
+      cta: s.loading ? (reg ? "Creando tu sala…" : reset ? "Enviando…" : "Entrando…") : reg ? "Crear mi myLand" : reset ? "Mandarme el link" : "Entrar",
+      submit: this.submit, showGoogle: !reset,
+      google: e => { if (e && e.currentTarget) { const r = e.currentTarget.getBoundingClientRect(); this.btnPos = { x: r.left + r.width / 2, y: r.top + r.height / 2 }; } this.setState({ gLoading: true }); this.t = setTimeout(() => this.setState({ gLoading: false, success: true }), 1400); },
+      googleLabel: s.gLoading ? "Conectando con Google…" : "Continuar con Google",
+      sentText: reset ? "Te mandamos un link para cambiar tu contraseña a" : "Te mandamos un link para confirmar tu cuenta a",
+      sentEmail: s.email || "vos@email.com",
+      resend: () => this.setState({ resendIn: 30 }, () => this.tick()), resendDisabled: s.resendIn > 0,
+      resendLabel: s.resendIn > 0 ? "Reenviar en " + s.resendIn + " s" : "Reenviar", resendColor: s.resendIn > 0 ? "#7A7380" : "#141118",
+      backToForm: () => this.setState({ sent: false }),
+      intro: s.intro, success: s.success, okRef: this.okRef, cols: !m,
+      cardCls: m ? "" : "lg-glass", cardPad: m ? "0" : "34px 32px",
+      letters: (s.handle || "tu-nombre").split("").map((ch, i) => ({ ch, d: (s.intro ? 900 + i * 45 : 0) + "ms" })),
+      colA: [0, 1, 2, 3, 4, 0, 1, 2, 3, 4].map((k, i) => ({ r: String(this.FMT[k][1]), label: this.FMT[k][0], bg: this.IRI[k], frame: this.FMT[k][2] ? "6px" : "0px" })),
+      colB: [3, 4, 0, 2, 1, 3, 4, 0, 2, 1].map((k, i) => ({ r: String(this.FMT[k][1]), label: this.FMT[k][0], bg: this.IRI[(k + 2) % 5], frame: this.FMT[k][2] ? "0px" : "6px" })),
+      burst: Array.from({ length: 12 }, (_, i) => { const sz = 26 + (i * 37 % 40); return { s: sz + "px", m: (-sz / 2) + "px 0 0 " + (-sz / 2) + "px", bg: ["radial-gradient(circle at 32% 28%,#fff 0,#FFD0E3 10%,#FF4F94 42%,#B8125A 100%)", "radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)", "radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)", "radial-gradient(circle at 32% 28%,#fff 0,#FFD9C2 10%,#FF7A2E 42%,#C2410C 100%)"][i % 4] }; }),
+    };
+  }
+}
+</script>
+</body>
+</html>

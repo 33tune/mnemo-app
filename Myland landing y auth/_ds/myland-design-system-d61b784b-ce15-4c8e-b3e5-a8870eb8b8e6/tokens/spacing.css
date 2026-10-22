@@ -1,0 +1,5 @@
+/* Spacing + sizes. 4-pt rhythm; 44px is the minimum hit target for anything you tap. */
+:root{
+--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;
+--size-touch:44px;--size-button:36px;--size-icon:17px;--size-swatch:32px;--size-switch-w:51px;--size-switch-h:31px;--size-tile-h:92px;
+}

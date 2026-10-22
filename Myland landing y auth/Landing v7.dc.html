@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>myLand — tu tarjeta, tus links, tu mundo</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&amp;family=Funnel+Display:wght@500;700;800&amp;display=swap">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/colors.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/typography.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/motion.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/components/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/styles.css">
+<script src="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+:root{--ml-display:'Unbounded',sans-serif;--ml-bg:#F3F0EB;--ml-ink:#141118;--ml-ink-rgb:20,17,24;--ml-ink-2:var(--ml-ink-2);--ml-ink-3:var(--ml-ink-3);--ml-surface:#fff;--ml-on-ink:#fff;--ml-accent:#FF4F94;--ml-hs:1;--ml-ls:0em;--ml-glow:0px}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ml-bg);color:#141118;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:#141118;text-decoration:none}a:hover{color:#D42A70}
+::selection{background:#FFE14D;color:#141118}
+input::placeholder{color:rgba(var(--ml-ink-rgb),.35)}
+@keyframes ml-rise{from{transform:translateY(110%) rotate(3deg)}to{transform:none}}
+@keyframes ml-fade{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes ml-up{from{opacity:0;transform:translateY(120%)}to{opacity:1;transform:none}}
+@keyframes ml-frame{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+@keyframes ml-handle{0%{opacity:0;transform:scale(0)}70%{transform:scale(1.4)}100%{opacity:1;transform:scale(1)}}
+@keyframes ml-pop{0%{opacity:0;transform:scale(.4) rotate(-20deg)}70%{transform:scale(1.08) rotate(-6deg)}100%{opacity:1;transform:rotate(-8deg)}}
+@keyframes ml-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes ml-cursor{0%,100%{transform:translate(0,0)}25%{transform:translate(-120px,40px)}50%{transform:translate(-40px,90px)}75%{transform:translate(60px,30px)}}
+@keyframes ml-halo{0%,100%{opacity:.35;transform:scale(.97)}50%{opacity:.62;transform:scale(1.02)}}
+@keyframes ml-dot{0%,100%{box-shadow:0 0 0 0 rgba(255,79,148,.5)}50%{box-shadow:0 0 0 7px rgba(255,79,148,0)}}
+@keyframes ml-nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes ml-poke{0%,100%{transform:translate(0,0)}50%{transform:translate(12px,-6px)}}
+@keyframes ml-unfold{0%{opacity:0;clip-path:inset(0 0 calc(100% - 68px) 0 round 30px);transform:translateY(10px)}35%{opacity:1;transform:none}100%{opacity:1;clip-path:inset(0 0 0 0 round 30px)}}
+@keyframes ml-toast{0%{opacity:0;transform:translateY(14px) scale(.9)}12%{opacity:1;transform:none}85%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-8px) scale(.96)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div ref="{{ rootRef }}" class="lg" data-editor-theme="light" style="position:relative;min-height:100vh;background:var(--ml-bg);color:var(--ml-ink);font-family:var(--font-sans);overflow-x:clip">
+
+  <!-- NAV -->
+  <header style="position:fixed;top:14px;left:14px;right:14px;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none">
+    <a href="#top" aria-label="myLand" class="lg-glass" style="pointer-events:auto;display:flex;align-items:center;gap:8px;height:50px;padding:0 18px 0 10px;border-radius:999px;color:var(--ml-ink)">
+      <img src="assets/logo.png" alt="" style="width:32px;height:auto;display:block">
+      <span style="font:800 21px/1 var(--font-display);letter-spacing:-0.055em">myLand</span>
+    </a>
+    <nav class="lg-glass" style="pointer-events:auto;display:flex;align-items:center;gap:2px;height:50px;padding:0 5px;border-radius:999px">
+      <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
+        <a href="#como" style="height:40px;padding:0 14px;display:flex;align-items:center;border-radius:999px;font:550 14px var(--font-sans);color:var(--ml-ink)" style-hover="background:var(--glass-well-hover);color:var(--ml-ink)" data-en="How it works">Cómo funciona</a>
+        <a href="#salas" style="height:40px;padding:0 14px;display:flex;align-items:center;border-radius:999px;font:550 14px var(--font-sans);color:var(--ml-ink)" style-hover="background:var(--glass-well-hover);color:var(--ml-ink)" data-en="Rooms">Salas</a>
+      </sc-if>
+      <a href="Auth v3.dc.html?mode=login" style="height:40px;padding:0 14px;display:flex;align-items:center;border-radius:999px;font:550 14px var(--font-sans);color:var(--ml-ink)" style-hover="background:var(--glass-well-hover);color:var(--ml-ink)" data-en="Log in">Entrar</a>
+      <button type="button" onClick="{{ goClaim }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:650 14px var(--font-sans);cursor:pointer;transition:transform .3s var(--glass-spring)" style-hover="background:var(--ml-accent);color:#141118" style-active="transform:scale(.92)">{{ navCta }}</button>
+    </nav>
+  </header>
+
+  <!-- HERO -->
+  <section id="top" data-hero="1" style="position:relative;z-index:1;min-height:{{ heroMinH }};height:{{ heroH }};box-sizing:border-box;padding:clamp(92px,12vh,116px) clamp(14px,2.6vw,40px) 24px;overflow:hidden">
+    <svg aria-hidden="true" viewBox="0 0 1440 600" preserveAspectRatio="none" style="position:absolute;left:0;bottom:4%;width:100%;height:50%;z-index:0;overflow:visible;pointer-events:none">
+      <path data-line="1" d="M-60 420 C 200 140, 420 120, 640 330 S 1100 560, 1500 180" pathLength="1" fill="none" stroke="#FFC9DE" stroke-width="64" stroke-linecap="round" style="stroke-dasharray:1;stroke-dashoffset:1;animation:ml-draw 1.8s .3s cubic-bezier(.65,0,.35,1) forwards"></path>
+    </svg>
+    <div data-three="1" aria-hidden="true" style="position:absolute;inset:0;z-index:4;pointer-events:none"></div>
+    <div style="position:relative;z-index:5;max-width:1440px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:clamp(24px,3vw,56px)">
+      <div style="flex:1 1 520px;min-width:0">
+        <h1 style="margin:0;font-family:var(--ml-display);font-weight:800;font-size:calc(clamp(40px,7.7vw,158px) * var(--ml-hs,1));line-height:.9;letter-spacing:calc(-0.045em + var(--ml-ls,0em));text-transform:uppercase;transition:font-size .45s var(--glass-spring),letter-spacing .45s var(--glass-spring)">
+          <span style="display:block;overflow:hidden;padding:.04em 0 .02em"><span data-en="Your card." style="display:block;animation:ml-rise 1s .1s cubic-bezier(.2,.8,.2,1) both">Tu tarjeta.</span></span>
+          <span style="position:relative;display:inline-block;margin-top:.1em;padding:0 .08em">
+            <span style="display:block;overflow:hidden;padding:.04em 0 .04em"><span data-en="Your world." style="display:block;animation:ml-rise 1s .22s cubic-bezier(.2,.8,.2,1) both">Tu mundo.</span></span>
+            <span aria-hidden="true" style="position:absolute;inset:-.02em -.04em;border:2px solid var(--ml-accent);border-radius:6px;pointer-events:none;animation:ml-frame .5s 1s var(--glass-spring) both"></span>
+            <span aria-hidden="true" style="position:absolute;left:-.04em;top:-.02em;margin:-6px 0 0 -6px;width:12px;height:12px;background:var(--ml-surface);border:2px solid var(--ml-accent);border-radius:3px;box-sizing:border-box;animation:ml-handle .4s 1.2s var(--glass-spring) both"></span><span aria-hidden="true" style="position:absolute;right:-.04em;top:-.02em;margin:-6px -6px 0 0;width:12px;height:12px;background:var(--ml-surface);border:2px solid var(--ml-accent);border-radius:3px;box-sizing:border-box;animation:ml-handle .4s 1.2s var(--glass-spring) both"></span><span aria-hidden="true" style="position:absolute;left:-.04em;bottom:-.02em;margin:0 0 -6px -6px;width:12px;height:12px;background:var(--ml-surface);border:2px solid var(--ml-accent);border-radius:3px;box-sizing:border-box;animation:ml-handle .4s 1.2s var(--glass-spring) both"></span><span aria-hidden="true" style="position:absolute;right:-.04em;bottom:-.02em;margin:0 -6px -6px 0;width:12px;height:12px;background:var(--ml-surface);border:2px solid var(--ml-accent);border-radius:3px;box-sizing:border-box;animation:ml-handle .4s 1.2s var(--glass-spring) both"></span>
+            <span aria-hidden="true" style="position:absolute;left:100%;top:50%;transform:translate(calc(.04em + 12px),-50%);display:flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;background:var(--ml-accent);color:#141118;font:700 12px var(--font-sans);letter-spacing:0;text-transform:none;animation:ml-fade .4s 1.3s both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="text" size="12" hint-size="12px,12px"></x-import><span data-en="Text">Texto</span></span>
+          </span>
+        </h1>
+        <p style="margin:clamp(20px,3.4vh,34px) 0 0;max-width:640px;font:500 clamp(18px,1.6vw,25px)/1.4 var(--font-sans);letter-spacing:-0.015em;color:var(--ml-ink-2);text-wrap:pretty;animation:ml-fade .9s .6s both"><strong data-en="Your online business card:" style="font-weight:750;color:var(--ml-ink)">Tu tarjeta de presentación online:</strong> <span data-en="photo, name, bio, contacts and links, in your own style.">foto, nombre, bio, contactos y links, con tu estilo propio.</span> <strong data-en="A fully customizable room," style="font-weight:750;color:var(--ml-ink)">Una sala totalmente personalizable,</strong> <span data-en="one single link so people can find you.">un solo link para que te encuentren.</span></p>
+        <div style="margin-top:clamp(24px,4.4vh,44px);max-width:620px;animation:ml-fade .9s .8s both"><div data-hero-claim="1" style="position:relative">
+          <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px 10px;font:700 14px var(--font-sans);color:var(--ml-ink)"><span style="width:9px;height:9px;border-radius:99px;background:var(--ml-accent);animation:ml-dot 1.8s infinite"></span><span data-en="Claim your link before someone else does">Reclamá tu link antes que otro</span></div>
+          <div aria-hidden="true" style="position:absolute;left:6%;right:6%;bottom:22px;height:56%;border-radius:999px;background:var(--ml-accent);filter:blur(30px);animation:ml-halo 3.2s ease-in-out infinite;pointer-events:none"></div>
+          <form onSubmit="{{ claim }}" class="lg-glass" style="position:relative;display:flex;align-items:center;height:clamp(64px,5vw,78px);padding:7px 7px 7px clamp(20px,1.8vw,28px);border-radius:999px;box-sizing:border-box;outline:2px solid {{ claimRing }};outline-offset:3px;transition:outline-color .3s">
+            <span style="font:600 clamp(17px,1.45vw,22px) var(--font-sans);letter-spacing:-0.02em;color:rgba(var(--ml-ink-rgb),.5);white-space:nowrap">myland.lol/</span>
+            <input data-type-ph="1" value="{{ handle }}" onChange="{{ onHandle }}" placeholder="tu-nombre" spellCheck="false" autoComplete="off" aria-label="Elegí tu nombre" style="flex:1;min-width:0;height:100%;background:transparent;border:none;outline:none;font:700 clamp(17px,1.45vw,22px) var(--font-sans);letter-spacing:-0.02em;color:var(--ml-ink);padding:0 4px">
+            <button type="submit" style="flex:none;height:100%;padding:0 clamp(18px,1.8vw,30px);border:none;border-radius:999px;background:var(--ml-accent);color:#141118;font:800 clamp(16px,1.25vw,19px) var(--font-sans);display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 14px 30px -12px rgba(20,17,24,.5);transition:transform .35s var(--glass-spring),filter .2s" style-hover="filter:brightness(1.06);transform:translateY(-2px)" style-active="transform:scale(.93)"><span data-en="Claim">Reclamar</span><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-right" size="18" hint-size="18px,18px"></x-import></button>
+          </form>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-left:22px;font:600 13px var(--font-sans);color:var(--ml-ink-3);min-height:18px"><span style="width:8px;height:8px;border-radius:99px;flex:none;background:{{ statusColor }};transition:background .3s"></span>{{ statusText }}</div>
+        </div></div>
+      </div>
+      <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
+        <div style="position:relative;flex:0 0 300px;display:flex;flex-direction:column;gap:20px">
+          <div data-menu="1" onPointerDown="{{ stopDemo }}" class="lg-glass" style="position:relative;display:flex;flex-direction:column;border-radius:30px;overflow:hidden;color:var(--glass-ink);width:300px;align-self:flex-end;animation:ml-unfold 1s .9s cubic-bezier(.16,1,.3,1) both">
+        <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:10px;padding:16px 14px 12px 18px">
+          <span style="flex:none;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--glass-well)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="room" size="17" hint-size="17px,17px"></x-import></span>
+          <div style="display:flex;flex-direction:column;min-width:0;flex:1"><span data-en="Room" style="font:650 19px/1.15 var(--font-sans);letter-spacing:-0.02em">Sala</span><span style="font:500 11.5px/16px var(--font-mono);color:var(--glass-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ menuPath }}</span></div>
+          <button type="button" onClick="{{ closeMenu }}" aria-label="Cerrar" title="Cerrar   esc" style="flex:none;width:36px;height:36px;border:none;border-radius:999px;display:grid;place-items:center;background:var(--glass-well);color:var(--glass-ink);cursor:pointer" style-hover="background:var(--glass-well-hover)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="close" size="14" hint-size="14px,14px"></x-import></button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding:0 10px 12px">
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.tema }};box-shadow:{{ cs.tema }};padding:{{ cp.tema }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.tema }}" aria-expanded="{{ op.tema }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.tema }};color:{{ cc.tema }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="sun" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Theme" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Tema</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ sumTema }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.tema }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.tema }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ themeTabs }}" value="{{ theme }}" onChange="{{ setTheme }}" hint-size="100%,40px"></x-import></div>
+            </sc-if>
+          </section>
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.color }};box-shadow:{{ cs.color }};padding:{{ cp.color }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.color }}" aria-expanded="{{ op.color }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.color }};color:{{ cc.color }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="palette" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Color" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Color</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="flex:none;width:12px;height:12px;border-radius:99px;background:var(--ml-accent);box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)"></span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ accent }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.color }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.color }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorRibbon" value="{{ accent }}" colors="{{ accents }}" onChange="{{ setAccent }}" hint-size="100%,36px"></x-import>
+                <sc-if value="{{ demo }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="align-self:flex-start;display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:650 11px var(--font-sans);animation:ml-nudge 1.6s ease-in-out infinite;pointer-events:none"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="pointer" size="12" hint-size="12px,12px"></x-import><span data-en="Tap a color">Tocá un color</span></span></sc-if></div>
+            </sc-if>
+          </section>
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.tipo }};box-shadow:{{ cs.tipo }};padding:{{ cp.tipo }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.tipo }}" aria-expanded="{{ op.tipo }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.tipo }};color:{{ cc.tipo }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="case" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Typography" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Tipografía</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ sumTipo }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.tipo }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.tipo }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="maximize" label="{{ tSize }}" value="{{ hs }}" min="{{ hsMin }}" max="{{ hsMax }}" fmt="{{ pctFmt }}" defaultValue="{{ hsDef }}" onChange="{{ setHs }}" hint-size="100%,44px"></x-import>
+                <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="spacing" label="{{ tLs }}" value="{{ ls }}" min="{{ lsMin }}" max="{{ lsMax }}" fmt="{{ pxFmt }}" defaultValue="{{ lsDef }}" onChange="{{ setLs }}" hint-size="100%,44px"></x-import></div>
+            </sc-if>
+          </section>
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.fx }};box-shadow:{{ cs.fx }};padding:{{ cp.fx }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.fx }}" aria-expanded="{{ op.fx }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.fx }};color:{{ cc.fx }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="sparkles" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Effects" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Efectos</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ sumFx }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.fx }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.fx }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ControlTiles" tiles="{{ tiles }}" hint-size="100%,150px"></x-import></div>
+            </sc-if>
+          </section>
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.idioma }};box-shadow:{{ cs.idioma }};padding:{{ cp.idioma }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.idioma }}" aria-expanded="{{ op.idioma }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.idioma }};color:{{ cc.idioma }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="globe" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Language" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Idioma</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ sumLang }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.idioma }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.idioma }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ langTabs }}" value="{{ lang }}" onChange="{{ setLang }}" hint-size="100%,40px"></x-import></div>
+            </sc-if>
+          </section>
+        </div>
+        </sc-if>
+        <sc-if value="{{ menuClosed }}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{ openMenu }}" style="display:flex;align-items:center;gap:10px;height:56px;padding:0 18px 0 10px;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;font:650 15px var(--font-sans)"><span style="width:36px;height:36px;border-radius:999px;display:grid;place-items:center;background:var(--ml-accent);color:#141118"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="pencil" size="16" hint-size="16px,16px"></x-import></span><span data-en="Edit room">Editar sala</span></button>
+        </sc-if>
+      </div>
+          
+        </div>
+      </sc-if>
+    </div>
+    <div data-river="1" style="position:{{ riverPos }};left:0;right:0;bottom:{{ riverBottom }};z-index:2;height:clamp(220px,25vw,370px);margin-top:{{ riverMt }};perspective:1600px">
+      <sc-for list="{{ river }}" as="c" hint-placeholder-count="10">
+        <div data-rv="{{ c.i }}" style="position:absolute;left:0;top:50%;width:{{ c.w }};height:{{ c.h }};padding:{{ c.pad }};box-sizing:border-box;border-radius:clamp(16px,1.6vw,24px);background:{{ c.frame }};box-shadow:0 30px 60px -28px rgba(20,17,24,.5),0 0 var(--ml-glow) var(--ml-accent);will-change:transform;transform:translate3d(-999px,-50%,0);transition:box-shadow .5s">
+          <div style="position:relative;width:100%;height:100%;border-radius:{{ c.innerR }};overflow:hidden;background:{{ c.bg }};color:#141118">
+            <image-slot id="{{ c.id }}" shape="rect" placeholder="{{ c.ph }}" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+            <span class="lg-glass" style="position:absolute;left:8px;bottom:8px;height:24px;padding:0 9px;display:flex;align-items:center;border-radius:999px;font:650 11px var(--font-sans);color:#141118;pointer-events:none">{{ c.label }}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><div style="position:relative;z-index:5;margin-top:20px"><div data-menu="1" onPointerDown="{{ stopDemo }}" class="lg-glass" style="position:relative;display:flex;flex-direction:column;border-radius:30px;overflow:hidden;color:var(--glass-ink);animation:ml-unfold 1s .9s cubic-bezier(.16,1,.3,1) both">
+        <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:10px;padding:16px 14px 12px 18px">
+          <span style="flex:none;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--glass-well)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="room" size="17" hint-size="17px,17px"></x-import></span>
+          <div style="display:flex;flex-direction:column;min-width:0;flex:1"><span data-en="Room" style="font:650 19px/1.15 var(--font-sans);letter-spacing:-0.02em">Sala</span><span style="font:500 11.5px/16px var(--font-mono);color:var(--glass-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ menuPath }}</span></div>
+          <button type="button" onClick="{{ closeMenu }}" aria-label="Cerrar" title="Cerrar   esc" style="flex:none;width:36px;height:36px;border:none;border-radius:999px;display:grid;place-items:center;background:var(--glass-well);color:var(--glass-ink);cursor:pointer" style-hover="background:var(--glass-well-hover)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="close" size="14" hint-size="14px,14px"></x-import></button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding:0 10px 12px">
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.tema }};box-shadow:{{ cs.tema }};padding:{{ cp.tema }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.tema }}" aria-expanded="{{ op.tema }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.tema }};color:{{ cc.tema }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="sun" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Theme" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Tema</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ sumTema }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.tema }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.tema }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ themeTabs }}" value="{{ theme }}" onChange="{{ setTheme }}" hint-size="100%,40px"></x-import></div>
+            </sc-if>
+          </section>
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.color }};box-shadow:{{ cs.color }};padding:{{ cp.color }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.color }}" aria-expanded="{{ op.color }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.color }};color:{{ cc.color }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="palette" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Color" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Color</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="flex:none;width:12px;height:12px;border-radius:99px;background:var(--ml-accent);box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)"></span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ accent }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.color }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.color }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorRibbon" value="{{ accent }}" colors="{{ accents }}" onChange="{{ setAccent }}" hint-size="100%,36px"></x-import>
+                <sc-if value="{{ demo }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="align-self:flex-start;display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:650 11px var(--font-sans);animation:ml-nudge 1.6s ease-in-out infinite;pointer-events:none"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="pointer" size="12" hint-size="12px,12px"></x-import><span data-en="Tap a color">Tocá un color</span></span></sc-if></div>
+            </sc-if>
+          </section>
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.tipo }};box-shadow:{{ cs.tipo }};padding:{{ cp.tipo }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.tipo }}" aria-expanded="{{ op.tipo }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.tipo }};color:{{ cc.tipo }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="case" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Typography" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Tipografía</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ sumTipo }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.tipo }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.tipo }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="maximize" label="{{ tSize }}" value="{{ hs }}" min="{{ hsMin }}" max="{{ hsMax }}" fmt="{{ pctFmt }}" defaultValue="{{ hsDef }}" onChange="{{ setHs }}" hint-size="100%,44px"></x-import>
+                <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.LiquidSlider" icon="spacing" label="{{ tLs }}" value="{{ ls }}" min="{{ lsMin }}" max="{{ lsMax }}" fmt="{{ pxFmt }}" defaultValue="{{ lsDef }}" onChange="{{ setLs }}" hint-size="100%,44px"></x-import></div>
+            </sc-if>
+          </section>
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.fx }};box-shadow:{{ cs.fx }};padding:{{ cp.fx }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.fx }}" aria-expanded="{{ op.fx }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.fx }};color:{{ cc.fx }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="sparkles" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Effects" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Efectos</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ sumFx }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.fx }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.fx }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ControlTiles" tiles="{{ tiles }}" hint-size="100%,150px"></x-import></div>
+            </sc-if>
+          </section>
+          
+          <section data-mcard="1" style="display:flex;flex-direction:column;border-radius:22px;background:{{ cb.idioma }};box-shadow:{{ cs.idioma }};padding:{{ cp.idioma }};transition:background-color 260ms ease,box-shadow 260ms ease,padding 260ms ease">
+            <button type="button" onClick="{{ oc.idioma }}" aria-expanded="{{ op.idioma }}" style="display:flex;align-items:center;gap:10px;min-height:56px;padding:0 0 0 2px;margin:0;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;text-align:left;border-radius:14px;width:100%">
+              <span style="flex:none;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:{{ ci.idioma }};color:{{ cc.idioma }};transition:background-color 260ms,color 260ms"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="globe" size="16" hint-size="16px,16px"></x-import></span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+                <span data-en="Language" style="font:600 14px/18px var(--font-sans);letter-spacing:-0.01em">Idioma</span>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:450 12px/16px var(--font-sans);color:var(--glass-ink-3)">{{ sumLang }}</span></span>
+              </span>
+              <span style="flex:none;display:inline-flex;padding:6px;color:var(--glass-ink-3);transform:rotate({{ cr.idioma }});transition:transform 360ms var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="chevron-down" size="14" hint-size="14px,14px"></x-import></span>
+            </button>
+            <sc-if value="{{ op.idioma }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 0 4px;animation:ml-fade .3s cubic-bezier(.25,1,.5,1) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ langTabs }}" value="{{ lang }}" onChange="{{ setLang }}" hint-size="100%,40px"></x-import></div>
+            </sc-if>
+          </section>
+        </div>
+        </sc-if>
+        <sc-if value="{{ menuClosed }}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{ openMenu }}" style="display:flex;align-items:center;gap:10px;height:56px;padding:0 18px 0 10px;border:none;background:transparent;color:var(--glass-ink);cursor:pointer;font:650 15px var(--font-sans)"><span style="width:36px;height:36px;border-radius:999px;display:grid;place-items:center;background:var(--ml-accent);color:#141118"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="pencil" size="16" hint-size="16px,16px"></x-import></span><span data-en="Edit room">Editar sala</span></button>
+        </sc-if>
+      </div></div></sc-if>
+  </section>
+
+  <!-- TAPES -->
+  <section aria-hidden="true" style="position:relative;z-index:3;height:clamp(150px,17vw,250px);overflow:hidden">
+    <div style="position:absolute;left:-5%;right:-5%;top:50%;transform:translateY(-62%) rotate(3deg);background:var(--ml-accent);padding:clamp(12px,1.4vw,20px) 0;box-shadow:0 20px 40px -20px rgba(20,17,24,.4)">
+      <div data-mq="1" style="display:flex;width:max-content;align-items:center;gap:clamp(18px,2vw,32px);font-family:var(--ml-display);font-weight:800;font-size:clamp(24px,3.4vw,52px);line-height:1;letter-spacing:-0.03em;text-transform:uppercase;white-space:nowrap;color:#141118;will-change:transform">
+        <span data-en="Links">Links</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%)"></span><span data-en="Music">Música</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></span><span data-en="Background">Fondo</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)"></span><span data-en="Effects">Efectos</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%)"></span><span data-en="Gallery">Galería</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></span><span data-en="Explore">Explorar</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)"></span>
+        <span data-en="Links">Links</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%)"></span><span data-en="Music">Música</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></span><span data-en="Background">Fondo</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)"></span><span data-en="Effects">Efectos</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%)"></span><span data-en="Gallery">Galería</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></span><span data-en="Explore">Explorar</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)"></span>
+      </div>
+    </div>
+    <div style="position:absolute;left:-5%;right:-5%;top:50%;transform:translateY(-38%) rotate(-2.5deg);background:#FFE14D;padding:clamp(12px,1.4vw,20px) 0;box-shadow:0 20px 40px -20px rgba(20,17,24,.4)">
+      <div data-mq="0" style="display:flex;width:max-content;align-items:center;gap:clamp(18px,2vw,32px);font-family:var(--ml-display);font-weight:800;font-size:clamp(24px,3.4vw,52px);line-height:1;letter-spacing:-0.03em;text-transform:uppercase;white-space:nowrap;color:#141118;will-change:transform">
+        <span data-en="Photo">Foto</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="Name">Nombre</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="@username">@usuario</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="Tagline">Frase</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="Location">Ubicación</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="Bio">Bio</span><img src="assets/logo.png" alt="" style="height:.9em">
+        <span data-en="Photo">Foto</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="Name">Nombre</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="@username">@usuario</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="Tagline">Frase</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="Location">Ubicación</span><img src="assets/logo.png" alt="" style="height:.9em"><span data-en="Bio">Bio</span><img src="assets/logo.png" alt="" style="height:.9em">
+      </div>
+    </div>
+  </section>
+
+  <!-- CARD ANATOMY -->
+  <section id="como" data-build="1" style="position:relative;z-index:1;height:100vh">
+    <div style="position:sticky;top:0;height:100vh;box-sizing:border-box;padding:clamp(80px,11vh,100px) clamp(16px,4vw,56px) clamp(16px,3vh,32px);display:flex;align-items:safe center;overflow:hidden">
+     <div style="width:100%;max-width:1360px;margin:0 auto;display:flex;flex-direction:{{ anatDir }};align-items:center;justify-content:space-between;gap:{{ anatGap }};text-align:{{ anatAlign }}">
+      <div style="flex:{{ anatFlex }};min-width:0;max-width:620px;display:flex;flex-direction:column;align-items:{{ anatItems }}">
+      <div style="display:flex;align-items:center;gap:12px"><span style="display:inline-flex;height:30px;padding:0 12px;align-items:center;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:600 12px var(--font-mono);letter-spacing:.08em" data-en="YOUR CARD">TU TARJETA</span><sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><span data-count="1" style="font:600 13px var(--font-mono);color:var(--ml-ink-3)">0/6</span></sc-if></div>
+      <h2 style="margin:16px 0 0;font-family:var(--ml-display);font-weight:800;font-size:clamp(28px,min(5.2vw,8vh),96px);line-height:.92;letter-spacing:-0.045em;text-transform:uppercase"><span data-en="All of you,">Todo lo tuyo,</span> <span data-en="in one" style="display:inline-block;background:var(--ml-accent);color:#141118;border-radius:.2em;padding:0 .12em;transform:rotate(-2deg)">en una</span></h2>
+      <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
+        <p data-en="Six pieces, one card. It's the first thing people see when they tap your link." style="margin:clamp(8px,1.6vh,18px) 0 0;max-width:460px;font:500 clamp(15px,min(1.3vw,2.2vh),19px)/1.4 var(--font-sans);color:var(--ml-ink-2);text-wrap:pretty">Seis piezas, una tarjeta. Es lo primero que ve quien toca tu link.</p>
+        <div style="margin-top:clamp(10px,2.4vh,28px);width:100%;border-bottom:1px solid rgba(var(--ml-ink-rgb),.1)">
+          <sc-for list="{{ chk }}" as="c" hint-placeholder-count="6">
+            <div data-chk="1" data-s="{{ c.s }}" style="display:flex;align-items:center;gap:14px;padding:clamp(5px,1.1vh,12px) 0;border-top:1px solid rgba(var(--ml-ink-rgb),.1);opacity:.38;transform:translateX(-6px);transition:opacity .4s,transform .5s var(--glass-spring)">
+              <span style="flex:none;width:24px;font:600 12px var(--font-mono);color:var(--ml-ink-3)">{{ c.n }}</span>
+              <span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:4px 12px;flex-wrap:wrap"><span style="font:750 clamp(16px,min(1.45vw,2.4vh),22px)/1.2 var(--font-sans);letter-spacing:-0.02em">{{ c.t }}</span><span style="display:{{ chkD }};font:500 14px/1.3 var(--font-sans);color:var(--ml-ink-3)">{{ c.d }}</span></span>
+              <span data-chkdot="1" style="flex:none;width:28px;height:28px;border-radius:99px;display:grid;place-items:center;background:rgba(var(--ml-ink-rgb),.1);color:transparent;transition:background .35s var(--glass-spring),color .2s"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="check" size="14" hint-size="14px,14px"></x-import></span>
+            </div>
+          </sc-for>
+        </div>
+        <button type="button" onClick="{{ goClaim }}" style="margin-top:clamp(12px,2.4vh,28px);height:clamp(48px,6.4vh,56px);padding:0 24px 0 26px;border:none;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:700 16px var(--font-sans);display:flex;align-items:center;gap:10px;cursor:pointer;transition:transform .35s var(--glass-spring),background .2s" style-hover="background:var(--ml-accent);color:#141118" style-active="transform:scale(.93)"><span data-en="Make yours">Armá la tuya</span><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-right" size="18" hint-size="18px,18px"></x-import></button>
+      </sc-if>
+      </div>
+      <div data-stage="1" style="position:relative;flex:{{ stageFlex }};width:{{ stageW }};min-width:0;height:{{ cardH }};margin-top:{{ stageMt }};perspective:1400px">
+        <div data-card="1" style="position:absolute;left:50%;top:50%;height:100%;aspect-ratio:.72;transform:translate(-50%,-50%);transform-style:preserve-3d;text-align:center">
+          <div data-ring="1" style="position:absolute;inset:-10px;border:2px solid var(--ml-accent);border-radius:36px;pointer-events:none"></div>
+          <div style="position:absolute;inset:0;border-radius:28px;background:var(--ml-surface);box-shadow:0 0 0 1px rgba(var(--ml-ink-rgb),.06),0 50px 90px -40px rgba(20,17,24,.5),0 0 var(--ml-glow) var(--ml-accent);transition:box-shadow .5s"></div>
+          <div data-piece="1" data-s=".02" data-l=".1" data-from="-60,-40,-28,1.6" style="position:absolute;left:31%;top:7%;width:38%;aspect-ratio:1;border-radius:50%;overflow:hidden;opacity:0;background:radial-gradient(80% 80% at 30% 25%,#FFE14D,transparent 60%),radial-gradient(90% 90% at 75% 85%,#FF4F94,transparent 62%),#FFD3E4;box-shadow:0 0 0 4px var(--ml-surface),0 0 0 6px var(--ml-accent);color:#141118"><image-slot id="anat-foto" shape="circle" placeholder="Tu foto" style="position:absolute;inset:0;width:100%;height:100%"></image-slot></div>
+          <div data-piece="1" data-s=".07" data-l=".1" data-from="70,-40,14,1.4" style="position:absolute;left:0;right:0;top:38%;opacity:0;font:800 clamp(20px,2.6vw,34px)/1.1 'DM Sans',sans-serif;letter-spacing:-0.02em"><span data-en="Your name">Tu nombre</span></div>
+          <div data-piece="1" data-s=".12" data-l=".1" data-from="-70,10,-18,1.3" style="position:absolute;left:0;right:0;top:47.5%;opacity:0;font:500 clamp(13px,1.2vw,16px) 'DM Sans',sans-serif;color:var(--ml-ink-3)"><span data-en="@username">@usuario</span></div>
+          <div data-piece="1" data-s=".17" data-l=".1" data-from="70,30,16,1.4" style="position:absolute;left:10%;right:10%;top:55%;opacity:0;font:italic 500 clamp(13px,1.2vw,16px)/1.35 'DM Sans',sans-serif;color:var(--ml-ink-2)"><span data-en="Tell people about you">Contá algo de vos</span></div>
+          <div data-piece="1" data-s=".22" data-l=".1" data-from="-50,60,-24,1.5" style="position:absolute;left:0;right:0;top:63.5%;opacity:0;display:flex;align-items:center;justify-content:center;gap:5px;font:600 clamp(12px,1.1vw,14px) 'DM Sans',sans-serif;color:var(--ml-ink-3)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="pin" size="13" hint-size="13px,13px"></x-import><span data-en="Your city">Tu ciudad</span></div>
+          <div style="position:absolute;left:14%;right:14%;top:74%;display:flex;justify-content:space-between">
+            <span data-piece="1" data-s=".27" data-l=".08" data-from="90,-20,40,1.6" style="width:20%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:var(--ml-ink);color:var(--ml-on-ink);opacity:0"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="at" size="15" hint-size="15px,15px"></x-import></span>
+            <span data-piece="1" data-s=".30" data-l=".08" data-from="100,10,-40,1.6" style="width:20%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:#FFE14D;color:#141118;opacity:0"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="music" size="15" hint-size="15px,15px"></x-import></span>
+            <span data-piece="1" data-s=".33" data-l=".08" data-from="110,-10,30,1.6" style="width:20%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:#5AC8FA;color:#141118;opacity:0"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="mail" size="15" hint-size="15px,15px"></x-import></span>
+            <span data-piece="1" data-s=".36" data-l=".08" data-from="120,20,-30,1.6" style="width:20%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:#D4FF3F;color:#141118;opacity:0"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="link" size="15" hint-size="15px,15px"></x-import></span>
+          </div>
+          <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ labels }}" as="l" hint-placeholder-count="6">
+            <div data-lbl="1" data-s="{{ l.s }}" data-e="{{ l.e }}" style="position:absolute;top:{{ l.top }};left:{{ l.left }};right:{{ l.right }};display:flex;flex-direction:{{ l.dir }};align-items:center;gap:8px;opacity:0;transition:opacity .35s,transform .5s var(--glass-spring);pointer-events:none;transform:translateY(-50%)">
+              <span style="display:flex;flex-direction:column;align-items:{{ l.align }};gap:3px;text-align:{{ l.ta }}"><span style="height:26px;padding:0 10px;display:flex;align-items:center;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:650 12px var(--font-sans);white-space:nowrap">{{ l.t }}</span><span style="display:{{ l.dd }};font:500 12px/1.3 var(--font-sans);color:var(--ml-ink-3);white-space:nowrap">{{ l.d }}</span></span>
+              <span style="flex:none;width:clamp(12px,3vw,48px);height:1.5px;background:var(--ml-ink)"></span>
+            </div>
+          </sc-for></sc-if>
+        </div>
+      </div>
+     </div>
+    </div>
+  </section>
+
+  <!-- SALAS desktop -->
+  <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
+    <section id="salas" data-gal="1" style="position:relative;z-index:1;height:300vh">
+      <div style="position:sticky;top:0;height:100vh;overflow:hidden;display:flex;align-items:center">
+        <div data-track="1" style="position:relative;display:flex;align-items:center;gap:36px;padding:0 56px;will-change:transform">
+          <svg aria-hidden="true" viewBox="0 0 3000 600" preserveAspectRatio="none" style="position:absolute;left:0;top:50%;width:100%;height:70vh;transform:translateY(-50%);pointer-events:none;overflow:visible">
+            <path data-gdraw="1" d="M0 420 C 300 120, 520 560, 860 360 S 1400 80, 1700 320 S 2300 620, 2600 280 S 2900 200, 3000 300" pathLength="1" fill="none" stroke="#FFE14D" stroke-width="54" stroke-linecap="round" style="stroke-dasharray:1;stroke-dashoffset:1"></path>
+          </svg>
+          <div style="position:relative;flex:none;width:min(600px,44vw);padding-right:24px">
+            <span style="display:inline-flex;height:30px;padding:0 12px;align-items:center;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:600 12px var(--font-mono);letter-spacing:.08em" data-en="ROOMS">SALAS</span>
+            <h2 style="margin:18px 0 0;font-family:var(--ml-display);font-weight:800;font-size:clamp(48px,5.6vw,104px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase"><span data-en="No two look">Ninguna se parece a</span> <span data-en="alike" style="display:inline-block;color:#141118;background:#D4FF3F;border-radius:.2em;padding:0 .12em;transform:rotate(-2deg)">otra</span></h2>
+            <p style="margin:24px 0 0;max-width:420px;font:500 18px/1.45 var(--font-sans);color:var(--ml-ink-2)" data-en="Vertical, horizontal, square, framed or not. Every card and every room takes the shape its owner wanted.">Vertical, horizontal, cuadrada, con marco o sin. Cada tarjeta y cada sala tiene la forma que su dueño quiso.</p>
+          </div>
+          <sc-for list="{{ gallery }}" as="g" hint-placeholder-count="7">
+            <div data-gcard="{{ g.i }}" style="position:relative;flex:none;height:{{ g.h }};aspect-ratio:{{ g.r }};margin-top:{{ g.offset }};padding:{{ g.pad }};box-sizing:border-box;border-radius:28px;background:{{ g.frame }};box-shadow:0 40px 70px -30px rgba(20,17,24,.45),0 0 var(--ml-glow) var(--ml-accent);will-change:transform;transition:box-shadow .5s">
+              <div style="position:relative;width:100%;height:100%;border-radius:{{ g.innerR }};overflow:hidden;background:rgba(255,255,255,.55)">
+                <image-slot id="{{ g.id }}" shape="rect" placeholder="{{ g.ph }}" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+              </div>
+              <span class="lg-glass" style="position:absolute;left:14px;bottom:14px;height:30px;padding:0 12px;display:flex;align-items:center;border-radius:999px;font:650 12px var(--font-sans);pointer-events:none">{{ g.label }}</span>
+            </div>
+          </sc-for>
+          <div style="position:relative;flex:none;width:30vw;display:flex;flex-direction:column;align-items:flex-start;gap:20px;padding-left:24px">
+            <div style="font-family:var(--ml-display);font-weight:800;font-size:56px;line-height:.9;letter-spacing:-0.045em;text-transform:uppercase" data-en="What about yours?">¿Y la tuya?</div>
+            <button type="button" onClick="{{ goClaim }}" style="height:56px;padding:0 26px;border:none;border-radius:999px;background:var(--ml-accent);color:#141118;font:700 16px var(--font-sans);cursor:pointer;transition:transform .3s var(--glass-spring)" style-hover="background:var(--ml-ink);color:var(--ml-on-ink)" style-active="transform:scale(.93)"><span data-en="Claim your myLand">Reclamá tu myLand</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- SALAS mobile -->
+  <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}">
+    <section id="salas" style="position:relative;z-index:1;padding:72px 0 32px">
+      <div style="padding:0 20px">
+        <span style="display:inline-flex;height:30px;padding:0 12px;align-items:center;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:600 12px var(--font-mono);letter-spacing:.08em" data-en="ROOMS">SALAS</span>
+        <h2 data-reveal="1" style="margin:16px 0 0;font-family:var(--ml-display);font-weight:800;font-size:40px;line-height:.92;letter-spacing:-0.045em;text-transform:uppercase"><span data-en="No two look">Ninguna se parece a</span> <span data-en="alike" style="display:inline-block;color:#141118;background:#D4FF3F;border-radius:.2em;padding:0 .12em">otra</span></h2>
+        <p style="margin:16px 0 0;font:500 16px/1.45 var(--font-sans);color:var(--ml-ink-2)" data-en="Every card and every room takes the shape its owner wanted.">Cada tarjeta y cada sala tiene la forma que su dueño quiso.</p>
+      </div>
+      <div onScroll="{{ onGalScroll }}" style="margin-top:24px;display:flex;align-items:center;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:16px 20px 24px;scroll-padding:0 20px;scrollbar-width:none;-webkit-overflow-scrolling:touch">
+        <sc-for list="{{ gallery }}" as="g" hint-placeholder-count="7">
+          <div style="position:relative;flex:none;height:{{ g.mh }};aspect-ratio:{{ g.r }};max-width:86vw;padding:{{ g.pad }};box-sizing:border-box;border-radius:24px;scroll-snap-align:start;background:{{ g.frame }};box-shadow:0 24px 40px -24px rgba(20,17,24,.45)">
+            <div style="position:relative;width:100%;height:100%;border-radius:{{ g.innerR }};overflow:hidden;background:rgba(255,255,255,.55)">
+              <image-slot id="{{ g.id }}" shape="rect" placeholder="{{ g.ph }}" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+            </div>
+            <span class="lg-glass" style="position:absolute;left:10px;bottom:10px;height:26px;padding:0 10px;display:flex;align-items:center;border-radius:999px;font:650 11px var(--font-sans);pointer-events:none">{{ g.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:0 20px;display:flex;align-items:center;justify-content:space-between;font:600 12px var(--font-mono);letter-spacing:.08em;color:var(--ml-ink-3)">
+        <span>{{ galLabel }}</span>
+        <div style="display:flex;gap:6px"><sc-for list="{{ galDots }}" as="d" hint-placeholder-count="7"><span style="height:6px;border-radius:9px;width:{{ d.w }};background:{{ d.c }};transition:width .4s var(--glass-spring),background .3s"></span></sc-for></div>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ONE LINK -->
+  <section data-draw-wrap="1" style="position:relative;z-index:1;margin-top:clamp(24px,4vw,56px)">
+    <div aria-hidden="true" style="height:16px;background:radial-gradient(circle at 50% 100%,var(--ml-accent) 15.5px,transparent 16px) 0 0/32px 16px repeat-x"></div>
+    <div style="background:var(--ml-accent);color:#141118;padding:clamp(48px,6vw,96px) clamp(16px,4vw,56px);overflow:hidden;position:relative">
+      <svg aria-hidden="true" viewBox="0 0 1440 700" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">
+        <path data-draw="1" d="M-40 140 C 260 40, 420 360, 700 280 S 1080 60, 1180 300 S 1300 700, 1500 640" pathLength="1" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" style="stroke-dasharray:1;stroke-dashoffset:1;opacity:.85"></path>
+      </svg>
+      <sc-if value="{{ decor }}" hint-placeholder-val="{{ true }}">
+        <div aria-hidden="true" data-par="0.6" style="position:absolute;right:-8vw;top:6%;width:clamp(240px,36vw,560px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#fff 0 12%,#5AC8FA 22%,#D4FF3F 33%,#FFE14D 44%,#FF7A2E 55%,rgba(255,79,148,0) 70%);pointer-events:none"></div>
+      </sc-if>
+      <div style="position:relative;max-width:1360px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:clamp(28px,4vw,72px)">
+        <div style="flex:1 1 520px;min-width:0">
+          <h2 style="margin:0;font-family:var(--ml-display);font-weight:800;font-size:clamp(46px,8.4vw,156px);line-height:.86;letter-spacing:-0.05em;text-transform:uppercase">
+            <span style="display:block;overflow:hidden;padding-bottom:.04em"><span data-rise="1" style="display:block" data-en="One single">Un solo</span></span><span style="display:block;overflow:hidden;padding-bottom:.04em"><span data-rise="1" data-delay="90" style="display:block" data-en="link.">link.</span></span>
+          </h2>
+          <div data-reveal="1" class="lg-glass" style="margin-top:clamp(24px,3vw,40px);display:inline-flex;align-items:center;gap:10px;max-width:100%;box-sizing:border-box;min-height:64px;padding:10px 10px 10px 24px;border-radius:999px;background:rgba(255,255,255,.82)">
+            <span style="font:700 clamp(18px,2.2vw,30px)/1.1 var(--font-sans);letter-spacing:-0.03em;overflow-wrap:anywhere;min-width:0"><span style="color:rgba(20,17,24,.45)">myland.lol/</span>{{ urlHandle }}</span>
+            <span style="flex:none;width:46px;height:46px;border-radius:999px;display:grid;place-items:center;background:#141118;color:#fff"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-up-right" size="18" hint-size="18px,18px"></x-import></span>
+          </div>
+          <p data-reveal="1" style="margin:22px 0 0;max-width:500px;font:600 clamp(17px,1.6vw,22px)/1.35 var(--font-sans);letter-spacing:-0.02em;text-wrap:pretty" data-en="Paste it in your Instagram, TikTok or X bio. Whoever taps it sees everything: who you are, what you do and how to reach you.">Pegalo en tu bio de Instagram, TikTok o X. Quien lo toca ve todo: quién sos, qué hacés y cómo encontrarte.</p>
+        </div>
+        <div style="flex:0 1 300px;min-width:220px;margin:0 auto;perspective:1400px">
+          <div data-phone="1" style="position:relative;aspect-ratio:9/16;border-radius:42px;overflow:hidden;background:#fff;box-shadow:0 0 0 8px #141118,0 60px 100px -30px rgba(20,17,24,.6);transform:rotate(6deg);will-change:transform">
+            <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);width:34%;height:26px;border-radius:99px;background:#141118"></div>
+            <div style="position:absolute;inset:12px;top:52px;border:1.5px dashed rgba(20,17,24,.18);border-radius:28px"></div>
+            <div style="position:absolute;top:66px;left:26px;right:26px;display:flex;justify-content:space-between;font:600 11px var(--font-mono);letter-spacing:.08em;color:rgba(20,17,24,.5)"><span>SLOT · VIDEO</span><span>9:16</span></div>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px;text-align:center"><div style="width:64px;height:64px;border-radius:999px;display:grid;place-items:center;background:#FF4F94"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="play" size="22" hint-size="22px,22px"></x-import></div><div style="font:700 16px/1.25 var(--font-sans)">Del link en bio a tu sala</div><div style="font:500 13px/1.45 var(--font-sans);color:#5A5360;max-width:200px">Grabación de celular: tocar el link y caer en la sala.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div aria-hidden="true" style="height:16px;background:radial-gradient(circle at 50% 0,var(--ml-accent) 15.5px,transparent 16px) 0 0/32px 16px repeat-x"></div>
+  </section>
+
+  <!-- FINAL -->
+  <section id="tutorial" data-draw-wrap="1" style="position:relative;z-index:1;margin-top:clamp(40px,6vw,80px)">
+    <div aria-hidden="true" style="height:16px;background:radial-gradient(circle at 50% 100%,#141118 15.5px,transparent 16px) 0 0/32px 16px repeat-x"></div>
+    <div style="background:#141118;color:#fff;padding:clamp(64px,8vw,120px) clamp(16px,4vw,56px) 0;overflow:hidden;position:relative">
+      <svg aria-hidden="true" viewBox="0 0 1440 1400" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">
+        <path data-draw="1" d="M1500 80 C 1100 260, 1300 520, 900 600 S 200 520, 300 900 S 900 1300, 720 1500" pathLength="1" fill="none" stroke="#FF4F94" stroke-width="10" stroke-linecap="round" style="stroke-dasharray:1;stroke-dashoffset:1;opacity:.9"></path>
+      </svg>
+      <sc-if value="{{ decor }}" hint-placeholder-val="{{ true }}">
+        <div aria-hidden="true" data-par="0.5" style="position:absolute;left:-12vw;top:30%;width:clamp(260px,38vw,620px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#fff 0 10%,#FFE14D 20%,#FF7A2E 32%,var(--ml-accent) 44%,rgba(255,79,148,0) 66%);opacity:.9;pointer-events:none"></div>
+      </sc-if>
+      <div style="position:relative;max-width:1360px;margin:0 auto">
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px 40px">
+          <h2 style="margin:0;font-family:var(--ml-display);font-weight:800;font-size:clamp(40px,7.4vw,136px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">
+            <span style="display:block;overflow:hidden;padding-bottom:.04em"><span data-rise="1" style="display:block" data-en="Build it in">Armala en</span></span>
+            <span style="display:block;overflow:hidden;padding:.04em 0 .06em"><span data-rise="1" data-delay="90" style="display:block"><span style="display:inline-block;background:#FFE14D;color:#141118;border-radius:.2em;padding:0 .14em;transform:rotate(-2deg)" data-en="two">dos</span> <span data-en="minutes">minutos</span></span></span>
+          </h2>
+          <p data-reveal="1" style="margin:0;max-width:320px;font:500 17px/1.45 var(--font-sans);color:rgba(255,255,255,.78)" data-en="Claim your name, tap your card to edit it and paste the link in your bio.">Reclamá tu nombre, tocá tu tarjeta para editarla y pegá el link en tu bio.</p>
+        </div>
+        <div data-reveal="1" style="margin-top:clamp(32px,4vw,56px);position:relative;aspect-ratio:16/9;border-radius:clamp(24px,2.6vw,40px);overflow:hidden;background:#211D26;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)">
+          <div style="position:absolute;inset:14px;border:1.5px dashed rgba(255,255,255,.18);border-radius:clamp(14px,1.8vw,28px)"></div>
+          <div style="position:absolute;top:clamp(24px,2.6vw,36px);left:clamp(24px,2.6vw,36px);right:clamp(24px,2.6vw,36px);display:flex;justify-content:space-between;gap:12px;font:600 11px var(--font-mono);letter-spacing:.08em;color:rgba(255,255,255,.5)"><span>SLOT · VIDEO TUTORIAL</span><span>16:9 · 60–90 s · con sonido</span></div>
+          <div style="position:absolute;inset:0;display:grid;place-items:center">
+            <button type="button" aria-label="Reproducir tutorial" style="width:clamp(68px,8vw,112px);height:clamp(68px,8vw,112px);border:none;border-radius:999px;background:var(--ml-accent);color:#141118;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 0 14px rgba(255,79,148,.18);transition:transform .35s var(--glass-spring)" style-hover="transform:scale(1.08)" style-active="transform:scale(.92)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="play" size="30" hint-size="30px,30px"></x-import></button>
+          </div>
+        </div>
+
+        <div style="margin:clamp(72px,9vw,140px) auto 0;max-width:640px;text-align:center">
+          <img data-reveal="1" src="assets/logo.png" alt="" style="width:clamp(60px,6vw,84px);height:auto;display:block;margin:0 auto">
+          <h3 data-reveal="1" style="margin:20px 0 0;font-family:var(--ml-display);font-weight:800;font-size:clamp(34px,4.6vw,72px);line-height:.92;letter-spacing:-0.045em;text-transform:uppercase" data-en="Wouldn’t you like to make yours?">¿No te gustaría crear la tuya?</h3>
+          <div data-reveal="1" data-delay="100" style="margin-top:28px;text-align:left">
+            <form onSubmit="{{ claim }}" style="display:flex;align-items:center;height:66px;padding:6px 6px 6px 22px;border-radius:999px;background:#fff;outline:1.5px solid {{ claimRing }};outline-offset:2px;box-sizing:border-box;transition:outline-color .3s">
+              <span style="font:500 16px var(--font-sans);color:rgba(20,17,24,.45);white-space:nowrap">myland.lol/</span>
+              <input data-type-ph="1" value="{{ handle }}" onChange="{{ onHandle }}" placeholder="tu-nombre" spellCheck="false" autoComplete="off" aria-label="Elegí tu nombre" style="flex:1;min-width:0;height:100%;background:transparent;border:none;outline:none;font:650 16px var(--font-sans);color:#141118;padding:0 6px">
+              <button type="submit" style="flex:none;height:54px;padding:0 20px 0 22px;border:none;border-radius:999px;background:var(--ml-accent);color:#141118;font:700 15px var(--font-sans);display:flex;align-items:center;gap:8px;cursor:pointer;transition:transform .3s var(--glass-spring)" style-active="transform:scale(.93)"><span data-en="Claim">Reclamar</span><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-right" size="17" hint-size="17px,17px"></x-import></button>
+            </form>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-left:22px;font:550 13px var(--font-sans);color:rgba(255,255,255,.75);min-height:18px"><span style="width:8px;height:8px;border-radius:99px;flex:none;background:{{ statusColor }}"></span>{{ statusText }}</div>
+          </div>
+        </div>
+
+        <footer style="margin-top:clamp(72px,9vw,130px);padding-top:22px;border-top:1px solid rgba(255,255,255,.12);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;font:500 13px var(--font-sans);color:rgba(255,255,255,.6)">
+          <div style="display:flex;flex-wrap:wrap;gap:22px"><a href="#salas" style="color:rgba(255,255,255,.85)" data-en="Explore">Explorar</a><a href="Auth v3.dc.html?mode=login" style="color:rgba(255,255,255,.85)" data-en="Log in">Entrar</a><a href="#" style="color:rgba(255,255,255,.85)" data-en="Privacy">Privacidad</a><a href="#" style="color:rgba(255,255,255,.85)" data-en="Terms">Términos</a></div>
+          <span style="font-family:var(--font-mono)">myland.lol · 2026</span>
+        </footer>
+      </div>
+      <div aria-hidden="true" style="position:relative;margin-top:4px;height:clamp(96px,21vw,320px);overflow:hidden">
+        <div data-word="1" style="text-align:center;font:800 26vw/.8 var(--font-display);letter-spacing:-0.075em;white-space:nowrap;color:var(--ml-accent);transform:translateY(40%)">myLand</div>
+      </div>
+    </div>
+  </section>
+
+  <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.GlassToast" toast="{{ dtoast }}" hint-size="0px,0px"></x-import>
+
+  <sc-if value="{{ showDock }}" hint-placeholder-val="{{ false }}">
+    <div class="lg-glass" style="position:fixed;left:12px;right:12px;bottom:12px;z-index:55;display:flex;align-items:center;gap:8px;height:62px;padding:6px 6px 6px 18px;border-radius:999px;animation:ml-up .5s var(--glass-spring-soft) both">
+      <span style="flex:1;min-width:0;font:600 14px var(--font-sans);color:rgba(var(--ml-ink-rgb),.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">myland.lol/<span style="color:#141118">{{ dockHandle }}</span></span>
+      <button type="button" onClick="{{ goClaim }}" style="flex:none;height:50px;padding:0 22px;border:none;border-radius:999px;background:var(--ml-accent);color:#141118;font:700 15px var(--font-sans);cursor:pointer"><span data-en="Claim">Reclamar</span></button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ claiming }}" hint-placeholder-val="{{ false }}">
+    <div ref="{{ ovRef }}" style="position:fixed;inset:0;z-index:100;background:var(--ml-accent);color:#141118;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;clip-path:circle(0% at 50% 50%)">
+      <div style="height:30px;padding:0 12px;display:flex;align-items:center;border-radius:999px;background:var(--ml-ink);color:var(--ml-on-ink);font:600 12px var(--font-mono);letter-spacing:.1em;animation:ml-fade .5s .35s both">RESERVANDO TU NOMBRE</div>
+      <div style="margin-top:22px;font:700 clamp(22px,3vw,40px)/1 var(--font-sans);letter-spacing:-0.03em;opacity:.6;animation:ml-fade .5s .45s both">myland.lol/</div>
+      <div style="font-family:var(--ml-display);font-weight:800;font-size:clamp(48px,11vw,190px);line-height:.95;letter-spacing:-0.045em;max-width:100%;overflow-wrap:anywhere;animation:ml-fade .6s .5s both">{{ handle }}</div>
+      <div style="margin-top:36px;width:min(280px,60vw);height:4px;border-radius:9px;background:rgba(var(--ml-ink-rgb),.18);overflow:hidden"><div ref="{{ barRef }}" style="height:100%;width:0;background:var(--ml-ink);border-radius:9px"></div></div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Unbounded&quot;,&quot;Funnel Display&quot;,&quot;Bricolage Grotesque&quot;],&quot;default&quot;:&quot;Unbounded&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Tipografía&quot;},&quot;decor&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Elementos 3D&quot;},&quot;howVideo&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Cómo funciona&quot;},&quot;mobileDock&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Mobile&quot;}}">
+class Component extends DCLogic {
+  DISPLAY = { "Unbounded": "'Unbounded',sans-serif", "Funnel Display": "'Funnel Display',sans-serif", "Bricolage Grotesque": "'Bricolage Grotesque',sans-serif" };
+  TAKEN = new Set(["login","dashboard","auth","api","admin","settings","myland","nico","ana","sofi","juan"]);
+  IRI = ["radial-gradient(110% 80% at 15% 10%,#FFE14D,transparent 60%),radial-gradient(100% 100% at 90% 90%,#FF4F94,transparent 62%),#FFD3E4","radial-gradient(110% 80% at 85% 10%,#5AC8FA,transparent 60%),radial-gradient(100% 100% at 10% 90%,#D4FF3F,transparent 62%),#EAF7FF","radial-gradient(110% 80% at 80% 15%,#FF7A2E,transparent 60%),radial-gradient(100% 100% at 15% 90%,#FF4F94,transparent 62%),#FFE4D2","radial-gradient(110% 80% at 20% 15%,#D4FF3F,transparent 60%),radial-gradient(100% 100% at 85% 90%,#FFE14D,transparent 62%),#F6FFD9","radial-gradient(110% 80% at 80% 10%,#FF4F94,transparent 60%),radial-gradient(100% 100% at 15% 90%,#5AC8FA,transparent 62%),#FFE9F2"];
+  FRAMES = ["linear-gradient(140deg,#FF4F94,#FFE14D)","linear-gradient(140deg,#5AC8FA,#D4FF3F)","linear-gradient(140deg,#FF7A2E,#FF4F94)","linear-gradient(140deg,#D4FF3F,#FFE14D)","linear-gradient(140deg,#FFE14D,#FF7A2E)","linear-gradient(140deg,#FF4F94,#5AC8FA)","linear-gradient(140deg,#141118,#3A3440)"];
+  // Real ProfileCard formats (src/lib/cardGeometry.ts): vertical .55–.85, horizontal 1.3–2, square 1, phone 9:16, card .9–1.6
+  RIVER = [["Vertical",168,230,0],["Horizontal",320,190,1],["Cuadrada",200,200,0],["Celular",152,270,0],["Tarjeta",260,200,1],["Vertical",165,250,1],["Horizontal",300,170,0],["Cuadrada",180,180,1],["Celular",140,250,0],["Tarjeta",230,210,0]];
+  GAL = [["Sala · escritorio",16/10,48,0],["Tarjeta vertical",.7,60,1],["Sala · celular",9/16,66,0],["Tarjeta horizontal",1.7,34,1],["Tarjeta cuadrada",1,44,0],["Sala · escritorio",16/10,44,1],["Tarjeta",1.25,40,0]];
+  LABELS = [["Foto","25%",".30","9","L","Subí la tuya"],["Nombre","42%",".34","9","R","Con tu fuente y color"],["@usuario","50%",".38","9","L","Tu link: myland.lol/…"],["Frase","57%",".42","9","R","Contá algo de vos"],["Ubicación","65.5%",".46","9","L","De dónde sos"],["Links","80%",".5","9","R","Todas tus redes, en un toque"]];
+  TOASTS = [["Publicado en tu perfil","check"],["Link copiado","link"],["Fondo cambiado","palette"],["Música agregada","music"]];
+  state = { handle: "", status: "idle", mobile: window.innerWidth < 980, stack: window.innerWidth < 960, wide: window.innerWidth >= 1100, vh: window.innerHeight, claiming: false, dock: false, gal: 0, glow: 64, toast: 0, dockOpen: false, dockTab: "estilo", theme: "light", accent: "#FF4F94", font: (this.props && this.props.displayFont) || "Unbounded", hs: 100, ls: 0, tFlotar: true, tBrillo: false, t3d: true, tLineas: true, dtoast: null, chap: 0, demo: true, lang: "es", mcard: "color", menuOpen: true };
+  CH = [["Tu tarjeta","Foto, nombre, @usuario, frase, ubicación y bio."],["Tus links","Instagram, TikTok, Spotify, mail o web. Íconos o botones."],["Tu sala","Fondo, imágenes, GIFs, textos, galería y tu música."]];
+  NAMES = ["tu-nombre","sofi.art","dj-luna","estudio-mar","fede","tu-marca"];
+  LABELS_EN = { "Foto": ["Photo","Upload yours"], "Nombre": ["Name","Your font and color"], "@usuario": ["@username","Your link: myland.lol/…"], "Frase": ["Tagline","Tell people about you"], "Ubicación": ["Location","Where you're from"], "Links": ["Links","All your socials, one tap away"] };
+  FMT_EN = { "Vertical": "Vertical", "Horizontal": "Horizontal", "Cuadrada": "Square", "Celular": "Phone", "Tarjeta": "Card", "Sala · escritorio": "Room · desktop", "Tarjeta vertical": "Vertical card", "Sala · celular": "Room · phone", "Tarjeta horizontal": "Horizontal card", "Tarjeta cuadrada": "Square card" };
+  rootRef = React.createRef(); ovRef = React.createRef(); barRef = React.createRef();
+
+  componentDidMount() {
+    this._ps = Object.assign({}, this.state); this._pp = Object.assign({}, this.props);
+    this.reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.mx = this.my = this.tx = this.ty = this.off = this.vel = this.rvOff = 0; this.lastY = this.ssy = scrollY; this.t0 = performance.now(); this.bp = 0; this.gp = 0;
+    this.onVh = () => { const v = innerHeight; if ((v < 820) !== (this.state.vh < 820)) this.setState({ vh: v }); }; addEventListener("resize", this.onVh);
+    this.onResize = () => { const m = innerWidth < 980, st = innerWidth < 960, wd = innerWidth >= 1100; if (m !== this.state.mobile || st !== this.state.stack || wd !== this.state.wide) this.setState({ mobile: m, stack: st, wide: wd }); else this.measure(); this.three && this.three.resize(); };
+    this.onMove = e => { this.mx = e.clientX / innerWidth - 0.5; this.my = e.clientY / innerHeight - 0.5; };
+    addEventListener("resize", this.onResize); addEventListener("pointermove", this.onMove, { passive: true });
+    this.applyFont(); this.applyTheme(); this.bind(); this.startTyping(); this.applyLang();
+    this.demoT = setInterval(() => { if (!this.state.demo || document.hidden) return; const A = ["#FF4F94", "#FFE14D", "#D4FF3F", "#5AC8FA", "#FF7A2E"]; this.setState({ accent: A[(A.indexOf(this.state.accent) + 1) % A.length] }); }, 2400);
+    if (document.fonts) document.fonts.ready.then(() => this.measure());
+    this.toastT = setInterval(() => this.setState(s => ({ toast: s.toast + 1 })), 2800);
+    if ((this.props.decor ?? true) && this.state.t3d) this.initThree();
+    const loop = t => { this.raf = requestAnimationFrame(loop); this.frame(t); };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); this.unlock(); removeEventListener("resize", this.onVh); clearInterval(this.toastT); clearInterval(this.typeT); clearInterval(this.demoT); clearTimeout(this.dtT); clearTimeout(this.ht); clearTimeout(this.navT); removeEventListener("resize", this.onResize); removeEventListener("pointermove", this.onMove); this.io && this.io.disconnect(); this.three && this.three.dispose(); }
+  componentDidUpdate() {
+    const ps = this._ps || {}, pp = this._pp || {}; this._ps = Object.assign({}, this.state); this._pp = Object.assign({}, this.props);
+    if (pp.displayFont !== this.props.displayFont) this.setState({ font: this.props.displayFont || "Unbounded" });
+    if (ps.font !== this.state.font) { this.applyFont(); setTimeout(() => this.measure(), 450); }
+    if (["theme", "accent", "hs", "ls", "tBrillo", "tLineas"].some(k => ps[k] !== this.state[k])) this.applyTheme();
+    if (ps.lang !== this.state.lang || ps.mobile !== this.state.mobile || ps.menuOpen !== this.state.menuOpen || ps.mcard !== this.state.mcard || ps.dock !== this.state.dock || ps.demo !== this.state.demo) setTimeout(() => this.applyLang(), 0);
+    if (ps.hs !== this.state.hs || ps.ls !== this.state.ls) setTimeout(() => this.measure(), 450);
+    if (ps.chap !== this.state.chap) { const el = this.rootRef.current && this.rootRef.current.querySelector("[data-chap-title]"); el && el.animate && el.animate([{ opacity: 0, transform: "translateY(40px) rotate(2deg)", filter: "blur(8px)" }, { opacity: 1, transform: "none", filter: "blur(0)" }], { duration: 700, easing: "cubic-bezier(.16,1,.3,1)" }); }
+    if (!ps.dockOpen && this.state.dockOpen) this.toastMsg("Tocá cualquier control: cambia la página", "pencil");
+    if (ps.mobile !== this.state.mobile || pp.decor !== this.props.decor) setTimeout(() => { this.bind(); this.three && this.three.resize(); }, 30);
+    const on3 = (this.props.decor ?? true) && this.state.t3d, was3 = (pp.decor ?? true) && ps.t3d; if (on3 !== was3) { if (on3) this.initThree(); else if (this.three) { this.three.dispose(); this.three = null; } }
+    if (!ps.claiming && this.state.claiming) this.playClaim();
+    if (ps.toast !== this.state.toast) { const el = this.rootRef.current && this.rootRef.current.querySelector("[data-toast]"); el && el.animate && el.animate([{ opacity: 0, transform: "translateY(14px) scale(.9)" }, { opacity: 1, transform: "none", offset: .12 }, { opacity: 1, transform: "none", offset: .85 }, { opacity: 0, transform: "translateY(-8px) scale(.96)" }], { duration: 2700, easing: "cubic-bezier(.25,1,.5,1)", fill: "both" }); }
+  }
+  applyFont() { const r = this.rootRef.current; r && r.style.setProperty("--ml-display", this.DISPLAY[this.state.font] || this.DISPLAY.Unbounded); }
+  applyTheme() {
+    const r = this.rootRef.current; if (!r) return; const s = this.state;
+    const P = s.theme === "dark" ? { bg: "#0E0C12", ink: "#F6F3F8", rgb: "246,243,248", i2: "#D3CCDA", i3: "#A9A1B3", sf: "#1F1B25", on: "#141118" } : { bg: "#F3F0EB", ink: "#141118", rgb: "20,17,24", i2: "#3A3440", i3: "#5A5360", sf: "#FFFFFF", on: "#FFFFFF" };
+    const v = { "--ml-bg": P.bg, "--ml-ink": P.ink, "--ml-ink-rgb": P.rgb, "--ml-ink-2": P.i2, "--ml-ink-3": P.i3, "--ml-surface": P.sf, "--ml-on-ink": P.on, "--ml-accent": s.accent, "--ml-hs": String(s.hs / 100), "--ml-ls": (s.ls / 100) + "em", "--ml-glow": s.tBrillo ? "38px" : "0px" };
+    Object.keys(v).forEach(k => r.style.setProperty(k, v[k]));
+    r.setAttribute("data-editor-theme", s.theme); r.style.transition = "background-color .6s, color .6s"; document.body.style.background = P.bg;
+    r.querySelectorAll("[data-draw],[data-gdraw],[data-line]").forEach(el => { el.style.visibility = s.tLineas ? "" : "hidden"; });
+  }
+  anim(b, t) {
+    if (this.anPlaying) { const k = Math.min(1, (t - this.anT0) / 2900); this.anP = k; if (k >= 1) { this.anPlaying = false; this.anPlayed = true; this.unlock(); } return; }
+    if (this.anPlayed) { this.anP = 1; return; }
+    if (b.top <= -innerHeight * .6) { this.anPlayed = true; this.anP = 1; return; }
+    if (b.top <= innerHeight * .18 && b.top > -innerHeight * .6) {
+      if (this.reduce) { this.anP = 1; this.anPlayed = true; return; }
+      scrollTo({ top: scrollY + b.top, behavior: "instant" }); this.lock(); this.anPlaying = true; this.anT0 = t; this.anP = 0;
+    }
+  }
+  lock() { this._blk = e => e.preventDefault(); this._key = e => { if ([" ", "ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(e.key)) e.preventDefault(); }; addEventListener("wheel", this._blk, { passive: false }); addEventListener("touchmove", this._blk, { passive: false }); addEventListener("keydown", this._key); }
+  unlock() { if (this._blk) { removeEventListener("wheel", this._blk); removeEventListener("touchmove", this._blk); removeEventListener("keydown", this._key); this._blk = null; } }
+  applyLang() { const r = this.rootRef.current; if (!r) return; const en = this.state.lang === "en"; r.querySelectorAll("[data-en]").forEach(el => { if (el._es == null) el._es = el.textContent; el.textContent = en ? el.dataset.en : el._es; }); document.documentElement.lang = en ? "en" : "es"; }
+  toastMsg(text, icon) { clearTimeout(this.dtT); this.setState({ dtoast: { k: Date.now(), text, icon } }); this.dtT = setTimeout(() => this.setState({ dtoast: null }), 2600); }
+  startTyping() {
+    if (this.reduce) return; let ni = 0, ci = 0, del = false;
+    this.typeT = setInterval(() => { const n = this.NAMES[ni]; if (!del) { ci++; if (ci > n.length + 10) del = true; } else { ci--; if (ci <= 0) { del = false; ni = (ni + 1) % this.NAMES.length; } } const txt = n.slice(0, Math.max(0, Math.min(ci, n.length))); const r = this.rootRef.current; r && r.querySelectorAll("[data-type-ph]").forEach(el => el.setAttribute("placeholder", txt || "\u200b")); }, 90);
+  }
+  measure() {
+    if (!this.els) return;
+    this.mqW = this.els.mq.map(el => el.scrollWidth / 2);
+    const rv = this.els.rv; if (!rv.length) return;
+    this.rvW = rv.map(el => el.offsetWidth); this.rvH = rv.map(el => el.offsetHeight);
+    const W = this.els.river.offsetWidth, sum = this.rvW.reduce((a, b) => a + b, 0);
+    const gap = Math.max(this.state.mobile ? 18 : 34, (W + 420 - sum) / rv.length);
+    let c = 0; this.rvCum = this.rvW.map(w => { const x = c; c += w + gap; return x; }); this.rvL = c;
+  }
+  bind() {
+    const r = this.rootRef.current; if (!r) return;
+    const q = s => r.querySelector(s), qa = s => Array.from(r.querySelectorAll(s));
+    this.els = { mq: qa("[data-mq]"), par: qa("[data-par]"), river: q("[data-river]"), rv: qa("[data-rv]"), build: q("[data-build]"), pieces: qa("[data-build] [data-piece]"), lbls: qa("[data-lbl]"), chks: qa("[data-chk]"), count: q("[data-count]"), fills: qa("[data-fill]"), descs: qa("[data-desc]"), bprog: q("[data-bprog]"), wall: q("[data-wall]"), ring: q("[data-ring]"), card: q("[data-card]"), stage: q("[data-stage]"), phone: q("[data-phone]"), gal: q("[data-gal]"), track: q("[data-track]"), gcards: qa("[data-gcard]"), gdraw: q("[data-gdraw]"), draws: qa("[data-draw]"), word: q("[data-word]"), hero: q("[data-hero-claim]"), heroSec: q("[data-hero]"), how: q("[data-how]"), chapBars: qa("[data-chap-bar]") };
+    this.els.pieces.forEach(el => { const f = (el.dataset.from || "0,0,0,1").split(",").map(Number); el._f = f; el._s = +el.dataset.s; el._l = +el.dataset.l; });
+    this.desc = -1;
+    if (this.els.river && !this.els.river._b) {
+      const rv = this.els.river; rv._b = 1;
+      rv.addEventListener("pointerenter", () => { this.rvPause = true; });
+      rv.addEventListener("pointerleave", () => { this.rvPause = false; });
+      rv.addEventListener("dragover", () => { this.rvPause = true; clearTimeout(this.rvT); this.rvT = setTimeout(() => { this.rvPause = false; }, 2500); });
+    }
+    this.measure();
+    if (this.reduce || !("IntersectionObserver" in window)) return;
+    this.io && this.io.disconnect();
+    this.io = new IntersectionObserver(ents => ents.forEach(e => { if (e.isIntersecting) { const el = e.target; el.style.opacity = "1"; el.style.transform = "none"; el.style.filter = "none"; this.io.unobserve(el); } }), { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+    qa("[data-reveal],[data-rise]").forEach(el => {
+      if (el.dataset.bound) return; el.dataset.bound = "1";
+      if (el.getBoundingClientRect().top < innerHeight * 0.9) return;
+      const d = +(el.dataset.delay || 0), rise = el.hasAttribute("data-rise");
+      if (rise) { el.style.transform = "translateY(110%) rotate(4deg)"; el.style.transition = `transform 1.1s ${d}ms cubic-bezier(.16,1,.3,1)`; }
+      else { el.style.opacity = "0"; el.style.transform = "translateY(70px) rotate(1.5deg)"; el.style.filter = "blur(8px)"; el.style.transition = `opacity .9s ${d}ms cubic-bezier(.2,.8,.2,1), transform 1.2s ${d}ms cubic-bezier(.16,1,.3,1), filter .9s ${d}ms`; }
+      this.io.observe(el);
+    });
+  }
+  async initThree() {
+    if (this.three || this.threeLoading) return; this.threeLoading = true;
+    try {
+      const T = await import("https://esm.sh/three@0.160.0");
+      const host = this.rootRef.current && this.rootRef.current.querySelector("[data-three]");
+      if (!host || !(this.props.decor ?? true)) { this.threeLoading = false; return; }
+      const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+      renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+      renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
+      host.appendChild(renderer.domElement);
+      const scene = new T.Scene(), cam = new T.PerspectiveCamera(32, 1, 0.1, 100); cam.position.set(0, 0, 13);
+      const env = new T.Scene(); env.background = new T.Color("#d9d2de");
+      const panel = (c, w, h, x, y, z, ry) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: c, side: T.DoubleSide })); m.position.set(x, y, z); m.rotation.y = ry || 0; m.lookAt(0, 0, 0); env.add(m); };
+      panel(new T.Color(9, 9, 9), 8, 4, 0, 7, 3); panel(new T.Color(4, 1.2, 2.4), 6, 6, -8, 0, 2); panel(new T.Color(1.4, 3.4, 4.5), 6, 6, 8, 1, -2); panel(new T.Color(3.4, 3, .6), 10, 3, 0, -7, 4); panel(new T.Color(6, 6, 6), 4, 8, 3, 2, 9);
+      const pm = new T.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.035).texture;
+      const dl = new T.DirectionalLight(0xffffff, 1.4); dl.position.set(4, 6, 8); scene.add(dl); scene.add(new T.AmbientLight(0xffffff, 0.25));
+      const mat = (c, o) => new T.MeshPhysicalMaterial(Object.assign({ color: c, roughness: .12, metalness: 0, clearcoat: 1, clearcoatRoughness: .06 }, o || {}));
+      const objs = [];
+      const add = (mesh, d, m, spin) => { const g = new T.Group(); g.add(mesh); scene.add(g); objs.push({ g, mesh, d, m, spin, base: mesh.rotation.clone() }); return g; };
+      const cross = new T.Group(); const cm = mat("#2F7BFF", { iridescence: .6, iridescenceIOR: 1.6, roughness: .05 });
+      const c1 = new T.Mesh(new T.CapsuleGeometry(.42, 1.7, 16, 48), cm); c1.rotation.z = Math.PI / 4; const c2 = c1.clone(); c2.rotation.z = -Math.PI / 4; cross.add(c1, c2);
+      add(cross, [-.78, .02, .78], [.62, .3, .6], [.004, .007, .002]);
+      const sh = new T.Shape(); const N = 4, R = 1, r = .38; for (let i = 0; i < N * 2; i++) { const a = i / (N * 2) * Math.PI * 2 + Math.PI / 2, rr = i % 2 ? r : R; i ? sh.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : sh.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } sh.closePath();
+      const sg = new T.ExtrudeGeometry(sh, { depth: .35, bevelEnabled: true, bevelThickness: .22, bevelSize: .18, bevelSegments: 10, curveSegments: 24 }); sg.center();
+      add(new T.Mesh(sg, mat("#FF6A1A", { roughness: .22 })), [-.9, -.35, .8], [-.75, .3, .55], [.006, .004, .009]);
+      add(new T.Mesh(new T.SphereGeometry(.62, 64, 64), mat("#FFD21F", { roughness: .08 })), [.92, -.45, .9], [.86, -.2, .62], [0, .004, 0]);
+      add(new T.Mesh(new T.SphereGeometry(.3, 48, 48), mat("#FFD21F", { roughness: .08 })), [.3, -.55, .8], [-.5, .45, .62], [0, .004, 0]);
+      add(new T.Mesh(new T.SphereGeometry(.2, 48, 48), mat("#FFD21F", { roughness: .08 })), [-.25, -.85, 1], null, [0, .004, 0]);
+      add(new T.Mesh(new T.TorusGeometry(.62, .26, 48, 120), mat("#FF4F94", { iridescence: .5, roughness: .1 })), [.97, .95, .8], [.88, -.72, .6], [.008, .005, .003]);
+      add(new T.Mesh(new T.SphereGeometry(.5, 64, 64), mat("#e8e8ee", { metalness: 1, roughness: .04 })), [-.97, .92, .6], null, [0, .003, 0]);
+      const bg = new T.IcosahedronGeometry(.55, 6); const p = bg.attributes.position, v = new T.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = 1 + .16 * Math.sin(v.x * 5) * Math.sin(v.y * 4) * Math.sin(v.z * 6); v.multiplyScalar(n); p.setXYZ(i, v.x, v.y, v.z); } bg.computeVertexNormals();
+      add(new T.Mesh(bg, mat("#C8F53A", { roughness: .2 })), [-.2, -.15, .6], null, [.003, .006, .004]);
+      let W = 1, H = 1, halfW = 1, halfH = 1;
+      const resize = () => { W = host.clientWidth || 1; H = host.clientHeight || 1; renderer.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix(); halfH = Math.tan(cam.fov * Math.PI / 360) * cam.position.z; halfW = halfH * cam.aspect; };
+      resize();
+      const t0 = performance.now();
+      const render = (t, s, tx, ty) => {
+        if (s > 1.3) return;
+        const mob = W < 820, k = (t - t0) / 1000;
+        objs.forEach((o, i) => {
+          const pos = mob ? o.m : o.d; o.g.visible = !!pos; if (!pos) return;
+          const intro = Math.min(1, Math.max(0, (k - .5 - i * .12) / .9)); const e = intro === 1 ? 1 : 1 - Math.pow(2, -10 * intro) * Math.cos(intro * 10.5);
+          const sc = pos[2] * (mob ? .8 : 1) * Math.max(0, e);
+          o.g.scale.setScalar(sc);
+          const depth = .6 + i * .15;
+          o.g.position.set(pos[0] * halfW - tx * depth * .9, pos[1] * halfH + Math.sin(k * .8 + i) * .14 + ty * depth * .6 + s * halfH * (1.2 + i * .25), 0);
+          o.mesh.rotation.x = o.base.x + k * o.spin[0] * 60 + s * 2 + ty * .6; o.mesh.rotation.y = o.base.y + k * o.spin[1] * 60 + tx * .8; o.mesh.rotation.z = o.base.z + k * o.spin[2] * 60;
+        });
+        renderer.render(scene, cam);
+      };
+      this.three = { render, resize, dispose: () => { renderer.dispose(); renderer.domElement.remove(); } };
+    } catch (err) { console.warn("3D off", err && err.message); }
+    this.threeLoading = false;
+  }
+  frame(t) {
+    const E = this.els; if (!E) return;
+    const vh = innerHeight, sy = scrollY, R = this.reduce, mob = this.state.mobile;
+    this.vel += ((sy - this.lastY) - this.vel) * 0.12; this.lastY = sy;
+    this.ssy += (sy - this.ssy) * (R ? 1 : 0.14);
+    this.tx += (this.mx - this.tx) * 0.06; this.ty += (this.my - this.ty) * 0.06;
+    if (!R) this.off += 0.6 + Math.min(Math.abs(this.vel), 50) * 0.35;
+    E.mq.forEach((el, i) => { const w = (this.mqW && this.mqW[i]) || 1; const o = this.off % w; el.style.transform = `translate3d(${i % 2 ? o - w : -o}px,0,0)`; });
+    const heroS = Math.min(1.5, this.ssy / vh);
+    if (this.three) this.three.render(t, heroS, this.tx, this.ty);
+    if (E.rv.length && this.rvCum) {
+      if (!this.rvPause && !R && this.state.tFlotar) this.rvOff += (mob ? .55 : .8) + Math.min(Math.abs(this.vel), 60) * .5;
+      const W = E.river.offsetWidth, L = this.rvL, H = E.river.offsetHeight, amp = H * (mob ? .1 : .16), lift = heroS * 80;
+      E.rv.forEach((el, i) => {
+        const w = this.rvW[i], h = this.rvH[i];
+        let x = ((this.rvCum[i] - this.rvOff) % L + L) % L - 210;
+        const u = (x + w / 2) / W, ph = u * Math.PI * 2 * .85 + .6;
+        const y = Math.sin(ph) * amp, slope = Math.cos(ph) * amp * Math.PI * 2 * .85 / W;
+        const rot = Math.atan(slope) * 57.3 * .7 + (i % 2 ? 3 : -3), ry = (u - .5) * -36, sc = 1 - Math.min(.22, Math.abs(u - .5) * .3);
+        el.style.transform = `translate3d(${x.toFixed(1)}px,${(y - h / 2 - lift * (1 + (i % 3) * .3)).toFixed(1)}px,0) rotate(${rot.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
+        el.style.zIndex = String(Math.round(100 - Math.abs(u - .5) * 100));
+      });
+    }
+    if (!R) E.par.forEach((el, i) => { const d = +el.dataset.par; el.style.transform = `translate3d(${(-this.tx * d * 40).toFixed(1)}px,${(-this.ty * d * 30 + Math.sin(t / 1800 + i) * 8).toFixed(1)}px,0)`; });
+    if (E.build) {
+      const b = E.build.getBoundingClientRect(); this.anim(b, t); const p = this.anP || 0;
+      if (b.top < vh && b.bottom > 0) {
+        const sw = E.stage ? E.stage.offsetWidth : 500;
+        E.pieces.forEach(el => {
+          const k = Math.min(1, Math.max(0, (p - el._s) / el._l)), e = 1 - Math.pow(1 - k, 3), q = 1 - e, f = el._f;
+          el.style.opacity = Math.min(1, k * 2.5).toFixed(3);
+          el.style.transform = q < .001 ? "none" : `translate3d(${(f[0] * sw / 100 * q).toFixed(1)}px,${(f[1] * sw / 100 * q).toFixed(1)}px,${(q * 120).toFixed(0)}px) rotate(${(f[2] * q).toFixed(2)}deg) rotateY(${(f[2] * 2 * q).toFixed(2)}deg) scale(${(1 + (f[3] - 1) * q).toFixed(3)})`;
+          el.style.filter = q > .02 ? `blur(${(q * 6).toFixed(1)}px)` : "none";
+        });
+        E.lbls.forEach(el => { const s = +el.dataset.s + .06, e = +el.dataset.e; el.style.opacity = p > s && p < e ? "1" : "0"; });
+        { let c = 0; E.chks.forEach(el => { const on = p > +el.dataset.s + .06; if (on) c++; if (el._on !== on) { el._on = on; el.style.opacity = on ? "1" : ".38"; el.style.transform = on ? "none" : "translateX(-6px)"; const d = el.querySelector("[data-chkdot]"); if (d) { d.style.background = on ? "var(--ml-accent)" : "rgba(var(--ml-ink-rgb),.1)"; d.style.color = on ? "#141118" : "transparent"; } } }); if (E.count && E.count._c !== c) { E.count._c = c; E.count.textContent = c + "/6"; } }
+        const ph = [Math.min(1, p / .32), Math.min(1, Math.max(0, (p - .34) / .3)), Math.min(1, Math.max(0, (p - .66) / .26))];
+        E.fills.forEach((el, i) => { el.style.clipPath = `inset(0 ${((1 - ph[i]) * 100).toFixed(2)}% 0 0)`; });
+        const st = p < .34 ? 0 : p < .66 ? 1 : 2;
+        if (st !== this.desc) { this.desc = st; E.descs.forEach((el, i) => { el.style.opacity = i === st ? "1" : "0"; el.style.transform = i === st ? "none" : `translateY(${i < st ? -16 : 16}px)`; }); }
+        if (E.bprog) E.bprog.style.transform = `scaleX(${p.toFixed(3)})`;
+        if (E.wall) E.wall.style.opacity = ph[2].toFixed(3);
+        if (E.ring) E.ring.style.opacity = p < .3 ? "1" : p < .62 ? "0.35" : "0";
+        if (E.card) E.card.style.transform = `translate(-50%,-50%) rotateY(${(this.tx * 14 + (1 - Math.min(1, p * 4)) * -12).toFixed(2)}deg) rotateX(${(-this.ty * 10).toFixed(2)}deg) scale(${(1 - ph[2] * .12).toFixed(3)})`;
+      }
+    }
+    E.draws.forEach(el => { const w = el.closest("[data-draw-wrap]"); if (!w) return; const b = w.getBoundingClientRect(); const p = Math.min(1, Math.max(0, (vh * .85 - b.top) / (b.height * .9))); el.style.strokeDashoffset = (1 - p).toFixed(4); });
+    if (E.phone && !R) { const b = E.phone.getBoundingClientRect(); const r = Math.max(-1, Math.min(1, (b.top + b.height / 2 - vh / 2) / vh)); E.phone.style.transform = `rotateY(${(r * -28 + this.tx * 8).toFixed(2)}deg) rotateX(${(r * 10).toFixed(2)}deg) rotate(${(6 - r * 8).toFixed(2)}deg)`; }
+    if (E.gal && E.track) {
+      const b = E.gal.getBoundingClientRect(), raw = Math.min(1, Math.max(0, -b.top / (b.height - vh)));
+      this.gp += (raw - this.gp) * (R ? 1 : .1); const p = this.gp;
+      const max = Math.max(0, E.track.scrollWidth - innerWidth); E.track.style.transform = `translate3d(${(-p * max).toFixed(1)}px,0,0)`;
+      if (E.gdraw) E.gdraw.style.strokeDashoffset = (1 - Math.min(1, p * 1.15)).toFixed(4);
+      if (!R) E.gcards.forEach((el, i) => { const r = el.getBoundingClientRect(); const u = (r.left + r.width / 2) / innerWidth - .5; el.style.transform = `perspective(1400px) rotateY(${(u * -22).toFixed(2)}deg) rotate(${(u * 8 + (i % 2 ? 2 : -2)).toFixed(2)}deg) translateY(${(Math.abs(u) * 40).toFixed(1)}px)`; });
+    }
+    if (E.word && !R) { const b = E.word.parentElement.getBoundingClientRect(); const p = Math.max(0, Math.min(1, (vh - b.top) / (b.height + vh * 0.3))); E.word.style.transform = `translateY(${(40 - p * 40).toFixed(1)}%)`; }
+    if (E.how) {
+      const b = E.how.getBoundingClientRect(), vis = b.top < vh * .75 && b.bottom > vh * .25, dt = Math.min(64, t - (this.lt || t)), v = E.how.querySelector("video");
+      let ch = this.state.chap, fr = 0;
+      if (v && v.duration) { if (vis && v.paused) v.play().catch(() => {}); if (!vis && !v.paused) v.pause(); const f = v.currentTime / v.duration * 3; ch = Math.min(2, Math.floor(f)); fr = f - ch; }
+      else { if (vis) this.chapT = (this.chapT || 0) + dt / 1000; const f = ((this.chapT || 0) / 5) % 3; ch = Math.floor(f); fr = f - ch; }
+      E.chapBars.forEach((el, i) => { el.style.transform = "scaleX(" + (i < ch ? 1 : i === ch ? fr.toFixed(3) : 0) + ")"; });
+      if (ch !== this.state.chap) this.setState({ chap: ch });
+    }
+    this.lt = t;
+    if (E.hero) { const show = mob && E.hero.getBoundingClientRect().bottom < 0; if (show !== this.state.dock) this.setState({ dock: show }); }
+  }
+  onHandle = e => {
+    const h = e.target.value.replace(/\s+/g, "").toLowerCase().slice(0, 20);
+    clearTimeout(this.ht);
+    if (!h) return this.setState({ handle: h, status: "idle" });
+    if (!/^[a-z0-9_-]*$/.test(h)) return this.setState({ handle: h, status: "invalid" });
+    if (h.length < 3) return this.setState({ handle: h, status: "short" });
+    this.setState({ handle: h, status: "checking" });
+    this.ht = setTimeout(() => this.setState({ status: this.TAKEN.has(h) ? "taken" : "ok" }), 520);
+  };
+  claim = e => {
+    e.preventDefault();
+    const form = e.currentTarget, st = this.state.status;
+    if (st === "ok") { const b = form.querySelector("button[type=submit]").getBoundingClientRect(); this.origin = { x: b.left + b.width / 2, y: b.top + b.height / 2 }; this.setState({ claiming: true }); return; }
+    form.animate && form.animate([{ transform: "translateX(0)" }, { transform: "translateX(-12px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-5px)" }, { transform: "translateX(0)" }], { duration: 440, easing: "cubic-bezier(.36,.07,.19,.97)" });
+    const inp = form.querySelector("input"); inp && inp.focus();
+    if (st === "idle") this.setState({ status: "empty" });
+  };
+  playClaim() {
+    const ov = this.ovRef.current, bar = this.barRef.current; if (!ov) return;
+    const o = this.origin || { x: innerWidth / 2, y: innerHeight / 2 }; const at = `at ${o.x}px ${o.y}px`;
+    ov.animate([{ clipPath: `circle(0px ${at})` }, { clipPath: `circle(150vmax ${at})` }], { duration: 800, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" });
+    bar && bar.animate([{ width: "0%" }, { width: "100%" }], { duration: 1300, delay: 450, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" });
+    this.navT = setTimeout(() => { location.href = "Auth v3.dc.html?mode=register&from=claim&handle=" + encodeURIComponent(this.state.handle); }, 1850);
+  }
+  goClaim = () => {
+    const r = this.rootRef.current; const inp = r && r.querySelector("[data-hero-claim] input");
+    scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => { inp && inp.focus({ preventScroll: true }); }, 500);
+  };
+  renderVals() {
+    const s = this.state, p = this.props;
+    const EN = s.lang === "en"; const ST = EN ? { idle: ["This will be your link. Choose well.", "rgba(20,17,24,.3)"], empty: ["Type a name to claim it.", "#FF5F57"], short: ["At least 3 characters.", "rgba(20,17,24,.3)"], invalid: ["Only letters, numbers, - and _", "#FF5F57"], checking: ["Checking…", "#5AC8FA"], ok: ["Available. It's yours if you claim it.", "#2FC46F"], taken: ["Already taken. Try another.", "#FF5F57"] }[s.status] : { idle: ["Este va a ser tu link. Elegilo bien.", "rgba(20,17,24,.3)"], empty: ["Escribí un nombre para reclamarlo.", "#FF5F57"], short: ["Mínimo 3 caracteres.", "rgba(20,17,24,.3)"], invalid: ["Solo letras, números, - y _", "#FF5F57"], checking: ["Buscando…", "#5AC8FA"], ok: ["Disponible. Es tuyo si lo reclamás.", "#2FC46F"], taken: ["Ya está en uso. Probá con otro.", "#FF5F57"] }[s.status];
+    const ring = { ok: "rgba(47,196,111,.8)", taken: "rgba(255,95,87,.8)", invalid: "rgba(255,95,87,.8)", empty: "rgba(255,95,87,.8)" }[s.status] || "rgba(20,17,24,0)";
+    const cl = (px, min) => `clamp(${Math.round(px * (min || .58))}px,${(px / 14.4).toFixed(2)}vw,${px}px)`;
+    const river = this.RIVER.map(([label, w, h, framed], i) => ({ i, id: "rv-" + (i + 1), label: EN ? this.FMT_EN[label] : label, w: cl(w), h: cl(h), pad: framed ? "7px" : "0px", frame: framed ? "#fff" : "transparent", innerR: framed ? "clamp(11px,1.1vw,17px)" : "clamp(16px,1.6vw,24px)", bg: this.IRI[i % 5], ph: label }));
+    const gallery = this.GAL.map(([label, r, h, framed], i) => ({ i, id: "sala-" + (i + 1), label: EN ? this.FMT_EN[label] : label, r: String(r), h: h + "vh", mh: Math.round(Math.min(h * 1.1, 70)) + "vw", offset: i % 2 ? "6vh" : "-5vh", pad: framed ? "10px" : "0px", frame: framed ? this.FRAMES[i % 7] : "#fff", innerR: framed ? "20px" : "28px", ph: label }));
+    const T = this.TOASTS[s.toast % this.TOASTS.length];
+    return {
+      rootRef: this.rootRef, ovRef: this.ovRef, barRef: this.barRef,
+      handle: s.handle, onHandle: this.onHandle, claim: this.claim, goClaim: this.goClaim,
+      statusText: ST[0], statusColor: ST[1], claimRing: ring,
+      mobile: s.mobile, notMobile: !s.mobile, wide: s.wide, navCta: EN ? (s.mobile ? "Claim" : "Claim your myLand") : (s.mobile ? "Reclamar" : "Reclamá tu myLand"),
+      decor: p.decor ?? true, river,
+      lang: s.lang, langTabs: [{ id: "es", label: "Español" }, { id: "en", label: "English" }], setLang: v => { if (v === s.lang) return; this.setState({ lang: v }); this.toastMsg(v === "en" ? "Language: English" : "Idioma: español", "globe"); },
+      menuOpen: s.menuOpen, menuClosed: !s.menuOpen, closeMenu: () => this.setState({ menuOpen: false }), openMenu: () => this.setState({ menuOpen: true }),
+      menuPath: "myland.lol/" + (s.handle || (s.lang === "en" ? "your-name" : "tu-nombre")),
+      oc: Object.fromEntries(["tema", "color", "tipo", "fx", "idioma"].map(k => [k, () => this.setState({ mcard: s.mcard === k ? null : k, demo: false })])),
+      op: Object.fromEntries(["tema", "color", "tipo", "fx", "idioma"].map(k => [k, s.mcard === k])),
+      cb: Object.fromEntries(["tema", "color", "tipo", "fx", "idioma"].map(k => [k, s.mcard === k ? "transparent" : "var(--glass-well)"])),
+      cs: Object.fromEntries(["tema", "color", "tipo", "fx", "idioma"].map(k => [k, s.mcard === k ? "inset 0 0 0 1px var(--glass-line)" : "inset 0 0 0 1px transparent"])),
+      cp: Object.fromEntries(["tema", "color", "tipo", "fx", "idioma"].map(k => [k, s.mcard === k ? "2px 10px 10px" : "0 10px"])),
+      cr: Object.fromEntries(["tema", "color", "tipo", "fx", "idioma"].map(k => [k, s.mcard === k ? "180deg" : "0deg"])),
+      ci: { tema: "var(--glass-well)", color: "var(--glass-well)", tipo: (s.hs !== 100 || s.ls !== 0) ? "var(--glass-accent-soft)" : "var(--glass-well)", fx: (s.tFlotar || s.tBrillo || s.t3d || s.tLineas) ? "var(--glass-accent-soft)" : "var(--glass-well)", idioma: "var(--glass-well)" },
+      cc: { tema: "inherit", color: "inherit", tipo: (s.hs !== 100 || s.ls !== 0) ? "var(--ml-accent)" : "inherit", fx: (s.tFlotar || s.tBrillo || s.t3d || s.tLineas) ? "var(--ml-accent)" : "inherit", idioma: "inherit" },
+      sumTema: s.lang === "en" ? (s.theme === "dark" ? "Dark" : "Light") : (s.theme === "dark" ? "Oscuro" : "Claro"),
+      sumTipo: Math.round(s.hs) + "% · " + (s.ls > 0 ? "+" : "") + s.ls + " px",
+      sumFx: (() => { const on = [[s.tFlotar, "Flotar", "Float"], [s.tBrillo, "Brillo", "Glow"], [s.t3d, "3D", "3D"], [s.tLineas, "Líneas", "Lines"]].filter(x => x[0]).map(x => s.lang === "en" ? x[2] : x[1]); return on.length ? on.join(", ") : (s.lang === "en" ? "None active" : "Ninguno activo"); })(),
+      sumLang: s.lang === "en" ? "English" : "Español",
+      tSize: s.lang === "en" ? "Size" : "Tamaño", tLs: s.lang === "en" ? "Letter spacing" : "Interletrado", pxFmt: v => (v > 0 ? "+" : "") + v + " px",
+      heroMinH: s.mobile ? "100vh" : "640px", heroH: s.mobile ? "auto" : "100vh", riverBottom: s.mobile ? "auto" : "clamp(16px,4vh,48px)",
+      demo: s.demo, stopDemo: () => { if (this.state.demo) this.setState({ demo: false }); },
+      riverPos: s.mobile ? "relative" : "absolute", riverMt: s.mobile ? "28px" : "0px", heroPadB: s.mobile ? "24px" : "clamp(260px,30vw,430px)",
+      anatH: s.mobile ? "180vh" : "220vh",
+      openDock: () => this.setState({ dockOpen: true }), closeDock: () => this.setState({ dockOpen: false }), dockOpen: s.dockOpen, showFab: !s.dockOpen && !s.claiming,
+      dockClaim: () => { this.setState({ dockOpen: false }); this.goClaim(); },
+      fabBottom: s.mobile && s.dock ? "86px" : "16px", fabPad: s.mobile ? "0 8px" : "0 20px 0 8px",
+      dockL: s.mobile ? "8px" : "auto", dockR: s.mobile ? "8px" : "16px", dockT: s.mobile ? "auto" : "80px", dockB: s.mobile ? "8px" : "auto", dockW: s.mobile ? "auto" : "344px", dockMaxH: s.mobile ? "72vh" : "calc(100vh - 96px)",
+      dockTabs: [{ id: "estilo", label: "Estilo" }, { id: "efectos", label: "Efectos" }], dockTab: s.dockTab, setDockTab: v => this.setState({ dockTab: v }), isEstilo: s.dockTab === "estilo", isEfectos: s.dockTab === "efectos",
+      themeTabs: [{ id: "light", label: EN ? "Light" : "Claro", icon: "sun" }, { id: "dark", label: EN ? "Dark" : "Oscuro", icon: "moon" }], theme: s.theme,
+      setTheme: v => { if (v === s.theme) return; this.setState({ theme: v }); this.toastMsg(v === "dark" ? "Tema oscuro" : "Tema claro", v === "dark" ? "moon" : "sun"); },
+      accents: ["#FF4F94", "#FFE14D", "#D4FF3F", "#5AC8FA", "#FF7A2E"], accent: s.accent, setAccent: c => { this.setState({ accent: c, demo: false }); this.toastMsg("Color cambiado", "palette"); },
+      fontTabs: [{ id: "Unbounded", label: "Unbounded" }, { id: "Funnel Display", label: "Funnel" }, { id: "Bricolage Grotesque", label: "Bricolage" }], font: s.font, setFont: v => { if (v === s.font) return; this.setState({ font: v }); this.toastMsg("Fuente cambiada", "text"); },
+      hs: s.hs, setHs: v => this.setState({ hs: v }), hsMin: 80, hsMax: 115, hsDef: 100, pctFmt: v => Math.round(v) + "%",
+      ls: s.ls, setLs: v => this.setState({ ls: v }), lsMin: -6, lsMax: 6, lsDef: 0,
+      tiles: [
+        { id: "flotar", label: EN ? "Float" : "Flotar", icon: "move", on: s.tFlotar, state: "En movimiento", onToggle: v => { this.setState({ tFlotar: v }); this.toastMsg(v ? "Flotar activado" : "Flotar desactivado", "move"); } },
+        { id: "brillo", label: EN ? "Glow" : "Brillo", icon: "sun", on: s.tBrillo, state: "Con brillo", onToggle: v => { this.setState({ tBrillo: v }); this.toastMsg(v ? "Brillo activado" : "Brillo desactivado", "sun"); } },
+        { id: "d3", label: EN ? "3D objects" : "Objetos 3D", icon: "shapes", on: s.t3d, state: "Activados", onToggle: v => { this.setState({ t3d: v }); this.toastMsg(v ? "Objetos 3D activados" : "Objetos 3D ocultos", "shapes"); } },
+        { id: "lineas", label: EN ? "Lines" : "Líneas", icon: "wand", on: s.tLineas, state: "Activadas", onToggle: v => { this.setState({ tLineas: v }); this.toastMsg(v ? "Líneas activadas" : "Líneas ocultas", "wand"); } },
+      ],
+      dtoast: s.dtoast,
+      chapters: this.CH.map(([t, d], i) => ({ i, n: "0" + (i + 1), t, d, op: i === s.chap ? 1 : .55, go: () => { this.chapT = i * 5 + .01; const v = this.rootRef.current && this.rootRef.current.querySelector("[data-how] video"); if (v && v.duration) v.currentTime = v.duration * i / 3; this.setState({ chap: i }); } })),
+      chapTitle: this.CH[s.chap][0], chapN: "PASO " + (s.chap + 1) + " DE 3", howVideo: p.howVideo || "", hasVideo: !!p.howVideo, noVideo: !p.howVideo, stageW: s.stack ? "min(100%,calc((100vh - 400px) * 1.25))" : "min(100%,calc((100vh - 220px) * 1.25))",
+      glow: s.glow, setGlow: v => this.setState({ glow: v }), zero: 0, hundred: 100,
+      toastKey: "t" + s.toast, toastText: T[0], toastIcon: T[1],
+      steps: ["Tu tarjeta", "Tus links", "Tu sala"].map((t, i) => ({ t, i })),
+      chk: this.LABELS.map(([t0, , s0, , , d0], i) => ({ n: "0" + (i + 1), t: EN ? this.LABELS_EN[t0][0] : t0, d: EN ? this.LABELS_EN[t0][1] : d0, s: s0 })),
+      anatDir: s.mobile ? "column" : "row", anatAlign: s.mobile ? "center" : "left", anatItems: s.mobile ? "center" : "flex-start", anatFlex: s.mobile ? "none" : "1 1 440px",
+      stageFlex: s.mobile ? "none" : "1 1 420px", stageW: s.mobile ? "min(100%,1000px)" : "auto", cardH: s.mobile ? "clamp(240px,calc(100vh - 290px),560px)" : "min(72vh,700px)", stageMt: "0", anatGap: s.mobile ? "clamp(16px,3vh,28px)" : "clamp(20px,4vw,80px)", chkD: s.vh < 820 ? "none" : "inline",
+      labels: this.LABELS.map(([t0, top, s0, e, side, d0]) => ({ t: EN ? this.LABELS_EN[t0][0] : t0, d: EN ? this.LABELS_EN[t0][1] : d0, top, s: s0, e, left: side === "L" ? "auto" : "100%", right: side === "L" ? "100%" : "auto", dir: side === "L" ? "row" : "row-reverse", align: side === "L" ? "flex-end" : "flex-start", ta: side === "L" ? "right" : "left", dd: s.mobile ? "none" : "block" })),
+      urlHandle: s.handle || "vos",
+      gallery, galLabel: "0" + (s.gal + 1) + " / 0" + gallery.length,
+      galDots: gallery.map((g, i) => ({ w: i === s.gal ? "20px" : "6px", c: i === s.gal ? "var(--ml-ink)" : "rgba(var(--ml-ink-rgb),.2)" })),
+      onGalScroll: e => { const el = e.currentTarget; const kids = Array.from(el.children); const x = el.scrollLeft + 20; let i = 0; kids.forEach((k, j) => { if (k.offsetLeft <= x + 10) i = j; }); i = Math.min(gallery.length - 1, i); if (i !== this.state.gal) this.setState({ gal: i }); },
+      showDock: s.mobile && s.dock && !s.claiming && (p.mobileDock ?? true), dockHandle: s.handle || "tu-nombre",
+      claiming: s.claiming,
+    };
+  }
+}
+</script>
+</body>
+</html>

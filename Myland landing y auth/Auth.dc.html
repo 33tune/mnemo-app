@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>myLand — Entrar</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/colors.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/typography.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/motion.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/components/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/styles.css">
+<script src="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:#0E0C12;color:#F6F3F8;-webkit-font-smoothing:antialiased}
+a{color:#F6F3F8;text-decoration:none}a:hover{color:#FF4F94}
+::selection{background:rgba(255,79,148,.35);color:#fff}
+input::placeholder{color:rgba(238,232,244,.34)}
+@keyframes ml-fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes ml-spin{to{transform:rotate(360deg)}}
+@keyframes ml-pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div ref="{{ rootRef }}" class="lg" data-editor-theme="dark" style="position:relative;min-height:100vh;display:flex;background:#0E0C12;color:#F6F3F8;font-family:var(--font-sans);overflow:hidden">
+  <div aria-hidden="true" style="position:fixed;inset:0;pointer-events:none;overflow:hidden">
+    <div style="position:absolute;width:70vmax;height:70vmax;left:-25vmax;top:-30vmax;border-radius:50%;background:radial-gradient(circle,rgba(255,79,148,.28),rgba(255,79,148,0) 60%)"></div>
+    <div style="position:absolute;width:60vmax;height:60vmax;left:10vmax;bottom:-40vmax;border-radius:50%;background:radial-gradient(circle,rgba(124,92,255,.22),rgba(124,92,255,0) 60%)"></div>
+  </div>
+
+  <!-- DESKTOP STAGE -->
+  <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
+    <aside style="position:relative;flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:space-between;padding:32px clamp(32px,4vw,64px) 40px">
+      <a href="Landing.dc.html" style="align-self:flex-start;display:flex;align-items:center;gap:9px;height:48px;padding:0 18px 0 12px;border-radius:999px;background:var(--glass-fill);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-edge),var(--glass-shadow);color:#F6F3F8">
+        <img src="assets/logo.png" alt="" style="width:30px;height:auto"><span style="font:800 20px/1 var(--font-display);letter-spacing:-0.055em">myLand</span>
+      </a>
+      <div style="animation:ml-fade .8s .2s both">
+        <div style="display:flex;align-items:center;gap:10px;font:500 12px var(--font-mono);letter-spacing:.12em;color:var(--glass-ink-3)"><span style="width:6px;height:6px;border-radius:9px;background:#FF4F94"></span>{{ stageKicker }}</div>
+        <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:18px;font:800 clamp(40px,4.4vw,80px)/.9 var(--font-display);letter-spacing:-0.06em;color:var(--glass-ink-3)">myland.lol/</div>
+          <div data-handle-target="1" style="font:italic 400 clamp(72px,9vw,170px)/.9 'Instrument Serif',serif;letter-spacing:-0.03em;color:#FF4F94;overflow-wrap:anywhere;max-width:100%">{{ stageHandle }}</div>
+        </sc-if>
+        <sc-if value="{{ isLoginish }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:18px;font:800 clamp(64px,8vw,150px)/.86 var(--font-display);letter-spacing:-0.06em">Tu sala te <span style="font:italic 400 1.08em/.8 'Instrument Serif',serif;letter-spacing:-0.03em;color:#FF4F94">espera.</span></div>
+        </sc-if>
+      </div>
+      <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          <sc-for list="{{ checks }}" as="c" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 16px 0 8px;border-radius:999px;background:var(--glass-well);font:550 14px var(--font-sans);color:{{ c.fg }};transition:color .3s">
+              <span style="width:28px;height:28px;border-radius:999px;display:grid;place-items:center;background:{{ c.bg }};color:#0E0C12;transition:background .4s var(--glass-spring)"><sc-if value="{{ c.done }}" hint-placeholder-val="{{ false }}"><span style="display:grid;animation:ml-pop .4s var(--glass-spring)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="check" size="15" hint-size="15px,15px"></x-import></span></sc-if></span>{{ c.label }}
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isLoginish }}" hint-placeholder-val="{{ false }}">
+        <div style="font:450 15px/1.5 var(--font-sans);color:var(--glass-ink-3);max-width:420px">Tu tarjeta, tus links y tu sala siguen exactamente donde los dejaste.</div>
+      </sc-if>
+    </aside>
+  </sc-if>
+
+  <!-- PANEL -->
+  <main style="position:relative;flex:{{ panelFlex }};display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;padding:{{ panelPad }};min-height:100vh">
+    <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px">
+        <a href="Landing.dc.html" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 16px 0 10px;border-radius:999px;background:var(--glass-fill);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-edge),var(--glass-shadow);color:#F6F3F8"><img src="assets/logo.png" alt="" style="width:26px;height:auto"><span style="font:800 18px/1 var(--font-display);letter-spacing:-0.055em">myLand</span></a>
+        <a href="Landing.dc.html" aria-label="Cerrar" style="width:44px;height:44px;border-radius:999px;display:grid;place-items:center;background:var(--glass-well);color:var(--glass-ink-2)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="close" size="17" hint-size="17px,17px"></x-import></a>
+      </div>
+      <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-bottom:28px;animation:ml-fade .7s .15s both">
+          <div style="font:800 30px/.95 var(--font-display);letter-spacing:-0.055em;color:var(--glass-ink-3)">myland.lol/</div>
+          <div data-handle-target="1" style="font:italic 400 clamp(56px,17vw,84px)/.9 'Instrument Serif',serif;letter-spacing:-0.03em;color:#FF4F94;overflow-wrap:anywhere">{{ stageHandle }}</div>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <div style="width:100%;max-width:440px;margin:0 auto;box-sizing:border-box;border-radius:30px;padding:{{ cardPad }};background:{{ cardBg }};backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:{{ cardShadow }}">
+      <sc-if value="{{ showForm }}" hint-placeholder-val="{{ true }}">
+        <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+          <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.IconTabs" tabs="{{ tabs }}" value="{{ mode }}" onChange="{{ setMode }}" hint-size="100%,44px"></x-import>
+        </sc-if>
+        <div data-form="1">
+          <h1 style="margin:28px 0 0;font:800 clamp(34px,4vw,42px)/.95 var(--font-display);letter-spacing:-0.05em">{{ title }}</h1>
+          <p style="margin:10px 0 0;font:450 15px/1.45 var(--font-sans);color:var(--glass-ink-2)">{{ subtitle }}</p>
+
+          <form onSubmit="{{ submit }}" noValidate="true" style="margin-top:24px;display:flex;flex-direction:column;gap:16px">
+            <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <label for="f-handle" style="font:600 13px var(--font-sans);color:var(--glass-ink-2)">Tu nombre en myLand</label>
+                <div style="display:flex;align-items:center;height:52px;border-radius:16px;background:var(--glass-well);padding:0 14px 0 16px;box-shadow:{{ handleRing }};transition:box-shadow .25s">
+                  <span style="font:500 16px var(--font-sans);color:var(--glass-ink-3)">myland.lol/</span>
+                  <input id="f-handle" value="{{ handle }}" onChange="{{ onHandle }}" disabled="{{ loading }}" placeholder="tu-nombre" spellCheck="false" autoComplete="username" style="flex:1;min-width:0;height:100%;border:none;outline:none;background:transparent;font:600 16px var(--font-sans);color:#F6F3F8;padding:0 4px">
+                  <span style="width:8px;height:8px;border-radius:99px;flex:none;background:{{ hColor }};transition:background .3s"></span>
+                </div>
+                <div style="font:500 12px var(--font-sans);color:{{ hColor }};min-height:16px">{{ hText }}</div>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label for="f-email" style="font:600 13px var(--font-sans);color:var(--glass-ink-2)">Email</label>
+              <input id="f-email" type="email" value="{{ email }}" onChange="{{ onEmail }}" onBlur="{{ blurEmail }}" disabled="{{ loading }}" placeholder="vos@email.com" autoComplete="email" inputMode="email" style="height:52px;border:none;outline:none;border-radius:16px;background:var(--glass-well);padding:0 16px;font:550 16px var(--font-sans);color:#F6F3F8;box-shadow:{{ emailRing }};transition:box-shadow .25s" style-focus="box-shadow:var(--glass-ring)">
+              <sc-if value="{{ emailErr }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:6px;font:500 12px var(--font-sans);color:#FF5F57">{{ emailErr }}</div></sc-if>
+            </div>
+
+            <sc-if value="{{ needsPass }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between">
+                  <label for="f-pass" style="font:600 13px var(--font-sans);color:var(--glass-ink-2)">Contraseña</label>
+                  <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{ goReset }}" style="border:none;background:none;padding:0;cursor:pointer;font:550 13px var(--font-sans);color:var(--glass-ink-2)" style-hover="color:#FF4F94">¿Te la olvidaste?</button></sc-if>
+                </div>
+                <div style="position:relative">
+                  <input id="f-pass" type="{{ passType }}" value="{{ pass }}" onChange="{{ onPass }}" onBlur="{{ blurPass }}" disabled="{{ loading }}" placeholder="{{ passPh }}" autoComplete="{{ passAuto }}" style="width:100%;box-sizing:border-box;height:52px;border:none;outline:none;border-radius:16px;background:var(--glass-well);padding:0 52px 0 16px;font:550 16px var(--font-sans);color:#F6F3F8;box-shadow:{{ passRing }};transition:box-shadow .25s" style-focus="box-shadow:var(--glass-ring)">
+                  <button type="button" onClick="{{ togglePass }}" aria-label="{{ eyeLabel }}" title="{{ eyeLabel }}" style="position:absolute;right:4px;top:4px;width:44px;height:44px;border:none;border-radius:12px;background:transparent;color:var(--glass-ink-2);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--glass-well-hover)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="{{ eyeIcon }}" size="17" hint-size="17px,17px"></x-import></button>
+                </div>
+                <sc-if value="{{ showStrength }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:4px"><sc-for list="{{ bars }}" as="b" hint-placeholder-count="4"><span style="height:4px;border-radius:9px;background:{{ b.c }};transition:background .3s"></span></sc-for></div>
+                    <span style="font:500 12px var(--font-sans);color:{{ strengthColor }};min-width:48px;text-align:right">{{ strengthLabel }}</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ passErr }}" hint-placeholder-val="{{ false }}"><div style="font:500 12px var(--font-sans);color:#FF5F57">{{ passErr }}</div></sc-if>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ error }}" hint-placeholder-val="{{ false }}">
+              <div role="alert" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:16px;background:var(--glass-danger-soft);color:#FFB1AC;font:500 14px/1.4 var(--font-sans);animation:ml-fade .35s both">
+                <span style="flex:none;width:22px;height:22px;border-radius:99px;background:#FF5F57;color:#1C0712;display:grid;place-items:center;font:700 13px var(--font-sans)">!</span>
+                <div style="flex:1">{{ error }}<sc-if value="{{ errorAction }}" hint-placeholder-val="{{ false }}"> <button type="button" onClick="{{ errorFix }}" style="border:none;background:none;padding:0;cursor:pointer;font:650 14px var(--font-sans);color:#F6F3F8;text-decoration:underline;text-underline-offset:3px">{{ errorAction }}</button></sc-if></div>
+              </div>
+            </sc-if>
+
+            <button type="submit" disabled="{{ loading }}" style="margin-top:4px;height:56px;border:none;border-radius:999px;background:#FF4F94;color:#1C0712;font:650 16px var(--font-sans);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 14px 34px -12px rgba(255,79,148,.8);opacity:{{ btnOpacity }};transition:transform .3s var(--glass-spring),opacity .2s" style-active="transform:scale(.96)">
+              <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}"><span style="width:18px;height:18px;border-radius:99px;border:2px solid rgba(28,7,18,.22);border-top-color:#1C0712;animation:ml-spin .7s linear infinite"></span></sc-if>{{ cta }}
+            </button>
+          </form>
+
+          <sc-if value="{{ showGoogle }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:14px;margin:20px 0;font:500 12px var(--font-sans);color:var(--glass-ink-3)"><span style="flex:1;height:1px;background:var(--glass-line)"></span>o<span style="flex:1;height:1px;background:var(--glass-line)"></span></div>
+            <button type="button" onClick="{{ google }}" disabled="{{ loading }}" style="width:100%;height:52px;border:none;border-radius:999px;background:var(--glass-well);color:#F6F3F8;font:550 15px var(--font-sans);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:background .2s,transform .3s var(--glass-spring)" style-hover="background:var(--glass-well-hover)" style-active="transform:scale(.96)">
+              <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path></svg>
+              {{ googleLabel }}
+            </button>
+          </sc-if>
+
+          <div style="margin-top:22px;text-align:center;font:450 13px/1.5 var(--font-sans);color:var(--glass-ink-3)">
+            <sc-if value="{{ isRegister }}" hint-placeholder-val="{{ true }}">Al crear tu cuenta aceptás los <a href="#" style="color:var(--glass-ink-2);text-decoration:underline;text-underline-offset:3px">Términos</a> y la <a href="#" style="color:var(--glass-ink-2);text-decoration:underline;text-underline-offset:3px">Privacidad</a>.</sc-if>
+            <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">¿Todavía no tenés tu myLand? <button type="button" onClick="{{ goRegister }}" style="border:none;background:none;padding:0;cursor:pointer;font:650 13px var(--font-sans);color:#FF4F94">Reclamalo</button></sc-if>
+            <sc-if value="{{ isReset }}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{ goLogin }}" style="border:none;background:none;padding:0;cursor:pointer;font:650 13px var(--font-sans);color:var(--glass-ink-2)">Volver a entrar</button></sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- SENT -->
+      <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:flex-start;animation:ml-fade .5s both">
+          <div style="width:64px;height:64px;border-radius:999px;display:grid;place-items:center;background:var(--glass-accent-soft);color:#FF4F94;animation:ml-pop .6s var(--glass-spring) both"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="mail" size="26" hint-size="26px,26px"></x-import></div>
+          <h1 style="margin:24px 0 0;font:800 40px/.95 var(--font-display);letter-spacing:-0.05em">Revisá tu email.</h1>
+          <p style="margin:12px 0 0;font:450 15px/1.5 var(--font-sans);color:var(--glass-ink-2)">{{ sentText }} <span style="color:#F6F3F8;font-weight:600;overflow-wrap:anywhere">{{ sentEmail }}</span>.</p>
+          <a href="https://mail.google.com" target="_blank" style="margin-top:28px;width:100%;height:56px;border-radius:999px;background:#FF4F94;color:#1C0712;font:650 16px var(--font-sans);display:flex;align-items:center;justify-content:center;gap:8px">Abrir mi email<x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-up-right" size="17" hint-size="17px,17px"></x-import></a>
+          <div style="margin-top:14px;width:100%;display:flex;gap:8px">
+            <button type="button" onClick="{{ resend }}" disabled="{{ resendDisabled }}" style="flex:1;height:48px;border:none;border-radius:999px;background:var(--glass-well);color:{{ resendColor }};font:550 14px var(--font-sans);cursor:pointer">{{ resendLabel }}</button>
+            <button type="button" onClick="{{ backToForm }}" style="flex:1;height:48px;border:none;border-radius:999px;background:var(--glass-well);color:#F6F3F8;font:550 14px var(--font-sans);cursor:pointer" style-hover="background:var(--glass-well-hover)">Usar otro email</button>
+          </div>
+          <p style="margin:20px 0 0;font:450 13px/1.5 var(--font-sans);color:var(--glass-ink-3)">¿No llega? Fijate en spam o promociones.</p>
+        </div>
+      </sc-if>
+    </div>
+  </main>
+
+  <!-- ENTER FROM CLAIM -->
+  <sc-if value="{{ intro }}" hint-placeholder-val="{{ false }}">
+    <div ref="{{ introRef }}" style="position:fixed;inset:0;z-index:100;background:#FF4F94;color:#1C0712;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center">
+      <div style="font:500 13px var(--font-mono);letter-spacing:.12em">RESERVADO</div>
+      <div style="margin-top:18px;font:800 clamp(28px,4vw,56px)/1 var(--font-display);letter-spacing:-0.05em;opacity:.55">myland.lol/</div>
+      <div style="font:italic 400 clamp(64px,14vw,240px)/.9 'Instrument Serif',serif;letter-spacing:-0.03em;max-width:100%;overflow-wrap:anywhere">{{ stageHandle }}</div>
+      <div style="margin-top:36px;width:min(280px,60vw);height:3px;border-radius:9px;background:#1C0712"></div>
+    </div>
+  </sc-if>
+
+  <!-- SIGNED IN -->
+  <sc-if value="{{ success }}" hint-placeholder-val="{{ false }}">
+    <div ref="{{ outroRef }}" style="position:fixed;inset:0;z-index:100;background:#0E0C12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;text-align:center">
+      <img src="assets/logo.png" alt="" style="width:88px;height:auto;animation:ml-pop .7s var(--glass-spring) both">
+      <div style="font:800 clamp(44px,7vw,96px)/.9 var(--font-display);letter-spacing:-0.06em;animation:ml-fade .6s .2s both">Entrando a tu <span style="font:italic 400 1.08em/.8 'Instrument Serif',serif;color:#FF4F94">sala…</span></div>
+      <div style="width:min(240px,60vw);height:3px;border-radius:9px;background:var(--glass-well);overflow:hidden"><div ref="{{ outBarRef }}" style="height:100%;width:0;background:#FF4F94"></div></div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;previewState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Normal&quot;,&quot;Cargando&quot;,&quot;Error&quot;,&quot;Sin conexión&quot;,&quot;Email enviado&quot;],&quot;default&quot;:&quot;Normal&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Estados&quot;}}">
+class Component extends DCLogic {
+  TAKEN = new Set(["login","dashboard","auth","api","admin","settings","myland","nico","ana","sofi","juan"]);
+  rootRef = React.createRef(); introRef = React.createRef(); outroRef = React.createRef(); outBarRef = React.createRef();
+  constructor(props) {
+    super(props);
+    const q = new URLSearchParams(location.search);
+    const h = (q.get("handle") || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 20);
+    this.state = {
+      mode: q.get("mode") === "login" ? "login" : "register", handle: h, hStatus: h.length >= 3 ? (this.TAKEN.has(h) ? "taken" : "ok") : "idle",
+      email: "", pass: "", show: false, loading: false, gLoading: false, error: "", errorKind: "", sent: false, success: false,
+      emailTouched: false, passTouched: false, mobile: innerWidth < 900, intro: q.get("from") === "claim" && h.length >= 3, resendIn: 0,
+    };
+  }
+  componentDidMount() {
+    this.onResize = () => { const m = innerWidth < 900; if (m !== this.state.mobile) this.setState({ mobile: m }); };
+    addEventListener("resize", this.onResize);
+    if (this.state.intro) this.playIntro();
+    this.applyPreview();
+  }
+  componentWillUnmount() { removeEventListener("resize", this.onResize); clearTimeout(this.t); clearTimeout(this.ht); clearInterval(this.ri); }
+  componentDidUpdate(pp, ps) {
+    if (pp.previewState !== this.props.previewState) this.applyPreview();
+    if (ps.mode !== this.state.mode) { const f = this.rootRef.current && this.rootRef.current.querySelector("[data-form]"); f && f.animate && f.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: 380, easing: "cubic-bezier(.25,1,.5,1)" }); }
+    if (!ps.success && this.state.success) { const b = this.outBarRef.current; b && b.animate([{ width: "0%" }, { width: "100%" }], { duration: 1400, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }); }
+  }
+  applyPreview() {
+    const p = this.props.previewState; if (!p || p === "Normal") return;
+    const base = { email: "vos@email.com", pass: "myland2026!", handle: this.state.handle || "tu-nombre", hStatus: "ok", loading: false, error: "", sent: false, success: false, intro: false };
+    if (p === "Cargando") this.setState({ ...base, loading: true });
+    if (p === "Error") this.setState({ ...base, error: this.state.mode === "login" ? "Email o contraseña incorrectos." : "Ese email ya tiene una cuenta.", errorKind: this.state.mode === "login" ? "creds" : "exists" });
+    if (p === "Email enviado") this.setState({ ...base, sent: true, resendIn: 30 });
+    if (p === "Sin conexión") this.setState({ ...base, error: "No pudimos conectarnos. Revisá tu internet y probá de nuevo.", errorKind: "network" });
+  }
+  playIntro() {
+    const run = () => {
+      const ov = this.introRef.current; if (!ov) return;
+      const tg = this.rootRef.current.querySelector("[data-handle-target]");
+      const r = tg ? tg.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0 };
+      const at = `at ${r.left + Math.min(r.width, 200) / 2}px ${r.top + r.height / 2}px`;
+      const a = ov.animate([{ clipPath: `circle(150vmax ${at})` }, { clipPath: `circle(0px ${at})` }], { duration: 900, delay: 350, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" });
+      a.onfinish = () => this.setState({ intro: false });
+      tg && tg.animate([{ opacity: 0, transform: "scale(1.15)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 700, easing: "cubic-bezier(.16,1,.3,1)", fill: "backwards" });
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
+  }
+  setMode = m => this.setState({ mode: m, error: "", sent: false, passTouched: false });
+  onHandle = e => {
+    const h = e.target.value.replace(/\s+/g, "").toLowerCase().slice(0, 20);
+    clearTimeout(this.ht);
+    if (!h) return this.setState({ handle: h, hStatus: "idle" });
+    if (!/^[a-z0-9_-]*$/.test(h)) return this.setState({ handle: h, hStatus: "invalid" });
+    if (h.length < 3) return this.setState({ handle: h, hStatus: "short" });
+    this.setState({ handle: h, hStatus: "checking" });
+    this.ht = setTimeout(() => this.setState({ hStatus: this.TAKEN.has(h) ? "taken" : "ok" }), 500);
+  };
+  emailOk() { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(this.state.email); }
+  strength() { const p = this.state.pass; let s = 0; if (p.length >= 8) s++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^A-Za-z0-9]/.test(p) || p.length >= 14) s++; return p ? Math.max(1, s) : 0; }
+  shake() { const r = this.rootRef.current; const f = r && r.querySelector("form"); f && f.animate && f.animate([{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(8px)" }, { transform: "translateX(-4px)" }, { transform: "translateX(0)" }], { duration: 420 }); }
+  submit = e => {
+    e.preventDefault();
+    const s = this.state;
+    this.setState({ emailTouched: true, passTouched: true, error: "" });
+    const bad = !this.emailOk() || (s.mode !== "reset" && (s.mode === "register" ? s.pass.length < 8 : !s.pass)) || (s.mode === "register" && s.hStatus !== "ok");
+    if (bad) { this.shake(); return; }
+    this.setState({ loading: true });
+    this.t = setTimeout(() => {
+      const em = this.state.email.toLowerCase();
+      if (!navigator.onLine) return this.fail("No pudimos conectarnos. Revisá tu internet y probá de nuevo.", "network");
+      if (s.mode === "register") {
+        if (em.startsWith("usado") || em === "hola@myland.lol") return this.fail("Ese email ya tiene una cuenta.", "exists");
+        return this.setState({ loading: false, sent: true, resendIn: 30 }, () => this.tick());
+      }
+      if (s.mode === "reset") return this.setState({ loading: false, sent: true, resendIn: 30 }, () => this.tick());
+      if (em.includes("error") || this.state.pass === "error") return this.fail("Email o contraseña incorrectos.", "creds");
+      this.setState({ loading: false, success: true });
+    }, 1500);
+  };
+  fail(msg, kind) { this.setState({ loading: false, error: msg, errorKind: kind }, () => this.shake()); }
+  tick() { clearInterval(this.ri); this.ri = setInterval(() => this.setState(s => { if (s.resendIn <= 1) clearInterval(this.ri); return { resendIn: Math.max(0, s.resendIn - 1) }; }), 1000); }
+  renderVals() {
+    const s = this.state, reg = s.mode === "register", login = s.mode === "login", reset = s.mode === "reset";
+    const H = { idle: ["Elegí tu nombre. Va a ser tu link.", "rgba(238,232,244,.42)"], short: ["Mínimo 3 caracteres.", "rgba(238,232,244,.42)"], invalid: ["Solo letras, números, - y _", "#FF5F57"], checking: ["Buscando…", "#B9A2FF"], ok: ["Disponible. Reservado para vos.", "#5BE49B"], taken: ["Ya está en uso. Probá con otro.", "#FF5F57"] }[s.hStatus];
+    const emailErr = s.emailTouched && !this.emailOk() ? (s.email ? "Revisá el email: falta algo." : "Escribí tu email.") : "";
+    const passErr = s.passTouched && !reset ? (reg && s.pass.length < 8 ? (s.pass ? "Mínimo 8 caracteres." : "Elegí una contraseña.") : login && !s.pass ? "Escribí tu contraseña." : "") : "";
+    const st = this.strength();
+    const sc = ["rgba(238,232,244,.42)", "#FF5F57", "#FF4F94", "#B9A2FF", "#5BE49B"][st];
+    const ring = bad => bad ? "0 0 0 1.5px rgba(255,95,87,.7)" : "none";
+    const m = s.mobile;
+    const errorAction = { exists: "Entrar", creds: "Recuperar contraseña", network: "Reintentar" }[s.errorKind] || "";
+    return {
+      rootRef: this.rootRef, introRef: this.introRef, outroRef: this.outroRef, outBarRef: this.outBarRef,
+      mobile: m, notMobile: !m, panelFlex: m ? "1 1 auto" : "0 0 min(560px,46vw)", panelPad: m ? "16px 20px 32px" : "24px 32px 24px 0",
+      cardPad: m ? "0" : "32px", cardBg: m ? "transparent" : "var(--glass-fill)", cardShadow: m ? "none" : "var(--glass-edge),var(--glass-shadow)",
+      mode: s.mode, isRegister: reg, isLogin: login, isReset: reset, isLoginish: !reg,
+      tabs: [{ id: "register", label: "Crear cuenta" }, { id: "login", label: "Entrar" }], setMode: this.setMode, showTabs: !reset,
+      stageKicker: reg ? "TU NOMBRE, RESERVADO" : reset ? "RECUPERAR CUENTA" : "HOLA DE NUEVO",
+      stageHandle: s.handle || "tu-nombre",
+      checks: [
+        { label: "Nombre", done: s.hStatus === "ok" }, { label: "Cuenta", done: this.emailOk() && s.pass.length >= 8 }, { label: "Tu sala", done: s.sent },
+      ].map(c => ({ ...c, bg: c.done ? "#5BE49B" : "var(--glass-well-press)", fg: c.done ? "#F6F3F8" : "rgba(238,232,244,.55)" })),
+      showForm: !s.sent, sent: s.sent,
+      title: reg ? "Creá tu myLand" : reset ? "Recuperá tu cuenta" : "Hola de nuevo",
+      subtitle: reg ? "Un paso más y tu sala está lista para armar." : reset ? "Te mandamos un link para elegir una contraseña nueva." : "Entrá para seguir armando tu sala.",
+      handle: s.handle, onHandle: this.onHandle, hText: H[0], hColor: H[1], handleRing: s.hStatus === "taken" || s.hStatus === "invalid" ? ring(true) : s.hStatus === "ok" ? "0 0 0 1.5px rgba(91,228,155,.5)" : "none",
+      email: s.email, onEmail: e => this.setState({ email: e.target.value.trim(), error: "" }), blurEmail: () => s.email && this.setState({ emailTouched: true }), emailErr, emailRing: ring(!!emailErr),
+      needsPass: !reset, pass: s.pass, onPass: e => this.setState({ pass: e.target.value, error: "" }), blurPass: () => s.pass && this.setState({ passTouched: true }), passErr, passRing: ring(!!passErr),
+      passType: s.show ? "text" : "password", togglePass: () => this.setState({ show: !s.show }), eyeIcon: s.show ? "eye-off" : "eye", eyeLabel: s.show ? "Ocultar contraseña" : "Mostrar contraseña",
+      passPh: reg ? "Mínimo 8 caracteres" : "Tu contraseña", passAuto: reg ? "new-password" : "current-password",
+      showStrength: reg && !!s.pass, bars: [1, 2, 3, 4].map(i => ({ c: i <= st ? sc : "var(--glass-well-press)" })), strengthLabel: ["", "Débil", "Ok", "Buena", "Fuerte"][st], strengthColor: sc,
+      goReset: () => this.setState({ mode: "reset", error: "" }), goLogin: () => this.setMode("login"), goRegister: () => this.setMode("register"),
+      error: s.error, errorAction,
+      errorFix: () => { if (s.errorKind === "exists") this.setMode("login"); else if (s.errorKind === "creds") this.setState({ mode: "reset", error: "" }); else this.submit({ preventDefault() {} }); },
+      loading: s.loading || s.gLoading, btnOpacity: s.loading ? 0.85 : 1,
+      cta: s.loading ? (reg ? "Creando tu sala…" : reset ? "Enviando…" : "Entrando…") : reg ? "Crear mi myLand" : reset ? "Mandarme el link" : "Entrar",
+      submit: this.submit, showGoogle: !reset,
+      google: () => { this.setState({ gLoading: true }); this.t = setTimeout(() => this.setState({ gLoading: false, success: true }), 1400); },
+      googleLabel: s.gLoading ? "Conectando con Google…" : "Continuar con Google",
+      sentText: s.mode === "reset" ? "Te mandamos un link para cambiar tu contraseña a" : "Te mandamos un link para confirmar tu cuenta a",
+      sentEmail: s.email || "vos@email.com",
+      resend: () => this.setState({ resendIn: 30 }, () => this.tick()), resendDisabled: s.resendIn > 0,
+      resendLabel: s.resendIn > 0 ? "Reenviar en " + s.resendIn + " s" : "Reenviar", resendColor: s.resendIn > 0 ? "rgba(238,232,244,.42)" : "#F6F3F8",
+      backToForm: () => this.setState({ sent: false }),
+      intro: s.intro, success: s.success,
+    };
+  }
+}
+</script>
+</body>
+</html>

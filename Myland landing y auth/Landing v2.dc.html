@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>myLand — tu tarjeta, tus links, tu mundo</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&amp;family=Funnel+Display:wght@500;700;800&amp;display=swap">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/colors.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/typography.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/tokens/motion.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/components/glass.css">
+<link rel="stylesheet" href="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/styles.css">
+<script src="_ds/myland-design-system-d61b784b-ce15-4c8e-b3e5-a8870eb8b8e6/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+:root{--ml-display:'Unbounded',sans-serif}
+html{scroll-behavior:smooth}
+body{margin:0;background:#F3F0EB;color:#141118;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:#141118;text-decoration:none}a:hover{color:#D42A70}
+::selection{background:#FFE14D;color:#141118}
+input::placeholder{color:rgba(20,17,24,.35)}
+@keyframes ml-rise{from{transform:translateY(110%) rotate(3deg)}to{transform:none}}
+@keyframes ml-fade{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes ml-up{from{opacity:0;transform:translateY(120%)}to{opacity:1;transform:none}}
+@keyframes ml-pop{0%{opacity:0;transform:scale(.4) rotate(-20deg)}70%{transform:scale(1.08) rotate(-6deg)}100%{opacity:1;transform:rotate(-8deg)}}
+@keyframes ml-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div ref="{{ rootRef }}" class="lg" data-editor-theme="light" style="position:relative;min-height:100vh;background:#F3F0EB;color:#141118;font-family:var(--font-sans);overflow-x:clip">
+
+  <!-- NAV -->
+  <header style="position:fixed;top:14px;left:14px;right:14px;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none">
+    <a href="#top" aria-label="myLand" style="pointer-events:auto;display:flex;align-items:center;gap:8px;height:50px;padding:0 18px 0 10px;border-radius:999px;background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);box-shadow:0 0 0 1px rgba(20,17,24,.06),0 10px 30px -12px rgba(20,17,24,.25);color:#141118">
+      <img src="assets/logo.png" alt="" style="width:32px;height:auto;display:block">
+      <span style="font:800 21px/1 var(--font-display);letter-spacing:-0.055em">myLand</span>
+    </a>
+    <nav style="pointer-events:auto;display:flex;align-items:center;gap:2px;height:50px;padding:0 5px;border-radius:999px;background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);box-shadow:0 0 0 1px rgba(20,17,24,.06),0 10px 30px -12px rgba(20,17,24,.25)">
+      <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
+        <a href="#como" style="height:40px;padding:0 14px;display:flex;align-items:center;border-radius:999px;font:550 14px var(--font-sans);color:#141118" style-hover="background:rgba(20,17,24,.06);color:#141118">Cómo funciona</a>
+        <a href="#salas" style="height:40px;padding:0 14px;display:flex;align-items:center;border-radius:999px;font:550 14px var(--font-sans);color:#141118" style-hover="background:rgba(20,17,24,.06);color:#141118">Salas</a>
+      </sc-if>
+      <a href="Auth v2.dc.html?mode=login" style="height:40px;padding:0 14px;display:flex;align-items:center;border-radius:999px;font:550 14px var(--font-sans);color:#141118" style-hover="background:rgba(20,17,24,.06);color:#141118">Entrar</a>
+      <button type="button" onClick="{{ goClaim }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:#141118;color:#fff;font:650 14px var(--font-sans);cursor:pointer;transition:transform .3s var(--glass-spring)" style-hover="background:#FF4F94;color:#141118" style-active="transform:scale(.92)">{{ navCta }}</button>
+    </nav>
+  </header>
+
+  <!-- HERO -->
+  <section id="top" style="position:relative;z-index:1;min-height:100vh;box-sizing:border-box;padding:clamp(92px,12vh,124px) 0 clamp(40px,6vh,64px);display:flex;flex-direction:column;align-items:center;text-align:center;overflow:hidden">
+    <sc-if value="{{ decor }}" hint-placeholder-val="{{ true }}">
+      <div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none">
+        <div data-par="1.4" style="position:absolute;left:6%;top:20%"><div style="width:clamp(46px,6vw,92px);height:clamp(46px,6vw,92px);border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%);box-shadow:0 30px 50px -18px rgba(180,130,0,.5)"></div></div>
+        <div data-par="2.2" style="position:absolute;right:7%;top:16%"><div style="width:clamp(30px,3.6vw,58px);height:clamp(30px,3.6vw,58px);border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%);box-shadow:0 24px 40px -16px rgba(80,120,0,.5)"></div></div>
+        <div data-par="0.9" style="position:absolute;right:3%;top:52%"><div style="width:clamp(70px,9vw,150px);height:clamp(70px,9vw,150px);border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%);box-shadow:0 40px 60px -24px rgba(26,111,176,.5)"></div></div>
+        <div data-par="1.8" style="position:absolute;left:4%;top:60%"><div style="width:clamp(60px,7vw,120px);height:clamp(26px,3vw,50px);border-radius:999px;transform:rotate(-28deg);background:linear-gradient(180deg,#FFB3CF 0,#FF4F94 45%,#B8125A 100%);box-shadow:inset 0 6px 8px rgba(255,255,255,.55),0 24px 40px -14px rgba(184,18,90,.55)"></div></div>
+      </div>
+    </sc-if>
+
+    <div style="position:relative;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:0 20px;animation:ml-fade .8s .1s both">
+      <span style="display:flex;align-items:center;gap:8px;height:34px;padding:0 14px 0 10px;border-radius:999px;background:#fff;box-shadow:0 0 0 1px rgba(20,17,24,.08);font:600 13px var(--font-sans)"><span style="width:8px;height:8px;border-radius:99px;background:#5BE49B;box-shadow:0 0 0 4px rgba(91,228,155,.25)"></span>Link in bio, pero tuyo</span>
+    </div>
+
+    <h1 style="position:relative;margin:clamp(14px,2.4vh,24px) 0 0;padding:0 16px;font-family:var(--ml-display);font-weight:800;font-size:clamp(34px,9.4vw,168px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">
+      <span style="display:block;overflow:hidden;padding:.04em .04em .02em"><span style="display:block;animation:ml-rise 1s .15s cubic-bezier(.2,.8,.2,1) both">Tu tarjeta.</span></span>
+      <span style="display:block;overflow:hidden;padding:.04em .04em .06em"><span style="display:block;animation:ml-rise 1s .27s cubic-bezier(.2,.8,.2,1) both;color:#F3F0EB;-webkit-text-stroke:clamp(3px,.36vw,6px) #141118;paint-order:stroke fill">Tu mundo.</span></span>
+      <span style="position:absolute;right:clamp(4px,4vw,80px);top:38%;z-index:3;display:inline-flex;align-items:center;height:clamp(32px,3.6vw,56px);padding:0 clamp(12px,1.4vw,22px);border-radius:999px;background:#FF4F94;color:#141118;font:700 clamp(13px,1.5vw,24px)/1 var(--font-sans);letter-spacing:-0.02em;text-transform:none;box-shadow:0 14px 30px -10px rgba(212,42,112,.6);animation:ml-pop .7s 1s var(--glass-spring) both">+ tus links</span>
+    </h1>
+
+    <div data-fan-wrap="1" style="position:relative;width:100%;height:clamp(230px,26vw,400px);margin-top:clamp(-90px,-5vw,-36px);perspective:1400px;z-index:2">
+      <sc-for list="{{ fan }}" as="c" hint-placeholder-count="5">
+        <div data-fan="{{ c.i }}" style="position:absolute;left:50%;top:50%;width:clamp(128px,15vw,232px);aspect-ratio:4/5;border-radius:clamp(18px,1.8vw,28px);overflow:hidden;background:{{ c.bg }};box-shadow:0 0 0 1px rgba(255,255,255,.6) inset,0 40px 70px -30px rgba(20,17,24,.45);transform:translate(-50%,-50%);will-change:transform;color:#141118">
+          <image-slot id="{{ c.id }}" shape="rect" placeholder="{{ c.ph }}" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+          <div style="position:absolute;left:10px;right:10px;bottom:10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;font:600 10px var(--font-mono);letter-spacing:.06em"><span style="height:22px;padding:0 8px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.75)">CARD {{ c.n }}</span></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <p style="position:relative;margin:clamp(20px,3vh,32px) 0 0;max-width:560px;padding:0 20px;font:500 clamp(16px,1.3vw,19px)/1.45 var(--font-sans);color:#3A3440;text-wrap:pretty;animation:ml-fade .9s .6s both">Tu tarjeta de presentación online: foto, nombre, bio, contactos y links, con tu estilo propio. Una sala totalmente personalizable, un solo link para que te encuentren.</p>
+
+    <div data-hero-claim="1" style="position:relative;width:100%;max-width:560px;box-sizing:border-box;padding:0 16px;margin-top:22px;text-align:left;animation:ml-fade .9s .75s both">
+      <form onSubmit="{{ claim }}" style="display:flex;align-items:center;height:66px;padding:6px 6px 6px 22px;border-radius:999px;background:#fff;box-shadow:0 0 0 1.5px {{ claimRing }},0 20px 40px -18px rgba(20,17,24,.35);box-sizing:border-box;transition:box-shadow .3s">
+        <span style="font:500 16px var(--font-sans);color:rgba(20,17,24,.45);white-space:nowrap">myland.lol/</span>
+        <input value="{{ handle }}" onChange="{{ onHandle }}" placeholder="tu-nombre" spellCheck="false" autoComplete="off" aria-label="Elegí tu nombre" style="flex:1;min-width:0;height:100%;background:transparent;border:none;outline:none;font:650 16px var(--font-sans);color:#141118;padding:0 6px">
+        <button type="submit" style="flex:none;height:54px;padding:0 20px 0 22px;border:none;border-radius:999px;background:#FF4F94;color:#141118;font:700 15px var(--font-sans);display:flex;align-items:center;gap:8px;cursor:pointer;transition:transform .3s var(--glass-spring),background .2s" style-hover="background:#141118;color:#fff" style-active="transform:scale(.93)">Reclamar<x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-right" size="17" hint-size="17px,17px"></x-import></button>
+      </form>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-left:22px;font:550 13px var(--font-sans);color:#5A5360;min-height:18px"><span style="width:8px;height:8px;border-radius:99px;flex:none;background:{{ statusColor }};transition:background .3s"></span>{{ statusText }}</div>
+    </div>
+  </section>
+
+  <!-- TAPES -->
+  <section aria-hidden="true" style="position:relative;z-index:3;height:clamp(150px,17vw,250px);overflow:hidden;margin-top:-10px">
+    <div style="position:absolute;left:-5%;right:-5%;top:50%;transform:translateY(-62%) rotate(3deg);background:#FF4F94;padding:clamp(12px,1.4vw,20px) 0;box-shadow:0 20px 40px -20px rgba(20,17,24,.4)">
+      <div data-mq="1" style="display:flex;width:max-content;align-items:center;gap:clamp(18px,2vw,32px);font-family:var(--ml-display);font-weight:800;font-size:clamp(24px,3.4vw,52px);line-height:1;letter-spacing:-0.03em;text-transform:uppercase;white-space:nowrap;color:#141118;will-change:transform">
+        <span>Links</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%)"></span><span>Música</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></span><span>Fondo</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)"></span><span>Efectos</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%)"></span><span>Galería</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></span><span>Libro de visitas</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)"></span>
+        <span>Links</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%)"></span><span>Música</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></span><span>Fondo</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)"></span><span>Efectos</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#FFF6B8 10%,#FFE14D 42%,#D9A400 100%)"></span><span>Galería</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></span><span>Libro de visitas</span><span style="width:.5em;height:.5em;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#D8F2FF 10%,#5AC8FA 42%,#1A6FB0 100%)"></span>
+      </div>
+    </div>
+    <div style="position:absolute;left:-5%;right:-5%;top:50%;transform:translateY(-38%) rotate(-2.5deg);background:#FFE14D;padding:clamp(12px,1.4vw,20px) 0;box-shadow:0 20px 40px -20px rgba(20,17,24,.4)">
+      <div data-mq="0" style="display:flex;width:max-content;align-items:center;gap:clamp(18px,2vw,32px);font-family:var(--ml-display);font-weight:800;font-size:clamp(24px,3.4vw,52px);line-height:1;letter-spacing:-0.03em;text-transform:uppercase;white-space:nowrap;color:#141118;will-change:transform">
+        <span>Foto</span><img src="assets/logo.png" alt="" style="height:.9em"><span>Nombre</span><img src="assets/logo.png" alt="" style="height:.9em"><span>@usuario</span><img src="assets/logo.png" alt="" style="height:.9em"><span>Frase</span><img src="assets/logo.png" alt="" style="height:.9em"><span>Ubicación</span><img src="assets/logo.png" alt="" style="height:.9em"><span>Bio</span><img src="assets/logo.png" alt="" style="height:.9em">
+        <span>Foto</span><img src="assets/logo.png" alt="" style="height:.9em"><span>Nombre</span><img src="assets/logo.png" alt="" style="height:.9em"><span>@usuario</span><img src="assets/logo.png" alt="" style="height:.9em"><span>Frase</span><img src="assets/logo.png" alt="" style="height:.9em"><span>Ubicación</span><img src="assets/logo.png" alt="" style="height:.9em"><span>Bio</span><img src="assets/logo.png" alt="" style="height:.9em">
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW (pinned, 3 steps) -->
+  <section id="como" data-story="1" style="position:relative;z-index:1;height:330vh">
+    <div style="position:sticky;top:0;height:100vh;box-sizing:border-box;padding:12px">
+      <div data-story-panel="1" style="position:relative;height:100%;border-radius:clamp(28px,3vw,44px);overflow:hidden;background:#FF4F94;transition:background .8s var(--glass-ease);display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;padding:clamp(72px,9vh,96px) clamp(20px,4vw,56px) clamp(20px,4vh,40px)">
+        <div data-story-num="1" aria-hidden="true" style="position:absolute;right:-1vw;bottom:-5vw;font-family:var(--ml-display);font-weight:900;font-size:40vw;line-height:.8;letter-spacing:-0.06em;color:rgba(20,17,24,.07);pointer-events:none">1</div>
+        <div style="position:relative;max-width:1360px;width:100%;margin:0 auto;display:flex;flex-wrap:wrap-reverse;align-items:center;justify-content:space-between;gap:clamp(20px,4vw,72px)">
+          <div style="flex:1 1 460px;min-width:0">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="height:30px;padding:0 12px;display:flex;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 12px var(--font-mono);letter-spacing:.08em">CÓMO FUNCIONA</span>
+              <div style="display:flex;gap:6px"><sc-for list="{{ stepDots }}" as="d" hint-placeholder-count="3"><span data-step-dot="{{ d.i }}" style="height:6px;width:6px;border-radius:9px;background:rgba(20,17,24,.25);transition:width .4s var(--glass-spring),background .3s"></span></sc-for></div>
+            </div>
+            <div style="position:relative;min-height:clamp(230px,36vh,400px);margin-top:clamp(14px,2.4vh,26px)">
+              <div data-step-text="0" style="position:absolute;inset:0;transition:opacity .5s var(--glass-ease),transform .7s var(--glass-ease)">
+                <h2 style="margin:0;font-family:var(--ml-display);font-weight:800;font-size:clamp(40px,6vw,112px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">Tu tarjeta</h2>
+                <p style="margin:clamp(14px,2.2vh,24px) 0 0;max-width:500px;font:500 clamp(16px,1.35vw,20px)/1.45 var(--font-sans);text-wrap:pretty">La ProfileCard es tu carta de presentación. Lo primero que ven de vos: quién sos, de dónde y qué hacés.</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px"><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Foto</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Nombre</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">@usuario</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Frase</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Ubicación</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 14px var(--font-sans)">Bio</span></div>
+              </div>
+              <div data-step-text="1" style="position:absolute;inset:0;opacity:0;transform:translateY(40px);pointer-events:none;transition:opacity .5s var(--glass-ease),transform .7s var(--glass-ease)">
+                <h2 style="margin:0;font-family:var(--ml-display);font-weight:800;font-size:clamp(40px,6vw,112px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">Tus links</h2>
+                <p style="margin:clamp(14px,2.2vh,24px) 0 0;max-width:500px;font:500 clamp(16px,1.35vw,20px)/1.45 var(--font-sans);text-wrap:pretty">Instagram, TikTok, Spotify, tu mail, tu web. Como íconos o como botones, en el orden que quieras. Todos tus contactos en un lugar.</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px"><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Íconos</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Botones</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Sólido</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Contorno</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 14px var(--font-sans)">Vidrio</span></div>
+              </div>
+              <div data-step-text="2" style="position:absolute;inset:0;opacity:0;transform:translateY(40px);pointer-events:none;transition:opacity .5s var(--glass-ease),transform .7s var(--glass-ease)">
+                <h2 style="margin:0;font-family:var(--ml-display);font-weight:800;font-size:clamp(40px,6vw,112px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">Tu sala</h2>
+                <p style="margin:clamp(14px,2.2vh,24px) 0 0;max-width:500px;font:500 clamp(16px,1.35vw,20px)/1.45 var(--font-sans);text-wrap:pretty">Fuentes, colores, fondo y efectos. Y alrededor de tu tarjeta, un lienzo libre: imágenes, GIFs, textos y tu canción sonando.</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px"><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Fuente</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Brillo</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Flotar</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Imagen</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:rgba(255,255,255,.6);font:600 14px var(--font-sans)">Música</span><span style="height:36px;padding:0 14px;display:flex;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 14px var(--font-sans)">Galería</span></div>
+              </div>
+            </div>
+          </div>
+          <div data-slot-stage="1" style="flex:none;position:relative;height:min(60vh,calc(34vh + 16vw));aspect-ratio:4/5;margin:0 auto;perspective:1600px">
+            <div data-step-slot="0" style="position:absolute;inset:0;border-radius:30px;overflow:hidden;background:#fff;box-shadow:0 50px 80px -30px rgba(20,17,24,.5);transform-origin:50% 50%;transition:transform 1s cubic-bezier(.7,0,.2,1),opacity .6s;backface-visibility:hidden">
+              <div style="position:absolute;inset:12px;border:1.5px dashed rgba(20,17,24,.18);border-radius:20px"></div>
+              <div style="position:absolute;top:24px;left:24px;right:24px;display:flex;justify-content:space-between;font:600 11px var(--font-mono);letter-spacing:.08em;color:rgba(20,17,24,.5)"><span>SLOT 02 · VIDEO</span><span>4:5</span></div>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px;text-align:center"><div style="width:64px;height:64px;border-radius:999px;display:grid;place-items:center;background:#FF4F94"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="play" size="22" hint-size="22px,22px"></x-import></div><div style="font:700 16px/1.25 var(--font-sans)">Armando la tarjeta</div><div style="font:500 13px/1.45 var(--font-sans);color:#5A5360;max-width:240px">Subir foto, escribir nombre, @usuario y frase. Grabación del editor, loop sin sonido.</div></div>
+            </div>
+            <div data-step-slot="1" style="position:absolute;inset:0;border-radius:30px;overflow:hidden;background:#fff;box-shadow:0 50px 80px -30px rgba(20,17,24,.5);opacity:0;transform:rotateY(100deg);transition:transform 1s cubic-bezier(.7,0,.2,1),opacity .6s;backface-visibility:hidden">
+              <div style="position:absolute;inset:12px;border:1.5px dashed rgba(20,17,24,.18);border-radius:20px"></div>
+              <div style="position:absolute;top:24px;left:24px;right:24px;display:flex;justify-content:space-between;font:600 11px var(--font-mono);letter-spacing:.08em;color:rgba(20,17,24,.5)"><span>SLOT 03 · VIDEO</span><span>4:5</span></div>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px;text-align:center"><div style="width:64px;height:64px;border-radius:999px;display:grid;place-items:center;background:#FFE14D"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="link" size="22" hint-size="22px,22px"></x-import></div><div style="font:700 16px/1.25 var(--font-sans)">Sumando links</div><div style="font:500 13px/1.45 var(--font-sans);color:#5A5360;max-width:240px">Agregar Instagram y Spotify, pasar de íconos a botones de vidrio.</div></div>
+            </div>
+            <div data-step-slot="2" style="position:absolute;inset:0;border-radius:30px;overflow:hidden;background:#fff;box-shadow:0 50px 80px -30px rgba(20,17,24,.5);opacity:0;transform:rotateY(100deg);transition:transform 1s cubic-bezier(.7,0,.2,1),opacity .6s;backface-visibility:hidden">
+              <div style="position:absolute;inset:12px;border:1.5px dashed rgba(20,17,24,.18);border-radius:20px"></div>
+              <div style="position:absolute;top:24px;left:24px;right:24px;display:flex;justify-content:space-between;font:600 11px var(--font-mono);letter-spacing:.08em;color:rgba(20,17,24,.5)"><span>SLOT 04 · VIDEO</span><span>4:5</span></div>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px;text-align:center"><div style="width:64px;height:64px;border-radius:999px;display:grid;place-items:center;background:#D4FF3F"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="palette" size="22" hint-size="22px,22px"></x-import></div><div style="font:700 16px/1.25 var(--font-sans)">Decorando la sala</div><div style="font:500 13px/1.45 var(--font-sans);color:#5A5360;max-width:240px">Cambiar fuente y fondo, prender Brillo, soltar un GIF y sumar una canción.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYGROUND -->
+  <section style="position:relative;z-index:1;padding:clamp(96px,12vw,170px) clamp(16px,4vw,56px) clamp(64px,8vw,120px)">
+    <div style="max-width:1360px;margin:0 auto">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px 40px">
+        <h2 style="margin:0;font-family:var(--ml-display);font-weight:800;font-size:clamp(38px,7vw,128px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">
+          <span data-reveal="1" style="display:block">Nada viene</span>
+          <span data-reveal="1" data-delay="90" style="display:flex;align-items:center;gap:.2em;flex-wrap:wrap">de <span style="display:inline-block;background:#D4FF3F;border-radius:.24em;padding:0 .14em;transform:rotate(-2deg)">fábrica</span></span>
+        </h2>
+        <p data-reveal="1" data-delay="160" style="margin:0;max-width:340px;font:500 17px/1.45 var(--font-sans);color:#3A3440;text-wrap:pretty">Probalo acá. Escribí tu nombre y jugá con fuentes y colores: así se siente editar tu tarjeta.</p>
+      </div>
+      <div data-reveal="1" data-delay="200" style="margin-top:clamp(32px,4vw,56px);display:flex;flex-wrap:wrap;gap:clamp(12px,1.6vw,20px);align-items:stretch">
+        <div style="flex:1 1 520px;min-width:0;position:relative;min-height:clamp(320px,34vw,520px);border-radius:clamp(26px,2.6vw,40px);overflow:hidden;background:{{ bg }};transition:background .6s var(--glass-ease);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;box-sizing:border-box;box-shadow:0 30px 60px -30px rgba(20,17,24,.35)">
+          <div style="font-family:{{ fontFamily }};color:{{ color }};font-size:clamp(44px,7vw,120px);line-height:1.05;max-width:100%;overflow-wrap:anywhere;transition:color .4s">{{ previewName }}</div>
+          <div style="margin-top:14px;font:500 clamp(15px,1.3vw,18px) 'DM Sans',sans-serif;color:{{ color }};opacity:.75">{{ previewHandle }} · Buenos Aires</div>
+          <div style="position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font:600 13px var(--font-sans);color:#141118"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="text" size="15" hint-size="15px,15px"></x-import>{{ fontLabel }}</div>
+        </div>
+        <div style="flex:1 1 340px;max-width:100%;border-radius:clamp(26px,2.6vw,40px);padding:24px;box-sizing:border-box;background:#fff;box-shadow:0 0 0 1px rgba(20,17,24,.06);display:flex;flex-direction:column;gap:22px">
+          <label style="display:flex;flex-direction:column;gap:10px">
+            <span style="font:600 13px var(--font-sans);color:#5A5360">Nombre</span>
+            <input value="{{ name }}" onChange="{{ onName }}" placeholder="Tu nombre" maxLength="22" style="height:50px;border:none;outline:none;border-radius:16px;background:#F3F0EB;padding:0 16px;font:600 16px var(--font-sans);color:#141118" style-focus="box-shadow:0 0 0 2px #fff,0 0 0 4px #FF4F94">
+          </label>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font:600 13px var(--font-sans);color:#5A5360">Fuente</span>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ fonts }}" as="f" hint-placeholder-count="9">
+                <button type="button" onClick="{{ f.pick }}" style="height:40px;padding:0 14px;border:none;border-radius:999px;cursor:pointer;font-family:{{ f.family }};font-size:15px;background:{{ f.bg }};color:{{ f.fg }};transition:background .25s,transform .3s var(--glass-spring)" style-active="transform:scale(.92)">{{ f.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font:600 13px var(--font-sans);color:#5A5360">Color</span>
+            <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorRibbon" value="{{ color }}" colors="{{ colors }}" onChange="{{ setColor }}" hint-size="100%,36px"></x-import>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font:600 13px var(--font-sans);color:#5A5360">Fondo</span>
+            <x-import component-from-global-scope="MYLANDDesignSystem_d61b78.ColorRibbon" value="{{ bg }}" colors="{{ bgs }}" onChange="{{ setBg }}" hint-size="100%,36px"></x-import>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ONE LINK (pink, scalloped) -->
+  <section style="position:relative;z-index:1;margin-top:24px">
+    <div aria-hidden="true" style="height:16px;background:radial-gradient(circle at 50% 100%,#FF4F94 15.5px,transparent 16px) 0 0/32px 16px repeat-x"></div>
+    <div style="background:#FF4F94;padding:clamp(56px,8vw,120px) clamp(16px,4vw,56px);overflow:hidden;position:relative">
+      <sc-if value="{{ decor }}" hint-placeholder-val="{{ true }}">
+        <div aria-hidden="true" data-par="0.6" style="position:absolute;right:-8vw;top:10%;width:clamp(260px,40vw,640px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#fff 0 12%,#5AC8FA 22%,#D4FF3F 33%,#FFE14D 44%,#FF7A2E 55%,rgba(255,79,148,0) 70%);pointer-events:none"></div>
+      </sc-if>
+      <div style="position:relative;max-width:1360px;margin:0 auto">
+        <span data-reveal="1" style="display:inline-flex;height:30px;padding:0 12px;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 12px var(--font-mono);letter-spacing:.08em">TU PRESENCIA</span>
+        <h2 style="margin:18px 0 0;font-family:var(--ml-display);font-weight:800;font-size:clamp(46px,9.6vw,176px);line-height:.86;letter-spacing:-0.05em;text-transform:uppercase">
+          <span data-reveal="1" style="display:block">Un solo</span><span data-reveal="1" data-delay="90" style="display:block">link.</span>
+        </h2>
+        <div style="margin-top:clamp(32px,4vw,56px);display:flex;flex-wrap:wrap;gap:clamp(28px,4vw,72px);align-items:center">
+          <div style="flex:1 1 520px;min-width:0">
+            <div data-reveal="1" style="display:inline-flex;align-items:center;gap:10px;max-width:100%;box-sizing:border-box;min-height:64px;padding:10px 10px 10px 24px;border-radius:999px;background:#fff;box-shadow:0 20px 40px -20px rgba(20,17,24,.45)">
+              <span style="font:700 clamp(18px,2.2vw,30px)/1.1 var(--font-sans);letter-spacing:-0.03em;overflow-wrap:anywhere;min-width:0"><span style="color:rgba(20,17,24,.45)">myland.lol/</span>{{ urlHandle }}</span>
+              <span style="flex:none;width:46px;height:46px;border-radius:999px;display:grid;place-items:center;background:#141118;color:#fff"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-up-right" size="18" hint-size="18px,18px"></x-import></span>
+            </div>
+            <p data-reveal="1" style="margin:28px 0 0;max-width:520px;font:600 clamp(18px,1.7vw,24px)/1.35 var(--font-sans);letter-spacing:-0.02em;text-wrap:pretty">Pegalo en tu bio de Instagram, TikTok o X. Quien lo toca entra a tu sala y ve todo: quién sos, qué hacés y cómo encontrarte.</p>
+            <div style="margin-top:28px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;max-width:640px">
+              <div data-reveal="1" style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:22px;background:rgba(255,255,255,.9)"><span style="flex:none;width:46px;height:46px;border-radius:16px;display:grid;place-items:center;background:#FFE14D"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="eye" size="19" hint-size="19px,19px"></x-import></span><span><span style="display:block;font:700 16px var(--font-sans)">Visitas</span><span style="display:block;font:500 13px/1.35 var(--font-sans);color:#5A5360">Cuánta gente pasa</span></span></div>
+              <div data-reveal="1" data-delay="70" style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:22px;background:rgba(255,255,255,.9)"><span style="flex:none;width:46px;height:46px;border-radius:16px;display:grid;place-items:center;background:#D4FF3F"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="pencil" size="19" hint-size="19px,19px"></x-import></span><span><span style="display:block;font:700 16px var(--font-sans)">Libro de visitas</span><span style="display:block;font:500 13px/1.35 var(--font-sans);color:#5A5360">Mensajes en tu pared</span></span></div>
+              <div data-reveal="1" data-delay="140" style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:22px;background:rgba(255,255,255,.9)"><span style="flex:none;width:46px;height:46px;border-radius:16px;display:grid;place-items:center;background:#5AC8FA"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="globe" size="19" hint-size="19px,19px"></x-import></span><span><span style="display:block;font:700 16px var(--font-sans)">Explorar</span><span style="display:block;font:500 13px/1.35 var(--font-sans);color:#5A5360">Salas más vistas</span></span></div>
+              <div data-reveal="1" data-delay="210" style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:22px;background:rgba(255,255,255,.9)"><span style="flex:none;width:46px;height:46px;border-radius:16px;display:grid;place-items:center;background:#FF7A2E"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="user" size="19" hint-size="19px,19px"></x-import></span><span><span style="display:block;font:700 16px var(--font-sans)">Seguir</span><span style="display:block;font:500 13px/1.35 var(--font-sans);color:#5A5360">Sumá seguidores</span></span></div>
+            </div>
+          </div>
+          <div style="flex:0 1 330px;min-width:230px;margin:0 auto;perspective:1400px">
+            <div data-phone="1" style="position:relative;aspect-ratio:9/16;border-radius:42px;overflow:hidden;background:#fff;box-shadow:0 0 0 8px #141118,0 60px 100px -30px rgba(20,17,24,.6);transform:rotate(6deg);will-change:transform">
+              <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);width:34%;height:26px;border-radius:99px;background:#141118"></div>
+              <div style="position:absolute;inset:12px;top:52px;border:1.5px dashed rgba(20,17,24,.18);border-radius:28px"></div>
+              <div style="position:absolute;top:66px;left:26px;right:26px;display:flex;justify-content:space-between;font:600 11px var(--font-mono);letter-spacing:.08em;color:rgba(20,17,24,.5)"><span>SLOT 05 · VIDEO</span><span>9:16</span></div>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px;text-align:center"><div style="width:64px;height:64px;border-radius:999px;display:grid;place-items:center;background:#FF4F94"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="play" size="22" hint-size="22px,22px"></x-import></div><div style="font:700 16px/1.25 var(--font-sans)">Del link en bio a tu sala</div><div style="font:500 13px/1.45 var(--font-sans);color:#5A5360;max-width:220px">Grabación de celular: tocar el link en un perfil y caer en la sala.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div aria-hidden="true" style="height:16px;background:radial-gradient(circle at 50% 0,#FF4F94 15.5px,transparent 16px) 0 0/32px 16px repeat-x"></div>
+  </section>
+
+  <!-- SALAS desktop: pinned horizontal -->
+  <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
+    <section id="salas" data-gal="1" style="position:relative;z-index:1;height:260vh">
+      <div style="position:sticky;top:0;height:100vh;overflow:hidden;display:flex;align-items:center">
+        <div data-track="1" style="display:flex;align-items:center;gap:32px;padding:0 56px;will-change:transform">
+          <div style="flex:none;width:min(600px,44vw);padding-right:24px">
+            <span style="display:inline-flex;height:30px;padding:0 12px;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 12px var(--font-mono);letter-spacing:.08em">SALAS</span>
+            <h2 style="margin:18px 0 0;font-family:var(--ml-display);font-weight:800;font-size:clamp(48px,5.6vw,104px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">Ninguna se parece a <span style="display:inline-block;background:#FFE14D;border-radius:.2em;padding:0 .12em;transform:rotate(-2deg)">otra</span></h2>
+            <p style="margin:24px 0 0;max-width:400px;font:500 18px/1.45 var(--font-sans);color:#3A3440">Algunas de las salas que ya viven en myLand. La tuya puede ser la próxima.</p>
+          </div>
+          <sc-for list="{{ gallery }}" as="g" hint-placeholder-count="6">
+            <div data-gcard="1" style="flex:none;height:64vh;aspect-ratio:4/5;padding:10px;box-sizing:border-box;border-radius:34px;background:{{ g.frame }};transform:rotate({{ g.rot }}) translateY({{ g.offset }});box-shadow:0 40px 70px -30px rgba(20,17,24,.45);transition:transform .5s var(--glass-spring)" style-hover="transform:rotate(0deg) translateY(-12px) scale(1.03)">
+              <div style="position:relative;width:100%;height:100%;border-radius:26px;overflow:hidden;background:rgba(255,255,255,.55)">
+                <image-slot id="{{ g.id }}" shape="rect" placeholder="Captura de una sala" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+                <div style="position:absolute;left:12px;bottom:12px;height:32px;padding:0 12px;display:flex;align-items:center;border-radius:999px;background:#fff;font:600 12px var(--font-mono);pointer-events:none">myland.lol/…</div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="flex:none;width:30vw;display:flex;flex-direction:column;align-items:flex-start;gap:20px;padding-left:24px">
+            <div style="font-family:var(--ml-display);font-weight:800;font-size:56px;line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">¿Y la tuya?</div>
+            <button type="button" onClick="{{ goClaim }}" style="height:56px;padding:0 26px;border:none;border-radius:999px;background:#FF4F94;color:#141118;font:700 16px var(--font-sans);cursor:pointer;transition:transform .3s var(--glass-spring)" style-hover="background:#141118;color:#fff" style-active="transform:scale(.93)">Reclamá tu myLand</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- SALAS mobile -->
+  <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}">
+    <section id="salas" style="position:relative;z-index:1;padding:72px 0 32px">
+      <div style="padding:0 20px">
+        <span style="display:inline-flex;height:30px;padding:0 12px;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 12px var(--font-mono);letter-spacing:.08em">SALAS</span>
+        <h2 data-reveal="1" style="margin:16px 0 0;font-family:var(--ml-display);font-weight:800;font-size:40px;line-height:.92;letter-spacing:-0.045em;text-transform:uppercase">Ninguna se parece a <span style="display:inline-block;background:#FFE14D;border-radius:.2em;padding:0 .12em">otra</span></h2>
+      </div>
+      <div onScroll="{{ onGalScroll }}" style="margin-top:28px;display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:16px 20px 24px;scroll-padding:0 20px;scrollbar-width:none;-webkit-overflow-scrolling:touch">
+        <sc-for list="{{ gallery }}" as="g" hint-placeholder-count="6">
+          <div style="flex:none;width:76vw;max-width:340px;aspect-ratio:4/5;padding:8px;box-sizing:border-box;border-radius:30px;scroll-snap-align:start;background:{{ g.frame }};box-shadow:0 24px 40px -24px rgba(20,17,24,.45)">
+            <div style="position:relative;width:100%;height:100%;border-radius:23px;overflow:hidden;background:rgba(255,255,255,.55)">
+              <image-slot id="{{ g.id }}" shape="rect" placeholder="Captura de una sala" style="position:absolute;inset:0;width:100%;height:100%"></image-slot>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:0 20px;display:flex;align-items:center;justify-content:space-between;font:600 12px var(--font-mono);letter-spacing:.08em;color:#5A5360">
+        <span>{{ galLabel }}</span>
+        <div style="display:flex;gap:6px"><sc-for list="{{ galDots }}" as="d" hint-placeholder-count="6"><span style="height:6px;border-radius:9px;width:{{ d.w }};background:{{ d.c }};transition:width .4s var(--glass-spring),background .3s"></span></sc-for></div>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- FINAL: tutorial + claim -->
+  <section style="position:relative;z-index:1;margin-top:clamp(40px,6vw,80px)">
+    <div aria-hidden="true" style="height:16px;background:radial-gradient(circle at 50% 100%,#141118 15.5px,transparent 16px) 0 0/32px 16px repeat-x"></div>
+    <div style="background:#141118;color:#fff;padding:clamp(64px,8vw,120px) clamp(16px,4vw,56px) 0;overflow:hidden;position:relative">
+      <sc-if value="{{ decor }}" hint-placeholder-val="{{ true }}">
+        <div aria-hidden="true" data-par="0.5" style="position:absolute;left:-12vw;top:30%;width:clamp(260px,38vw,620px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#fff 0 10%,#FFE14D 20%,#FF7A2E 32%,#FF4F94 44%,rgba(255,79,148,0) 66%);opacity:.9;pointer-events:none"></div>
+        <div aria-hidden="true" data-par="1.6" style="position:absolute;right:8%;top:8%"><div style="width:clamp(40px,5vw,80px);height:clamp(40px,5vw,80px);border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0,#F0FFC2 10%,#C8F53A 42%,#5E8C00 100%)"></div></div>
+      </sc-if>
+      <div style="position:relative;max-width:1360px;margin:0 auto">
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px 40px">
+          <h2 style="margin:0;font-family:var(--ml-display);font-weight:800;font-size:clamp(40px,7.4vw,136px);line-height:.9;letter-spacing:-0.045em;text-transform:uppercase">
+            <span data-reveal="1" style="display:block">Armala en</span>
+            <span data-reveal="1" data-delay="90" style="display:block"><span style="display:inline-block;background:#FFE14D;color:#141118;border-radius:.2em;padding:0 .14em;transform:rotate(-2deg)">dos</span> minutos</span>
+          </h2>
+          <p data-reveal="1" style="margin:0;max-width:320px;font:500 17px/1.45 var(--font-sans);color:rgba(255,255,255,.75)">Reclamá tu nombre, tocá tu tarjeta para editarla y pegá el link en tu bio.</p>
+        </div>
+        <div data-reveal="1" style="margin-top:clamp(32px,4vw,56px);position:relative;aspect-ratio:16/9;border-radius:clamp(24px,2.6vw,40px);overflow:hidden;background:#211D26;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)">
+          <div style="position:absolute;inset:14px;border:1.5px dashed rgba(255,255,255,.18);border-radius:clamp(14px,1.8vw,28px)"></div>
+          <div style="position:absolute;top:clamp(24px,2.6vw,36px);left:clamp(24px,2.6vw,36px);right:clamp(24px,2.6vw,36px);display:flex;justify-content:space-between;gap:12px;font:600 11px var(--font-mono);letter-spacing:.08em;color:rgba(255,255,255,.5)"><span>SLOT 06 · VIDEO TUTORIAL</span><span>16:9 · 60–90 s · con sonido</span></div>
+          <div style="position:absolute;inset:0;display:grid;place-items:center">
+            <button type="button" aria-label="Reproducir tutorial" style="width:clamp(68px,8vw,112px);height:clamp(68px,8vw,112px);border:none;border-radius:999px;background:#FF4F94;color:#141118;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 0 14px rgba(255,79,148,.18);transition:transform .35s var(--glass-spring)" style-hover="transform:scale(1.08)" style-active="transform:scale(.92)"><x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="play" size="30" hint-size="30px,30px"></x-import></button>
+          </div>
+        </div>
+
+        <div style="margin:clamp(72px,9vw,140px) auto 0;max-width:640px;text-align:center">
+          <img data-reveal="1" src="assets/logo.png" alt="" style="width:clamp(60px,6vw,84px);height:auto;display:block;margin:0 auto">
+          <h3 data-reveal="1" style="margin:20px 0 0;font-family:var(--ml-display);font-weight:800;font-size:clamp(34px,4.6vw,72px);line-height:.92;letter-spacing:-0.045em;text-transform:uppercase">Tu myLand te espera</h3>
+          <div data-reveal="1" data-delay="100" style="margin-top:28px;text-align:left">
+            <form onSubmit="{{ claim }}" style="display:flex;align-items:center;height:66px;padding:6px 6px 6px 22px;border-radius:999px;background:#fff;box-shadow:0 0 0 1.5px {{ claimRing }};box-sizing:border-box;transition:box-shadow .3s">
+              <span style="font:500 16px var(--font-sans);color:rgba(20,17,24,.45);white-space:nowrap">myland.lol/</span>
+              <input value="{{ handle }}" onChange="{{ onHandle }}" placeholder="tu-nombre" spellCheck="false" autoComplete="off" aria-label="Elegí tu nombre" style="flex:1;min-width:0;height:100%;background:transparent;border:none;outline:none;font:650 16px var(--font-sans);color:#141118;padding:0 6px">
+              <button type="submit" style="flex:none;height:54px;padding:0 20px 0 22px;border:none;border-radius:999px;background:#FF4F94;color:#141118;font:700 15px var(--font-sans);display:flex;align-items:center;gap:8px;cursor:pointer;transition:transform .3s var(--glass-spring)" style-active="transform:scale(.93)">Reclamar<x-import component-from-global-scope="MYLANDDesignSystem_d61b78.Icon" name="arrow-right" size="17" hint-size="17px,17px"></x-import></button>
+            </form>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-left:22px;font:550 13px var(--font-sans);color:rgba(255,255,255,.7);min-height:18px"><span style="width:8px;height:8px;border-radius:99px;flex:none;background:{{ statusColor }}"></span>{{ statusText }}</div>
+          </div>
+        </div>
+
+        <footer style="margin-top:clamp(72px,9vw,130px);padding-top:22px;border-top:1px solid rgba(255,255,255,.12);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;font:500 13px var(--font-sans);color:rgba(255,255,255,.55)">
+          <div style="display:flex;flex-wrap:wrap;gap:22px"><a href="#salas" style="color:rgba(255,255,255,.8)">Explorar</a><a href="Auth v2.dc.html?mode=login" style="color:rgba(255,255,255,.8)">Entrar</a><a href="#" style="color:rgba(255,255,255,.8)">Privacidad</a><a href="#" style="color:rgba(255,255,255,.8)">Términos</a></div>
+          <span style="font-family:var(--font-mono)">myland.lol · 2026</span>
+        </footer>
+      </div>
+      <div aria-hidden="true" style="position:relative;margin-top:4px;height:clamp(96px,21vw,320px);overflow:hidden">
+        <div data-word="1" style="text-align:center;font:800 26vw/.8 var(--font-display);letter-spacing:-0.075em;white-space:nowrap;color:#FF4F94;transform:translateY(40%)">myLand</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOBILE DOCK -->
+  <sc-if value="{{ showDock }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:12px;right:12px;bottom:12px;z-index:55;display:flex;align-items:center;gap:8px;height:62px;padding:6px 6px 6px 18px;border-radius:999px;background:rgba(255,255,255,.86);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);box-shadow:0 0 0 1px rgba(20,17,24,.08),0 20px 40px -16px rgba(20,17,24,.4);animation:ml-up .5s var(--glass-spring-soft) both">
+      <span style="flex:1;min-width:0;font:600 14px var(--font-sans);color:rgba(20,17,24,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">myland.lol/<span style="color:#141118">{{ dockHandle }}</span></span>
+      <button type="button" onClick="{{ goClaim }}" style="flex:none;height:50px;padding:0 22px;border:none;border-radius:999px;background:#FF4F94;color:#141118;font:700 15px var(--font-sans);cursor:pointer">Reclamar</button>
+    </div>
+  </sc-if>
+
+  <!-- CLAIM → AUTH -->
+  <sc-if value="{{ claiming }}" hint-placeholder-val="{{ false }}">
+    <div ref="{{ ovRef }}" style="position:fixed;inset:0;z-index:100;background:#FF4F94;color:#141118;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;clip-path:circle(0% at 50% 50%)">
+      <div style="height:30px;padding:0 12px;display:flex;align-items:center;border-radius:999px;background:#141118;color:#fff;font:600 12px var(--font-mono);letter-spacing:.1em;animation:ml-fade .5s .35s both">RESERVANDO TU NOMBRE</div>
+      <div style="margin-top:22px;font:700 clamp(22px,3vw,40px)/1 var(--font-sans);letter-spacing:-0.03em;opacity:.6;animation:ml-fade .5s .45s both">myland.lol/</div>
+      <div style="font-family:var(--ml-display);font-weight:800;font-size:clamp(48px,11vw,190px);line-height:.95;letter-spacing:-0.045em;max-width:100%;overflow-wrap:anywhere;animation:ml-fade .6s .5s both">{{ handle }}</div>
+      <div style="margin-top:36px;width:min(280px,60vw);height:4px;border-radius:9px;background:rgba(20,17,24,.18);overflow:hidden"><div ref="{{ barRef }}" style="height:100%;width:0;background:#141118;border-radius:9px"></div></div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Unbounded&quot;,&quot;Funnel Display&quot;,&quot;Bricolage Grotesque&quot;],&quot;default&quot;:&quot;Unbounded&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Tipografía&quot;},&quot;decor&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Elementos 3D&quot;},&quot;mobileDock&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Mobile&quot;}}">
+class Component extends DCLogic {
+  FONTS = [["DM Sans","'DM Sans',sans-serif"],["Space Mono","'Space Mono',monospace"],["Newsreader","'Newsreader',serif"],["Playfair","'Playfair Display',serif"],["Bebas Neue","'Bebas Neue',sans-serif"],["Syne","'Syne',sans-serif"],["Archivo","'Archivo',sans-serif"],["Pacifico","'Pacifico',cursive"],["Great Vibes","'Great Vibes',cursive"]];
+  COLORS = ["#141118","#FFFFFF","#FF4F94","#FFE14D","#D4FF3F","#5AC8FA","#FF7A2E"];
+  BGS = ["radial-gradient(90% 80% at 15% 15%,#FFE14D,transparent 60%),radial-gradient(90% 90% at 90% 90%,#FF4F94,transparent 60%),#FFD3E4","radial-gradient(90% 80% at 85% 10%,#5AC8FA,transparent 60%),radial-gradient(90% 90% at 10% 90%,#D4FF3F,transparent 60%),#EAF7FF","radial-gradient(80% 80% at 80% 20%,#FF7A2E,transparent 60%),radial-gradient(90% 90% at 15% 85%,#FFE14D,transparent 60%),#FFF1C9","#141118","#FF4F94"];
+  CARD_BG = ["radial-gradient(110% 80% at 15% 10%,#FFE14D,transparent 60%),radial-gradient(100% 100% at 90% 90%,#FF4F94,transparent 62%),#FFD3E4","radial-gradient(110% 80% at 85% 10%,#5AC8FA,transparent 60%),radial-gradient(100% 100% at 10% 90%,#D4FF3F,transparent 62%),#EAF7FF","radial-gradient(110% 80% at 80% 15%,#FF7A2E,transparent 60%),radial-gradient(100% 100% at 15% 90%,#FF4F94,transparent 62%),#FFE4D2","radial-gradient(110% 80% at 20% 15%,#D4FF3F,transparent 60%),radial-gradient(100% 100% at 85% 90%,#FFE14D,transparent 62%),#F6FFD9","radial-gradient(110% 80% at 80% 10%,#FF4F94,transparent 60%),radial-gradient(100% 100% at 15% 90%,#5AC8FA,transparent 62%),#F0E9FF"];
+  FRAMES = ["linear-gradient(140deg,#FF4F94,#FFE14D)","linear-gradient(140deg,#5AC8FA,#D4FF3F)","linear-gradient(140deg,#FF7A2E,#FF4F94)","linear-gradient(140deg,#D4FF3F,#FFE14D)","linear-gradient(140deg,#FFE14D,#FF7A2E)","linear-gradient(140deg,#FF4F94,#5AC8FA)"];
+  STEP_BG = ["#FF4F94","#FFE14D","#D4FF3F"];
+  DISPLAY = { "Unbounded": "'Unbounded',sans-serif", "Funnel Display": "'Funnel Display',sans-serif", "Bricolage Grotesque": "'Bricolage Grotesque',sans-serif" };
+  TAKEN = new Set(["login","dashboard","auth","api","admin","settings","myland","nico","ana","sofi","juan"]);
+  state = { handle: "", status: "idle", mobile: window.innerWidth < 820, name: "", font: 5, color: "#141118", bg: this.BGS[0], auto: true, claiming: false, dock: false, gal: 0 };
+  rootRef = React.createRef(); ovRef = React.createRef(); barRef = React.createRef();
+
+  componentDidMount() {
+    this.reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.mx = this.my = this.tx = this.ty = this.off = this.vel = 0; this.lastY = scrollY; this.st = -1; this.t0 = performance.now();
+    this.onResize = () => { const m = innerWidth < 820; if (m !== this.state.mobile) this.setState({ mobile: m }); else this.measure(); };
+    this.onMove = e => { this.mx = e.clientX / innerWidth - 0.5; this.my = e.clientY / innerHeight - 0.5; };
+    addEventListener("resize", this.onResize); addEventListener("pointermove", this.onMove, { passive: true });
+    this.applyFont(); this.bind();
+    if (document.fonts) document.fonts.ready.then(() => this.measure());
+    this.fontTimer = setInterval(() => { if (this.state.auto) this.setState(s => ({ font: (s.font + 1) % this.FONTS.length })); }, 1500);
+    const loop = t => { this.raf = requestAnimationFrame(loop); this.frame(t); };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); clearInterval(this.fontTimer); clearTimeout(this.ht); clearTimeout(this.navT); removeEventListener("resize", this.onResize); removeEventListener("pointermove", this.onMove); this.io && this.io.disconnect(); }
+  componentDidUpdate(pp, ps) {
+    if (pp.displayFont !== this.props.displayFont) { this.applyFont(); setTimeout(() => this.measure(), 300); }
+    if (ps.mobile !== this.state.mobile || pp.decor !== this.props.decor) setTimeout(() => this.bind(), 30);
+    if (!ps.claiming && this.state.claiming) this.playClaim();
+  }
+  applyFont() { const r = this.rootRef.current; r && r.style.setProperty("--ml-display", this.DISPLAY[this.props.displayFont] || this.DISPLAY.Unbounded); }
+  measure() { if (this.els) this.mqW = this.els.mq.map(el => el.scrollWidth / 2); }
+  bind() {
+    const r = this.rootRef.current; if (!r) return;
+    const q = s => r.querySelector(s), qa = s => Array.from(r.querySelectorAll(s));
+    this.els = { fan: qa("[data-fan]"), mq: qa("[data-mq]"), par: qa("[data-par]"), story: q("[data-story]"), panel: q("[data-story-panel]"), texts: qa("[data-step-text]"), slots: qa("[data-step-slot]"), dots: qa("[data-step-dot]"), num: q("[data-story-num]"), stage: q("[data-slot-stage]"), phone: q("[data-phone]"), gal: q("[data-gal]"), track: q("[data-track]"), word: q("[data-word]"), hero: q("[data-hero-claim]") };
+    this.measure(); this.st = -1;
+    if (this.reduce || !("IntersectionObserver" in window)) return;
+    this.io && this.io.disconnect();
+    this.io = new IntersectionObserver(ents => ents.forEach(e => { if (e.isIntersecting) { const el = e.target; el.style.opacity = "1"; el.style.transform = "none"; el.style.filter = "none"; this.io.unobserve(el); } }), { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+    qa("[data-reveal]").forEach(el => {
+      if (el.dataset.bound) return; el.dataset.bound = "1";
+      if (el.getBoundingClientRect().top < innerHeight * 0.9) return;
+      const d = +(el.dataset.delay || 0);
+      el.style.opacity = "0"; el.style.transform = "translateY(70px) rotate(1.5deg)"; el.style.filter = "blur(8px)";
+      el.style.transition = `opacity .9s ${d}ms cubic-bezier(.2,.8,.2,1), transform 1.2s ${d}ms cubic-bezier(.16,1,.3,1), filter .9s ${d}ms`;
+      this.io.observe(el);
+    });
+  }
+  frame(t) {
+    const E = this.els; if (!E) return;
+    const vh = innerHeight, sy = scrollY, R = this.reduce, mob = this.state.mobile;
+    this.vel += ((sy - this.lastY) - this.vel) * 0.12; this.lastY = sy;
+    this.tx += (this.mx - this.tx) * 0.06; this.ty += (this.my - this.ty) * 0.06;
+    if (!R) this.off += 0.6 + Math.min(Math.abs(this.vel), 50) * 0.35;
+    E.mq.forEach((el, i) => { const w = (this.mqW && this.mqW[i]) || 1; const o = this.off % w; el.style.transform = `translate3d(${i % 2 ? o - w : -o}px,0,0)`; });
+    if (E.fan.length) {
+      const w = E.fan[0].offsetWidth || 200;
+      const ip = R ? 1 : Math.min(1, Math.max(0, (t - this.t0 - 350) / 1300)); const e = 1 - Math.pow(1 - ip, 4);
+      const s = Math.min(sy / vh, 1); const spread = e * (1 + s * 0.45);
+      const dx = w * (mob ? 0.58 : 0.7), dy = w * 0.08, rk = mob ? 10 : 9;
+      E.fan.forEach(el => {
+        const c = +el.dataset.fan - 2, a = Math.abs(c);
+        const fy = R ? 0 : Math.sin(t / 1500 + c * 1.3) * 6;
+        el.style.zIndex = String(10 - a);
+        el.style.transform = `translate(-50%,-50%) translate3d(${(c * dx * spread).toFixed(1)}px,${(c * c * dy * spread + fy - s * 40 * (3 - a)).toFixed(1)}px,${(-a * 40).toFixed(0)}px) rotate(${(c * rk * spread).toFixed(2)}deg) rotateY(${(this.tx * 18 - c * 6 * e).toFixed(2)}deg) rotateX(${(-this.ty * 14).toFixed(2)}deg)`;
+      });
+    }
+    if (!R) E.par.forEach((el, i) => { const d = +el.dataset.par; el.style.transform = `translate3d(${(-this.tx * d * 40).toFixed(1)}px,${(-this.ty * d * 30 + Math.sin(t / 1800 + i) * 8).toFixed(1)}px,0)`; });
+    if (E.story) {
+      const b = E.story.getBoundingClientRect(); const p = Math.min(1, Math.max(0, -b.top / (b.height - vh)));
+      const n = E.texts.length || 1; const st = Math.min(n - 1, Math.floor(p * n));
+      if (st !== this.st) {
+        this.st = st;
+        if (E.panel) E.panel.style.background = this.STEP_BG[st];
+        E.texts.forEach((el, i) => { el.style.opacity = i === st ? "1" : "0"; el.style.transform = `translateY(${i < st ? -40 : i > st ? 40 : 0}px)`; el.style.pointerEvents = i === st ? "auto" : "none"; });
+        E.slots.forEach((el, i) => { el.style.opacity = i === st ? "1" : "0"; el.style.transform = i < st ? "rotateY(-100deg) scale(.9)" : i > st ? "rotateY(100deg) scale(.9)" : "none"; });
+        E.dots.forEach((el, i) => { el.style.width = i === st ? "22px" : "6px"; el.style.background = i === st ? "#141118" : "rgba(20,17,24,.25)"; });
+        if (E.num) E.num.textContent = String(st + 1);
+      }
+      if (E.stage && !R) E.stage.style.transform = `rotateY(${(this.tx * 10).toFixed(2)}deg) rotateX(${(-this.ty * 8).toFixed(2)}deg)`;
+    }
+    if (E.phone && !R) { const b = E.phone.getBoundingClientRect(); const r = Math.max(-1, Math.min(1, (b.top + b.height / 2 - vh / 2) / vh)); E.phone.style.transform = `rotateY(${(r * -28 + this.tx * 8).toFixed(2)}deg) rotateX(${(r * 10).toFixed(2)}deg) rotate(${(6 - r * 8).toFixed(2)}deg)`; }
+    if (E.gal && E.track) { const b = E.gal.getBoundingClientRect(); const p = Math.min(1, Math.max(0, -b.top / (b.height - vh))); const max = Math.max(0, E.track.scrollWidth - innerWidth); E.track.style.transform = `translate3d(${(-p * max).toFixed(1)}px,0,0)`; }
+    if (E.word && !R) { const b = E.word.parentElement.getBoundingClientRect(); const p = Math.max(0, Math.min(1, (vh - b.top) / (b.height + vh * 0.3))); E.word.style.transform = `translateY(${(40 - p * 40).toFixed(1)}%)`; }
+    if (E.hero) { const show = mob && E.hero.getBoundingClientRect().bottom < 0; if (show !== this.state.dock) this.setState({ dock: show }); }
+  }
+  onHandle = e => {
+    const h = e.target.value.replace(/\s+/g, "").toLowerCase().slice(0, 20);
+    clearTimeout(this.ht);
+    if (!h) return this.setState({ handle: h, status: "idle" });
+    if (!/^[a-z0-9_-]*$/.test(h)) return this.setState({ handle: h, status: "invalid" });
+    if (h.length < 3) return this.setState({ handle: h, status: "short" });
+    this.setState({ handle: h, status: "checking" });
+    this.ht = setTimeout(() => this.setState({ status: this.TAKEN.has(h) ? "taken" : "ok" }), 520);
+  };
+  claim = e => {
+    e.preventDefault();
+    const form = e.currentTarget, st = this.state.status;
+    if (st === "ok") { const b = form.querySelector("button[type=submit]").getBoundingClientRect(); this.origin = { x: b.left + b.width / 2, y: b.top + b.height / 2 }; this.setState({ claiming: true }); return; }
+    form.animate && form.animate([{ transform: "translateX(0)" }, { transform: "translateX(-12px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-5px)" }, { transform: "translateX(0)" }], { duration: 440, easing: "cubic-bezier(.36,.07,.19,.97)" });
+    const inp = form.querySelector("input"); inp && inp.focus();
+    if (st === "idle") this.setState({ status: "empty" });
+  };
+  playClaim() {
+    const ov = this.ovRef.current, bar = this.barRef.current; if (!ov) return;
+    const o = this.origin || { x: innerWidth / 2, y: innerHeight / 2 }; const at = `at ${o.x}px ${o.y}px`;
+    ov.animate([{ clipPath: `circle(0px ${at})` }, { clipPath: `circle(150vmax ${at})` }], { duration: 800, easing: "cubic-bezier(.7,0,.2,1)", fill: "forwards" });
+    bar && bar.animate([{ width: "0%" }, { width: "100%" }], { duration: 1300, delay: 450, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" });
+    this.navT = setTimeout(() => { location.href = "Auth v2.dc.html?mode=register&from=claim&handle=" + encodeURIComponent(this.state.handle); }, 1850);
+  }
+  goClaim = () => {
+    const r = this.rootRef.current; const inp = r && r.querySelector("[data-hero-claim] input");
+    scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => { inp && inp.focus({ preventScroll: true }); }, 500);
+  };
+  renderVals() {
+    const s = this.state, p = this.props;
+    const ST = { idle: ["Este va a ser tu link. Elegilo bien.", "rgba(20,17,24,.3)"], empty: ["Escribí un nombre para reclamarlo.", "#FF5F57"], short: ["Mínimo 3 caracteres.", "rgba(20,17,24,.3)"], invalid: ["Solo letras, números, - y _", "#FF5F57"], checking: ["Buscando…", "#5AC8FA"], ok: ["Disponible. Es tuyo si lo reclamás.", "#2FC46F"], taken: ["Ya está en uso. Probá con otro.", "#FF5F57"] }[s.status];
+    const ring = { ok: "rgba(47,196,111,.7)", taken: "rgba(255,95,87,.7)", invalid: "rgba(255,95,87,.7)", empty: "rgba(255,95,87,.7)" }[s.status] || "rgba(20,17,24,0)";
+    const fonts = this.FONTS.map(([label, family], i) => ({ label, family, bg: i === s.font ? "#141118" : "#F3F0EB", fg: i === s.font ? "#fff" : "#141118", pick: () => this.setState({ font: i, auto: false }) }));
+    const gallery = this.FRAMES.map((frame, i) => ({ id: "sala-" + (i + 1), frame, rot: (i % 2 ? 3 : -3) + "deg", offset: i % 2 ? "5vh" : "-4vh" }));
+    return {
+      rootRef: this.rootRef, ovRef: this.ovRef, barRef: this.barRef,
+      handle: s.handle, onHandle: this.onHandle, claim: this.claim, goClaim: this.goClaim,
+      statusText: ST[0], statusColor: ST[1], claimRing: ring,
+      mobile: s.mobile, notMobile: !s.mobile, navCta: s.mobile ? "Reclamar" : "Reclamá tu myLand",
+      decor: p.decor ?? true,
+      fan: this.CARD_BG.map((bg, i) => ({ i, bg, id: "hero-card-" + (i + 1), n: "0" + (i + 1), ph: "ProfileCard " + (i + 1) })),
+      stepDots: [0, 1, 2].map(i => ({ i })),
+      name: s.name, onName: e => this.setState({ name: e.target.value }), previewName: s.name.trim() || "Tu nombre",
+      previewHandle: "@" + (s.handle || "tu-nombre"), fontFamily: this.FONTS[s.font][1], fontLabel: this.FONTS[s.font][0], fonts,
+      color: s.color, colors: this.COLORS, setColor: c => this.setState({ color: c }),
+      bg: s.bg, bgs: this.BGS, setBg: c => this.setState({ bg: c }),
+      urlHandle: s.handle || "vos",
+      gallery, galLabel: "0" + (s.gal + 1) + " / 06",
+      galDots: gallery.map((g, i) => ({ w: i === s.gal ? "20px" : "6px", c: i === s.gal ? "#141118" : "rgba(20,17,24,.2)" })),
+      onGalScroll: e => { const el = e.currentTarget; const c = el.firstElementChild; const w = c ? c.getBoundingClientRect().width + 14 : 300; const i = Math.max(0, Math.min(5, Math.round(el.scrollLeft / w))); if (i !== this.state.gal) this.setState({ gal: i }); },
+      showDock: s.mobile && s.dock && !s.claiming && (p.mobileDock ?? true), dockHandle: s.handle || "tu-nombre",
+      claiming: s.claiming,
+    };
+  }
+}
+</script>
+</body>
+</html>
