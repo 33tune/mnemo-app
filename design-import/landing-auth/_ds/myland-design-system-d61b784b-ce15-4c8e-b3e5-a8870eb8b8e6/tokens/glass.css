@@ -1,0 +1,49 @@
+/* MYLAND — Liquid glass. The one visual language of the editor.
+   Chrome is a tinted graphite glass (dark) or pearl glass (light); one accent (Rosa) marks "on";
+   a lilac focus ring; the user's content stays the loudest colour on screen.
+   Theme: data-editor-theme="dark" (default) | "light". */
+:root,[data-editor-theme="dark"]{
+--glass-fill:rgba(24,21,29,0.60); /* @kind color */
+--glass-fill-strong:rgba(19,17,24,0.82); /* @kind color */
+--glass-fill-solid:#17151C; /* @kind color */
+--glass-blur:blur(28px) saturate(190%); /* @kind other */
+--glass-edge:inset 0 0.5px 0 rgba(255,255,255,0.22),inset 0 0 0 0.5px rgba(255,255,255,0.10); /* @kind shadow */
+--glass-shadow:0 1px 2px rgba(8,4,12,0.30),0 28px 64px -16px rgba(8,4,12,0.55); /* @kind shadow */
+--glass-ink:#F6F3F8; /* @kind color */
+--glass-ink-2:rgba(238,232,244,0.68); /* @kind color */
+--glass-ink-3:rgba(238,232,244,0.42); /* @kind color */
+--glass-well:rgba(255,255,255,0.07); /* @kind color */
+--glass-well-hover:rgba(255,255,255,0.11); /* @kind color */
+--glass-well-press:rgba(255,255,255,0.16); /* @kind color */
+--glass-line:rgba(255,255,255,0.09); /* @kind color */
+--glass-on:#F6F3F8; /* @kind color */
+--glass-on-ink:#141118; /* @kind color */
+--glass-accent:#FF4F94; /* @kind color */
+--glass-accent-ink:#1C0712; /* @kind color */
+--glass-accent-soft:rgba(255,79,148,0.18); /* @kind color */
+--glass-accent-glow:rgba(255,79,148,0.50); /* @kind color */
+--glass-focus:#B9A2FF; /* @kind color */
+--glass-ring:0 0 0 2px #17151C,0 0 0 4px #B9A2FF; /* @kind shadow */
+--glass-danger:#FF5F57; /* @kind color */
+--glass-danger-soft:rgba(255,95,87,0.16); /* @kind color */
+--glass-success:#5BE49B; /* @kind color */
+--glass-page:#0E0C12; /* @kind color */
+}
+[data-editor-theme="light"]{
+--glass-fill:rgba(253,251,253,0.66);
+--glass-fill-strong:rgba(253,251,253,0.86);
+--glass-fill-solid:#FBF9FB;
+--glass-edge:inset 0 0.5px 0 rgba(255,255,255,0.95),inset 0 0 0 0.5px rgba(40,10,40,0.08); /* @kind shadow */
+--glass-shadow:0 1px 2px rgba(40,10,40,0.06),0 28px 64px -18px rgba(60,20,60,0.28); /* @kind shadow */
+--glass-ink:#141118;--glass-ink-2:rgba(20,17,24,0.64);--glass-ink-3:rgba(20,17,24,0.42);
+--glass-well:rgba(40,10,40,0.05);--glass-well-hover:rgba(40,10,40,0.08);--glass-well-press:rgba(40,10,40,0.12);
+--glass-line:rgba(40,10,40,0.08);
+--glass-on:#141118;--glass-on-ink:#FFFFFF;
+--glass-accent:#D42A70;--glass-accent-ink:#FFFFFF;--glass-accent-soft:rgba(212,42,112,0.12);--glass-accent-glow:rgba(212,42,112,0.35);
+--glass-focus:#7C5CFF;--glass-ring:0 0 0 2px #FBF9FB,0 0 0 4px #7C5CFF; /* @kind shadow */
+--glass-danger:#D93A31;--glass-danger-soft:rgba(217,58,49,0.10);--glass-success:#1F9D5B;--glass-page:#F3EFF4;
+}
+:root{
+--glass-radius-panel:30px;--glass-radius-tile:20px;--glass-radius-control:16px;--glass-radius-field:16px;--glass-radius-chip:999px;
+--glass-h-control:44px;--glass-h-button:36px;--glass-h-part:44px;--glass-w-dock:344px;--glass-gap-edge:16px;
+}

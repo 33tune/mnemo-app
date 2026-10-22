@@ -1,0 +1,8 @@
+/* MYLAND brand palette. Rosa is the only brand hue in editor chrome (on-states, Publicar, focus-adjacent).
+   The rest are reference colours from the brand and the default sala wallpaper. */
+:root{
+--brand-rosa:#FF4F94;--brand-rosa-deep:#D42A70;--brand-rosa-ink:#1C0712;--brand-logo:#FF408D;
+--brand-lilac:#B9A2FF;--brand-violet:#7C5CFF;
+--brand-blush:#FBE3EE;--brand-haze:#DCD5F6;--brand-plum:#2A1630;
+--graphite-950:#0E0C12;--graphite-900:#141118;--graphite-850:#17151C;--graphite-800:#1F1B25;--graphite-700:#2C2733;--graphite-500:#6E6676;--graphite-300:#B7AFBF;--graphite-100:#ECE7F0;--graphite-50:#F6F3F8;
+}

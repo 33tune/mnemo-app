@@ -30,6 +30,20 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (!profile) {
+    // ── Email sign-up confirmed: the name claimed in /login travels in the
+    // user's metadata — create the profile with it (onboarding done). If it
+    // was taken meanwhile, fall through to the temp profile + /setup.
+    const claimed = String(user.user_metadata?.handle ?? "").toLowerCase();
+    if (/^[a-z0-9_-]{3,20}$/.test(claimed) && !claimed.startsWith("temp_")) {
+      const { error: claimErr } = await supabase.from("profiles").insert({
+        user_id:              user.id,
+        handle:               claimed,
+        display_name:         claimed,
+        onboarding_completed: true,
+      });
+      if (!claimErr) return NextResponse.redirect(`${origin}${next}`);
+    }
+
     // ── New OAuth user — create a temporary profile ──────────────────────────
     // User will choose their real handle in /setup.
     // Temp handle: "temp_" + first 15 hex chars of UUID (no hyphens) = 20 chars max.

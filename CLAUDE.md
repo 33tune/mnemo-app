@@ -105,6 +105,14 @@ planeado acá hasta confirmarlo.
 >   entre Visitas e Íconos), con fuente/tamaño/peso/interlineado/color (`about*`), efectos de texto, Estilo del bloque y
 >   la alineación general de los textos (sin alineación propia). Parte "Sobre mí" en Perfil (7 partes: el selector pasó
 >   a 7 columnas y los chips a 40 px). En un layout ya guardado aparece debajo de todo sin mover nada.
+>   **Landing + Auth de Claude Design (2026-10-22, pedido del usuario):** `/` = "Landing v9" y `/login` = "Auth v4"
+>   (proyecto https://claude.ai/design/p/d3083c63-8eb8-4522-8b29-097c7c97649b), convertidos 1:1 desde los `.dc.html`
+>   (clase de lógica + template → TSX) a `src/components/site/` con `design-import/landing-auth/tools/regen.sh`
+>   (reproduce los archivos byte a byte; para re-sincronizar, reemplazar los `.dc.html` y correrlo). CSS del DS scopeado
+>   en `.ml-site`. Funcional: nombre real contra `profiles` (`siteAuth.ts`), Reclamar → `/login?mode=register&handle=`,
+>   email+contraseña, Google, "¿Te la olvidaste?" (`/reset-password`), reenviar, logueado → `/dashboard`; el nombre
+>   reclamado viaja en la metadata del usuario y `/auth/callback` crea el perfil con él al confirmar el email. Sin
+>   Privacidad/Términos (decisión del usuario). Assets en `public/landing/`; `three` (objetos 3D) como dependencia.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
