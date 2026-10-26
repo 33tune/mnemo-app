@@ -132,6 +132,17 @@ planeado acá hasta confirmarlo.
 >   **Supera la regla "no tocar mobile legacy":** `MobilePublicCanvas.tsx` se borró; el modo `space_mobile` y
 >   `mobileMerge.ts` quedan en `CanvasBoard` sin entrada en la UI (limpieza pendiente, con OK del usuario).
 >
+>   **Seguridad, storage y Publicar (2026-10-26, pedido del usuario):** texto libre siempre como texto (`safeText.ts`,
+>   XSS); `/auth/callback` solo redirige a rutas propias y valida el nombre reclamado (`src/lib/handles.ts`); headers de
+>   seguridad en `next.config.ts`; `/api/canvas` (sin uso) borrada. **Storage:** borrar no elimina archivos al instante
+>   (deshacer los recupera); uploads validados (`uploadRules.ts`: imágenes 15 MB, MP3 20 MB, fuentes 5 MB) y en la carpeta
+>   `<uid>/` (si el bucket la rechaza, a la raíz); limpieza diaria `POST /api/storage/cleanup` desde el editor
+>   (`runStorageCleanup.ts` + `cleanupPlan.ts`): borra solo archivos sin uso en NINGÚN dato del usuario (salas, ops
+>   pendientes, perfil; `extractAssetPaths.ts` escanea todo campo) y con más de 24 h. **Publicar de verdad**
+>   (`publishedState.ts`): la fila `space` guarda `published` (lo que se publicó); el perfil público muestra eso; la
+>   compactación lo conserva; una fila sin `published` se ve como antes. **Pendiente del usuario:** correr
+>   `docs/security/supabase-hardening.sql` (RLS, bucket, tablas viejas).
+>
 > **Ideas del usuario para trabajar después (2026-10-26, no implementar sin OK):**
 > - ~~**Bug:** borrar una imagen y deshacer la dejaba invisible~~ ARREGLADO (2026-10-26): el editor borraba el archivo del
 >   storage al instante; ya no (los huérfanos van a `queueOrphanedAssets`).

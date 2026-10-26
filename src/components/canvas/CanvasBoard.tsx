@@ -37,6 +37,7 @@ import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { mobileFitScale, MOBILE_GUTTER, type MobileFit } from "@/lib/mobileFit";
 import { safeTextHtml, storedTextToPlain } from "@/lib/safeText";
+import { withPublished, hasUnpublishedChanges } from "@/lib/publishedState";
 import { analytics } from "@/lib/analytics";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
@@ -551,6 +552,9 @@ export default function CanvasBoard({
   const canvasIdRef       = useRef<string | null>(null);
   const savingRef         = useRef(false);
   const lastSavedStateRef = useRef<CanvasState | null>(null);
+  // The room's last published snapshot (publishedState.ts): kept on every
+  // save of the "space" row so visitors only ever see what was published.
+  const publishedRef = useRef<CanvasState | null>(null);
   // ── Mode switching ───────────────────────────────────────────────────────────
   const canvasModeRef  = useRef<CanvasMode>("space");
   // ── Ops queue ────────────────────────────────────────────────────────────────
@@ -1048,6 +1052,20 @@ export default function CanvasBoard({
       // than leave genuinely dead state sitting in the user's browser.
       if (user?.id) {
         try { localStorage.removeItem(`mnemo-analytics-layout-${user.id}`); } catch { /* ignore */ }
+      }
+      // Storage cleanup (runStorageCleanup.ts): at most once a day, a while
+      // after the editor opened — removes the owner's files nothing uses any
+      // more (older than a day). Never blocks or breaks the editor.
+      if (canEdit && user?.id) {
+        const key = `mnemo-storage-gc-${user.id}`;
+        let last = 0;
+        try { last = Number(localStorage.getItem(key)) || 0; } catch { /* ignore */ }
+        if (Date.now() - last > 24 * 60 * 60 * 1000) {
+          setTimeout(() => {
+            try { localStorage.setItem(key, String(Date.now())); } catch { /* ignore */ }
+            fetch("/api/storage/cleanup", { method: "POST" }).catch(() => { /* next time */ });
+          }, 20_000);
+        }
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2167,8 +2185,16 @@ export default function CanvasBoard({
     }
     lastSavedStateRef.current = state;
 
+    // Never drop the published snapshot: read it from the row when this
+    // session doesn't hold it.
+    let published = publishedRef.current;
+    if (mode === "space" && !published) {
+      const { data: row } = await supabase.from("canvases").select("data").eq("user_id", userId).eq("type", "space").maybeSingle();
+      published = ((row?.data ?? null) as (CanvasState & { published?: CanvasState }) | null)?.published ?? null;
+      if (session !== sessionIdRef.current) return;
+    }
     const { error } = await supabase.from("canvases").upsert(
-      { user_id: userId, type: mode, data: state, updated_at: new Date().toISOString() },
+      { user_id: userId, type: mode, data: mode === "space" ? withPublished(state, published) : state, updated_at: new Date().toISOString() },
       { onConflict: "user_id,type" }
     );
     if (error) { console.error("[COMPACT ERROR]", error); return; }
@@ -2195,12 +2221,14 @@ export default function CanvasBoard({
         });
       const state = await buildSaveState(elementsSnapshot);
 
+      // Publicar: the working copy AND the snapshot visitors see.
       const { error } = await supabase
         .from("canvases")
-        .update({ data: state, updated_at: new Date().toISOString() })
+        .update({ data: withPublished(state, state), updated_at: new Date().toISOString() })
         .eq("id", canvasIdRef.current);
 
       if (!error) {
+        publishedRef.current = state;
         setPublishState("success");
         setTimeout(() => {
           setPublishState(s => (s === "success" ? "idle" : s));
@@ -2236,6 +2264,7 @@ export default function CanvasBoard({
       fullyLoadedModeRef.current = null;
       savingRef.current = false;
       lastSavedStateRef.current = null;
+      publishedRef.current = null;
       userInteractedRef.current = false;
       opsQueueRef.current   = [];
       historyRef.current?.clear();
@@ -2310,6 +2339,9 @@ export default function CanvasBoard({
       if (canvasRow?.data) {
         const s = canvasRow.data as CanvasState;
         lastSavedStateRef.current = s; // baseline for GC diffing
+        if (canvasModeRef.current === "space") {
+          publishedRef.current = (s as CanvasState & { published?: CanvasState }).published ?? null;
+        }
         hiddenMap     = s.hidden     ?? {};
         placementsMap = s.placements ?? {};
         newElements = [
@@ -2528,7 +2560,8 @@ export default function CanvasBoard({
 
       hasLoadedRef.current = true;
       fullyLoadedModeRef.current = canvasModeRef.current;
-      setPublishState("idle");
+      // Changes visitors don't see yet (from an earlier session) light Publicar.
+      setPublishState(canvasModeRef.current === "space" && hasUnpublishedChanges(canvasRow?.data, opsRows?.length ?? 0) ? "pending" : "idle");
       setIsLoading(false);
     }
 

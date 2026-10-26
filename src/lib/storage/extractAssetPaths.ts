@@ -1,64 +1,62 @@
-import type { CanvasState } from "@/types";
+/**
+ * Which Supabase Storage files a piece of saved data uses.
+ *
+ * The old version listed fields by hand (images, card backgrounds, photo,
+ * wallpaper) and missed the logo, Music MP3s, the room's music, fonts and
+ * cursors, link-button icons… — a garbage collector trusting it would have
+ * deleted files still in use. This one scans EVERYTHING: any string anywhere
+ * in the value that is a public Storage URL counts, whatever field holds it,
+ * so new fields are covered without touching this file.
+ *
+ * Paths are "<bucket>/<path in the bucket>", e.g. "canvas-assets/<uid>/<id>.png".
+ */
 
 // Marker that distinguishes Supabase Storage public URLs from external URLs.
-const STORAGE_MARKER = "/storage/v1/object/public/";
+export const STORAGE_MARKER = "/storage/v1/object/public/";
 
-/**
- * Convert a raw URL to its storage path (bucket/filename).
- * Returns null for blob:, data:, external URLs, and empty strings.
- */
-function toStoragePath(url: unknown): string | null {
+/** A public Storage URL → "<bucket>/<path>"; null for anything else. */
+export function toStoragePath(url: unknown): string | null {
   if (!url || typeof url !== "string") return null;
   if (url.startsWith("blob:") || url.startsWith("data:")) return null;
   const idx = url.indexOf(STORAGE_MARKER);
   if (idx === -1) return null;
-  // Strip query params — public URLs occasionally have cache-busting params
-  const path = url.slice(idx + STORAGE_MARKER.length).split("?")[0];
-  return path || null;
+  // Strip query params / fragments (cache-busting) and CSS url(...) leftovers.
+  const path = decodeURIComponentSafe(url.slice(idx + STORAGE_MARKER.length).split(/[?#"')\s]/)[0]);
+  return path && path.includes("/") ? path : null;
 }
 
-/**
- * Scan every asset-bearing field in a CanvasState and return the deduplicated
- * list of Supabase Storage paths (e.g. "canvas-assets/uuid.png").
- *
- * Add new element types or fields here as the schema grows.
- */
-export function extractAssetPaths(state: CanvasState): string[] {
-  const paths = new Set<string>();
+function decodeURIComponentSafe(s: string): string {
+  try { return decodeURIComponent(s); } catch { return s; }
+}
 
-  const add = (url?: string | null) => {
-    const p = toStoragePath(url);
-    if (p) paths.add(p);
-  };
-
-  // ── images ─────────────────────────────────────────────────────────────────
-  for (const img of state.images ?? []) {
-    add(img.src);
-  }
-
-  // ── cards ──────────────────────────────────────────────────────────────────
-  for (const card of state.cards ?? []) {
-    add(card.bgImage);
-  }
-
-  // ── galleries ──────────────────────────────────────────────────────────────
-  for (const gallery of state.galleries ?? []) {
-    for (const gi of gallery.images ?? []) {
-      add(gi.src);
+/** Every Storage path used anywhere inside `value` (any depth, any field). */
+export function collectStoragePaths(value: unknown, into: Set<string> = new Set()): Set<string> {
+  const seen = new Set<object>();
+  const walk = (v: unknown) => {
+    if (typeof v === "string") {
+      if (!v.includes(STORAGE_MARKER)) return;
+      // A string may hold several URLs (CSS, HTML): take each one.
+      let from = 0;
+      for (;;) {
+        const at = v.indexOf(STORAGE_MARKER, from);
+        if (at === -1) break;
+        const p = toStoragePath(v.slice(at));
+        if (p) into.add(p);
+        from = at + STORAGE_MARKER.length;
+      }
+      return;
     }
-  }
+    if (!v || typeof v !== "object") return;
+    if (seen.has(v as object)) return;
+    seen.add(v as object);
+    if (Array.isArray(v)) { for (const x of v) walk(x); return; }
+    for (const x of Object.values(v as Record<string, unknown>)) walk(x);
+  };
+  walk(value);
+  return into;
+}
 
-  // ── profiles ───────────────────────────────────────────────────────────────
-  for (const profile of state.profiles ?? []) {
-    add(profile.photo);
-    add(profile.bgImage);
-  }
-
-  // ── wallpaper ──────────────────────────────────────────────────────────────
-  add(state.wallpaper);
-
-  // NOTE: medias[].url is an external embed link (Spotify / YouTube / SoundCloud).
-  // NOTE: texts have no asset references.
-
-  return Array.from(paths);
+/** The Storage paths a saved canvas uses (deduplicated). */
+export function extractAssetPaths(state: unknown): string[] {
+  return [...collectStoragePaths(state)];
 }

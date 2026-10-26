@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
 import { fitRoomToCard } from "@/lib/mobileFit";
+import { publicStateOf } from "@/lib/publishedState";
 import { isMobileUserAgent } from "@/lib/deviceGate";
 import type { CanvasState } from "@/types";
 import type { Metadata } from "next";
@@ -77,7 +78,9 @@ export default async function PublicPage({
     });
   }
 
-  const state = (canvas.data ?? {}) as CanvasState;
+  // Visitors see the last PUBLISHED snapshot, never the working copy
+  // (publishedState.ts; rows never published since show their data).
+  const state = publicStateOf(canvas.data);
   // Phones: the same renderer as desktop, cropped around the card (mobileFit.ts).
   const fit = isMobileUA ? fitRoomToCard(withLists(state)) : null;
 
