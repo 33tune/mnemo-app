@@ -133,7 +133,8 @@ planeado acá hasta confirmarlo.
 >   `mobileMerge.ts` quedan en `CanvasBoard` sin entrada en la UI (limpieza pendiente, con OK del usuario).
 >
 > **Ideas del usuario para trabajar después (2026-10-26, no implementar sin OK):**
-> - **Bug:** borrar una imagen y recuperarla (deshacer) la deja invisible en la misma posición. Investigar.
+> - ~~**Bug:** borrar una imagen y deshacer la dejaba invisible~~ ARREGLADO (2026-10-26): el editor borraba el archivo del
+>   storage al instante; ya no (los huérfanos van a `queueOrphanedAssets`).
 > - **Marcos de la card:** imágenes pegadas a la ProfileCard, por delante o por detrás, que hereden sus efectos (tilt,
 >   agrandar al pasar, rebote/flotación) y sirvan de marco o de decoración. Cuando existan, el recorte mobile pasa a
   usarlos en vez del halo geométrico.

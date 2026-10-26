@@ -135,8 +135,10 @@ test("CanvasBoard: every write is recorded from enqueueOp; undo/redo replay thro
   assert.ok(BOARD.includes('if (owner !== "history") return;'));
   // Queue: adjacent patches merge before insert.
   assert.ok(BOARD.includes("const batch = mergeQueuedPatches([...opsQueueRef.current]);"));
-  // History deletes never remove the stored file (the element may come back).
-  assert.ok(BOARD.includes('if (op.type === "delete_image" && opts.record !== false) {'));
+  // No delete removes the stored file (undo brings the image back with the
+  // same src; bug of 2026-10-26): orphaned files go through the GC queue.
+  assert.ok(!BOARD.includes('.storage.from("canvas-assets").remove('));
+  assert.ok(BOARD.includes("queueOrphanedAssets(userId, prevState, state)"));
 });
 
 test("announcements say what changed: one object by name, several by count, room settings by place", async () => {

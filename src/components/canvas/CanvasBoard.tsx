@@ -1794,20 +1794,11 @@ export default function CanvasBoard({
       firstEditRef.current = true;
       analytics.canvasEdit(currentUserId, op.type);
     }
-    // Phase C: a delete written by undo / redo keeps the file — the same
-    // image may come back with the next redo / undo (orphaned files are
-    // collected by queueOrphanedAssets on compaction).
-    if (op.type === "delete_image" && opts.record !== false) {
-      const imgEl = elements.find(e => e.elementType === "image" && e.id === op.id);
-      const storagePath = imgEl?.elementType === "image" ? imgEl.storage_path : undefined;
-      console.log("[STORAGE DELETE ATTEMPT]", storagePath);
-      if (storagePath) {
-        createClient().storage.from("canvas-assets").remove([storagePath])
-          .then(({ error, data }) => {
-            console.log("[STORAGE DELETE RESULT]", { error, data });
-          });
-      }
-    }
+    // Deleting an image never removes its file right away: undo brings the
+    // element back with the same src (it came back invisible when the file
+    // was gone — bug of 2026-10-26), and the published room may still show
+    // it until the next publish. Files no canvas references any more are
+    // queued by queueOrphanedAssets on compaction and collected later.
     applyOp(op);
     const persistedOps = buildPersistedOps(op, canvasModeRef.current);
     for (const { op: pOp } of persistedOps) {
