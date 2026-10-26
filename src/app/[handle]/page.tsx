@@ -2,19 +2,12 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
-import MobilePublicCanvas from "@/components/canvas/MobilePublicCanvas";
-import { mergeMobileState, filterHiddenDesktop } from "@/lib/mobileMerge";
+import { fitRoomToCard } from "@/lib/mobileFit";
+import { isMobileUserAgent } from "@/lib/deviceGate";
 import type { CanvasState } from "@/types";
 import type { Metadata } from "next";
 
 const RESERVED = new Set(["login", "dashboard", "space", "auth", "api", "admin", "settings"]);
-
-const EMPTY_MOBILE_STATE: CanvasState = {
-  cards: [], images: [], texts: [], galleries: [],
-  profiles: [], medias: [], guestbooks: [],
-  socialCards: [], musicCards: [], linksCards: [], statsCards: [],
-  bgColor: "#0a0a0c", wallpaper: "",
-};
 
 export async function generateMetadata(
   { params }: { params: Promise<{ handle: string }> }
@@ -60,30 +53,18 @@ export default async function PublicPage({
   }
 
   // Detect mobile via UA header — no flash, server-side
-  const headersList = await headers();
-  const ua = headersList.get("user-agent") ?? "";
-  const isMobileUA = /android|iphone|ipad|ipod|mobile|blackberry|windows phone/i.test(ua);
+  const isMobileUA = isMobileUserAgent((await headers()).get("user-agent"));
 
-  const [{ data: canvas }, { data: mobileCanvas }] = await Promise.all([
-    supabase
-      .from("canvases")
-      .select("id, data, name, is_public")
-      .eq("user_id", profile.user_id)
-      .eq("type", "space")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("canvases")
-      .select("id, data")
-      .eq("user_id", profile.user_id)
-      .eq("type", "space_mobile")
-      .maybeSingle(),
-  ]);
+  const { data: canvas } = await supabase
+    .from("canvases")
+    .select("id, data, name, is_public")
+    .eq("user_id", profile.user_id)
+    .eq("type", "space")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
   if (!canvas) notFound();
-
-  const showMobile = isMobileUA;
 
   // Track view — fire-and-forget, don't block render
   if (!viewer || viewer.id !== profile.user_id) {
@@ -97,26 +78,28 @@ export default async function PublicPage({
   }
 
   const state = (canvas.data ?? {}) as CanvasState;
+  // Phones: the same renderer as desktop, cropped around the card (mobileFit.ts).
+  const fit = isMobileUA ? fitRoomToCard(withLists(state)) : null;
 
   return (
-    <>
-      {showMobile ? (
-        <MobilePublicCanvas
-          state={mergeMobileState(filterHiddenDesktop(state), (mobileCanvas?.data as CanvasState | undefined) ?? EMPTY_MOBILE_STATE)}
-          handle={profile.handle}
-          name={profile.display_name ?? ""}
-          userId={profile.user_id}
-          viewerLoggedIn={!!viewer && viewer.id !== profile.user_id}
-        />
-      ) : (
-        <CanvasBoard
-          canEdit={false}
-          viewerLoggedIn={!!viewer && viewer.id !== profile.user_id}
-          userHandle={profile.handle}
-          initialState={state}
-          ownerUserId={profile.user_id}
-        />
-      )}
-    </>
+    <CanvasBoard
+      canEdit={false}
+      viewerLoggedIn={!isMobileUA && !!viewer && viewer.id !== profile.user_id}
+      userHandle={profile.handle}
+      initialState={fit ? fit.state : state}
+      ownerUserId={profile.user_id}
+      mobileFit={fit ?? undefined}
+    />
   );
+}
+
+/** Rows saved before a list existed lack it; the crop reads every list. */
+function withLists(s: CanvasState): CanvasState {
+  return {
+    ...s,
+    cards: s.cards ?? [], images: s.images ?? [], texts: s.texts ?? [], galleries: s.galleries ?? [],
+    profiles: s.profiles ?? [], medias: s.medias ?? [], guestbooks: s.guestbooks ?? [],
+    socialCards: s.socialCards ?? [], musicCards: s.musicCards ?? [], linksCards: s.linksCards ?? [],
+    statsCards: s.statsCards ?? [],
+  };
 }

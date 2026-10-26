@@ -26,7 +26,7 @@ test("grid: editor-only, inside the canvas wrapper, no pointer events — never 
   assert.ok(BOARD.slice(start, end).includes("<CanvasGrid"), "inside the wrapper: it follows the view offset");
   assert.match(GRID, /pointerEvents: "none"/);
   assert.ok(GRID.includes('aria-hidden="true"'));
-  for (const f of ["src/app/[handle]/page.tsx", "src/components/canvas/MobilePublicCanvas.tsx", "src/components/canvas/ProfileCard.tsx"]) {
+  for (const f of ["src/app/[handle]/page.tsx", "src/lib/mobileFit.ts", "src/components/canvas/ProfileCard.tsx"]) {
     const src = read(f);
     assert.ok(!src.includes("CanvasGrid") && !src.includes("data-mnemo-grid"), `${f} must never draw the editor grid`);
   }

@@ -74,7 +74,7 @@ test("panel a11y: lists named by their layer heading, real buttons, keyboard pat
 });
 
 test("public render untouched: nothing outside the editor knows about Layers", () => {
-  for (const f of ["src/components/canvas/MobilePublicCanvas.tsx", "src/components/canvas/ProfileCard.tsx", "src/lib/hitStack.ts"]) {
+  for (const f of ["src/lib/mobileFit.ts", "src/components/canvas/ProfileCard.tsx", "src/lib/hitStack.ts"]) {
     const src = read(f);
     assert.ok(!src.includes("layerOrder") && !src.includes("LayersPanel"), f);
   }

@@ -79,7 +79,7 @@ test("Phase B: opening / closing the inspector never writes elements (card.x/y u
 });
 
 test("CanvasBoard: the view offset is a translate of the canvas wrapper, frozen per gesture", () => {
-  assert.ok(BOARD.includes("transform: !canEdit ? `scale(${viewerScale})` : (viewDx || viewDy) ? `translate3d(${-viewDx}px,${-viewDy}px,0)` : undefined"));
+  assert.ok(BOARD.includes("transform: mobileView ? `translate(${mobileView.tx}px,${mobileView.ty}px) scale(${mobileView.s})` : !canEdit ? `scale(${viewerScale})` : (viewDx || viewDy) ? `translate3d(${-viewDx}px,${-viewDy}px,0)` : undefined"));
   assert.ok(BOARD.includes("freezeViewOffset(appliedViewRef.current ?? computedView, computedView, viewGesture)"));
   assert.ok(BOARD.includes('window.addEventListener("pointerdown", down, true)') && BOARD.includes('window.addEventListener("pointerup", up, true)'));
 });

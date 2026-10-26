@@ -122,12 +122,21 @@ planeado acá hasta confirmarlo.
 >   `chat_windows`, `messages`, `followers`, `favorites`, `element_pins`, `anonymous_messages`): el código ya no las lee;
 >   borrarlas es un SQL aparte, con OK del usuario.
 >
+>   **Mobile = solo vista (2026-10-26, decisión del usuario):** en un celular (User-Agent, `src/lib/deviceGate.ts`)
+>   `/login`, `/dashboard` y `/setup` muestran `DesktopOnly` ("Abrí myLand en una compu"; con sesión, "Ver mi perfil").
+>   El perfil público usa el MISMO `CanvasBoard` de escritorio (misma `ProfileCard`, efectos e imágenes) con
+>   `mobileFit` (`src/lib/mobileFit.ts`): recorte = la card + un halo (`24 + 0.2·ancho`) con lo que lo toca (marcos),
+>   alcance máximo de 0,6× la card por lado, Music lejano acomodado debajo de la card; escala que entra el recorte pero
+>   nunca achica la card por debajo del ancho de la pantalla (tope 1,3); scroll vertical y pinch zoom; sin topbar. La
+>   card usa su posición guardada (no se recentra). Medido después del montaje (el servidor no sabe el ancho).
+>   **Supera la regla "no tocar mobile legacy":** `MobilePublicCanvas.tsx` se borró; el modo `space_mobile` y
+>   `mobileMerge.ts` quedan en `CanvasBoard` sin entrada en la UI (limpieza pendiente, con OK del usuario).
+>
 > **Ideas del usuario para trabajar después (2026-10-26, no implementar sin OK):**
 > - **Bug:** borrar una imagen y recuperarla (deshacer) la deja invisible en la misma posición. Investigar.
-> - **Mobile:** que toda la app funcione en mobile. El lienzo de 1920×1080 no entra: propuesta de **recortar** y centrar
->   siempre en la card, dejando la card y las imágenes que la rodean (marcos), sin el resto del lienzo.
 > - **Marcos de la card:** imágenes pegadas a la ProfileCard, por delante o por detrás, que hereden sus efectos (tilt,
->   agrandar al pasar, rebote/flotación) y sirvan de marco o de decoración.
+>   agrandar al pasar, rebote/flotación) y sirvan de marco o de decoración. Cuando existan, el recorte mobile pasa a
+  usarlos en vez del halo geométrico.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

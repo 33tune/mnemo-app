@@ -76,7 +76,7 @@ test("D5: the outline is editor-only (menuOpen = inspector open AND canInteract)
   assert.ok(CARD.includes("const menuOpen = inspectorOpen && !!canInteract;"));
   assert.ok(CARD.includes("prev.activePart        === next.activePart"));
   assert.ok(BOARD.includes('activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}'));
-  for (const f of ["src/components/canvas/MobilePublicCanvas.tsx"]) {
+  for (const f of ["src/app/[handle]/page.tsx", "src/lib/mobileFit.ts"]) {
     assert.ok(!read(f).includes("activePart"), `${f} never highlights`);
   }
 });

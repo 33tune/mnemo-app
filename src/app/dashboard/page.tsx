@@ -1,11 +1,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
+import DesktopOnly from "@/components/site/DesktopOnly";
+import { isMobileUserAgent } from "@/lib/deviceGate";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // Phones only view profiles (deviceGate.ts): the editor is for computers.
+  const phone = isMobileUserAgent((await headers()).get("user-agent"));
+  if (!user) return phone ? <DesktopOnly /> : redirect("/login");
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -17,8 +22,10 @@ export default async function DashboardPage() {
   // Treat null/undefined onboarding_completed as completed for backward compat.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!profile || (profile as any).onboarding_completed === false) {
+    if (phone) return <DesktopOnly />;
     redirect("/setup");
   }
+  if (phone) return <DesktopOnly handle={profile.handle ?? undefined} />;
 
   return <CanvasBoard userHandle={profile.handle ?? ""} />;
 }

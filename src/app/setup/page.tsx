@@ -1,10 +1,15 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import SetupFlow from "./SetupFlow";
+import DesktopOnly from "@/components/site/DesktopOnly";
+import { isMobileUserAgent } from "@/lib/deviceGate";
 
 const MONO = "'Space Mono', monospace";
 
 export default async function SetupPage() {
+  // Phones only view profiles (deviceGate.ts).
+  if (isMobileUserAgent((await headers()).get("user-agent"))) return <DesktopOnly />;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

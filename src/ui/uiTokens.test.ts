@@ -211,7 +211,6 @@ test("card render never reads editor variables (they only exist inside the edito
   for (const f of [
     "src/components/canvas/ProfileCard.tsx", "src/components/canvas/CardLayers.tsx",
     "src/components/canvas/ProfileMusicPlayer.tsx", "src/components/canvas/MusicCardWidget.tsx",
-    "src/components/canvas/MobilePublicCanvas.tsx",
   ]) {
     assert.ok(!stripComments(read(f)).includes("--ui-"), `${f} reads --ui-* (undefined on the public page)`);
   }
@@ -376,7 +375,7 @@ test("render isolation: card / public render never reads editor vars, fonts, the
   for (const f of [
     "src/components/canvas/CardLayers.tsx", "src/components/canvas/ProfileCard.tsx",
     "src/components/canvas/ProfileMusicPlayer.tsx",
-    "src/components/canvas/MobilePublicCanvas.tsx", "src/app/[handle]/page.tsx",
+    "src/app/[handle]/page.tsx", "src/lib/mobileFit.ts",
     "src/lib/textEffects.ts", "src/lib/cardColors.ts", "src/lib/bgStyle.ts", "src/lib/blockStyle.ts",
     "src/lib/profileCardEffects.ts", "src/lib/cardTypography.ts", "src/lib/mobileMerge.ts",
   ]) {
