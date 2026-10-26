@@ -73,6 +73,7 @@ const content  = at("ProfileIdentityMenu.tsx");
 const meta     = at("ProfileMetadataMenu.tsx");
 const links    = at("ProfileContactLinksMenu.tsx");
 const logo     = at("ProfileLogoMenu.tsx");
+const stk      = at("ProfileStickersMenu.tsx");
 const btns     = at("ProfileLinkButtonsMenu.tsx");
 const config   = at("ProfileConfigMenu.tsx");
 const type     = at("ProfileTypographyMenu.tsx");
@@ -96,6 +97,7 @@ const obj = (caption: string) => `${P} › ${caption}`;
 const NOMBRE = obj("Nombre"), USUARIO = obj("@usuario"), FRASE = obj("Frase"), UBICACION = obj("Ubicación");
 const BIO = obj("Bio"), SOBRE_MI = obj("Sobre mí"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS = obj("Links"), LOGO = obj("Logo");
 const FONDO = obj("Fondo de la card");
+const STICKERS = obj("Stickers");
 const BOTONES = obj("Botones");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");
@@ -166,6 +168,9 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   musicAnchorY: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   music: retired("Music is an independent canvas element now (MusicCardData)"),
   musicWidth: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
+  // Card stickers (2026-10-27): added / ordered / hidden / removed in the
+  // menu; moved, scaled and rotated on the card in its edit mode.
+  stickers: stk(`${STICKERS} › Agregar sticker · Capas · Editar`, "onChange({ stickers: next })"),
   "logo.url": logo(`${LOGO} › Subir`, "logoCtl.setImage(publicUrl)"),
   "logo.anchorX": card(`${LIENZO} › logo`, "anchorX: latest.x"),
   "logo.anchorY": card(`${LIENZO} › logo`, "anchorY: latest.y"),

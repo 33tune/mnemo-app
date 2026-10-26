@@ -10,6 +10,7 @@
  * Nothing here is ever written back — the viewer never persists.
  */
 import type { CanvasState } from "@/types";
+import { stickersBounds } from "./stickerGeometry";
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
@@ -98,6 +99,12 @@ export function fitRoomToCard(state: CanvasState): MobileFit {
   let crop = clampTo(halo, reach);
   // Bottom of what is actually drawn there (the card and what it keeps).
   let contentBottom = cardRect.y + cardRect.h;
+  // The card's stickers (frames) are part of it: always fully in view.
+  const stuck = stickersBounds(card);
+  if (stuck) {
+    crop = union(crop, stuck);
+    contentBottom = Math.max(contentBottom, stuck.y + stuck.h);
+  }
   const keep = <T extends Boxed>(xs: T[], box: (e: T) => Rect = boxOf): T[] =>
     xs.filter(e => {
       const b = box(e);

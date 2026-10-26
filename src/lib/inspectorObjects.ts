@@ -18,7 +18,7 @@ import { effectState } from "./effectBinding";
 import { isCardGlowFlagVisible } from "./effectEditorDefaults";
 import { getProfileCardEffects } from "./profileCardEffects";
 
-export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText";
+export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers";
 
 export type ObjectKind = "role" | "block" | "card" | "all";
 /** Review r2: the list is a MAP of the card in three fixed clusters —
@@ -171,6 +171,13 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
       const label = n === 1 ? "1 activo" : `${n} activos`;
       return { text: `Efectos · ${label}`, spoken: label };
     } },
+  { id: "stickers", caption: "Stickers", placeholder: "Stickers", kind: "card", group: "card",
+    chip: ({ card }) => {
+      const list = card.stickers ?? [];
+      return list.length
+        ? { text: "Stickers", thumb: list[list.length - 1].src, spoken: list.length === 1 ? "1 sticker" : `${list.length} stickers` }
+        : { text: "Stickers", placeholder: true, emptyThumb: true };
+    } },
   { id: "allText", caption: "Todos los textos", shortCaption: "Textos", placeholder: "Aa", kind: "all", group: "card",
     chip: ({ baseColor, effective }) => ({ text: "Textos", sampleColor: baseColor, swatch: backgroundSwatch(effective), spoken: "" }) },
 ];
@@ -231,6 +238,7 @@ export function objectModified(id: ObjectId, card: ProfileCardData): boolean {
       const base = getProfileCardEffects({ ...card, effects: undefined });
       return differs(rest, base) || differs({ color: border?.color, width: border?.width, opacity: border?.opacity }, base.border);
     }
+    case "stickers": return (card.stickers?.length ?? 0) > 0;
     case "allText": return set(card.textColor) || set(card.textAlign) || set(card.monoLineHeight) || set(fx?.text);
     default:        return false;
   }
@@ -283,7 +291,7 @@ export function chipAccessibleName(obj: InspectorObject, data: ChipData, platfor
 export type PartGroupId = "card" | "profile" | "content";
 export interface PartGroup { id: PartGroupId; label: string; parts: readonly ObjectId[] }
 export const PART_GROUPS: readonly PartGroup[] = [
-  { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText"] },
+  { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText", "stickers"] },
   { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio", "about"] },
   { id: "content", label: "Contenido", parts: ["links", "buttons", "logo", "views"] },
 ];
@@ -333,6 +341,7 @@ export const OBJECT_FILES: Record<ObjectId, readonly string[]> = {
   cardBg:     [`${C}ProfileBackgroundMenu.tsx`, EFFECTS, `${C}ProfileConfigMenu.tsx`],
   cardFx:     [EFFECTS],
   allText:    [TYPOGRAPHY],
+  stickers:   [`${C}ProfileStickersMenu.tsx`],
 };
 export const CHILD_FILES: Record<string, readonly string[]> = {
   [TYPOGRAPHY]: [`${C}RoleTypographyFields.tsx`],

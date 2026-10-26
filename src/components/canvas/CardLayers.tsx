@@ -51,10 +51,13 @@ interface CardLayersProps {
   borderRadius: number;
   style?:       CSSProperties;
   className?:   string;
+  /** Card stickers behind / in front of the card (ProfileCard). */
+  back?:        React.ReactNode;
+  front?:       React.ReactNode;
 }
 
 export default function CardLayers({
-  cardId, effects, isSel, children, borderRadius, style,
+  cardId, effects, isSel, children, borderRadius, style, back, front,
 }: CardLayersProps) {
   useCardAnimations(cardId, effects);
 
@@ -218,6 +221,9 @@ export default function CardLayers({
           transform: "perspective(1000px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg))",
           willChange: "transform",
         }}>
+          {/* Card stickers behind the card (2026-10-27): inside the tilt /
+              hover-scale / floating wrappers, so they move with the card. */}
+          {back}
 
           {/* ── Layer 0a: Background fill (opacity-affected) ── */}
           <div style={{
@@ -326,6 +332,8 @@ export default function CardLayers({
               }} />
             </div>
           )}
+          {/* Card stickers in front of the card (above content and overlays). */}
+          {front}
         </div>
       </div>
     </div>

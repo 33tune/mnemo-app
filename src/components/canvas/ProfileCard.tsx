@@ -9,6 +9,8 @@ import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
+import { StickerLayer, StickerEditor, withPreview, type StickerPreview } from "./CardStickers";
+import { useStickerEditing } from "@/lib/stickerEditing";
 import { isEventFromNode } from "@/lib/editorGuards";
 import { resolveOpenerSpot } from "@/lib/openerPlacement";
 import { CanvasChromeButton } from "./CanvasChromeButton";
@@ -339,6 +341,16 @@ function ProfileCard({
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
   const effectiveEffects: CardEffects = getProfileCardEffects(card);
 
+  // Card stickers (2026-10-27): edit mode is Tarjeta › Stickers › Editar.
+  // While it is on, the card holds still (no floating / tilt / hover scale)
+  // so the handles sit exactly on the stickers.
+  const stickerEdit = useStickerEditing();
+  const editingStickers = !!canInteract && stickerEdit.cardId === card.id;
+  const [stickerPreview, setStickerPreview] = useState<StickerPreview | null>(null);
+  const layerEffects: CardEffects = editingStickers && effectiveEffects.animations?.floating
+    ? { ...effectiveEffects, animations: { ...effectiveEffects.animations, floating: false } }
+    : effectiveEffects;
+
   const { onMouseMove: onInteractMove, onMouseEnter: onInteractEnter, onMouseLeave: onInteractLeave } =
     useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>, true);
   // Block 1 (panel <-> card pointer isolation): the config menu is portaled
@@ -352,9 +364,18 @@ function ProfileCard({
   // from mouseover containment: pointer reaching the panel = leave.
   const pointerInsideRef = useRef(false);
   const handleInteractMove = (e: React.MouseEvent) => {
+    if (editingStickers) return;
     if (isEventFromNode(cardRef.current, e.target)) onInteractMove(e);
   };
+  // Entering sticker edit mode resets tilt / hover (the card holds still).
+  useEffect(() => {
+    if (!editingStickers) { setStickerPreview(null); return; }
+    pointerInsideRef.current = false;
+    onInteractLeave();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingStickers]);
   const handleInteractOver = (e: React.MouseEvent) => {
+    if (editingStickers) return;
     const inside = isEventFromNode(cardRef.current, e.target);
     if (inside === pointerInsideRef.current) return;
     pointerInsideRef.current = inside;
@@ -1144,6 +1165,8 @@ function ProfileCard({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  const shownStickers = withPreview(card.stickers ?? [], editingStickers ? stickerPreview : null, card.w, renderH);
+
   return (
     <>
       <div
@@ -1173,8 +1196,10 @@ function ProfileCard({
         }}
       >
         <CardLayers
-          cardId={card.id} effects={effectiveEffects} isSel={isSel}
+          cardId={card.id} effects={layerEffects} isSel={isSel}
           borderRadius={rad}
+          back={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} front={false} />}
+          front={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} front />}
         >
           <div style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden" }}>
             {/* bg overlay tint for image cards */}
@@ -1218,6 +1243,13 @@ function ProfileCard({
             // never closes it (CanvasBoard, editor selection).
             onActivate={() => onEditActivate?.(card.id)}
           />
+        )}
+
+        {/* ── Sticker edit mode (Tarjeta › Stickers › Editar) ── */}
+        {editingStickers && (
+          <StickerEditor stickers={card.stickers ?? []} cardW={card.w} cardH={renderH}
+            onPreview={setStickerPreview}
+            onCommit={stickers => updateProfile(card.id, { stickers })} />
         )}
 
         {/* ── Resize handles ── */}

@@ -326,6 +326,19 @@ export type CanvasMedia = {
 
 // ── Profile Card — identity only ─────────────────────────────────────────────
 
+export type CardSticker = {
+  id:        string;
+  src:       string;
+  x:         number;
+  y:         number;
+  w:         number;
+  aspect:    number;
+  rotation?: number; // degrees
+  front?:    boolean;
+  opacity?:  number; // 0-1, default 1
+  hidden?:   boolean;
+};
+
 export type ProfileCardData = {
   id:              string;
   userId?:         string;
@@ -430,6 +443,14 @@ export type ProfileCardData = {
                         // implicitly z-index 0, DOM-order-stacked) —
                         // negative = behind, positive = in front
   };
+  // Stickers (2026-10-27): images / GIFs stuck to the card — frames above
+  // all. Decorative only: never clickable outside their edit mode, they move
+  // with the card's floating / tilt / hover scale. Order = paint order
+  // (first = bottom); `front` puts one above the card, else behind it.
+  // Geometry is relative to the card (stickerGeometry.ts) so stickers follow
+  // its size: x / y = top-left as a fraction of the card's width / height,
+  // w = width as a fraction of the card's width, aspect = height / width.
+  stickers?: CardSticker[];
   // Identity
   photo:           string;
   name:            string;

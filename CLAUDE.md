@@ -146,9 +146,18 @@ planeado acá hasta confirmarlo.
 > **Ideas del usuario para trabajar después (2026-10-26, no implementar sin OK):**
 > - ~~**Bug:** borrar una imagen y deshacer la dejaba invisible~~ ARREGLADO (2026-10-26): el editor borraba el archivo del
 >   storage al instante; ya no (los huérfanos van a `queueOrphanedAssets`).
-> - **Marcos de la card:** imágenes pegadas a la ProfileCard, por delante o por detrás, que hereden sus efectos (tilt,
->   agrandar al pasar, rebote/flotación) y sirvan de marco o de decoración. Cuando existan, el recorte mobile pasa a
-  usarlos en vez del halo geométrico.
+> - ~~**Marcos de la card**~~ HECHO como **Stickers** (2026-10-27, ver abajo).
+>
+>   **Stickers (2026-10-27, decisión del usuario):** Tarjeta › Stickers (`card.stickers`, máx. 8). Imágenes/GIFs pegados
+>   a la card, dibujados dentro de las capas de flotación / agrandar / inclinación de `CardLayers` (`back` / `front`),
+>   así se mueven con ella; NO heredan borde/sombra/brillo/retro. Siempre fantasmas (`pointerEvents: none`). Geometría
+>   relativa a la card (`stickerGeometry.ts`: x/y fracción de ancho/alto, w fracción del ancho, `aspect`), pueden salir
+>   hasta 25 % por lado. Menú (`ProfileStickersMenu.tsx`): Agregar sticker, **Editar / Aplicar** (store
+>   `stickerEditing.ts`; salir de la sección aplica) y lista por capas con la fila "Tarjeta": arriba = delante, abajo =
+>   detrás (arrastrar o Alt+flechas), ocultar y borrar. Edición en la card (`CardStickers.tsx` › `StickerEditor`): área
+>   punteada, elegir (Mayús suma), mover juntos, escalar desde una esquina, rotar (Mayús = 15°), Supr borra, flechas
+>   mueven, Enter/Esc aplican; la card queda quieta y no responde; cada gesto = un paso de deshacer. El recorte mobile
+>   incluye siempre los stickers (`mobileFit.ts`).
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

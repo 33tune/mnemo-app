@@ -80,3 +80,11 @@ test("rotatedBox keeps the center", () => {
   const r = rotatedBox({ x: 0, y: 0, w: 100, h: 50 }, 90);
   assert.ok(Math.abs(r.w - 50) < 1e-9 && Math.abs(r.h - 100) < 1e-9 && Math.abs(r.x - 25) < 1e-9);
 });
+
+test("the card's stickers are always fully in the crop", () => {
+  const withFrame = { ...(card as object), stickers: [{ id: "f", src: "https://x/f.png", x: -0.24, y: -0.24, w: 1.48, aspect: 1.2, front: true }] } as never;
+  const fit = fitRoomToCard(base({ profiles: [withFrame] }));
+  const left = 800 - 0.24 * 300, top = 300 - 0.24 * 400, right = left + 1.48 * 300, bottom = top + 1.48 * 300 * 1.2;
+  assert.ok(fit.crop.x <= left && fit.crop.y <= top, JSON.stringify(fit.crop));
+  assert.ok(fit.crop.x + fit.crop.w >= right - 1e-9 && fit.crop.y + fit.crop.h >= bottom - 1e-9, JSON.stringify(fit.crop));
+});

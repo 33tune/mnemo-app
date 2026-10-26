@@ -46,7 +46,7 @@ test("part picker: groups (Tarjeta / Perfil / Contenido), every part of the grou
   assert.ok(LIST.includes("{group.parts.map(p => {"), "only the active group's parts; never a scrolling row");
   assert.ok(LIST.includes("onSelect(lastInGroup.current[g.id] ?? g.parts[0]);"), "a group opens its last used part");
   assert.deepEqual(PART_GROUPS.map(g => [g.label, g.parts]), [
-    ["Tarjeta", ["cardBg", "cardFx", "allText"]],
+    ["Tarjeta", ["cardBg", "cardFx", "allText", "stickers"]],
     ["Perfil", ["photo", "name", "handle", "descriptor", "location", "bio", "about"]],
     ["Contenido", ["links", "buttons", "logo", "views"]],
   ]);

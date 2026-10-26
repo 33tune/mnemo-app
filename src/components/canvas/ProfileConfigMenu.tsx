@@ -12,6 +12,7 @@ import ProfileMetadataMenu, { type MetadataPart } from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
 import ProfileLinkButtonsMenu from "./ProfileLinkButtonsMenu";
 import ProfileLogoMenu from "./ProfileLogoMenu";
+import ProfileStickersMenu from "./ProfileStickersMenu";
 import { RoleTextSection, GlobalTextSection } from "./ProfileTypographyMenu";
 import ProfileBackgroundMenu from "./ProfileBackgroundMenu";
 import { CardCornersSection, CardEffectsSection } from "./ProfileEffectsMenu";
@@ -145,6 +146,9 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
   ],
   logo: [
     { key: "logo", num: N1, render: c => <ProfileLogoMenu logo={c.card.logo} onChange={c.onChange} /> },
+  ],
+  stickers: [
+    { key: "stickers", num: N1, render: c => <ProfileStickersMenu card={c.card} onChange={c.onChange} /> },
   ],
   cardBg: [
     { key: "bg", render: c => <ProfileBackgroundMenu effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)} /> },
