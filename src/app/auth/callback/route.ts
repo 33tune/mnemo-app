@@ -1,10 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { isClaimableHandle, safeNextPath } from "@/lib/handles";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // Only a path on this site: `${origin}${next}` with next="@evil.com" would
+  // send the user to another host (open redirect).
+  const next = safeNextPath(searchParams.get("next"));
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=auth`);
@@ -34,7 +37,7 @@ export async function GET(request: Request) {
     // user's metadata — create the profile with it (onboarding done). If it
     // was taken meanwhile, fall through to the temp profile + /setup.
     const claimed = String(user.user_metadata?.handle ?? "").toLowerCase();
-    if (/^[a-z0-9_-]{3,20}$/.test(claimed) && !claimed.startsWith("temp_")) {
+    if (isClaimableHandle(claimed)) {
       const { error: claimErr } = await supabase.from("profiles").insert({
         user_id:              user.id,
         handle:               claimed,

@@ -36,6 +36,7 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { mobileFitScale, MOBILE_GUTTER, type MobileFit } from "@/lib/mobileFit";
+import { safeTextHtml, storedTextToPlain } from "@/lib/safeText";
 import { analytics } from "@/lib/analytics";
 import { CANVAS_FONTS, getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
 import { SELECTION_Z_BOOST, GROUP_BOUNDS_Z } from "@/lib/canvasZIndex";
@@ -3707,8 +3708,8 @@ export default function CanvasBoard({
               onClick={e=>{if(isEdit)e.stopPropagation();}}
               onMouseDown={e=>{if(isEdit)e.stopPropagation();}}
               style={{fontFamily:getFontStyle(txt.font),fontSize:txt.size,color:txt.color,opacity:txt.opacity,letterSpacing:txt.letterSpacing,textTransform:txt.uppercase?"uppercase":"none",lineHeight:1.15,whiteSpace:"pre-wrap",wordBreak:"break-word",overflowWrap:"break-word",outline:isEdit?"1px dashed rgba(255,255,255,0.2)":"none",outlineOffset:6,padding:"2px 0",cursor:isEdit?"text":"grab",minWidth:4} as React.CSSProperties}
-              dangerouslySetInnerHTML={isEdit ? undefined : { __html: txt.content }}
-              ref={el=>{if(el&&isEdit&&el.innerText!==txt.content){el.innerText=txt.content;}}}
+              dangerouslySetInnerHTML={isEdit ? undefined : { __html: safeTextHtml(txt.content) }}
+              ref={el=>{if(el&&isEdit){const plain=storedTextToPlain(txt.content);if(el.innerText!==plain)el.innerText=plain;}}}
             />
             {/* Phase G: "Editar texto" opens the text inspector (content, font,
                 size, letter spacing, uppercase, color, opacity — the old
