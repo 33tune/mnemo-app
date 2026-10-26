@@ -1173,6 +1173,7 @@ function ProfileCard({
     <>
       <div
         ref={cardRef}
+        data-profile-card=""
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
         onMouseDownCapture={e => { partDownRef.current = { x: e.clientX, y: e.clientY, wasSelected: isSel }; }}
         onClick={e => {

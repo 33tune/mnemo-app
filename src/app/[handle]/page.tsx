@@ -82,8 +82,10 @@ export default async function PublicPage({
   // Visitors see the last PUBLISHED snapshot, never the working copy
   // (publishedState.ts; rows never published since show their data).
   // The room is one screen (roomBounds.ts): the old scroll's leftovers are not drawn.
-  const state = dropOutsideRoom(withLists(publicStateOf(canvas.data)));
-  // Phones: the same renderer as desktop, cropped around the card (mobileFit.ts).
+  const room = dropOutsideRoom(withLists(publicStateOf(canvas.data)));
+  // Music players are out of the app (2026-10-27): only the room's own music.
+  const state = { ...room, musicCards: [] };
+  // Phones: the same renderer as desktop, the card alone (mobileFit.ts).
   const fit = isMobileUA ? fitRoomToCard(state) : null;
 
   return (

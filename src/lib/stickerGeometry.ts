@@ -117,7 +117,7 @@ export function moveRow(stickers: readonly CardSticker[], id: string, to: number
 }
 
 /** The space the visible stickers take, in ROOM coordinates (rotation
- * included) — the phone view crops around it (mobileFit.ts). */
+ * included) — the phone view fits it (mobileFit.ts). */
 export function stickersBounds(card: { x: number; y: number; w: number; h: number; stickers?: CardSticker[] }): Rect | null {
   let out: Rect | null = null;
   for (const st of card.stickers ?? []) {

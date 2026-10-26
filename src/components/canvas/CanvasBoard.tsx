@@ -35,7 +35,7 @@ import { trackRender } from "@/lib/perfDebug";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { mobileView, type MobileFit } from "@/lib/mobileFit";
+import { mobileView, cardViewRect, type MobileFit } from "@/lib/mobileFit";
 import { desktopViewFit, dropOutsideRoomElements } from "@/lib/roomBounds";
 import { safeTextHtml, storedTextToPlain } from "@/lib/safeText";
 import { withPublished, hasUnpublishedChanges } from "@/lib/publishedState";
@@ -439,7 +439,7 @@ export default function CanvasBoard({
   ownerUserId?: string;
   /** Phones (public view only): show this crop of the room around the card
    * (mobileFit.ts) instead of the whole room. */
-  mobileFit?: Pick<MobileFit, "crop" | "card">;
+  mobileFit?: Pick<MobileFit, "card">;
 }) {
   const [wallpaper,            setWallpaper]            = useState("");
   const [wallpaperLoaded,      setWallpaperLoaded]      = useState(true);
@@ -594,7 +594,7 @@ export default function CanvasBoard({
   // ── Public view: one screen, never a scroll (2026-10-27) ──
   // Desktop: the card centered under the bar, at real size unless it doesn't
   // fit, with the room around it as the owner placed it (roomBounds.ts).
-  // Phones: the crop around the card (mobileFit.ts). Measured after mount —
+  // Phones: the card alone, filling the screen (mobileFit.ts). Measured after mount —
   // the server can't know the screen and a hydrated style keeps the server's
   // values — so the view stays hidden until then.
   const [viewerScreen, setViewerScreen] = useState<{ w: number; h: number } | null>(null);
@@ -605,11 +605,24 @@ export default function CanvasBoard({
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [canEdit]);
+  // Phones: the card as it is really drawn there (its content may need more
+  // than the stored h) — measured, so nothing of it or its stickers is cut.
+  const [mobileCardH, setMobileCardH] = useState<number | null>(null);
+  useEffect(() => {
+    if (!mobileFit || !viewerScreen) return;
+    const el = canvasWrapperRef.current?.querySelector<HTMLElement>("[data-profile-card]");
+    if (!el) { setMobileCardH(-1); return; }
+    const read = () => setMobileCardH(el.offsetHeight);
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mobileFit, viewerScreen]);
   const viewFit = !canEdit ? (() => {
     const vw = viewerScreen?.w ?? 1440, vh = viewerScreen?.h ?? 900;
     const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
     const fit = mobileFit
-      ? mobileView(vw, vh, mobileFit)
+      ? mobileView(vw, vh, card && mobileCardH && mobileCardH > 0 ? cardViewRect(card, mobileCardH) : mobileFit.card)
       : desktopViewFit(vw, vh, card ? { x: card.x, y: card.y, w: card.w, h: card.h } : null);
     // The wrapper holds every element (it is never scrolled, only moved).
     let roomW = vw, roomH = vh;
@@ -618,11 +631,7 @@ export default function CanvasBoard({
       roomW = Math.max(roomW, b.x + (b.w ?? 200));
       roomH = Math.max(roomH, b.y + (b.h ?? 200));
     }
-    const c = mobileFit?.crop;
-    return {
-      ready: !!viewerScreen, vw, vh, ...fit, roomW, roomH,
-      clip: c ? `inset(${c.y}px ${Math.max(0, roomW - c.x - c.w)}px ${Math.max(0, roomH - c.y - c.h)}px ${c.x}px)` : undefined,
-    };
+    return { ready: !!viewerScreen && (!mobileFit || mobileCardH != null), vw, vh, ...fit, roomW, roomH };
   })() : null;
   // The effective canvas width for edit mode and animation center calculations
   const viewerW = viewFit ? viewFit.roomW : effectiveW;
@@ -2521,6 +2530,9 @@ export default function CanvasBoard({
         // (saved without it from the next save on; the public page never
         // draws it either).
         newElements = dropOutsideRoomElements(newElements);
+        // Music players are out of the app (2026-10-27): the room's own
+        // music (Tu sala › Ambiente) is the only music. Saved without them.
+        newElements = newElements.filter(e => e.elementType !== "music");
         newElements = normalizeElementsToBounds(newElements, { w: viewportW, h: viewportH, topOffset: 44 });
       }
 
@@ -2802,28 +2814,6 @@ export default function CanvasBoard({
       isPublic: inSpace ? true : undefined,
     };
     enqueueOp({ type: "add_media", media: m });
-    setSelectedIds(new Set([m.id]));
-    setMenuOpen(false);
-  }
-
-  // Product closeout (Parte 3): Music is now creatable again as its own
-  // independent canvas element — reuses the exact generic top-level element
-  // engine addLinksCard/addMedia already use (add_music op, zCounter,
-  // viewCenter/clampToViewport), not a new system. Content is the real
-  // self-hosted MP3 player (MusicCardWidget.tsx/ProfileMusicPlayer.tsx), no
-  // longer participating in ProfileCard's composition/growth.
-  function addMusicCard() {
-    if (!canInteract) return;
-    zCounter.current += 1;
-    const vc = viewCenter();
-    const { x: mx, y: my } = clampToViewport(vc.x + (Math.random() - 0.5) * 300, vc.y + (Math.random() - 0.5) * 200, 220, 64);
-    const m: MusicCardData = {
-      id: crypto.randomUUID(), x: mx, y: my,
-      w: 220, h: 64, zIndex: zCounter.current, layer: 1, depth: 0.5, rotation: 0,
-      audioUrl: "",
-      isPublic: inSpace ? true : undefined,
-    };
-    enqueueOp({ type: "add_music", music: m });
     setSelectedIds(new Set([m.id]));
     setMenuOpen(false);
   }
@@ -3570,7 +3560,7 @@ export default function CanvasBoard({
         // height, not the old fixed CANVAS_H — no vertical scroll. Public view and
         // space_mobile editing keep the original CANVAS_H-based sizing untouched.
         ...(viewFit
-          ? { height: viewFit.roomH, clipPath: viewFit.clip }
+          ? { height: viewFit.roomH }
           : canEdit && canvasMode !== "space_mobile"
           ? { height: effectiveH, minHeight: effectiveH }
           : { minHeight: CANVAS_H }),
@@ -4303,7 +4293,6 @@ export default function CanvasBoard({
             // hint. Same handlers.
             {label:"Texto",  sub:"Título, frase, lo que quieras", icon:"text" as IconName,  fn:()=>{setAddingText(true);      closeAddMenu();}},
             {label:"Imagen", sub:"Foto, logo o GIF",              icon:"image" as IconName, fn:()=>{imageRef.current?.click();closeAddMenu();}},
-            {label:"Music",  sub:"Un reproductor con tu canción", icon:"music" as IconName, fn:()=>{addMusicCard();           closeAddMenu();}},
           ].map(item=>(
             <button key={item.label} type="button" className="mn-glassmenu__item mn-addmenu__item" onClick={item.fn}>
               <span className="mn-addmenu__well" aria-hidden><Icon name={item.icon} size={18} /></span>

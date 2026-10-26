@@ -166,7 +166,15 @@ planeado acá hasta confirmarlo.
 >   (`desktopViewFit`), la sala alrededor como la armó el dueño, cortada por la pantalla; la card NO se recentra según
 >   la pantalla de quien mira (su posición guardada). Celular: `mobileView` muestra todo el recorte si la card queda
 >   ≥ 80 % del tamaño que tendría llenando la pantalla; si no, la card (con sus stickers) llena la pantalla; centrado,
->   sin scroll. **Stickers:** guardan `refW/refH` (tamaño de la card al acomodarlos); al cambiar la card, el centro
+>   sin scroll.
+>   **Celular = solo la card (2026-10-27, decisión del usuario):** reemplaza el recorte con halo y la regla del 80 %: el
+>   celular muestra SOLO la card y sus stickers (sin imágenes, textos sueltos, Music ni widgets viejos), lo más grande
+>   que entre (margen 16 px, tope 1,6×), centrada, sin `clip-path`. El alto es el que la card dibuja de verdad en el
+>   teléfono (`data-profile-card`, medido con ResizeObserver; puede superar `card.h`), así nada se corta
+>   (`mobileFit.ts` › `cardViewRect` + `mobileView`).
+>   **Music fuera de la app (2026-10-27, decisión del usuario):** la única música es la de la sala (Tu sala › Ambiente,
+>   `spaceMusic`). "Music" salió de Agregar; el editor saca los reproductores al cargar (se guarda sin ellos; sus MP3
+>   los limpia la limpieza diaria) y el perfil público no los dibuja. El código del widget queda sin entrada. **Stickers:** guardan `refW/refH` (tamaño de la card al acomodarlos); al cambiar la card, el centro
 >   conserva su lugar y el tamaño escala por el MENOR de los dos cambios, siempre dentro del área (antes crecían con el
 >   ancho y podían volverse gigantes).
 >
