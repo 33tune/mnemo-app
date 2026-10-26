@@ -35,7 +35,8 @@ import { trackRender } from "@/lib/perfDebug";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { mobileFitScale, MOBILE_GUTTER, type MobileFit } from "@/lib/mobileFit";
+import { mobileView, type MobileFit } from "@/lib/mobileFit";
+import { desktopViewFit, dropOutsideRoomElements } from "@/lib/roomBounds";
 import { safeTextHtml, storedTextToPlain } from "@/lib/safeText";
 import { withPublished, hasUnpublishedChanges } from "@/lib/publishedState";
 import { analytics } from "@/lib/analytics";
@@ -438,7 +439,7 @@ export default function CanvasBoard({
   ownerUserId?: string;
   /** Phones (public view only): show this crop of the room around the card
    * (mobileFit.ts) instead of the whole room. */
-  mobileFit?: Pick<MobileFit, "crop" | "focusX" | "cardW">;
+  mobileFit?: Pick<MobileFit, "crop" | "card">;
 }) {
   const [wallpaper,            setWallpaper]            = useState("");
   const [wallpaperLoaded,      setWallpaperLoaded]      = useState(true);
@@ -590,59 +591,41 @@ export default function CanvasBoard({
   // is bound to the live viewport height — no more scrolling past a fixed CANVAS_H.
   const effectiveH = canvasMode === "space_mobile" ? CANVAS_H : viewportH;
 
-  // ── Viewer scale — fits horizontally-visible content without global zoom-out ──
-  const [viewerScale,    setViewerScale]    = useState(1);
-  const [viewerContentW, setViewerContentW] = useState(0);
+  // ── Public view: one screen, never a scroll (2026-10-27) ──
+  // Desktop: the card centered under the bar, at real size unless it doesn't
+  // fit, with the room around it as the owner placed it (roomBounds.ts).
+  // Phones: the crop around the card (mobileFit.ts). Measured after mount —
+  // the server can't know the screen and a hydrated style keeps the server's
+  // values — so the view stays hidden until then.
+  const [viewerScreen, setViewerScreen] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    if (canEdit || mobileFit) return;
-    const compute = () => {
-      const vw = window.innerWidth;
-      if (elements.length === 0) { setViewerScale(1); setViewerContentW(vw); return; }
-      // Only account for elements whose LEFT edge is within the viewport.
-      // Elements at x >= vw were placed off-screen (legacy screen.width sizing bug)
-      // and should not force a global zoom-out — they stay hidden.
-      const candidates = elements.filter(el => (el as any).x < vw);
-      const maxRight = candidates.length > 0
-        ? candidates.reduce((m, el) => Math.max(m, (el as any).x + ((el as any).w ?? 200)), 0)
-        : vw;
-      // Canvas is at least as wide as the viewport so nothing shifts left
-      const contentW = Math.max(maxRight + 20, vw);
-      setViewerContentW(contentW);
-      setViewerScale(Math.min(vw / contentW, 1));
-    };
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
-  }, [canEdit, elements]);
-  // The effective canvas width for edit mode and animation center calculations
-  const viewerW = !canEdit && viewerContentW > 0 ? viewerContentW : effectiveW;
-  // Phones: the cropped room (mobileFit.ts), scaled to stay legible and
-  // centered on the card; vertically centered when it is shorter than the
-  // screen, scrolling otherwise.
-  // Measured after mount: the server cannot know the phone's width, and a
-  // hydrated style keeps the server's values — until then the view is hidden.
-  const [phoneScreen, setPhoneScreen] = useState<{ w: number; h: number } | null>(null);
-  useEffect(() => {
-    if (canEdit || !mobileFit) return;
-    const measure = () => setPhoneScreen({ w: window.innerWidth, h: window.innerHeight });
+    if (canEdit) return;
+    const measure = () => setViewerScreen({ w: window.innerWidth, h: window.innerHeight });
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [canEdit, mobileFit]);
-  const mobileView = !canEdit && mobileFit ? (() => {
-    const { crop, focusX, cardW } = mobileFit;
-    const vw = phoneScreen?.w ?? 390, vh = phoneScreen?.h ?? 700;
-    const s = mobileFitScale(vw, crop, cardW);
-    const h = crop.h * s;
-    const top = h + 2 * MOBILE_GUTTER < vh ? (vh - h) / 2 : MOBILE_GUTTER;
+  }, [canEdit]);
+  const viewFit = !canEdit ? (() => {
+    const vw = viewerScreen?.w ?? 1440, vh = viewerScreen?.h ?? 900;
+    const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
+    const fit = mobileFit
+      ? mobileView(vw, vh, mobileFit)
+      : desktopViewFit(vw, vh, card ? { x: card.x, y: card.y, w: card.w, h: card.h } : null);
+    // The wrapper holds every element (it is never scrolled, only moved).
+    let roomW = vw, roomH = vh;
+    for (const e of elements) {
+      const b = e as { x: number; y: number; w?: number; h?: number };
+      roomW = Math.max(roomW, b.x + (b.w ?? 200));
+      roomH = Math.max(roomH, b.y + (b.h ?? 200));
+    }
+    const c = mobileFit?.crop;
     return {
-      ready: !!phoneScreen, vw,
-      s, tx: vw / 2 - focusX * s, ty: top - crop.y * s,
-      docH: Math.max(vh, h + 2 * MOBILE_GUTTER),
-      roomW: crop.x + crop.w, roomH: crop.y + crop.h,
-      clip: `inset(${crop.y}px 0 0 ${crop.x}px)`,
+      ready: !!viewerScreen, vw, vh, ...fit, roomW, roomH,
+      clip: c ? `inset(${c.y}px ${Math.max(0, roomW - c.x - c.w)}px ${Math.max(0, roomH - c.y - c.h)}px ${c.x}px)` : undefined,
     };
   })() : null;
+  // The effective canvas width for edit mode and animation center calculations
+  const viewerW = viewFit ? viewFit.roomW : effectiveW;
 
   // Live ref assignments — always current by the time any event handler fires
   elementsRef.current    = elements;
@@ -2533,6 +2516,11 @@ export default function CanvasBoard({
       // untouched. Never removes elements, only repositions the ones that fall
       // outside; x only moves if it's actually invalid.
       if (canvasModeRef.current !== "space_mobile") {
+        // No scroll (2026-10-27): what lies entirely outside the room around
+        // the card (roomBounds.ts) is the old scroll's leftovers — dropped
+        // (saved without it from the next save on; the public page never
+        // draws it either).
+        newElements = dropOutsideRoomElements(newElements);
         newElements = normalizeElementsToBounds(newElements, { w: viewportW, h: viewportH, topOffset: 44 });
       }
 
@@ -3432,6 +3420,8 @@ export default function CanvasBoard({
       minHeight: "100vh",
       width: "100%",
       overflowX: "hidden",
+      // Public view: one screen, never a scroll (2026-10-27).
+      ...(!canEdit ? { height: "100dvh", overflow: "hidden" } : {}),
       display: "flex", alignItems: "flex-start",
       cursor: addingText?"text":rotating?"crosshair":creatingCard?"crosshair":dragging?"grabbing":(spaceCursor?.url?`url(${spaceCursor.url}) 0 0, auto`:"default"),
       fontFamily: spaceFont ? `"${spaceFont.name}", ${SANS}` : SANS,
@@ -3540,15 +3530,10 @@ export default function CanvasBoard({
         position: "relative", zIndex: 1, flexShrink: 0,
       }}>
       {/* ── Viewer scale wrapper: reserves correct document-flow dimensions while canvas is CSS-scaled ── */}
-      <div suppressHydrationWarning style={mobileView ? {
-        width: mobileView.vw, height: mobileView.docH, position: "relative", flexShrink: 0, overflow: "hidden",
-        visibility: mobileView.ready ? undefined : "hidden",
-      } : !canEdit ? {
-        width: viewerContentW > 0 ? viewerW * viewerScale : "100%",
-        minHeight: CANVAS_H * viewerScale,
-        position: "relative",
-        flexShrink: 0,
-        overflow: "visible",
+      <div suppressHydrationWarning style={viewFit ? {
+        // One screen, never a scroll: exactly the viewport, nothing past it.
+        width: viewFit.vw, height: viewFit.vh, position: "relative", flexShrink: 0, overflow: "hidden",
+        visibility: viewFit.ready ? undefined : "hidden",
       } : { display: "contents" }}>
       {canEdit && (
         <>
@@ -3580,23 +3565,24 @@ export default function CanvasBoard({
         style={{
         position: !canEdit ? "absolute" : "relative",
         top: 0, left: 0,
-        width: mobileView ? mobileView.roomW : !canEdit ? viewerW : effectiveW,
+        width: viewFit ? viewFit.roomW : effectiveW,
         // Desktop editor (Stage 3B.4-C): the canvas is bound to the live viewport
         // height, not the old fixed CANVAS_H — no vertical scroll. Public view and
         // space_mobile editing keep the original CANVAS_H-based sizing untouched.
-        ...(mobileView
-          ? { height: mobileView.roomH, clipPath: mobileView.clip }
+        ...(viewFit
+          ? { height: viewFit.roomH, clipPath: viewFit.clip }
           : canEdit && canvasMode !== "space_mobile"
           ? { height: effectiveH, minHeight: effectiveH }
           : { minHeight: CANVAS_H }),
         zIndex: 1,
-        overflow: "hidden",
+        // Public view: the room moves under the screen (the screen clips it).
+        overflow: viewFit ? "visible" : "hidden",
         flexShrink: 0,
         // Phase 2 / Phase B: the inspector's VIEW offset (inspectorViewOffset.ts)
         // — a pure translate of the canvas (left beside the dock, up above
         // the bottom sheet); card.x/y are never written and every
         // pointer→canvas conversion reads this element's rect.
-        transform: mobileView ? `translate(${mobileView.tx}px,${mobileView.ty}px) scale(${mobileView.s})` : !canEdit ? `scale(${viewerScale})` : (viewDx || viewDy) ? `translate3d(${-viewDx}px,${-viewDy}px,0)` : undefined,
+        transform: viewFit ? `translate(${viewFit.tx}px,${viewFit.ty}px) scale(${viewFit.s})` : (viewDx || viewDy) ? `translate3d(${-viewDx}px,${-viewDy}px,0)` : undefined,
         transformOrigin: "top left",
         ...(!canEdit ? { animation: "land-reveal 0.18s ease both" } : {}),
       }}
@@ -3796,8 +3782,8 @@ export default function CanvasBoard({
           // effect no-ops), which keeps its own fixed py=160 from
           // addProfile() untouched — legacy mobile architecture stays out
           // of scope here.
-          viewportW={canvasMode==="space_mobile"||mobileFit?undefined:viewportW}
-          viewportH={canvasMode==="space_mobile"||mobileFit?undefined:viewportH}
+          viewportW={canvasMode==="space_mobile"?undefined:viewportW}
+          viewportH={canvasMode==="space_mobile"?undefined:viewportH}
           // Stage 4.2-C.2.5: derived from useDragDrop's own `resizing` state
           // (already destructured above, no second resize-state system) —
           // true exactly while THIS profile is being manually resized, so

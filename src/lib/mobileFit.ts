@@ -8,9 +8,15 @@
  * Pure: the public page hands the fitted state to the same CanvasBoard the
  * desktop viewer uses (same ProfileCard, effects and images), with the crop.
  * Nothing here is ever written back — the viewer never persists.
+ *
+ * No scroll (2026-10-27): the phone shows one screen — mobileView() fits the
+ * whole crop when the card stays legible, else the card fills the screen and
+ * what sticks out is cut; centered either way.
  */
 import type { CanvasState } from "@/types";
 import { stickersBounds } from "./stickerGeometry";
+import { rotatedBox, textBox as roomTextBox } from "./roomBounds";
+export { rotatedBox };
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
@@ -18,10 +24,8 @@ export interface MobileFit {
   state: CanvasState;
   /** The part of the room the phone shows, in room coordinates. */
   crop: Rect;
-  /** Horizontal center the view keeps on screen (the card's center). */
-  focusX: number;
-  /** The card's width (the legibility floor of the scale). */
-  cardW: number;
+  /** The card (what stays centered and legible). */
+  card: Rect;
 }
 
 /** Space kept around the card: what touches it belongs to the card. */
@@ -45,24 +49,9 @@ function clampTo(r: Rect, bounds: Rect): Rect {
   return { x, y, w: Math.min(r.x + r.w, bounds.x + bounds.w) - x, h: Math.min(r.y + r.h, bounds.y + bounds.h) - y };
 }
 
-/** The axis-aligned box of a rect rotated around its center. */
-export function rotatedBox(r: Rect, deg = 0): Rect {
-  if (!deg) return r;
-  const a = (deg * Math.PI) / 180, c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
-  const w = r.w * c + r.h * s, h = r.w * s + r.h * c;
-  return { x: r.x + r.w / 2 - w / 2, y: r.y + r.h / 2 - h / 2, w, h };
-}
-
 type Boxed = { x: number; y: number; w?: number; h?: number; rotation?: number; isPublic?: boolean };
 const boxOf = (e: Boxed): Rect => rotatedBox({ x: e.x, y: e.y, w: e.w ?? 200, h: e.h ?? 200 }, e.rotation ?? 0);
-/** Free text has no stored box: estimate it from its content and size. */
-function textBox(t: CanvasState["texts"][number]): Rect {
-  const plain = String(t.content ?? "").replace(/<[^>]*>/g, "");
-  const lines = plain.split(/\n/);
-  const longest = Math.max(1, ...lines.map(l => l.length));
-  const size = t.size || 16;
-  return rotatedBox({ x: t.x, y: t.y, w: longest * size * 0.6, h: lines.length * size * 1.3 }, t.rotation ?? 0);
-}
+const textBox = (t: CanvasState["texts"][number]): Rect => roomTextBox(t);
 
 /** Crop the public room around its card (see the file comment). */
 export function fitRoomToCard(state: CanvasState): MobileFit {
@@ -83,7 +72,7 @@ export function fitRoomToCard(state: CanvasState): MobileFit {
       ...music.map(boxOf),
     ];
     const crop = boxes.length ? boxes.reduce(union) : { x: 0, y: 0, w: 390, h: 600 };
-    return { state, crop, focusX: crop.x + crop.w / 2, cardW: crop.w };
+    return { state, crop, card: crop };
   }
 
   const cardRect: Rect = { x: card.x, y: card.y, w: card.w, h: card.h };
@@ -137,8 +126,8 @@ export function fitRoomToCard(state: CanvasState): MobileFit {
   return {
     state: { ...state, profiles: [card], images, texts, ...kept, musicCards: [...near, ...docked] },
     crop,
-    focusX,
-    cardW: cardRect.w,
+    // Its stickers are part of the card: when the card fills the screen they fit too.
+    card: stuck ? union(cardRect, stuck) : cardRect,
   };
 }
 
@@ -148,14 +137,18 @@ export const MOBILE_GUTTER = 16;
 export const MOBILE_MAX_SCALE = 1.3;
 
 /**
- * The scale of the cropped room on a screen `vw` wide. It fits the whole crop
- * when it can, but never shrinks the CARD below fitting the screen (or its
- * real size): the card stays legible and side decorations may run off the
- * edges instead. Pinch zoom stays available for anything smaller.
+ * How the phone shows the crop, without scroll: the whole crop when the card
+ * keeps at least LEGIBLE of the size it would have filling the screen;
+ * otherwise the card fills the screen (what sticks out is cut). Centered on
+ * what is shown. Never bigger than MOBILE_MAX_SCALE.
  */
-export function mobileFitScale(vw: number, crop: Rect, cardW: number): number {
-  const avail = Math.max(1, vw - 2 * MOBILE_GUTTER);
-  const fitCrop = avail / crop.w;
-  const floor = Math.min(1, avail / cardW);
-  return Math.min(MOBILE_MAX_SCALE, Math.max(fitCrop, floor));
+export const LEGIBLE = 0.8;
+export function mobileView(vw: number, vh: number, fit: Pick<MobileFit, "crop" | "card">): { s: number; tx: number; ty: number } {
+  const aw = Math.max(1, vw - 2 * MOBILE_GUTTER), ah = Math.max(1, vh - 2 * MOBILE_GUTTER);
+  const fitCrop = Math.min(aw / fit.crop.w, ah / fit.crop.h);
+  const fitCard = Math.min(aw / fit.card.w, ah / fit.card.h);
+  const whole = fitCrop >= fitCard * LEGIBLE;
+  const s = Math.min(MOBILE_MAX_SCALE, whole ? fitCrop : fitCard);
+  const focus = whole ? fit.crop : fit.card;
+  return { s, tx: vw / 2 - (focus.x + focus.w / 2) * s, ty: vh / 2 - (focus.y + focus.h / 2) * s };
 }

@@ -333,6 +333,11 @@ export type CardSticker = {
   y:         number;
   w:         number;
   aspect:    number;
+  /** The card's size when the sticker was last placed (stickerGeometry.ts):
+   * resizing the card scales the sticker by the SMALLER of the two changes,
+   * so it never balloons. Absent on stickers from before 2026-10-27. */
+  refW?:     number;
+  refH?:     number;
   rotation?: number; // degrees
   front?:    boolean;
   opacity?:  number; // 0-1, default 1

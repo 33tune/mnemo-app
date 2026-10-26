@@ -972,7 +972,9 @@ function ProfileCard({
   // a resize (Stage 4.2-C.2.5) or a block drag is active. space_mobile (no
   // viewport props): never writes (mobile legacy rule).
   useEffect(() => {
-    if (layout === "free" || viewportW == null || viewportH == null || drag) return;
+    // The public view (and any non-editing render) never recenters: the card
+    // keeps its saved place, the one its room was arranged around (2026-10-27).
+    if (!canInteract || layout === "free" || viewportW == null || viewportH == null || drag) return;
     if (!shouldApplyGrowth(isResizing)) return;
     const patch: Partial<ProfileCardData> = {};
     if (cardH !== card.h) patch.h = cardH;
@@ -981,7 +983,7 @@ function ProfileCard({
     if (cy !== card.y) patch.y = cy;
     if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, isResizing, drag, cardH, card.h, card.w, card.x, card.y, card.id, viewportW, viewportH]);
+  }, [canInteract, layout, isResizing, drag, cardH, card.h, card.w, card.x, card.y, card.id, viewportW, viewportH]);
 
   // Every block always has a place now (the card grows to fit), so the
   // inspector's "doesn't fit" notes only show for a layout that does not fit

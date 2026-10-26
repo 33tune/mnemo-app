@@ -3,11 +3,15 @@
  * above all. Pure geometry and ordering (tested); ProfileCard draws them and
  * edits them, Tarjeta › Stickers lists them by layer.
  *
- * Geometry is RELATIVE TO THE CARD so stickers follow its size: x / y = the
- * top-left as a fraction of the card's width / height, w = width as a
- * fraction of the card's width, aspect = height / width (never distorted).
- * They may stick out of the card, but only so far: STICKER_REACH of the
- * card's size on each side.
+ * Geometry is RELATIVE TO THE CARD: x / y = the top-left as a fraction of the
+ * card's width / height, w = width as a fraction of the card's width, aspect
+ * = height / width (never distorted) — all measured when the card was
+ * refW × refH. When the card's size changes, the sticker's CENTER keeps its
+ * place in the card and its size scales by the SMALLER of the two changes
+ * (a card made only wider leaves it as is — before 2026-10-27 it scaled with
+ * the width alone and could balloon). It may stick out of the card, but only
+ * so far: STICKER_REACH of the card's size per side — the drawn sticker is
+ * always kept inside that area.
  */
 import type { CardSticker } from "@/types";
 
@@ -19,15 +23,25 @@ export const STICKER_MIN_PX = 16;
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
-/** The sticker in px, relative to the card's top-left. */
+/** The sticker in px, relative to the card's top-left (always inside the area). */
 export function stickerRect(st: CardSticker, cardW: number, cardH: number): Rect {
-  const w = st.w * cardW;
-  return { x: st.x * cardW, y: st.y * cardH, w, h: w * (st.aspect > 0 ? st.aspect : 1) };
+  const refW = st.refW && st.refW > 0 ? st.refW : cardW;
+  const refH = st.refH && st.refH > 0 ? st.refH : cardH;
+  const aspect = st.aspect > 0 ? st.aspect : 1;
+  const w0 = st.w * refW, h0 = w0 * aspect;
+  // The center keeps its place in the card.
+  const cx = ((st.x * refW + w0 / 2) / refW) * cardW;
+  const cy = ((st.y * refH + h0 / 2) / refH) * cardH;
+  // Size: the smaller of the two changes, never past the area.
+  const s = Math.min(cardW / refW, cardH / refH);
+  const area = stickerArea(cardW, cardH);
+  const size = clampSize(w0 * s, aspect, area);
+  return clampIntoArea({ x: cx - size.w / 2, y: cy - size.h / 2, w: size.w, h: size.h }, area);
 }
 
-/** A px rect (card-relative) back into the stored fractions. */
-export function rectToSticker(r: Rect, cardW: number, cardH: number): Pick<CardSticker, "x" | "y" | "w" | "aspect"> {
-  return { x: r.x / cardW, y: r.y / cardH, w: r.w / cardW, aspect: r.w > 0 ? r.h / r.w : 1 };
+/** A px rect (card-relative) back into the stored fractions (measured now). */
+export function rectToSticker(r: Rect, cardW: number, cardH: number): Pick<CardSticker, "x" | "y" | "w" | "aspect" | "refW" | "refH"> {
+  return { x: r.x / cardW, y: r.y / cardH, w: r.w / cardW, aspect: r.w > 0 ? r.h / r.w : 1, refW: cardW, refH: cardH };
 }
 
 /** Where stickers may be: the card plus STICKER_REACH of its size per side. */

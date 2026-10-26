@@ -9,12 +9,32 @@ import {
 const st = (id: string, front: boolean, extra: Partial<CardSticker> = {}): CardSticker =>
   ({ id, src: `https://x/${id}.png`, x: 0, y: 0, w: 0.5, aspect: 1, front, ...extra });
 
-test("geometry is relative to the card and follows its size, never distorted", () => {
-  const s = st("a", true, { x: 0.1, y: 0.2, w: 0.5, aspect: 0.5 });
+test("geometry is relative to the card: same size, same rect; round trip", () => {
+  const s = st("a", true, { x: 0.1, y: 0.2, w: 0.5, aspect: 0.5, refW: 300, refH: 400 });
   assert.deepEqual(stickerRect(s, 300, 400), { x: 30, y: 80, w: 150, h: 75 });
-  assert.deepEqual(stickerRect(s, 600, 400), { x: 60, y: 80, w: 300, h: 150 }); // card twice as wide
   const back = rectToSticker({ x: 30, y: 80, w: 150, h: 75 }, 300, 400);
-  assert.deepEqual(back, { x: 0.1, y: 0.2, w: 0.5, aspect: 0.5 });
+  assert.deepEqual(back, { x: 0.1, y: 0.2, w: 0.5, aspect: 0.5, refW: 300, refH: 400 });
+});
+
+test("resizing the card never balloons a sticker (bug 2026-10-27)", () => {
+  const s = st("a", true, { x: 0.1, y: 0.2, w: 0.5, aspect: 0.5, refW: 300, refH: 400 });
+  // only wider: same size, center keeps its place in the card
+  const wide = stickerRect(s, 640, 400);
+  assert.equal(wide.w, 150);
+  assert.equal(wide.x + wide.w / 2, ((30 + 75) / 300) * 640);
+  // both bigger: scales by the smaller change
+  const big = stickerRect(s, 600, 600);
+  assert.equal(big.w, 150 * 1.5);
+  // a frame as big as the area never gets past it, however the card changes
+  const frame = st("f", true, { x: -0.25, y: -0.25, w: 1.5, aspect: 1.5 * 400 / (1.5 * 300), refW: 300, refH: 400 });
+  for (const [w, h] of [[640, 400], [240, 900], [640, 900]] as const) {
+    const r = stickerRect(frame, w, h), area = stickerArea(w, h);
+    assert.ok(r.w <= area.w + 1e-9 && r.h <= area.h + 1e-9, `${w}x${h}`);
+    assert.ok(r.x >= area.x - 1e-9 && r.y >= area.y - 1e-9 && r.x + r.w <= area.x + area.w + 1e-9 && r.y + r.h <= area.y + area.h + 1e-9);
+  }
+  // old stickers (no ref): measured against the current card, kept inside the area
+  const old = stickerRect(st("o", true, { x: 0, y: 0, w: 3, aspect: 1 }), 300, 400);
+  assert.ok(old.w <= stickerArea(300, 400).w);
 });
 
 test("stickers may stick out of the card, but only STICKER_REACH of its size per side", () => {
@@ -61,7 +81,7 @@ test("dragging a row across the card row moves the sticker behind / in front", (
 });
 
 test("bounds in room coordinates (rotation included), hidden ones ignored", () => {
-  const card = { x: 100, y: 50, w: 200, h: 300, stickers: [st("a", true, { x: -0.1, y: -0.1, w: 0.5, aspect: 1 }), st("h", true, { hidden: true, x: 2 })] };
+  const card = { x: 100, y: 50, w: 200, h: 300, stickers: [st("a", true, { x: -0.1, y: -0.1, w: 0.5, aspect: 1, refW: 200, refH: 300 }), st("h", true, { hidden: true, x: 2 })] };
   assert.deepEqual(stickersBounds(card), { x: 80, y: 20, w: 100, h: 100 });
   const rot = stickersBounds({ ...card, stickers: [st("r", true, { x: 0, y: 0, w: 0.5, aspect: 1, rotation: 45 })] })!;
   assert.ok(rot.w > 100 && Math.abs(rot.w - rot.h) < 1e-9);

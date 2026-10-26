@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { CanvasState } from "@/types";
-import { fitRoomToCard, haloMargin, mobileFitScale, rotatedBox, MOBILE_GUTTER, MOBILE_MAX_SCALE } from "./mobileFit";
+import { fitRoomToCard, haloMargin, mobileView, rotatedBox, MOBILE_GUTTER, MOBILE_MAX_SCALE, LEGIBLE } from "./mobileFit";
 
 const base = (over: Partial<CanvasState>): CanvasState => ({
   cards: [], images: [], texts: [], galleries: [], profiles: [], medias: [], guestbooks: [], socialCards: [],
@@ -25,8 +25,7 @@ test("keeps the card and what touches its halo; drops the rest of the room", () 
   });
   const fit = fitRoomToCard(s);
   assert.deepEqual(fit.state.images.map((i: { id: string }) => i.id), ["frame", "near"]);
-  assert.equal(fit.focusX, 950);
-  assert.equal(fit.cardW, 300);
+  assert.deepEqual(fit.card, { x: 800, y: 300, w: 300, h: 400 });
   assert.ok(fit.crop.x <= 780 && fit.crop.x + fit.crop.w >= 1100 + m - 10);
 });
 
@@ -64,16 +63,23 @@ test("the source state is never mutated", () => {
   assert.equal(JSON.stringify(s), before);
 });
 
-test("scale: fits the crop, never shrinks the card below the screen, small cards grow up to the cap", () => {
-  const vw = 390, avail = vw - 2 * MOBILE_GUTTER;
-  // crop wider than the screen but the card fits: the card at its real size.
-  assert.equal(mobileFitScale(vw, { x: 0, y: 0, w: 600, h: 500 }, 340), 1);
-  // a big card: it fits the screen (smaller than 1).
-  assert.equal(mobileFitScale(vw, { x: 0, y: 0, w: 640, h: 500 }, 640), avail / 640);
-  // a small card and crop: grows, capped.
-  assert.equal(mobileFitScale(vw, { x: 0, y: 0, w: 200, h: 300 }, 200), MOBILE_MAX_SCALE);
-  // a small card inside a wider crop: the whole crop fits.
-  assert.equal(mobileFitScale(vw, { x: 0, y: 0, w: 320, h: 300 }, 240), avail / 320);
+test("no scroll: the whole crop when the card stays legible, else the card fills the screen; centered", () => {
+  const vw = 390, vh = 700, aw = vw - 2 * MOBILE_GUTTER, ah = vh - 2 * MOBILE_GUTTER;
+  const card = { x: 100, y: 100, w: 300, h: 500 };
+  // crop a bit bigger than the card: all of it fits, centered on it
+  const crop = { x: 80, y: 80, w: 340, h: 540 };
+  const a = mobileView(vw, vh, { crop, card });
+  assert.equal(a.s, Math.min(aw / crop.w, ah / crop.h));
+  assert.ok(Math.abs(a.tx + (crop.x + crop.w / 2) * a.s - vw / 2) < 1e-9 && Math.abs(a.ty + (crop.y + crop.h / 2) * a.s - vh / 2) < 1e-9);
+  assert.ok(crop.h * a.s <= ah + 1e-9 && crop.w * a.s <= aw + 1e-9, "never taller or wider than the screen");
+  // a crop much bigger than the card: the card fills the screen, centered on the card
+  const huge = { x: -500, y: -500, w: 1400, h: 1600 };
+  const b = mobileView(vw, vh, { crop: huge, card });
+  assert.equal(b.s, Math.min(aw / card.w, ah / card.h));
+  assert.ok(Math.min(aw / huge.w, ah / huge.h) < b.s * LEGIBLE);
+  assert.ok(Math.abs(b.ty + (card.y + card.h / 2) * b.s - vh / 2) < 1e-9);
+  // a tiny card never grows past the cap
+  assert.equal(mobileView(vw, vh, { crop: { x: 0, y: 0, w: 100, h: 100 }, card: { x: 0, y: 0, w: 100, h: 100 } }).s, MOBILE_MAX_SCALE);
 });
 
 test("rotatedBox keeps the center", () => {
@@ -87,4 +93,6 @@ test("the card's stickers are always fully in the crop", () => {
   const left = 800 - 0.24 * 300, top = 300 - 0.24 * 400, right = left + 1.48 * 300, bottom = top + 1.48 * 300 * 1.2;
   assert.ok(fit.crop.x <= left && fit.crop.y <= top, JSON.stringify(fit.crop));
   assert.ok(fit.crop.x + fit.crop.w >= right - 1e-9 && fit.crop.y + fit.crop.h >= bottom - 1e-9, JSON.stringify(fit.crop));
+  // when the card fills the screen, its stickers fit with it
+  assert.ok(fit.card.x <= left + 1e-9 && fit.card.y <= top + 1e-9, JSON.stringify(fit.card));
 });

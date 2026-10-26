@@ -159,6 +159,17 @@ planeado acá hasta confirmarlo.
 >   mueven, Enter/Esc aplican; la card queda quieta y no responde; cada gesto = un paso de deshacer. El recorte mobile
 >   incluye siempre los stickers (`mobileFit.ts`).
 >
+>   **Sin scroll (2026-10-27, decisión del usuario):** la sala es UNA pantalla. Su área = 2560×1440 centrada en la card
+>   (`src/lib/roomBounds.ts`); lo que queda entero afuera son restos del scroll viejo (lienzo de 3000 px): el perfil
+>   público no lo dibuja (`dropOutsideRoom`) y el editor lo saca al cargar (`dropOutsideRoomElements`, se guarda sin eso
+>   en el próximo guardado). Vista pública de escritorio: la card centrada bajo la barra, tamaño real salvo que no entre
+>   (`desktopViewFit`), la sala alrededor como la armó el dueño, cortada por la pantalla; la card NO se recentra según
+>   la pantalla de quien mira (su posición guardada). Celular: `mobileView` muestra todo el recorte si la card queda
+>   ≥ 80 % del tamaño que tendría llenando la pantalla; si no, la card (con sus stickers) llena la pantalla; centrado,
+>   sin scroll. **Stickers:** guardan `refW/refH` (tamaño de la card al acomodarlos); al cambiar la card, el centro
+>   conserva su lugar y el tamaño escala por el MENOR de los dos cambios, siempre dentro del área (antes crecían con el
+>   ancho y podían volverse gigantes).
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
