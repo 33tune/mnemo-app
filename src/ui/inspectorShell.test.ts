@@ -52,7 +52,7 @@ test("Phase B (D2): ProfileCard no longer mounts the inspector — EditorHost do
   // Mounted once, at CanvasBoard level, OUTSIDE the transformed canvas wrapper.
   assert.equal((BOARD.match(/<EditorHost\b/g) ?? []).length, 1);
   const start = BOARD.indexOf("<div ref={canvasWrapperRef}");
-  const end = BOARD.indexOf("{showSignals && (", start);
+  const end = BOARD.indexOf("if(!cardMenuId||!cardMenuRect)return null;", start);
   assert.ok(!BOARD.slice(start, end).includes("<EditorHost"), "never inside the wrapper (its transform)");
 });
 
@@ -86,7 +86,7 @@ test("CanvasBoard: the view offset is a translate of the canvas wrapper, frozen 
 
 test("no position:fixed descendant inside the transformed canvas wrapper except the DROP overlay", () => {
   const start = BOARD.indexOf("<div ref={canvasWrapperRef}");
-  const end = BOARD.indexOf("{showSignals && (", start);
+  const end = BOARD.indexOf("if(!cardMenuId||!cardMenuRect)return null;", start);
   assert.ok(start > 0 && end > start);
   const region = BOARD.slice(start, end);
   const fixed = region.match(/position:\s*"fixed"/g) ?? [];
@@ -129,7 +129,7 @@ test("the facet tabs are gone as the entry point; role color rows say they inher
 
 test("r2: widgets rendered inside the transformed wrapper keep position:fixed boxes in a portal", () => {
   const start = BOARD.indexOf("<div ref={canvasWrapperRef}");
-  const region = BOARD.slice(start, BOARD.indexOf("{showSignals && (", start));
+  const region = BOARD.slice(start, BOARD.indexOf("if(!cardMenuId||!cardMenuRect)return null;", start));
   const used = new Set([...region.matchAll(/<([A-Z]\w+)/g)].map(m => m[1]));
   const imports = [...BOARD.matchAll(/import (\w+)(?:, \{[^}]*\})? from "\.\/(\w+)";/g)];
   let checked = 0;
@@ -184,7 +184,7 @@ test("Phase B review fixes: collapse only when the sheet hides the focus; FAB hi
   assert.ok(BOARD.includes('(inspectorCollapseReq === "focus" || (inspectorCollapseReq === "card" && inspView.covered))'));
   // B-UX-1: FAB + its menus hidden while the sheet is expanded (the trash still shows during a drag).
   assert.ok(BOARD.includes("const fabHidden = inspectorShown && sheetMode && !inspectorCollapsed;"));
-  assert.ok(BOARD.includes('view === "canvas" && (!fabHidden || isActive) && ('));
+  assert.ok(BOARD.includes('{!isReadOnly && (!fabHidden || isActive) && ('));
   assert.equal((BOARD.match(/menuOpen && !fabHidden/g) ?? []).length, 1, "Phase D: the MyLand submenu moved to Tu sala");
   assert.ok(BOARD.includes("if (fabHidden) setMenuOpen(false);"), "hidden menus are closed, not left open");
   assert.ok(!BOARD.includes("mnemo-myland-settings"), "Phase D: the MyLand panel left the + menu (Tu sala)");

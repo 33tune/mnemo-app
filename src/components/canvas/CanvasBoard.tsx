@@ -16,7 +16,6 @@ import LinksCardWidget from "./LinksCardWidget";
 import StatsCardWidget from "./StatsCardWidget";
 import MediaCardWidget from "./MediaCardWidget";
 import ResizeHandles from "./ResizeHandles";
-import { SocialDock } from "./SocialDock";
 import Topbar from "./Topbar";
 import CardMenu from "./CardMenu";
 import GalleryWidget from "./GalleryWidget";
@@ -31,14 +30,6 @@ import { uploadToStorage } from "@/lib/storage";
 import { queueOrphanedAssets } from "@/lib/storage/queueOrphanedAssets";
 import { bgImageStyle, detectBgModeFromFile } from "@/lib/bgStyle";
 import { splitPlacementPatch, mergeMobileState, filterHiddenDesktop, SHARED_WIDGET_KINDS } from "@/lib/mobileMerge";
-import { useChatWindows } from "@/hooks/useChatWindows";
-import { openOrCreateChat } from "@/lib/chat/openOrCreateChat";
-import ChatsWorkspace from "@/components/chats/ChatsWorkspace";
-import SocialPanelWindow from "@/components/social/SocialPanelWindow";
-import SocialView from "@/components/social/SocialView";
-import type { SocialPanelState } from "@/components/social/SocialPanelWindow";
-import NotificationsPanel from "@/components/notifications/NotificationsPanel";
-import { useNotifications } from "@/hooks/useNotifications";
 import { WidgetBoundary } from "@/components/error/WidgetBoundary";
 import { trackRender } from "@/lib/perfDebug";
 import { useOnboarding } from "@/hooks/useOnboarding";
@@ -454,14 +445,8 @@ export default function CanvasBoard({
   const [hiddenMap,        setHiddenMap]        = useState<HiddenMap>({});
   const [placementsMap,    setPlacementsMap]    = useState<PlacementMap>({});
   const [hovLayerKey,      setHovLayerKey]      = useState<string|null>(null);
-  const [view,             setView]             = useState<"canvas" | "browse" | "chats">("canvas");
-  const [totalUnread,      setTotalUnread]      = useState(0);
-  const [homeBg,           setHomeBg]           = useState<{ color: string; wallpaper: string; wallpaperLoaded: boolean }>({ color: "#0a0a0c", wallpaper: "", wallpaperLoaded: false });
   const [currentUserId,    setCurrentUserId]    = useState<string | undefined>(undefined);
   const [authResolved,     setAuthResolved]     = useState(false);
-  const [socialPanels,     setSocialPanels]     = useState<SocialPanelState[]>([]);
-  const socialZRef = useRef(5000);
-  const [showSignals,      setShowSignals]      = useState(false);
   const [elements,      setElements]      = useState<CanvasElement[]>([]);
   // Editor v3 Phase B (D1): ONE source of truth for the canvas selection and
   // for what the inspector edits (editorSelection.ts). `setSelectedIds`
@@ -490,8 +475,7 @@ export default function CanvasBoard({
   // `isSpaceCanvas` treat as editable/publishable ("Mobile View editing is
   // retired — 'space' is the only editable composition now", see
   // switchMode() below) — i.e. it IS MyLand. `"home"` is a real, separate,
-  // still-used concept (see `homeBg` below — it's the backdrop behind the
-  // Social/chats view), but it was never meant to be the canvas /dashboard
+  // separate canvas, but it was never meant to be the canvas /dashboard
   // lands on. It only looked that way while the Analytics tab defaulted to
   // covering the screen on mount regardless of which canvas sat underneath
   // it — removing that overlay (Product closeout phase) surfaced the fact
@@ -754,7 +738,7 @@ export default function CanvasBoard({
   // Editor v3 Phase D: the editor shell — the glass topbar (whenever the
   // owner edits the canvas) and the tool rail (wide viewports only: the
   // narrow layout of the design has none, the "+" stays a floating button).
-  const editorShell = canEdit && view === "canvas";
+  const editorShell = canEdit;
   const railShown = editorShell && canInteract && inspLayout.mode === "dock";
   const railW = railShown ? UIT.ui.size.railW : 0;
   /** "Tu sala" (target kind "room") is open. */
@@ -1016,7 +1000,7 @@ export default function CanvasBoard({
     };
   }, [spaceMusic?.url]);
 
-  // ── Auth — fetch once on mount so MESSAGE handler and chat hooks have userId ──
+  // ── Auth — fetch once on mount ──
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => {
       setCurrentUserId(user?.id ?? undefined);
@@ -1032,32 +1016,6 @@ export default function CanvasBoard({
       if (user?.id) {
         try { localStorage.removeItem(`mnemo-analytics-layout-${user.id}`); } catch { /* ignore */ }
       }
-      // Bug fix (2026-09-30): `homeBg` (the Social/chats view's backdrop —
-      // see its declaration) used to be populated only as a side-effect of
-      // the main load effect running with canvasMode==="home", back when
-      // "home" was the default/initial editing canvas. Now that the default
-      // is "space" (see canvasMode's declaration above), that condition
-      // would never fire and homeBg would stay stuck at its hardcoded
-      // fallback. Fetch it independently, once, exactly matching the scope
-      // it always had (owner-only — viewers never populated it either,
-      // since the whole canvas-load effect short-circuits to `initialState`
-      // for canEdit===false and never touches canvasMode/homeBg there).
-      if (canEdit && user?.id) {
-        createClient()
-          .from("canvases")
-          .select("data")
-          .eq("user_id", user.id)
-          .eq("type", "home")
-          .maybeSingle()
-          .then(({ data: row }) => {
-            const s = (row?.data ?? {}) as Partial<CanvasState>;
-            setHomeBg({
-              color:           s.bgColor   || "#0a0a0c",
-              wallpaper:       s.wallpaper || "",
-              wallpaperLoaded: !!s.wallpaper,
-            });
-          });
-      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1068,9 +1026,8 @@ export default function CanvasBoard({
     if (!authResolved || urlViewInitRef.current) return;
     urlViewInitRef.current = true;
     const v = new URLSearchParams(window.location.search).get("view");
-    if (v === "space") { setView("canvas"); handleModeChange("space"); }
-    else if (v === "space_mobile") { setView("canvas"); handleModeChange("space_mobile"); }
-    else if (v === "chats") setView("chats");
+    if (v === "space") handleModeChange("space");
+    else if (v === "space_mobile") handleModeChange("space_mobile");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authResolved]);
 
@@ -1079,12 +1036,6 @@ export default function CanvasBoard({
   const lastActivityWriteRef = useRef(0);
   const lastProfileWriteRef  = useRef(0);
   useEffect(() => { currentUserIdRef.current = currentUserId; }, [currentUserId]);
-
-  const { notifications, loading: notifsLoading, unreadCount, markAllRead } = useNotifications(currentUserId);
-
-  const {
-    windows: chatWindows, openWindow, closeWindow, minimizeWindow, focusWindow, updateWindow,
-  } = useChatWindows(currentUserId);
 
   const { showOnboarding, dismissOnboarding } = useOnboarding(canEdit, authResolved);
 
@@ -1313,7 +1264,7 @@ export default function CanvasBoard({
   // on the canvas). Returns true when it consumed the key.
   const canvasKeyRef = useRef<((e: KeyboardEvent) => boolean) | null>(null);
   canvasKeyRef.current = (e: KeyboardEvent) => {
-    if (view !== "canvas" || canvasMode === "space_mobile") return false;
+    if (canvasMode === "space_mobile") return false;
     if (dragging || resizing || rotating) return false;
 
     // Minimal keyboard selection (full object navigation: Iteration 1).
@@ -1654,11 +1605,9 @@ export default function CanvasBoard({
 
       case "set_bg":
         setBgColor(op.value);
-        if (canvasModeRef.current === "home") setHomeBg(h => ({ ...h, color: op.value }));
         break;
       case "set_wallpaper":
         setWallpaper(op.value); setWallpaperLoaded(true);
-        if (canvasModeRef.current === "home") setHomeBg(h => ({ ...h, wallpaper: op.value, wallpaperLoaded: true }));
         break;
       case "set_wallpaper_blur":       setWallpaperBlur(op.value);       break;
       case "set_wallpaper_brightness": setWallpaperBrightness(op.value); break;
@@ -1673,39 +1622,6 @@ export default function CanvasBoard({
         }));
         break;
     }
-  }
-
-  function openSocialPanel(uid: string, handle: string, mode: "followers" | "following") {
-    const existing = socialPanels.find(p => p.targetUserId === uid && p.mode === mode);
-    if (existing) {
-      socialZRef.current += 1;
-      setSocialPanels(prev => prev.map(p => p.id === existing.id ? { ...p, z: socialZRef.current } : p));
-      return;
-    }
-    socialZRef.current += 1;
-    setSocialPanels(prev => [...prev, {
-      id: crypto.randomUUID(),
-      targetUserId: uid,
-      targetHandle: handle,
-      mode,
-      x: 120 + Math.random() * 180,
-      y: 80  + Math.random() * 100,
-      z: socialZRef.current,
-    }]);
-  }
-
-  function closeSocialPanel(id: string) {
-    setSocialPanels(prev => prev.filter(p => p.id !== id));
-  }
-
-  function focusSocialPanel(id: string) {
-    socialZRef.current += 1;
-    const z = socialZRef.current;
-    setSocialPanels(prev => prev.map(p => p.id === id ? { ...p, z } : p));
-  }
-
-  function moveSocialPanel(id: string, x: number, y: number) {
-    setSocialPanels(prev => prev.map(p => p.id === id ? { ...p, x, y } : p));
   }
 
   function markActive(isProfileUpdate = false) {
@@ -2401,16 +2317,6 @@ export default function CanvasBoard({
         setSpaceCursor(s.spaceCursor);
       }
 
-      // Keep homeBg in sync — always reflects the HOME canvas background
-      if (canvasModeRef.current === "home") {
-        const s = (canvasRow?.data ?? {}) as Partial<CanvasState>;
-        setHomeBg({
-          color:           s.bgColor    || "#0a0a0c",
-          wallpaper:       s.wallpaper  || "",
-          wallpaperLoaded: !!(s.wallpaper),
-        });
-      }
-
       // Load only ops AFTER the snapshot (fast path when compaction ran)
       const { data: opsRows } = canvasRow?.updated_at
         ? await supabase
@@ -2646,36 +2552,8 @@ export default function CanvasBoard({
     setCanvasMode(newMode);
   }
 
-  // Wrapper: exiting browse/chats mode when switching HOME/MY LAND
   async function handleModeChange(newMode: CanvasMode) {
-    setView("canvas");
     await switchMode(newMode);
-  }
-
-  // MESSAGE button handler — open or focus a 1-to-1 chat, switch to chats workspace
-  async function handleMessage(targetHandle: string) {
-    if (!currentUserId) {
-      router.push("/login");
-      return;
-    }
-    if (!targetHandle) return;
-    try {
-      const sb = createClient();
-      const { data: targetProfile } = await sb
-        .from("profiles")
-        .select("user_id")
-        .eq("handle", targetHandle)
-        .maybeSingle();
-      if (!targetProfile?.user_id) return;
-      // Do not open a chat with yourself
-      if (targetProfile.user_id === currentUserId) return;
-      const chatId = await openOrCreateChat(currentUserId, targetProfile.user_id);
-      console.log("OPEN CHAT CLICK", chatId);
-      await openWindow(chatId);
-      setView("chats");
-    } catch (e) {
-      console.error("[handleMessage]", e);
-    }
   }
 
   async function handleLogout() {
@@ -3529,15 +3407,10 @@ export default function CanvasBoard({
         onBack={!canEdit && viewerLoggedIn ? () => router.push("/dashboard") : undefined}
         canvasMode={canEdit ? canvasMode : (viewerLoggedIn ? "space" : undefined)}
         onModeChange={canEdit
-          ? async (mode: CanvasMode) => { setView("canvas"); await handleModeChange(mode); }
+          ? async (mode: CanvasMode) => { await handleModeChange(mode); }
           : (viewerLoggedIn ? async (mode: CanvasMode) => { router.push(isSpaceCanvas(mode) ? `/dashboard?view=${mode}` : "/dashboard"); } : undefined)}
-        publishState={canEdit && isSpaceCanvas(canvasMode) && view === "canvas" ? publishState : undefined}
-        onPublish={canEdit && isSpaceCanvas(canvasMode) && view === "canvas" ? publishSpace : undefined}
-        isChats={view === "chats"}
-        onChats={canEdit ? () => setView("chats") : (viewerLoggedIn ? () => router.push("/dashboard?view=chats") : undefined)}
-        unreadChats={totalUnread}
-        unreadSignals={canEdit ? unreadCount : undefined}
-        onSignals={canEdit ? () => { if (!showSignals) markAllRead(); setShowSignals(s => !s); } : undefined}
+        publishState={canEdit && isSpaceCanvas(canvasMode) ? publishState : undefined}
+        onPublish={canEdit && isSpaceCanvas(canvasMode) ? publishSpace : undefined}
         editor={editorShell ? {
           path: `@${userHandle} / ${canvasMode === "home" ? "inicio" : canvasMode === "space_mobile" ? "my land · móvil" : "my land"}`,
           left: railW,
@@ -3578,7 +3451,7 @@ export default function CanvasBoard({
         </div>
       )}
 
-      {view==="canvas"&&(creatingCard||rotating||addingText)&&(
+      {(creatingCard||rotating||addingText)&&(
         <div style={{position:"fixed",top:editorShell?UIT.ui.size.editorTopbarH+12:58,left:"50%",transform:"translateX(-50%)",background:"rgba(10,10,12,0.92)",color:"rgba(255,255,255,0.4)",padding:"5px 14px",borderRadius:6,zIndex:700,fontFamily:MONO,fontSize:9,letterSpacing:2,textTransform:"uppercase",border:"1px solid rgba(255,255,255,0.06)",pointerEvents:"none"}}>
           {addingText?"click to place text":rotating?"rotating":"draw the area"}
         </div>
@@ -3605,7 +3478,7 @@ export default function CanvasBoard({
           }
         `}</style>
       )}
-      {view === "canvas" && (
+      {(
       <div suppressHydrationWarning style={{
         position: "relative", zIndex: 1, flexShrink: 0,
       }}>
@@ -3727,8 +3600,8 @@ export default function CanvasBoard({
         }} />
 
 
-      {view==="canvas"&&drawRectVis&&drawRectVis.w>0&&(<div style={{position:"absolute",left:drawRectVis.x,top:drawRectVis.y,width:drawRectVis.w,height:drawRectVis.h,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.02)",borderRadius:4,pointerEvents:"none",zIndex:600}} />)}
-      {view==="canvas"&&selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
+      {drawRectVis&&drawRectVis.w>0&&(<div style={{position:"absolute",left:drawRectVis.x,top:drawRectVis.y,width:drawRectVis.w,height:drawRectVis.h,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.02)",borderRadius:4,pointerEvents:"none",zIndex:600}} />)}
+      {selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
       {/* ── IMAGES ── */}
       {visImages.map((img,i)=>{
@@ -4096,7 +3969,7 @@ export default function CanvasBoard({
       })}
 
 
-      {view==="canvas"&&groupBounds&&!dragging&&!resizing&&!rotating&&(
+      {groupBounds&&!dragging&&!resizing&&!rotating&&(
         <div style={{position:"absolute",left:groupBounds.x-4,top:groupBounds.y-4,width:groupBounds.w+8,height:groupBounds.h+8,border:"1px dashed rgba(255,255,255,0.1)",borderRadius:6,pointerEvents:"none",zIndex:GROUP_BOUNDS_Z}}>
           <div onMouseDown={e=>startGroupResize(e,groupBounds)} style={{position:"absolute",bottom:-5,right:-5,width:10,height:10,borderRadius:"50%",background:"rgba(255,255,255,0.6)",cursor:"nwse-resize",border:"1.5px solid rgba(0,0,0,0.2)",pointerEvents:"all"}} />
         </div>
@@ -4119,38 +3992,8 @@ export default function CanvasBoard({
       </div>
       )}
 
-      {/* ── NOTIFICATIONS ── */}
-      {showSignals && (
-        <WidgetBoundary label="notifications">
-          <NotificationsPanel
-            notifications={notifications}
-            loading={notifsLoading}
-            onClose={() => setShowSignals(false)}
-          />
-        </WidgetBoundary>
-      )}
-
-      {/* ── SOCIAL PANELS ── */}
-      {socialPanels.map(panel => (
-        <WidgetBoundary key={panel.id} label="social-panel">
-          <SocialPanelWindow
-            id={panel.id}
-            targetUserId={panel.targetUserId}
-            targetHandle={panel.targetHandle}
-            mode={panel.mode}
-            x={panel.x}
-            y={panel.y}
-            z={panel.z}
-            currentUserId={currentUserId}
-            onClose={closeSocialPanel}
-            onFocus={focusSocialPanel}
-            onMove={moveSocialPanel}
-          />
-        </WidgetBoundary>
-      ))}
-
       {/* ── CARD MENU ── */}
-      {view==="canvas"&&(()=>{
+      {(()=>{
         if(!cardMenuId||!cardMenuRect)return null;
         const mc=cards.find(c=>c.id===cardMenuId);
         if(!mc)return null;
@@ -4158,7 +4001,7 @@ export default function CanvasBoard({
       })()}
 
       {/* ── GUESTBOOK MENU ── */}
-      {view==="canvas"&&(()=>{
+      {(()=>{
         if(!gbMenuId||!gbMenuRect)return null;
         const gb=guestbooks.find(g=>g.id===gbMenuId);
         if(!gb)return null;
@@ -4231,17 +4074,6 @@ export default function CanvasBoard({
         }}
       />
 
-      {/* ── Social dock — persistent across all views ── */}
-      {canEdit && (
-        <WidgetBoundary label="social-dock">
-          <SocialDock
-            currentUserId={currentUserId}
-            openWindow={openWindow}
-            totalUnread={totalUnread}
-          />
-        </WidgetBoundary>
-      )}
-
       {/* ── Inspector host (Editor v3 Phase B, D2) ── the one place the
           inspector mounts: driven by the editor selection, outside the
           transformed canvas wrapper (portal to <body>). */}
@@ -4250,7 +4082,7 @@ export default function CanvasBoard({
           the inspector closes. Editor chrome (never public),
           outside the canvas wrapper, centered in the visible area, above the
           sheet; visual only (the change is announced by role=status). */}
-      {view === "canvas" && canInteract && !!inspectorProfile && partNavShown && editorSel.target?.kind === "profile" && isPartRole(editorSel.target.objectId) && !(sheetMode && !inspectorCollapsed) && (
+      {canInteract && !!inspectorProfile && partNavShown && editorSel.target?.kind === "profile" && isPartRole(editorSel.target.objectId) && !(sheetMode && !inspectorCollapsed) && (
         <div data-mnemo-ui="" aria-hidden="true" className="mn-partpill"
           style={{
             left: sheetMode ? viewportW / 2 : railW + (viewportW - railW - (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin)) / 2,
@@ -4262,7 +4094,7 @@ export default function CanvasBoard({
           <span className="mn-partpill__key"><span className="mn-partpill__kbd">esc</span> volver</span>
         </div>
       )}
-      {view === "canvas" && inspectorEnabled && (canInteract || roomShown) && (
+      {inspectorEnabled && (canInteract || roomShown) && (
         <EditorHost
           target={editorSel.target}
           // Only a card that is actually rendered (same set ProfileCard maps over).
@@ -4369,7 +4201,7 @@ export default function CanvasBoard({
       {/* ── Trash FAB ── */}
       {/* Phase D: with the rail, only the trash shows here (during a drag);
           "+" lives in the rail. Narrow viewports keep the floating "+". */}
-      {!isReadOnly && view === "canvas" && (!fabHidden || isActive) && (!railShown || isActive) && (
+      {!isReadOnly && (!fabHidden || isActive) && (!railShown || isActive) && (
       <div ref={trashRef} style={{position:"fixed",bottom:20+fabLift,right:20+fabShift,zIndex:1000}}>
         {isActive?(
           <div style={{width:38,height:38,borderRadius:"50%",border:overTrash?"1px solid rgba(255,80,60,0.5)":"1px solid rgba(255,255,255,0.08)",background:overTrash?"rgba(255,50,30,0.15)":"rgba(10,10,12,0.9)",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)"}}>
@@ -4388,7 +4220,7 @@ export default function CanvasBoard({
       </div>
       )}
 
-      {!isReadOnly && view === "canvas" && menuOpen && !fabHidden && (
+      {!isReadOnly && menuOpen && !fabHidden && (
         // Block 2: restyled with the editor system (data-mnemo-ui = editor.css
         // styling scope only — NOT an editor root for editorGuards). Same
         // items, same handlers; Block 4 moves/reworks this chrome.
@@ -4478,24 +4310,6 @@ export default function CanvasBoard({
         </div>
       )}
 
-      {/* Global floating chat windows — always visible, no background */}
-      {canEdit && (
-        <WidgetBoundary label="chats">
-          <div style={{ position: "fixed", inset: 0, zIndex: 5000, pointerEvents: "none" }}>
-            <ChatsWorkspace
-              currentUserId={currentUserId}
-              windows={chatWindows}
-              openWindow={openWindow}
-              closeWindow={closeWindow}
-              minimizeWindow={minimizeWindow}
-              focusWindow={focusWindow}
-              updateWindow={updateWindow}
-              onUnreadChange={setTotalUnread}
-            />
-          </div>
-        </WidgetBoundary>
-      )}
-
       {/* ── First-visit onboarding ── */}
       {showOnboarding && (
         <OnboardingOverlay onDone={dismissOnboarding} />
@@ -4513,31 +4327,6 @@ export default function CanvasBoard({
           onError={() => {}}
         />
       )}
-
-      {/* Social hub view */}
-      {view === "chats" && (
-        <WidgetBoundary label="social-view">
-          <div style={{
-            position: "fixed", inset: 0, top: 44,
-            zIndex: 490,
-            backgroundColor: homeBg.color || "#0a0a0c",
-            ...(homeBg.wallpaper && homeBg.wallpaperLoaded ? {
-              backgroundImage: `url(${homeBg.wallpaper})`,
-              backgroundRepeat: "repeat",
-              backgroundSize: "auto",
-            } : {}),
-            display: "flex",
-            flexDirection: "column",
-          }}>
-            <SocialView
-              currentUserId={currentUserId}
-              openWindow={openWindow}
-              totalUnread={totalUnread}
-            />
-          </div>
-        </WidgetBoundary>
-      )}
-
 
     </div>
   );

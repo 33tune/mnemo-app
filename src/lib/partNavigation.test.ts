@@ -76,7 +76,7 @@ test("D5: the outline is editor-only (menuOpen = inspector open AND canInteract)
   assert.ok(CARD.includes("const menuOpen = inspectorOpen && !!canInteract;"));
   assert.ok(CARD.includes("prev.activePart        === next.activePart"));
   assert.ok(BOARD.includes('activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}'));
-  for (const f of ["src/components/canvas/PublicCanvas.tsx", "src/components/canvas/MobilePublicCanvas.tsx"]) {
+  for (const f of ["src/components/canvas/MobilePublicCanvas.tsx"]) {
     assert.ok(!read(f).includes("activePart"), `${f} never highlights`);
   }
 });
@@ -109,7 +109,7 @@ test("the 'Editando … · esc volver' pill: editor chrome, visual only, only wh
   assert.ok(BOARD.includes("canInteract && !!inspectorProfile && partNavShown &&"));
   assert.ok(BOARD.includes("editorSel.target.id === partNav.cardId && editorSel.target.objectId === partNav.role"));
   const wrapperStart = BOARD.indexOf("<div ref={canvasWrapperRef}");
-  const wrapperEnd = BOARD.indexOf("{showSignals && (", wrapperStart);
+  const wrapperEnd = BOARD.indexOf("if(!cardMenuId||!cardMenuRect)return null;", wrapperStart);
   assert.ok(i < wrapperStart || i > wrapperEnd, "not inside the transformed canvas wrapper");
   const css = read("src/ui/editor.css");
   assert.match(css, /\.mn-partpill \{[^}]*pointer-events: none/);

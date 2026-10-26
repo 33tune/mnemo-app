@@ -148,10 +148,6 @@
 :where([data-mnemo-ui]) .mn-topbar__btn:active { transform: scale(0.97); }
 :where([data-mnemo-ui]) .mn-topbar__btn[aria-disabled="true"] { opacity: 0.35; cursor: default; }
 :where([data-mnemo-ui]) .mn-topbar__btn[aria-disabled="true"]:hover { background: transparent; }
-:where([data-mnemo-ui]) .mn-topbar__count {
-  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 6px; display: inline-grid; place-items: center;
-  background: var(--ui-text-primary); color: var(--ui-surface-panel); font-family: var(--ui-font-mono); font-size: 11px; font-weight: 600;
-}
 :where([data-mnemo-ui]) .mn-topbar__publish {
   display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 15px; margin: 0 0 0 4px; border: none; border-radius: 12px;
   background: var(--ui-accent-brand); color: var(--ui-accent-brand-ink); cursor: pointer;
@@ -173,10 +169,6 @@
    — 44px targets, the rest under "Más" in an opaque menu. */
 :where([data-mnemo-ui]) .mn-topbar__btn--touch { position: relative; width: 44px; height: 44px; border-radius: 12px; }
 :where([data-mnemo-ui]) .mn-topbar__publish--touch { height: 44px; margin: 0; }
-:where([data-mnemo-ui]) .mn-topbar__dot {
-  position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--ui-accent-brand); box-shadow: 0 0 0 2px var(--ui-shell-glass-ink);
-}
 :where([data-mnemo-ui]) .mn-topbar__menu {
   position: absolute; top: calc(100% + 4px); right: 8px; width: 220px; padding: 4px; box-sizing: border-box;
   display: flex; flex-direction: column; gap: 2px; border-radius: 14px;
@@ -199,7 +191,6 @@
   :where([data-mnemo-ui]) .mn-topbar__publish, :where([data-mnemo-ui]) .mn-topbar__btn--text { border: 1px solid ButtonText; }
   :where([data-mnemo-ui]) .mn-topbar__menu { border: 1px solid CanvasText; }
   :where([data-mnemo-ui]) .mn-topbar__menu .mn-menuitem[aria-pressed="true"] { border: 1px solid Highlight; }
-  :where([data-mnemo-ui]) .mn-topbar__dot { forced-color-adjust: none; background: Highlight; box-shadow: none; }
 }
 
 /* Editor v3 Phase D: the tool rail (EditorRail.tsx). Liquid glass (L5, DS
@@ -338,7 +329,6 @@
   border: none; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; text-decoration: none;
   transition: background-color var(--ui-motion-fast) var(--ui-motion-ease), transform 280ms var(--ui-motion-spring);
 }
-:where([data-mnemo-ui]) .mn-gbtn .mn-topbar__dot { top: 7px; right: 7px; width: 7px; height: 7px; }
 :where([data-mnemo-ui]) .mn-gbtn:hover { background: var(--ui-shell-glass-btn); }
 :where([data-mnemo-ui]) .mn-gbtn:active { transform: scale(0.88); }
 :where([data-mnemo-ui]) .mn-gbtn[aria-expanded="true"] { background: var(--ui-shell-glass-btn); }

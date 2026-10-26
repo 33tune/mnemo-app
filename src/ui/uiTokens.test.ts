@@ -375,7 +375,7 @@ test("render isolation: card / public render never reads editor vars, fonts, the
   const FORBIDDEN = /--ui-|--font-(?:display|sans|mono|serif)\b|data-editor-theme|editorTheme|\buv\(|\bT\.(?:ui|type|uiFont|theme)\b/;
   for (const f of [
     "src/components/canvas/CardLayers.tsx", "src/components/canvas/ProfileCard.tsx",
-    "src/components/canvas/ProfileMusicPlayer.tsx", "src/components/canvas/PublicCanvas.tsx",
+    "src/components/canvas/ProfileMusicPlayer.tsx",
     "src/components/canvas/MobilePublicCanvas.tsx", "src/app/[handle]/page.tsx",
     "src/lib/textEffects.ts", "src/lib/cardColors.ts", "src/lib/bgStyle.ts", "src/lib/blockStyle.ts",
     "src/lib/profileCardEffects.ts", "src/lib/cardTypography.ts", "src/lib/mobileMerge.ts",

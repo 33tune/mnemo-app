@@ -11,7 +11,7 @@ const STEPS = [
     num:      "01",
     title:    "THIS IS YOUR SPACE",
     body:     "A blank canvas. No templates, no rules. Build whatever you want.",
-    hint:     null as null | "fab" | "topbar-space" | "topbar-social",
+    hint:     null as null | "fab" | "topbar-space",
     cta:      null as null | string,
   },
   {
@@ -30,9 +30,9 @@ const STEPS = [
   },
   {
     num:      "04",
-    title:    "OPEN SOCIAL TO CONNECT",
-    body:     "Follow people. Send messages. Find others building in myLand. Start by uploading an image, adding a text block, or setting a wallpaper.",
-    hint:     "topbar-social" as const,
+    title:    "MAKE IT YOURS",
+    body:     "Style your card: photo, texts, links and effects. Start by uploading an image, adding a text block, or setting a wallpaper.",
+    hint:     null,
     cta:      "Start building →",
   },
 ] as const;
@@ -133,11 +133,11 @@ export default function OnboardingOverlay({ onDone }: Props) {
         }} />
       )}
 
-      {/* ── Hint: Topbar space/social (steps 3-4) ── */}
-      {(step.hint === "topbar-space" || step.hint === "topbar-social") && (
+      {/* ── Hint: Topbar space (step 3) ── */}
+      {step.hint === "topbar-space" && (
         <TopbarHint
           visible={hintIn}
-          label={step.hint === "topbar-social" ? "SOCIAL" : "MY LAND"}
+          label="MY LAND"
         />
       )}
 

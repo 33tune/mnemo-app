@@ -6,15 +6,12 @@
  * when you're ready for real telemetry.
  *
  * Usage:
- *   analytics.follow({ targetId: "abc", followerId: "xyz" });
- *   analytics.messageSent({ chatId: "...", senderId: "..." });
+ *   analytics.canvasEdit(userId, op.type);
  */
 
 type Event =
   | { name: "signup";         userId: string }
   | { name: "profile_visit";  handle: string; viewerId?: string }
-  | { name: "follow";         targetId: string; followerId: string }
-  | { name: "message_sent";   chatId: string; senderId: string }
   | { name: "canvas_edit";    userId: string; opType: string };
 
 function emit(event: Event): void {
@@ -33,14 +30,6 @@ export const analytics = {
 
   profileVisit(handle: string, viewerId?: string): void {
     emit({ name: "profile_visit", handle, viewerId });
-  },
-
-  follow(targetId: string, followerId: string): void {
-    emit({ name: "follow", targetId, followerId });
-  },
-
-  messageSent(chatId: string, senderId: string): void {
-    emit({ name: "message_sent", chatId, senderId });
   },
 
   canvasEdit(userId: string, opType: string): void {

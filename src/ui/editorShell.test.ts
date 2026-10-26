@@ -22,11 +22,11 @@ const CARD = read("src/components/canvas/ProfileCard.tsx");
 test("grid: editor-only, inside the canvas wrapper, no pointer events — never in any public render", () => {
   assert.ok(BOARD.includes("{canEdit && <CanvasGrid visible={gridOn} />}"));
   const start = BOARD.indexOf("<div ref={canvasWrapperRef}");
-  const end = BOARD.indexOf("{showSignals && (", start);
+  const end = BOARD.indexOf("if(!cardMenuId||!cardMenuRect)return null;", start);
   assert.ok(BOARD.slice(start, end).includes("<CanvasGrid"), "inside the wrapper: it follows the view offset");
   assert.match(GRID, /pointerEvents: "none"/);
   assert.ok(GRID.includes('aria-hidden="true"'));
-  for (const f of ["src/components/canvas/PublicCanvas.tsx", "src/app/[handle]/page.tsx", "src/components/canvas/MobilePublicCanvas.tsx", "src/components/canvas/ProfileCard.tsx"]) {
+  for (const f of ["src/app/[handle]/page.tsx", "src/components/canvas/MobilePublicCanvas.tsx", "src/components/canvas/ProfileCard.tsx"]) {
     const src = read(f);
     assert.ok(!src.includes("CanvasGrid") && !src.includes("data-mnemo-grid"), `${f} must never draw the editor grid`);
   }
@@ -34,12 +34,12 @@ test("grid: editor-only, inside the canvas wrapper, no pointer events — never 
 });
 
 test("topbar: the editor variant only while the owner edits the canvas; visitors keep the classic bar", () => {
-  assert.ok(BOARD.includes("const editorShell = canEdit && view === \"canvas\";"));
+  assert.ok(BOARD.includes("const editorShell = canEdit;"));
   assert.ok(BOARD.includes("editor={editorShell ? {"));
   assert.ok(TOPBAR.includes("if (editor) {"), "the classic bar's JSX is untouched below the early return");
   const ed = TOPBAR.slice(TOPBAR.indexOf("function EditorTopbar("));
   assert.ok(ed.includes("[EDITOR_UI_ATTR]"), "an editor UI surface (themed, keyboard guards)");
-  for (const keep of ["tabs.map(", "onSignals &&", "onLogout &&", "onPublish"]) assert.ok(ed.includes(keep), `keeps ${keep}`);
+  for (const keep of ["tabs.map(", "onLogout &&", "onPublish"]) assert.ok(ed.includes(keep), `keeps ${keep}`);
   for (const add of ['aria-label="Deshacer"', 'aria-label="Rehacer"', "Vista previa", "PUBLISH_LABEL[publishState]"]) assert.ok(ed.includes(add), `adds ${add}`);
   assert.ok(!/sin publicar|unpublished/i.test(ed), "no unpublished-change count (out of scope)");
   assert.ok(ed.includes('target="_blank" rel="noopener noreferrer"'), "Vista previa opens the existing public profile");
@@ -140,16 +140,15 @@ test("Phase D review: narrow viewports get the compact editor topbar (1.4.10) wi
   assert.ok(c.includes("[EDITOR_UI_ATTR]"));
   for (const k of ['aria-label="Deshacer"', "PUBLISH_LABEL[publishState]", "mn-topbar__btn--touch"]) assert.ok(c.includes(k), `bar keeps ${k}`);
   const menu = c.slice(c.indexOf("{open && ("));
-  for (const k of ["tabs.map(", "onSignals &&", "editor.onRedo", "editor.previewHref", "onLogout &&"]) assert.ok(menu.includes(k), `"Más" keeps ${k}`);
+  for (const k of ["tabs.map(", "editor.onRedo", "editor.previewHref", "onLogout &&"]) assert.ok(menu.includes(k), `"Más" keeps ${k}`);
   assert.ok(c.includes('e.key === "Escape"') && c.includes("moreRef.current?.focus"), "Esc closes and returns focus to Más");
-  assert.ok(c.includes("sin leer"), "unread chats / signals are announced on Más");
   assert.ok(!c.includes("aria-haspopup"), "a disclosure (group of buttons), not a role=menu popup");
   assert.equal((c.match(/e.key === "Escape"/g) ?? []).length, 2, "Esc closes from the menu and from Más itself");
 });
 
 test("Phase D review: \"Tu sala\" opens on touch devices too (room settings were reachable from + before D)", () => {
   assert.ok(BOARD.includes("const roomShown = roomOpen && canEdit;"));
-  assert.ok(BOARD.includes('{view === "canvas" && inspectorEnabled && (canInteract || roomShown) && ('));
+  assert.ok(BOARD.includes('{inspectorEnabled && (canInteract || roomShown) && ('));
   // Phase E: Capas joins the card's inspector on the canInteract side (no touch editing).
   // Phase G: so do the text / image / Music inspectors.
   assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen) && canInteract) || roomShown;"));
@@ -164,9 +163,9 @@ test("Liquid glass L5: the wide editor topbar is two floating capsules; nothing 
   for (const k of ['className="mn-capsule mn-capsule--brand"', 'className="mn-capsule mn-capsule--actions"', "myLand", "editor.path"]) assert.ok(ed.includes(k), k);
   assert.ok(ed.includes("right: editor.right ?? T.ui.size.dockMargin"), "the actions capsule clears the dock");
   assert.ok(BOARD.includes("right: UIT.ui.size.dockMargin + fabShift,"));
-  // "Más" keeps MY LAND / SOCIAL, Señales and Salir; Esc returns focus to it.
+  // "Más" keeps MY LAND and Salir; Esc returns focus to it.
   const menu = ed.slice(ed.indexOf("{open && ("));
-  for (const k of ["tabs.map(", "onSignals &&", "onLogout &&"]) assert.ok(menu.includes(k), `"Más" keeps ${k}`);
+  for (const k of ["tabs.map(", "onLogout &&"]) assert.ok(menu.includes(k), `"Más" keeps ${k}`);
   assert.ok(ed.includes("moreRef.current?.focus"));
   // The editor theme toggle cycles the three themes (Tu sala › Apariencia stays).
   assert.ok(ed.includes("EDITOR_THEMES[(EDITOR_THEMES.indexOf(theme) + 1) % EDITOR_THEMES.length]"));

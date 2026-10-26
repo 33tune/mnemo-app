@@ -40,13 +40,6 @@ export default function Topbar({
   onModeChange,
   publishState,
   onPublish,
-  isBrowse,
-  onBrowse,
-  isChats,
-  onChats,
-  unreadChats,
-  unreadSignals,
-  onSignals,
   editor,
 }: {
   wallpaper: string;
@@ -57,33 +50,13 @@ export default function Topbar({
   onModeChange?: (newMode: CanvasMode) => Promise<void>;
   publishState?: PublishState;
   onPublish?: () => void;
-  isBrowse?: boolean;
-  onBrowse?: () => void;
-  isChats?: boolean;
-  onChats?: () => void;
-  unreadChats?:   number;
-  unreadSignals?: number;
-  onSignals?:     () => void;
   /** Editor v3 Phase D: the glass editor topbar. Absent = the classic bar
-   * (visitors, Browse, chats) — unchanged. */
+   * (visitors) — unchanged. */
   editor?:        EditorTopbarProps;
 }) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
   const [pulse, setPulse] = useState(false);
-  const [badgePulse, setBadgePulse] = useState(false);
-  const prevUnreadRef = useRef(0);
-
-  useEffect(() => {
-    const next = unreadChats ?? 0;
-    if (next > prevUnreadRef.current) {
-      setBadgePulse(true);
-      const t = setTimeout(() => setBadgePulse(false), 500);
-      prevUnreadRef.current = next;
-      return () => clearTimeout(t);
-    }
-    prevUnreadRef.current = next;
-  }, [unreadChats]);
 
   useEffect(() => {
     function tick() {
@@ -107,25 +80,22 @@ export default function Topbar({
     tabs.push({
       key:    "space",
       label:  "MY LAND",
-      active: inSpace && !isBrowse && !isChats,
+      active: inSpace,
       onClick: () => { if (!inSpace) onModeChange("space"); },
     });
   }
-  if (onChats) tabs.push({ key: "chats", label: "SOCIAL", active: !!isChats, onClick: onChats });
 
   if (editor) {
     return (
-      <EditorTopbar editor={editor} tabs={tabs} publishState={publishState} onPublish={onPublish}
-        unreadChats={unreadChats} unreadSignals={unreadSignals} onSignals={onSignals} onLogout={onLogout} />
+      <EditorTopbar editor={editor} tabs={tabs} publishState={publishState} onPublish={onPublish} onLogout={onLogout} />
     );
   }
 
   return (
     <>
-      {(publishState === "publishing" || badgePulse) && (
+      {publishState === "publishing" && (
         <style>{`
           @keyframes mnemo-pub-pulse { 0%,100% { opacity:0.3 } 50% { opacity:0.85 } }
-          @keyframes badgePop { 0% { transform:scale(1) } 40% { transform:scale(1.4) } 100% { transform:scale(1) } }
         `}</style>
       )}
       <div suppressHydrationWarning style={{
@@ -187,8 +157,6 @@ export default function Topbar({
                 key={tab.key}
                 active={tab.active}
                 onClick={tab.onClick}
-                badge={tab.key === "chats" && (unreadChats ?? 0) > 0 ? unreadChats : undefined}
-                badgePulse={badgePulse}
               >
                 {tab.label}
               </TabBtn>
@@ -244,10 +212,6 @@ export default function Topbar({
             </span>
           </div>
 
-          {onSignals && (
-            <SignalsBtn count={unreadSignals ?? 0} onClick={onSignals} />
-          )}
-
           {handle && (
             <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: 1.5, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>
               @{handle}
@@ -268,14 +232,10 @@ function TabBtn({
   children,
   active,
   onClick,
-  badge,
-  badgePulse,
 }: {
   children:    React.ReactNode;
   active:      boolean;
   onClick:     () => void;
-  badge?:      number;
-  badgePulse?: boolean;
 }) {
   const [hov, setHov] = useState(false);
   return (
@@ -308,77 +268,6 @@ function TabBtn({
       }}
     >
       {children}
-      {badge !== undefined && badge > 0 && (
-        <span style={{
-          display:        "inline-flex",
-          alignItems:     "center",
-          justifyContent: "center",
-          background:     active ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.7)",
-          color:          "#07070a",
-          fontFamily:     "'Space Mono', monospace",
-          fontSize:       7,
-          fontWeight:     700,
-          letterSpacing:  0,
-          borderRadius:   2,
-          padding:        "1px 4px",
-          lineHeight:     1.2,
-          minWidth:       14,
-          animation:      badgePulse ? "badgePop 0.4s ease-out" : undefined,
-        }}>
-          {badge}
-        </span>
-      )}
-    </button>
-  );
-}
-
-// ── Signals button ─────────────────────────────────────────────────────────────
-function SignalsBtn({ count, onClick }: { count: number; onClick: () => void }) {
-  const [hov, setHov] = useState(false);
-  const hasUnread = count > 0;
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display:       "flex",
-        alignItems:    "center",
-        gap:           5,
-        background:    "transparent",
-        border:        `1px solid ${hov ? "rgba(255,255,255,0.18)" : hasUnread ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.07)"}`,
-        borderRadius:  4,
-        padding:       "3px 8px",
-        fontFamily:    "'Space Mono', monospace",
-        fontSize:      8,
-        letterSpacing: 1.5,
-        color:         hov ? "rgba(255,255,255,0.72)" : hasUnread ? "rgba(255,255,255,0.58)" : "rgba(255,255,255,0.28)",
-        textTransform: "uppercase",
-        cursor:        "pointer",
-        transition:    "all 0.1s ease",
-        userSelect:    "none",
-      }}
-    >
-      SIG
-      {hasUnread && (
-        <span style={{
-          display:        "inline-flex",
-          alignItems:     "center",
-          justifyContent: "center",
-          background:     "rgba(255,255,255,0.82)",
-          color:          "#07070a",
-          fontFamily:     "'Space Mono', monospace",
-          fontSize:       7,
-          fontWeight:     700,
-          letterSpacing:  0,
-          borderRadius:   2,
-          padding:        "1px 4px",
-          lineHeight:     1.2,
-          minWidth:       14,
-        }}>
-          {count}
-        </span>
-      )}
     </button>
   );
 }
@@ -447,22 +336,18 @@ function LogoutBtn({ onClick }: { onClick: () => Promise<void> }) {
 // Glass topbar of the design (screen 01), only in the owner's editor: an
 // editor UI surface ([data-mnemo-ui]) themed Light / Dark / OG. 60px high,
 // right of the rail, OVER the canvas (CANVAS_TOP_OFFSET stays 44 — plan R1).
-// Keeps every function of the classic bar (MY LAND / SOCIAL, signals,
-// logout); adds Deshacer / Rehacer (Phase C history), Vista previa (the
+// Keeps every function of the classic bar (MY LAND, logout); adds Deshacer / Rehacer (Phase C history), Vista previa (the
 // existing public profile) and Publicar with the existing states — no
 // unpublished-change count (out of scope, the design's own fallback).
 const PUBLISH_LABEL: Record<PublishState, string> = {
   idle: "Publicado", pending: "Publicar", publishing: "Publicando…", success: "Publicado",
 };
 
-function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unreadSignals, onSignals, onLogout }: {
+function EditorTopbar({ editor, tabs, publishState, onPublish, onLogout }: {
   editor: EditorTopbarProps;
   tabs: { key: string; label: string; active: boolean; onClick: () => void }[];
   publishState?: PublishState;
   onPublish?: () => void;
-  unreadChats?: number;
-  unreadSignals?: number;
-  onSignals?: () => void;
   onLogout?: () => Promise<void>;
 }) {
   const [theme, setTheme] = useEditorTheme();
@@ -481,11 +366,9 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
 
   if (editor.compact) {
     return (
-      <CompactEditorTopbar editor={editor} tabs={tabs} publishState={publishState} onPublish={onPublish}
-        unreadChats={unreadChats} unreadSignals={unreadSignals} onSignals={onSignals} onLogout={onLogout} />
+      <CompactEditorTopbar editor={editor} tabs={tabs} publishState={publishState} onPublish={onPublish} onLogout={onLogout} />
     );
   }
-  const unread = (unreadChats ?? 0) + (unreadSignals ?? 0);
   const close = (refocus: boolean) => {
     setOpen(false);
     if (refocus) requestAnimationFrame(() => moreRef.current?.focus({ preventScroll: true }));
@@ -500,7 +383,7 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
   // a publish-status dot: accent = cambios para publicar, success = al día —
   // a dot, never a count). Right, the actions (Deshacer, Rehacer, the editor
   // theme, Vista previa, "Más", Publicar); it slides left while the dock is
-  // open so it never sits under it. MY LAND / SOCIAL, Señales and Salir live
+  // open so it never sits under it. MY LAND and Salir live
   // under "Más" (the same disclosure as the compact bar) — nothing dropped.
   return (
     <header {...{ [EDITOR_UI_ATTR]: "" }} className="mn-shellbar" style={{ fontFamily: T.uiFont.sans }}>
@@ -536,12 +419,11 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
           </a>
         )}
         <button ref={moreRef} type="button" className="mn-gbtn mn-tip" data-tip-side="bottom" data-tip="Más opciones"
-          aria-label={unread > 0 ? `Más opciones, ${unread} sin leer` : "Más opciones"}
+          aria-label="Más opciones"
           aria-expanded={open} aria-controls={open ? WIDE_MORE_MENU_ID : undefined}
           onKeyDown={e => { if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(false); } }}
           onClick={() => setOpen(o => !o)}>
           <Icon name="more" size={17} />
-          {unread > 0 && <span aria-hidden="true" className="mn-topbar__dot" />}
         </button>
         {publishState !== undefined && (
           <button type="button" className="mn-pill mn-pill--brand" data-state={publishState}
@@ -559,16 +441,8 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unre
             {tabs.map(tab => (
               <button key={tab.key} type="button" className="mn-glassmenu__item" aria-pressed={tab.active} onClick={run(tab.onClick)}>
                 <span>{tab.label}</span>
-                {tab.key === "chats" && (unreadChats ?? 0) > 0 && <span className="mn-topbar__count">{unreadChats}</span>}
               </button>
             ))}
-            {onSignals && (
-              <button type="button" className="mn-glassmenu__item" onClick={run(onSignals)}
-                aria-label={(unreadSignals ?? 0) > 0 ? `Señales, ${unreadSignals} sin leer` : "Señales"}>
-                <span>Señales</span>
-                {(unreadSignals ?? 0) > 0 && <span className="mn-topbar__count">{unreadSignals}</span>}
-              </button>
-            )}
             {onLogout && (
               <button type="button" className="mn-glassmenu__item" onClick={run(() => { void onLogout(); })}>
                 <span>Salir</span>
@@ -587,24 +461,20 @@ const THEME_ICON: Record<EditorTheme, IconName> = { dark: "moon", light: "sun", 
 
 // Phase D review (1.4.10 Reflow): the editor topbar on narrow viewports —
 // design screen 10 keeps the wordmark, Deshacer and Publicar (44px targets);
-// every other function of the full bar (MY LAND / SOCIAL, Señales, Rehacer,
-// Vista previa, Salir) stays one tap away under "Más", nothing is dropped.
+// every other function of the full bar (MY LAND, Rehacer, Vista previa,
+// Salir) stays one tap away under "Más", nothing is dropped.
 const MORE_MENU_ID = "mnemo-topbar-more";
 
-function CompactEditorTopbar({ editor, tabs, publishState, onPublish, unreadChats, unreadSignals, onSignals, onLogout }: {
+function CompactEditorTopbar({ editor, tabs, publishState, onPublish, onLogout }: {
   editor: EditorTopbarProps;
   tabs: { key: string; label: string; active: boolean; onClick: () => void }[];
   publishState?: PublishState;
   onPublish?: () => void;
-  unreadChats?: number;
-  unreadSignals?: number;
-  onSignals?: () => void;
   onLogout?: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const unread = (unreadChats ?? 0) + (unreadSignals ?? 0);
   const close = (refocus: boolean) => {
     setOpen(false);
     if (refocus) requestAnimationFrame(() => moreRef.current?.focus({ preventScroll: true }));
@@ -649,12 +519,11 @@ function CompactEditorTopbar({ editor, tabs, publishState, onPublish, unreadChat
           </button>
         )}
         <button ref={moreRef} type="button" className="mn-topbar__btn mn-topbar__btn--touch"
-          aria-label={unread > 0 ? `Más opciones, ${unread} sin leer` : "Más opciones"} title="Más opciones"
+          aria-label="Más opciones" title="Más opciones"
           aria-expanded={open} aria-controls={open ? MORE_MENU_ID : undefined}
           onKeyDown={e => { if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(false); } }}
           onClick={() => setOpen(o => !o)}>
           <Icon name="more" size={18} />
-          {unread > 0 && <span aria-hidden="true" className="mn-topbar__dot" />}
         </button>
       </div>
 
@@ -664,16 +533,8 @@ function CompactEditorTopbar({ editor, tabs, publishState, onPublish, unreadChat
           {tabs.map(tab => (
             <button key={tab.key} type="button" className="mn-menuitem" aria-pressed={tab.active} onClick={run(tab.onClick)}>
               <span>{tab.label}</span>
-              {tab.key === "chats" && (unreadChats ?? 0) > 0 && <span className="mn-topbar__count">{unreadChats}</span>}
             </button>
           ))}
-          {onSignals && (
-            <button type="button" className="mn-menuitem" onClick={run(onSignals)}
-              aria-label={(unreadSignals ?? 0) > 0 ? `Señales, ${unreadSignals} sin leer` : "Señales"}>
-              <span>Señales</span>
-              {(unreadSignals ?? 0) > 0 && <span className="mn-topbar__count">{unreadSignals}</span>}
-            </button>
-          )}
           <button type="button" className="mn-menuitem" aria-disabled={!editor.canRedo || undefined}
             onClick={() => { if (editor.canRedo) run(editor.onRedo)(); }}>
             <span>Rehacer</span><span className="mn-topbar__keys">{editor.redoKeys}</span>

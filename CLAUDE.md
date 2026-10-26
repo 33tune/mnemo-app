@@ -114,6 +114,21 @@ planeado acá hasta confirmarlo.
 >   reclamado viaja en la metadata del usuario y `/auth/callback` crea el perfil con él al confirmar el email. Sin
 >   Privacidad/Términos (decisión del usuario). Assets en `public/landing/`; `three` (objetos 3D) como dependencia.
 >
+>   **Social, chat y notificaciones ELIMINADOS (2026-10-26, pedido del usuario):** sin pestaña SOCIAL, chats flotantes,
+>   SocialDock, seguidores/seguidos, Señales, `/browse`, mensajes anónimos (`/api/anonymous-message`) ni `PublicCanvas.tsx`
+>   (solo lo usaba `/browse`). `CanvasBoard` ya no tiene `view` (siempre el lienzo); `?view=chats` cae en el lienzo. Se
+>   conservan `SocialIcons.tsx` (íconos de Links), el tipo legacy `"social"`/`SocialCardWidget` (datos guardados, P4B),
+>   Guestbook, Visitas y `link_clicks`. **Las tablas de Supabase NO se borraron** (`chats`, `chat_participants`,
+>   `chat_windows`, `messages`, `followers`, `favorites`, `element_pins`, `anonymous_messages`): el código ya no las lee;
+>   borrarlas es un SQL aparte, con OK del usuario.
+>
+> **Ideas del usuario para trabajar después (2026-10-26, no implementar sin OK):**
+> - **Bug:** borrar una imagen y recuperarla (deshacer) la deja invisible en la misma posición. Investigar.
+> - **Mobile:** que toda la app funcione en mobile. El lienzo de 1920×1080 no entra: propuesta de **recortar** y centrar
+>   siempre en la card, dejando la card y las imágenes que la rodean (marcos), sin el resto del lienzo.
+> - **Marcos de la card:** imágenes pegadas a la ProfileCard, por delante o por detrás, que hereden sus efectos (tilt,
+>   agrandar al pasar, rebote/flotación) y sirvan de marco o de decoración.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
