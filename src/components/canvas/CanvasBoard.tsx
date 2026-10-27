@@ -33,6 +33,7 @@ import { splitPlacementPatch, mergeMobileState, filterHiddenDesktop, SHARED_WIDG
 import { WidgetBoundary } from "@/components/error/WidgetBoundary";
 import { trackRender } from "@/lib/perfDebug";
 import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
+import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { mobileView, cardViewRect, type MobileFit } from "@/lib/mobileFit";
 import { desktopViewFit, dropOutsideRoomElements } from "@/lib/roomBounds";
@@ -4394,6 +4395,9 @@ export default function CanvasBoard({
           Canvas editing requires a desktop browser
         </div>
       )}
+
+      {/* ── Beta notice + "Reportar un error" (BetaBits.tsx) ── */}
+      {railShown && <EditorBeta />}
 
       {/* ── First-visit tour (only where the editor's rail is: computers) ── */}
       {tourStep && railShown && (

@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { checkHandle, siteAuth } from "./siteAuth";
 import "./site.css";
+import { BetaBanner } from "@/components/beta/BetaBits";
 
 const LandingPage = dynamic(() => import("./LandingPage"), { ssr: false });
 const AuthPage = dynamic(() => import("./AuthPage"), { ssr: false });
@@ -45,6 +46,7 @@ export function LandingClient() {
     <>
       <Fonts />
       <LandingPage checkHandle={checkHandle} navigate={(url: string) => router.push(url)} />
+      <BetaBanner />
     </>
   );
 }
@@ -57,6 +59,7 @@ export function AuthClient({ initialError }: { initialError?: string }) {
       <Fonts />
       <AuthPage checkHandle={checkHandle} auth={siteAuth} initialError={initialError}
         navigate={(url: string) => { router.push(url); router.refresh(); }} />
+      <BetaBanner top={12} />
     </>
   );
 }
