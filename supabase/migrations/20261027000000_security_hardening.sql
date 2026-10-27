@@ -1,4 +1,4 @@
--- myLand security hardening (2026-10-27), to apply to the project with the
+-- myLand security hardening (2026-10-27), applied to the project with the
 -- user's OK. Based on docs/security/supabase-hardening.sql, adapted to what
 -- the database actually had.
 

@@ -140,8 +140,8 @@ planeado acá hasta confirmarlo.
 >   (`runStorageCleanup.ts` + `cleanupPlan.ts`): borra solo archivos sin uso en NINGÚN dato del usuario (salas, ops
 >   pendientes, perfil; `extractAssetPaths.ts` escanea todo campo) y con más de 24 h. **Publicar de verdad**
 >   (`publishedState.ts`): la fila `space` guarda `published` (lo que se publicó); el perfil público muestra eso; la
->   compactación lo conserva; una fila sin `published` se ve como antes. **Pendiente del usuario:** correr
->   `docs/security/supabase-hardening.sql` (RLS, bucket, tablas viejas).
+>   compactación lo conserva; una fila sin `published` se ve como antes. El SQL de seguridad ya se aplicó
+>   (2026-10-27, ver abajo).
 >
 > **Ideas del usuario para trabajar después (2026-10-26, no implementar sin OK):**
 > - ~~**Bug:** borrar una imagen y deshacer la dejaba invisible~~ ARREGLADO (2026-10-26): el editor borraba el archivo del
@@ -210,11 +210,13 @@ planeado acá hasta confirmarlo.
 >   Subidas con `cacheControl` de 1 año (nombres UUID, inmutables) y `contentTypeFor` (el bucket filtra tipos).
 > - **Máx. 10 imágenes por sala** (`src/lib/canvasLimits.ts`): subir/arrastrar/pegar archivos, pegar/duplicar y la
 >   galería vieja respetan el tope y avisan; una sala que ya tenía más las conserva. Stickers no cuentan.
-> - **Seguridad: `supabase/migrations/20261027000000_security_hardening.sql` escrita pero NO aplicada todavía**: el
->   conector pide una confirmación que no le llega al usuario. Cierra la policy `Service role bypass` de `profiles`
+> - **Seguridad: `supabase/migrations/20261027000000_security_hardening.sql` APLICADA (2026-10-27, la pegó el usuario en
+>   el SQL Editor: el conector pide una confirmación que no le llega) y verificada. Cierra la policy `Service role bypass` de `profiles`
 >   (cualquiera podía crear/editar/borrar cualquier perfil), quita las policies de las tablas de features borradas,
 >   crea `storage_cleanup_queue` (no existía: la cola de limpieza no andaba) y limita el bucket (20 MB, tipos,
->   escritura solo en la carpeta propia). Aplicarla es lo PRIMERO pendiente.
+>   escritura solo en la carpeta propia). Quedan avisos menores del linter: `pg_net` en `public` (se puede borrar,
+>   ya no se usa), "leaked password protection" apagado (switch en Auth del panel) y tablas viejas sin policies (a
+>   propósito).
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
