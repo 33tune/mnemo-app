@@ -61,12 +61,16 @@ export default function SetupScreen({ userId, suggestedName, phone }: { userId: 
     if (status !== "ok" || saving) return;
     setSaving(true);
     setError("");
-    const { error: err } = await createClient().from("profiles")
+    // .select(): an update that touches no row is not an error for Supabase —
+    // without the row, going on would bounce back here (the "reload" bug).
+    const { data: rows, error: err } = await createClient().from("profiles")
       .update({ handle, display_name: suggestedName.trim() || handle, onboarding_completed: true })
-      .eq("user_id", userId);
-    if (err) {
+      .eq("user_id", userId)
+      .select("id");
+    if (err || !rows?.length) {
       setSaving(false);
-      if (err.code === "23505") { setStatus("taken"); setError("Alguien lo reclamó recién. Probá con otro."); }
+      if (err?.code === "23505") { setStatus("taken"); setError("Alguien lo reclamó recién. Probá con otro."); }
+      else if (!err) { setError("No encontramos tu cuenta. Recargá la página y probá de nuevo."); }
       else setError("No pudimos guardarlo. Probá de nuevo.");
       return;
     }

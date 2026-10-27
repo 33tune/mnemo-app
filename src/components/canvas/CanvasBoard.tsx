@@ -1722,12 +1722,9 @@ export default function CanvasBoard({
       lastProfileWriteRef.current = now;
     }
     if (Object.keys(patch).length === 0) return;
-
-    createClient()
-      .from("profiles")
-      .update(patch)
-      .eq("user_id", uid)
-      .then();
+    // profiles has no last_active_at / last_profile_update_at columns (every
+    // write was a 400): nothing is sent until they exist.
+    void patch;
   }
 
   // ── History (Editor v3 Phase C) ──────────────────────────────────────────

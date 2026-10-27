@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import SetupScreen from "@/components/site/SetupScreen";
 import { MobileClaimed } from "@/components/site/MobileClaimed";
 import { isMobileUserAgent } from "@/lib/deviceGate";
+import { ensureProfile } from "@/server/ensureProfile";
 
 // After signing in with Google: pick myland.lol/<name> (SetupScreen, the
 // Auth v4 look). Phones can claim the name too; the card is built on a computer.
@@ -14,13 +15,10 @@ export default async function SetupPage() {
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("handle, display_name, onboarding_completed")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // The row SetupScreen updates: created here when missing (ensureProfile.ts).
+  const profile = await ensureProfile(supabase, user);
 
-  if (profile?.onboarding_completed === true) {
+  if (profile && profile.onboarding_completed !== false) {
     if (phone) return <MobileClaimed handle={profile.handle as string} />;
     redirect("/dashboard");
   }

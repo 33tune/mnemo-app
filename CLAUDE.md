@@ -244,6 +244,13 @@ planeado acá hasta confirmarlo.
 >   `src/server/ogImages.ts`): la card publicada simplificada (foto, nombre, @, frase, colores) sobre el color de la
 >   sala; las fotos pasan por `sharp` a PNG (next/og no lee WebP). `metadataBase` = https://myland.lol.
 >
+> **Bug de `/setup` en bucle (2026-10-27, arreglado):** quien confirmaba el mail en OTRO dispositivo (o desde un
+>   mail reenviado) nunca pasaba por `/auth/callback` con código → quedaba logueado SIN fila en `profiles`; la landing
+>   lo mandaba a `/dashboard` → `/setup`, y el update de `SetupScreen` no tocaba ninguna fila (sin error) → otra vez
+>   `/setup`. Ahora `src/server/ensureProfile.ts` crea la fila que falte (nombre reclamado de la metadata, si no un
+>   `temp_`) en callback, `/dashboard` y `/setup`, y `SetupScreen` verifica que el update tocó una fila. También se
+>   cortó `markActive` (escribía columnas que no existen: un 400 por edición).
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
 import { MobileClaimed } from "@/components/site/MobileClaimed";
 import { isMobileUserAgent } from "@/lib/deviceGate";
+import { ensureProfile } from "@/server/ensureProfile";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -13,16 +14,13 @@ export default async function DashboardPage() {
   const phone = isMobileUserAgent((await headers()).get("user-agent"));
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("handle, onboarding_completed")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Created here when missing (ensureProfile.ts): signed in without a row
+  // used to bounce between /dashboard and /setup.
+  const profile = await ensureProfile(supabase, user);
 
   // No profile or setup not finished — send to setup.
   // Treat null/undefined onboarding_completed as completed for backward compat.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (!profile || (profile as any).onboarding_completed === false) redirect("/setup");
+  if (!profile || profile.onboarding_completed === false) redirect("/setup");
   if (phone) return <MobileClaimed handle={profile.handle ?? ""} />;
 
   return <CanvasBoard userHandle={profile.handle ?? ""} />;
