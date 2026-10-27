@@ -184,5 +184,5 @@ test("Liquid glass L5: floating rail capsule, dock 16px from the top, Agregar me
   // The card always exists (created blank on load), so Agregar never offers it.
   assert.ok(!BOARD.includes('label:"Card de presentación"'), "no 'Card de presentación' in Agregar");
   assert.ok(BOARD.includes('enqueueOp({ type: "add_profile", profile: p }, { record: false })'), "the blank card is not an undo step");
-  assert.ok(BOARD.includes("{railShown && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && ("), "the hint only with nothing selected");
+  assert.ok(BOARD.includes("{railShown && !tourStep && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && ("), "the hint only with nothing selected");
 });

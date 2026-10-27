@@ -426,7 +426,7 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, onLogout }: {
           <Icon name="more" size={17} />
         </button>
         {publishState !== undefined && (
-          <button type="button" className="mn-pill mn-pill--brand" data-state={publishState}
+          <button type="button" className="mn-pill mn-pill--brand" data-state={publishState} data-tour="publish"
             onClick={publishState === "pending" ? onPublish : undefined}
             aria-disabled={publishState !== "pending" || undefined}
             aria-live="polite">
@@ -510,7 +510,7 @@ function CompactEditorTopbar({ editor, tabs, publishState, onPublish, onLogout }
           <Icon name="undo" size={18} />
         </button>
         {publishState !== undefined && (
-          <button type="button" className="mn-topbar__publish mn-topbar__publish--touch" data-state={publishState}
+          <button type="button" className="mn-topbar__publish mn-topbar__publish--touch" data-state={publishState} data-tour="publish"
             onClick={publishState === "pending" ? onPublish : undefined}
             aria-disabled={publishState !== "pending" || undefined}
             aria-live="polite">

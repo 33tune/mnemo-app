@@ -32,8 +32,7 @@ import { bgImageStyle, detectBgModeFromFile } from "@/lib/bgStyle";
 import { splitPlacementPatch, mergeMobileState, filterHiddenDesktop, SHARED_WIDGET_KINDS } from "@/lib/mobileMerge";
 import { WidgetBoundary } from "@/components/error/WidgetBoundary";
 import { trackRender } from "@/lib/perfDebug";
-import { useOnboarding } from "@/hooks/useOnboarding";
-import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
+import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { mobileView, cardViewRect, type MobileFit } from "@/lib/mobileFit";
 import { desktopViewFit, dropOutsideRoomElements } from "@/lib/roomBounds";
@@ -893,6 +892,14 @@ export default function CanvasBoard({
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
   const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen) && canInteract) || roomShown;
+  // First-visit tour (EditorTour.tsx): its step follows what the user does.
+  const [tourStep, setTourStep] = useState<TourStep | null>(null);
+  const cardSelected = elements.some(el => el.elementType === "profile" && selectedIds.has(el.id));
+  useEffect(() => {
+    if (tourStep === "card" && (cardSelected || inspectorProfile)) setTourStep("part");
+    else if (tourStep === "part" && inspectorProfile) setTourStep("add");
+    else if (tourStep === "add" && menuOpen) setTourStep("publish");
+  }, [tourStep, cardSelected, inspectorProfile, menuOpen]);
   const fabShift = inspectorShown && !sheetMode ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0;
   const fabLift = inspectorShown && sheetMode ? (inspectorCollapsed ? INSPECTOR_SHEET_COLLAPSED_H : inspView.sheetH) : 0;
   // Review B-UX-1: lifted above an EXPANDED sheet the FAB and its menus land
@@ -1081,7 +1088,11 @@ export default function CanvasBoard({
   const lastProfileWriteRef  = useRef(0);
   useEffect(() => { currentUserIdRef.current = currentUserId; }, [currentUserId]);
 
-  const { showOnboarding, dismissOnboarding } = useOnboarding(canEdit, authResolved);
+  useEffect(() => {
+    if (!authResolved || !canEdit) return;
+    try { if (!localStorage.getItem(TOUR_KEY)) setTourStep("card"); } catch { /* storage blocked: no tour */ }
+  }, [authResolved, canEdit]);
+  const endTour = () => { try { localStorage.setItem(TOUR_KEY, "1"); } catch { /* ignore */ } setTourStep(null); };
 
   // ── Elementos visibles (en space/space_mobile, solo isPublic:true) ──────────
   const inSpace      = isSpaceCanvas(canvasMode);
@@ -3517,7 +3528,7 @@ export default function CanvasBoard({
       {/* Liquid glass (L5, DS .lg-hint): with nothing selected, a pill at
           the bottom says how to start. Visual only (the canvas already has
           its keyboard help in aria-describedby); never in a public render. */}
-      {railShown && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && (
+      {railShown && !tourStep && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && (
         <div data-mnemo-ui="" aria-hidden="true" className="mn-hint"
           style={{ left: railW + (viewportW - railW) / 2 }}>
           <span className="mn-hint__well"><Icon name="pointer" size={14} /></span>
@@ -4384,9 +4395,10 @@ export default function CanvasBoard({
         </div>
       )}
 
-      {/* ── First-visit onboarding ── */}
-      {showOnboarding && (
-        <OnboardingOverlay onDone={dismissOnboarding} />
+      {/* ── First-visit tour (only where the editor's rail is: computers) ── */}
+      {tourStep && railShown && (
+        <EditorTour step={tourStep} onSkip={endTour}
+          onNext={() => (tourStep === "add" ? setTourStep("publish") : endTour())} />
       )}
 
       {/* ── SpaceMusic global player ── */}
