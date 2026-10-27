@@ -1,6 +1,7 @@
 "use client";
 import { createClient } from "@/lib/supabase/client";
-import { checkUpload } from "@/lib/storage/uploadRules";
+import { checkUpload, contentTypeFor } from "@/lib/storage/uploadRules";
+import { shrinkImage } from "@/lib/storage/shrinkImage";
 
 // Dedup concurrent uploads of the same file (same name + size + lastModified).
 // Prevents double-upload when e.g. a user pastes the same image twice quickly.
@@ -19,6 +20,8 @@ async function _doUpload(file: File): Promise<UploadResult> {
     if (typeof window !== "undefined") window.alert(problem);
     throw new Error(problem);
   }
+  // Pictures are stored small (shrinkImage.ts): less storage, faster views.
+  file = await shrinkImage(file);
   const supabase = createClient();
   const ext  = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
   const name = `${crypto.randomUUID()}.${ext}`;
@@ -32,7 +35,12 @@ async function _doUpload(file: File): Promise<UploadResult> {
   for (const storagePath of candidates) {
     const { error } = await supabase.storage
       .from("canvas-assets")
-      .upload(storagePath, file, { upsert: false, contentType: file.type || undefined });
+      .upload(storagePath, file, {
+        upsert: false, contentType: contentTypeFor(file),
+        // Every name is new (a UUID): the file never changes, so browsers
+        // and the CDN may keep it for a year instead of re-downloading it.
+        cacheControl: "31536000",
+      });
     if (!error) {
       const { data } = supabase.storage.from("canvas-assets").getPublicUrl(storagePath);
       return { publicUrl: data.publicUrl, storagePath };

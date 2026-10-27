@@ -33,3 +33,36 @@ export function checkUpload(file: { name: string; type: string; size: number }):
   }
   return null;
 }
+
+const FONT_TYPES: Record<string, string> = { woff2: "font/woff2", woff: "font/woff", ttf: "font/ttf", otf: "font/otf" };
+const IMAGE_TYPES: Record<string, string> = {
+  png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
+  avif: "image/avif", svg: "image/svg+xml", bmp: "image/bmp",
+};
+
+/** The content type to store `file` with: the bucket only accepts images,
+ * MP3s and fonts, and some systems hand files over without a type. */
+export function contentTypeFor(file: { name: string; type: string }): string {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const kind = uploadKind(file);
+  if (kind === "audio") return "audio/mpeg";
+  if (kind === "font") return file.type.startsWith("font/") ? file.type : FONT_TYPES[ext] ?? "font/ttf";
+  return file.type || IMAGE_TYPES[ext] || "application/octet-stream";
+}
+
+/** Longest side an uploaded picture keeps (a 1440p screen, the room's size). */
+export const IMAGE_MAX_SIDE = 2560;
+
+/** Size to shrink a w×h picture to (same proportions), or null to keep it. */
+export function shrinkSize(w: number, h: number, max = IMAGE_MAX_SIDE): { w: number; h: number } | null {
+  if (!(w > 0 && h > 0)) return null;
+  const s = Math.min(1, max / Math.max(w, h));
+  return { w: Math.max(1, Math.round(w * s)), h: Math.max(1, Math.round(h * s)) };
+}
+
+/** Pictures worth re-encoding: not GIFs (animation), not SVGs (vector). */
+export function shouldShrink(file: { name: string; type: string }): boolean {
+  if (uploadKind(file) !== "image") return false;
+  const t = contentTypeFor(file);
+  return t !== "image/gif" && t !== "image/svg+xml";
+}

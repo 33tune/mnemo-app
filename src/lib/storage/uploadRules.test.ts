@@ -20,3 +20,18 @@ test("anything else, or too big, is refused with a reason", () => {
   assert.match(checkUpload({ name: "a.png", type: "image/png", size: (UPLOAD_LIMITS.image + 1) * MB }) ?? "", /15 MB/);
   assert.match(checkUpload({ name: "s.mp3", type: "audio/mpeg", size: (UPLOAD_LIMITS.audio + 1) * MB }) ?? "", /20 MB/);
 });
+
+test("stored content type and picture shrinking", async () => {
+  const { contentTypeFor, shrinkSize, shouldShrink, IMAGE_MAX_SIDE } = await import("./uploadRules");
+  assert.equal(contentTypeFor({ name: "a.mp3", type: "" }), "audio/mpeg");
+  assert.equal(contentTypeFor({ name: "a.TTF", type: "" }), "font/ttf");
+  assert.equal(contentTypeFor({ name: "a.png", type: "" }), "image/png");
+  assert.equal(contentTypeFor({ name: "a.jpg", type: "image/jpeg" }), "image/jpeg");
+  assert.deepEqual(shrinkSize(6000, 4000), { w: IMAGE_MAX_SIDE, h: Math.round(4000 * IMAGE_MAX_SIDE / 6000) });
+  assert.deepEqual(shrinkSize(800, 600), { w: 800, h: 600 });
+  assert.equal(shrinkSize(0, 10), null);
+  assert.equal(shouldShrink({ name: "a.gif", type: "image/gif" }), false);
+  assert.equal(shouldShrink({ name: "a.svg", type: "" }), false);
+  assert.equal(shouldShrink({ name: "a.png", type: "image/png" }), true);
+  assert.equal(shouldShrink({ name: "a.mp3", type: "audio/mpeg" }), false);
+});

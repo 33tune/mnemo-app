@@ -37,6 +37,7 @@ import OnboardingOverlay from "@/components/onboarding/OnboardingOverlay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { mobileView, cardViewRect, type MobileFit } from "@/lib/mobileFit";
 import { desktopViewFit, dropOutsideRoomElements } from "@/lib/roomBounds";
+import { imageSlots, withinImageLimit, IMAGE_LIMIT_MESSAGE } from "@/lib/canvasLimits";
 import { safeTextHtml, storedTextToPlain } from "@/lib/safeText";
 import { withPublished, hasUnpublishedChanges } from "@/lib/publishedState";
 import { analytics } from "@/lib/analytics";
@@ -1248,6 +1249,16 @@ export default function CanvasBoard({
   };
   useEffect(() => () => { if (announceTimerRef.current) clearTimeout(announceTimerRef.current); }, []);
 
+  // A room holds up to 10 images (canvasLimits.ts). Past that, adding one
+  // says why instead of silently doing nothing.
+  // Dropped files still loading count too (two quick drops can't pass it).
+  const loadingImagesRef = useRef(0);
+  const imageCount = () => elementsRef.current.filter(e => e.elementType === "image").length + loadingImagesRef.current;
+  const sayImageLimit = () => {
+    announceRef.current?.(IMAGE_LIMIT_MESSAGE);
+    if (typeof window !== "undefined") window.alert(IMAGE_LIMIT_MESSAGE);
+  };
+
   // A keyboard move/resize in progress (keydown applied locally, not yet
   // persisted). Flushed on keyup / window blur / selection change.
   const pendingNudgeRef = useRef<
@@ -1842,7 +1853,9 @@ export default function CanvasBoard({
 
     // Paste items centered on mousePos (or +24px offset). Phase C: the adds
     // are recorded by enqueueOp as ONE history entry (closed around it).
-    function pasteItems(items: CanvasElement[], mousePos: { x: number; y: number } | null) {
+    function pasteItems(all: CanvasElement[], mousePos: { x: number; y: number } | null) {
+      const { kept: items, dropped } = withinImageLimit(all, imageCount());
+      if (dropped) sayImageLimit();
       if (!items.length) return;
       historyRef.current?.close();
       let dx = 24, dy = 24;
@@ -2819,6 +2832,7 @@ export default function CanvasBoard({
   }
 
   function addGalleryImageToCanvas(src: string, x: number, y: number) {
+    if (!imageSlots(imageCount(), 1)) { sayImageLimit(); return; }
     const el=new Image();
     el.onload=()=>{
       const maxW=Math.min(el.naturalWidth,420), ratio=el.naturalHeight/el.naturalWidth;
@@ -3332,14 +3346,20 @@ export default function CanvasBoard({
     }
   }
 
-  function processImageFiles(files: File[], dropPos?: { x: number; y: number }) {
+  function processImageFiles(all: File[], dropPos?: { x: number; y: number }) {
+    const slots = imageSlots(imageCount(), all.length);
+    if (slots < all.length) sayImageLimit();
+    const files = all.slice(0, slots);
     for (const f of files) {
       if (f.size > MAX_FILE_BYTES) continue;
       const localUrl = URL.createObjectURL(f);
       const id = crypto.randomUUID();
       const isGif = f.type === "image/gif";
       const el = new Image();
+      loadingImagesRef.current++;
+      el.onerror = () => { loadingImagesRef.current--; URL.revokeObjectURL(localUrl); };
       el.onload = () => {
+        loadingImagesRef.current--;
         const maxW = Math.min(el.naturalWidth, 420), ratio = el.naturalHeight / el.naturalWidth;
         const cx = dropPos?.x ?? (window.innerWidth / 2 + (Math.random() - 0.5) * 400);
         const cy = dropPos?.y ?? (window.innerHeight / 2 + (Math.random() - 0.5) * 200);

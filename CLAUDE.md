@@ -202,6 +202,20 @@ planeado acá hasta confirmarlo.
 >   (100–150 con todo); 10.000 ≈ 450–550 (100–150 con R2). Pro ≈ 8 GB base, 100 GB archivos, 250 GB tráfico/mes.
 >   Comisión de cobro a 3 USD/mes ≈ 13 %; anual ≈ 3–4 %.
 >
+> **Storage, imágenes y seguridad (2026-10-27, con acceso a Supabase por el conector):**
+> - Basura borrada: 508 archivos sin uso en NINGUNA tabla (y con +24 h), 552 MB → 89 MB, con una función temporal
+>   `storage-gc-once` (ya reemplazada por una que responde 410). `pg_net` quedó activado.
+> - **Imágenes achicadas al subir** (`src/lib/storage/shrinkImage.ts`): lado máx. 2560 px (`IMAGE_MAX_SIDE`), WebP
+>   (JPEG si el navegador no escribe WebP y la foto no tiene alfa); GIF/SVG intactos; si no achica, va el original.
+>   Subidas con `cacheControl` de 1 año (nombres UUID, inmutables) y `contentTypeFor` (el bucket filtra tipos).
+> - **Máx. 10 imágenes por sala** (`src/lib/canvasLimits.ts`): subir/arrastrar/pegar archivos, pegar/duplicar y la
+>   galería vieja respetan el tope y avisan; una sala que ya tenía más las conserva. Stickers no cuentan.
+> - **Seguridad: `supabase/migrations/20261027000000_security_hardening.sql` escrita pero NO aplicada todavía**: el
+>   conector pide una confirmación que no le llega al usuario. Cierra la policy `Service role bypass` de `profiles`
+>   (cualquiera podía crear/editar/borrar cualquier perfil), quita las policies de las tablas de features borradas,
+>   crea `storage_cleanup_queue` (no existía: la cola de limpieza no andaba) y limita el bucket (20 MB, tipos,
+>   escritura solo en la carpeta propia). Aplicarla es lo PRIMERO pendiente.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
