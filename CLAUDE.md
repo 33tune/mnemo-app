@@ -227,6 +227,23 @@ planeado acá hasta confirmarlo.
 >   (`welcome_emails` + `Idempotency-Key`), por `pg_net` a la API de Resend con la clave en Vault (`resend_api_key`), sin
 >   frenar nunca el registro. Los usuarios previos quedaron marcados (no lo reciben). Probado con `abutiyt`.
 >
+> **Para los primeros usuarios (2026-10-27, pedido del usuario):**
+> - **`/setup` nuevo** (`src/components/site/SetupScreen.tsx`, mismo vidrio que Auth v4): tras Google se elige
+>   `myland.lol/<nombre>`; el `SetupFlow` viejo de 3 pasos se borró.
+> - **Celular puede crear cuenta y reclamar nombre** (`/login` y `/setup` sin bloqueo); `/dashboard` en el celular
+>   muestra `MobileClaimed` ("¡Es tuyo! … entrá desde una compu"). El editor sigue siendo solo de compu.
+>   `DesktopOnly.tsx` pasó a `MobileClaimed.tsx`.
+> - **Sin marco blanco**: el anillo de foco del lienzo solo con Tab (`[data-kbd-nav]` en `<html>`, CanvasBoard).
+> - **Tutorial de primera vez** (`EditorTour.tsx`, clave `mnemo_tour_v2`): oscurece todo salvo lo que hay que tocar;
+>   card → "Tocá cualquier ELEMENTO dentro de la TARJETA…" → Agregar → Publicar; avanza con lo que hace el usuario;
+>   "Saltar tutorial". Reemplaza el overlay viejo en inglés (`OnboardingOverlay`/`useOnboarding` borrados).
+> - **Banner BETA + "Reportar un error"** (`src/components/beta/BetaBits.tsx`): banner cerrable en landing, login y
+>   editor (pastilla abajo en celular); el botón del editor guarda en `bug_reports` y la base manda mail a
+>   `bautistagutierrezdead@gmail.com` (`supabase/migrations/20261027020000_bug_reports.sql`, aplicada).
+> - **Vista previa al compartir** (`src/app/[handle]/opengraph-image.tsx` + `src/lib/ogCard.ts` +
+>   `src/server/ogImages.ts`): la card publicada simplificada (foto, nombre, @, frase, colores) sobre el color de la
+>   sala; las fotos pasan por `sharp` a PNG (next/og no lee WebP). `metadataBase` = https://myland.lol.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

@@ -9,6 +9,8 @@ import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 
 export const metadata: Metadata = {
   title: "myLand",
+  // Absolute URLs for the link previews (og:image of /[handle]).
+  metadataBase: new URL("https://myland.lol"),
 };
 
 // MYLAND Editor v3 (Phase A): the EDITOR's typefaces, self-hosted by

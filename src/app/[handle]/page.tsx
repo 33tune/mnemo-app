@@ -23,9 +23,16 @@ export async function generateMetadata(
     .eq("handle", handle)
     .maybeSingle();
   if (!data) return { title: "myLand" };
+  // The shared link's preview: the card itself is the image
+  // (opengraph-image.tsx, a Next file convention).
+  const title = `@${data.handle} en myLand`;
+  const description = `Mirá la tarjeta de @${data.handle}: myland.lol/${data.handle}`;
   return {
     title: `@${data.handle}`,
+    description,
     icons: { icon: data.photo || "/favicon.ico" },
+    openGraph: { title, description, url: `https://myland.lol/${data.handle}`, siteName: "myLand", type: "profile" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
