@@ -218,6 +218,11 @@ planeado acá hasta confirmarlo.
 >   ya no se usa), "leaked password protection" apagado (switch en Auth del panel) y tablas viejas sin policies (a
 >   propósito).
 >
+> **Mails (2026-10-27):** Resend configurado con `myland.lol` (DNS en Hostinger: DKIM `resend._domainkey`, CNAME `rsend`
+>   y `send`, DMARC `p=none`), dominio verificado, región São Paulo. Supabase Auth usa SMTP propio (`smtp.resend.com:465`,
+>   usuario `resend`, remitente `myLand <hola@myland.lol>`). `RESEND_API_KEY` (solo envío) está en el entorno de Claude.
+>   Límite de Auth: 30 mails/hora (subirlo en Authentication › Rate Limits si hace falta).
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
