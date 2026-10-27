@@ -178,6 +178,30 @@ planeado acá hasta confirmarlo.
 >   conserva su lugar y el tamaño escala por el MENOR de los dos cambios, siempre dentro del área (antes crecían con el
 >   ancho y podían volverse gigantes).
 >
+> **TRASPASO (2026-10-27) — leer primero en una sesión nueva.** La sesión anterior terminó acá para abrir una con
+> acceso a Supabase (conector o `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` en el entorno). Último commit de esa sesión:
+> `0220958` (celular = solo la card; Music fuera de la app). Lo conversado y pendiente:
+> - **Storage con basura:** el bucket `canvas-assets` ocupa ~500 MB de 1 GB con 2–3 perfiles. Probable basura: archivos
+>   de antes de los arreglos de storage (reemplazos, borrados, pruebas), archivos en la RAÍZ del bucket que la limpieza
+>   diaria no alcanza (solo borra raíz anotada en `storage_cleanup_queue`), fotos/MP3 subidos sin achicar, MP3 de los
+>   Music sacados. **Plan:** 1) solo LEER: peso por carpeta (`storage.objects`, `metadata->>'size'`), archivos sin uso
+>   en NINGÚN dato (`canvases.data` incluido `published`, `canvas_ops`, `profiles`; misma regla que
+>   `extractAssetPaths.ts`) y con más de 24 h; 2) mostrarle al usuario el resumen; 3) borrar SOLO con su OK.
+> - **Revisar con acceso:** que `docs/security/supabase-hardening.sql` esté corrido (RLS de tablas y bucket);
+>   índices de `canvas_ops (user_id, canvas_type)`, `canvases (user_id, type)`, `profiles (handle)`, `profile_views`.
+>   Nada se cambia sin OK del usuario.
+> - **Escalar (decidido conversando, NO implementado todavía; arrancar con OK):** 1) achicar imágenes al subirlas
+>   (lado máx. ~2000 px, WebP; GIFs intactos) — es lo que más baja tráfico y storage; 2) cache largo en las imágenes;
+>   3) avisos de errores (Sentry o similar); 4) 404 propia y vista previa al compartir el link (OG); 5) límite de
+>   registros/intentos de login. Más adelante, si el tráfico de imágenes crece: solo los ARCHIVOS a Cloudflare R2
+>   (base y login quedan en Supabase). No migrar de Supabase: el costo es el tráfico de archivos, no la base.
+> - **Pendiente del usuario:** correr el SQL de seguridad; SMTP propio en Supabase (el de fábrica manda muy pocos
+>   mails por hora: los registros fallan); pasar a Supabase Pro (y Vercel Pro, Hobby es no comercial) antes de un canje
+>   grande; elegir cómo cobrar (Stripe no abre cuentas argentinas directo; anual baja mucho la comisión fija).
+> - **Cuentas que se le dieron (estimadas):** con imágenes achicadas, 1000 usuarios ≈ 40–80 USD/mes de Supabase
+>   (100–150 con todo); 10.000 ≈ 450–550 (100–150 con R2). Pro ≈ 8 GB base, 100 GB archivos, 250 GB tráfico/mes.
+>   Comisión de cobro a 3 USD/mes ≈ 13 %; anual ≈ 3–4 %.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
