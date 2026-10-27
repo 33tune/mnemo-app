@@ -1238,6 +1238,23 @@ export default function CanvasBoard({
   // mount so server and client render the same markup.
   const [isMacUi, setIsMacUi] = useState(false);
   useEffect(() => { setIsMacUi(isMacPlatform()); }, []);
+  // The canvas focus ring is for keyboard users only: Chrome counts a
+  // programmatic focus() after a click as :focus-visible, which drew a white
+  // frame around the whole canvas on every click (2026-10-27). The ring shows
+  // only after Tab (data-kbd-nav on <html>); any pointer press hides it.
+  useEffect(() => {
+    if (!canEdit) return;
+    const root = document.documentElement;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Tab") root.setAttribute("data-kbd-nav", ""); };
+    const onPointer = () => root.removeAttribute("data-kbd-nav");
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("pointerdown", onPointer, true);
+      root.removeAttribute("data-kbd-nav");
+    };
+  }, [canEdit]);
   const announceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const announceRef = useRef<((text: string) => void) | null>(null);
   announceRef.current = (text: string) => {
