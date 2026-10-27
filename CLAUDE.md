@@ -222,6 +222,10 @@ planeado acá hasta confirmarlo.
 >   y `send`, DMARC `p=none`), dominio verificado, región São Paulo. Supabase Auth usa SMTP propio (`smtp.resend.com:465`,
 >   usuario `resend`, remitente `myLand <hola@myland.lol>`). `RESEND_API_KEY` (solo envío) está en el entorno de Claude.
 >   Límite de Auth: 30 mails/hora (subirlo en Authentication › Rate Limits si hace falta).
+>   **Mail de bienvenida** (`supabase/migrations/20261027010000_welcome_email.sql`, aplicada): trigger en `profiles`
+>   cuando el perfil queda real (`onboarding_completed` y handle no `temp_`), Google o mail. Una vez por usuario
+>   (`welcome_emails` + `Idempotency-Key`), por `pg_net` a la API de Resend con la clave en Vault (`resend_api_key`), sin
+>   frenar nunca el registro. Los usuarios previos quedaron marcados (no lo reciben). Probado con `abutiyt`.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
