@@ -304,6 +304,12 @@ planeado acá hasta confirmarlo.
 >   (`mnemo-text-gradient-flow-x|y|xy`). Con animación por letra + degradé + brillo, cada letra muestra su porción del
 >   degradé QUIETA (rebota igual). `-webkit-text-fill-color: transparent` en todo texto con degradé.
 >
+> **Celulares viejos (2026-10-28):** un iPhone X veía el perfil gris oscuro. Next 16 compila por defecto para
+>   Safari ≥ 16.4 (su runtime usa class static blocks); en un Safari más viejo el JS no arranca y la vista pública queda
+>   oculta (`visibility: hidden` hasta medir; el contenido se carga en un efecto, el servidor no lo dibuja). Arreglo:
+>   `browserslist` en `package.json` (Chrome 87, Edge 88, Firefox 78, Safari/iOS 14): 0 static blocks y 0 lookbehind
+>   en los chunks. No borrarlo. Pendiente: confirmarlo en ese iPhone.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
