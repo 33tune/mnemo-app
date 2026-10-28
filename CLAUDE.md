@@ -257,6 +257,10 @@ planeado acá hasta confirmarlo.
 >   dibujados recortados a su forma (`cardClipPath` + `BehindCardClip` en CanvasBoard). Además, en la vista pública el
 >   **wallpaper sigue a la sala** (posición/escala del `viewFit`), no a la esquina de la pantalla: detrás de la card se ve
 >   la misma parte del fondo que en el editor, en cualquier pantalla.
+>   **Reemplazado el mismo día (decisión del usuario):** el celular dibuja TODA imagen o texto libre público que toque
+>   la card (delante o detrás, cualquier tamaño, sin mínimo), ENTERO y como en la compu (sin recorte a la card; se
+>   borraron `cardClipPath` y `BehindCardClip`). El zoom y el recorte siguen calculándose SOLO con la card y sus
+>   stickers: lo que no entra se corta en el borde de la pantalla. Las imágenes no usan nada de los stickers.
 > - **Sin saltito de scroll:** la vista pública usa `100dvh` también como mínimo, y `html, body` sin overflow ni rebote.
 > - **Inclinar en el celular:** si la card tiene Inclinación / Agrandar / Brillo / Foco, el dedo hace lo que el cursor
 >   (`useCardInteractions` › `onTouch*`, `touch-action: none` sobre la card) y el giroscopio inclina la card

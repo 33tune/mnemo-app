@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { CanvasState } from "@/types";
-import { fitRoomToCard, cardViewRect, cardClipPath, mobileView, rotatedBox, MOBILE_GUTTER, MOBILE_MAX_SCALE } from "./mobileFit";
+import { fitRoomToCard, cardViewRect, mobileView, rotatedBox, MOBILE_GUTTER, MOBILE_MAX_SCALE } from "./mobileFit";
 
 const base = (over: Partial<CanvasState>): CanvasState => ({
   cards: [], images: [], texts: [], galleries: [], profiles: [], medias: [], guestbooks: [], socialCards: [],
@@ -12,34 +12,30 @@ const card = { id: "p", x: 800, y: 300, w: 300, h: 400, isPublic: true } as neve
 const img = (id: string, x: number, y: number, w = 100, h = 100) =>
   ({ id, src: "https://x/y.png", x, y, w, h, rotation: 0, isPublic: true, zIndex: 1, layer: 1, depth: 0 }) as never;
 
-test("phones show only the card: no images, texts, Music or old widgets", () => {
-  const t = { id: "t", x: 760, y: 260, content: "hola", size: 20, rotation: 0, isPublic: true } as never;
+test("phones show the card, and of the room only the images / texts touching it", () => {
+  const t = { id: "t", x: 820, y: 400, content: "hola", size: 20, rotation: 0, isPublic: true } as never;
+  const farText = { id: "far", x: 100, y: 100, content: "lejos", size: 20, rotation: 0, isPublic: true } as never;
   const m = { id: "m", x: 820, y: 720, w: 200, h: 64, isPublic: true } as never;
-  const fit = fitRoomToCard(base({ profiles: [card], images: [img("frame", 780, 280, 340, 440)], texts: [t], musicCards: [m] }))!;
+  const fit = fitRoomToCard(base({ profiles: [card], images: [img("frame", 780, 280, 340, 440)], texts: [t, farText], musicCards: [m] }))!;
   assert.equal(fit.state.profiles.length, 1);
-  assert.equal(fit.state.images.length + fit.state.texts.length + fit.state.musicCards.length, 0);
+  assert.deepEqual(fit.state.images.map(i => i.id), ["frame"]);
+  assert.deepEqual(fit.state.texts.map(x => x.id), ["t"]);
+  assert.equal(fit.state.musicCards.length, 0);
   assert.deepEqual(fit.card, { x: 800, y: 300, w: 300, h: 400 });
   assert.equal(fitRoomToCard(base({ profiles: [{ ...(card as object), isPublic: false } as never] })), null);
 });
 
-test("a see-through card keeps what's behind it (and only what it covers)", () => {
-  const front = { ...(card as object), zIndex: 5, layer: 1 } as never; // z 105
-  const behind = { ...(img("behind", 700, 250, 600, 600) as object), zIndex: 1, layer: 0 } as never; // z 1, covers it
-  const away = { ...(img("away", 1500, 900) as object), zIndex: 1, layer: 0 } as never;  // z 1, elsewhere
-  const over = { ...(img("over", 820, 320) as object), zIndex: 9, layer: 1 } as never;   // z 109, in front
-  const txt = { id: "t", x: 820, y: 400, content: "hola", size: 20, rotation: 0, isPublic: true, zIndex: 0, layer: 0 } as never;
-  const fit = fitRoomToCard(base({ profiles: [front], images: [behind, away, over], texts: [txt] }))!;
-  assert.deepEqual(fit.state.images.map(i => i.id), ["behind"]);
-  assert.equal(fit.state.texts.length, 1);
-  assert.deepEqual(fit.card, { x: 800, y: 300, w: 300, h: 400 }, "the view still fits the card alone");
-});
-
-test("cardClipPath: the card's rounded box, rotated with it", () => {
-  const flat = cardClipPath({ x: 10, y: 20, w: 100, h: 0 } as never, 50, 0);
-  assert.match(flat, /^polygon\(/);
-  assert.ok(flat.includes("110px 20px") && flat.includes("10px 70px"), flat);
-  const turned = cardClipPath({ x: 0, y: 0, w: 100, rotation: 90 } as never, 100, 0);
-  assert.ok(turned.includes("100px 100px") && turned.includes("0px 0px"), turned);
+test("in front or behind, any size: kept whole; the view is still the card alone", () => {
+  const c = { ...(card as object), zIndex: 5, layer: 1 } as never; // z 105
+  const behind = { ...(img("behind", 700, 250, 600, 600) as object), zIndex: 1, layer: 0 } as never;
+  const huge = { ...(img("huge", -2000, -2000, 5000, 5000) as object), zIndex: 9, layer: 2 } as never;
+  const corner = { ...(img("corner", 1090, 690, 400, 400) as object), zIndex: 9, layer: 1 } as never; // barely touches
+  const away = { ...(img("away", 1500, 900) as object), zIndex: 9, layer: 1 } as never;
+  const hidden = { ...(img("hidden", 820, 320) as object), isPublic: false } as never;
+  const fit = fitRoomToCard(base({ profiles: [c], images: [behind, huge, corner, away, hidden] }))!;
+  assert.deepEqual(fit.state.images.map(i => i.id), ["behind", "huge", "corner"]);
+  assert.deepEqual(fit.state.images.find(i => i.id === "huge"), huge, "drawn as stored");
+  assert.deepEqual(fit.card, { x: 800, y: 300, w: 300, h: 400 });
 });
 
 test("adding images never moves the card on the phone", () => {
