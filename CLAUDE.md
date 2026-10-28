@@ -269,6 +269,24 @@ planeado acá hasta confirmarlo.
 >   = https://www.myland.lol, y título/descripción por perfil (la consulta pedía una columna `photo` inexistente y
 >   siempre caía en "myLand").
 >
+> **iPhone, GIFs y storage (2026-10-28, segunda tanda):**
+> - **Transparencia en iPhone:** en Safari la card transparente se veía bien durante la animación de entrada y
+>   "se volvía opaca" al terminar. La capa de inclinación tenía SIEMPRE un `perspective()/rotateX()` (capa 3D
+>   permanente, aun con la inclinación apagada). Ahora `CardLayers` usa `transform: var(--tilt-tf, none)` y
+>   `useCardInteractions` pone la transformación 3D solo mientras la card está inclinada; quieta = plana. Pendiente:
+>   confirmarlo en un iPhone real.
+> - **GIFs:** máximo 8 MB (`GIF_LIMIT_MB`). Después de subirlo, `POST /api/media/optimize` lo convierte en el
+>   servidor (`sharp`) a WebP animado de lado máx. 800 px, calidad 60 (un GIF real de 6,7 MB → 2,4 MB, sin diferencia
+>   visible, transparencia intacta), sube `<uid>/<uuid>-gif.webp`, borra el original y devuelve la URL nueva; ante
+>   cualquier falla queda el original. `isGifSrc()` mantiene la etiqueta "GIF" en el editor.
+> - **Tope por usuario:** la policy `ml_assets_insert_own` del bucket rechaza subir si la carpeta del usuario ya tiene
+>   100 archivos (`storage_user_file_count`); el editor avisa.
+> - **Limpieza diaria de TODOS los usuarios** (`supabase/migrations/20261028000000_storage_quota_and_daily_gc.sql`,
+>   aplicada): `pg_cron` `storage-gc-daily` (07:17 UTC) → edge function `storage-gc` (`supabase/functions/`,
+>   `verify_jwt` apagado: valida el secreto `storage_gc_secret` de Vault vía `storage_gc_candidates`) → borra por la API
+>   los archivos que no menciona ninguna sala / op / perfil y tienen +24 h (hasta 500 por día). Primera pasada:
+>   54 archivos, 34,6 MB (167 → 133 MB).
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

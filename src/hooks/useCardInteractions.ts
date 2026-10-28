@@ -52,6 +52,14 @@ export function useCardInteractions(
       el.style.setProperty("--tilt-y", `${currentTilt.current.y.toFixed(3)}deg`);
 
       const settled = Math.abs(currentTilt.current.x - tx) < 0.01 && Math.abs(currentTilt.current.y - ty) < 0.01;
+      // The 3D transform exists only while the card is really tilted
+      // (CardLayers reads --tilt-tf): a card at rest is flat. iPhone Safari
+      // composites a 3D layer apart and lost what's behind a see-through
+      // card right after the entry animation ended (2026-10-28).
+      const atRest = settled && tx === 0 && ty === 0;
+      el.style.setProperty("--tilt-tf", atRest
+        ? "none"
+        : `perspective(1000px) rotateX(${currentTilt.current.x.toFixed(3)}deg) rotateY(${currentTilt.current.y.toFixed(3)}deg)`);
       if (!settled) {
         rafRef.current = requestAnimationFrame(animate);
       } else {

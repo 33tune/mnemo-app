@@ -6,6 +6,9 @@
  * server-side backstop.
  */
 export const UPLOAD_LIMITS = { image: 15, audio: 20, font: 5 } as const; // MB
+/** GIFs can't be shrunk in the browser (it would drop the animation): they
+ * get a lower cap here and are re-encoded on the server (/api/media/optimize). */
+export const GIF_LIMIT_MB = 8;
 
 const FONT_EXTS = ["woff2", "woff", "ttf", "otf"];
 const AUDIO_EXTS = ["mp3"];
@@ -26,6 +29,9 @@ export function uploadKind(file: { name: string; type: string }): UploadKind | n
 export function checkUpload(file: { name: string; type: string; size: number }): string | null {
   const kind = uploadKind(file);
   if (!kind) return "Ese tipo de archivo no se puede subir. Usá una imagen, un MP3 o una fuente.";
+  if (kind === "image" && contentTypeFor(file) === "image/gif" && file.size > GIF_LIMIT_MB * 1024 * 1024) {
+    return `El GIF pesa más de ${GIF_LIMIT_MB} MB. Probá con uno más liviano o más corto.`;
+  }
   const max = UPLOAD_LIMITS[kind];
   if (file.size > max * 1024 * 1024) {
     const what = kind === "image" ? "La imagen" : kind === "audio" ? "El audio" : "La fuente";
@@ -65,4 +71,9 @@ export function shouldShrink(file: { name: string; type: string }): boolean {
   if (uploadKind(file) !== "image") return false;
   const t = contentTypeFor(file);
   return t !== "image/gif" && t !== "image/svg+xml";
+}
+
+/** A GIF, as uploaded or as optimized on the server (<uuid>-gif.webp). */
+export function isGifSrc(src: string | null | undefined): boolean {
+  return /(\.gif|-gif\.webp)(\?|$)/i.test(src ?? "");
 }

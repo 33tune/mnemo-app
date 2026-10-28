@@ -1,6 +1,7 @@
 "use client";
 import type { CardEffects } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
+import { isGifSrc } from "@/lib/storage/uploadRules";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
 import { SliderRow, ColorRow, MenuSection, EffectList, EffectRow, UploadField } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
@@ -69,12 +70,12 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
           state={raw?.bg?.opacity !== undefined ? "modified" : undefined} onReset={() => patchBg({ opacity: undefined })} />
       </MenuSection>
 
-      <MenuSection label="Imagen o GIF" icon="image" summary={bg?.image ? (/\.gif/i.test(bg.image) ? "GIF" : "Cargada") : "Vacía"}>
+      <MenuSection label="Imagen o GIF" icon="image" summary={bg?.image ? (isGifSrc(bg.image) ? "GIF" : "Cargada") : "Vacía"}>
         {/* Shown for the EFFECTIVE image (a legacy card.bgImage too). Remove
             writes "" (not undefined) so the raw override actually masks a
             legacy image — getProfileCardEffects spreads effects.bg over it. */}
         <UploadField kind="cover" value={bg?.image || null} label="Subir imagen o GIF" accept="image/*,image/gif"
-          caption={bg?.image && /\.gif/i.test(bg.image) ? "GIF" : "Imagen"}
+          caption={bg?.image && isGifSrc(bg.image) ? "GIF" : "Imagen"}
           onFile={handleBgFile} onRemove={() => patchBg({ image: "" })} />
       </MenuSection>
 

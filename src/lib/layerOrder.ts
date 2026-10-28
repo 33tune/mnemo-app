@@ -20,6 +20,7 @@
  * parallax (getParallaxStyle(layer, depth)) intact.
  */
 import type { CanvasElement } from "@/types";
+import { isGifSrc } from "@/lib/storage/uploadRules";
 
 export type ElementKind = CanvasElement["elementType"];
 export type LayerIndex = 0 | 1 | 2;
@@ -204,7 +205,7 @@ export function layerLabels(elements: readonly CanvasElement[]): Map<string, { n
 export function layerItemLabel(el: CanvasElement): { name: string; detail?: string } {
   switch (el.elementType) {
     case "text": return { name: KIND_NAME.text, detail: el.content ? clip(el.content) : undefined };
-    case "image": return { name: /\.gif(\?|$)/i.test(el.src ?? "") ? "GIF" : KIND_NAME.image };
+    case "image": return { name: isGifSrc(el.src) ? "GIF" : KIND_NAME.image };
     case "profile": return { name: KIND_NAME.profile, detail: el.name ? clip(el.name) : undefined };
     case "music": return { name: KIND_NAME.music, detail: el.title ? clip(el.title) : undefined };
     case "gallery": return { name: KIND_NAME.gallery, detail: `${el.images?.length ?? 0} imágenes` };

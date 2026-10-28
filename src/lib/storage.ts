@@ -42,13 +42,41 @@ async function _doUpload(file: File): Promise<UploadResult> {
         cacheControl: "31536000",
       });
     if (!error) {
+      // GIFs: re-encoded on the server (animated WebP, much lighter).
+      if (contentTypeFor(file) === "image/gif" && storagePath.includes("/")) {
+        const optimized = await optimizeGif(storagePath);
+        if (optimized) return optimized;
+      }
       const { data } = supabase.storage.from("canvas-assets").getPublicUrl(storagePath);
       return { publicUrl: data.publicUrl, storagePath };
     }
     lastError = error;
   }
   console.error("[STORAGE UPLOAD ERROR]", lastError);
+  // The bucket refuses a folder that already holds 100 files (migration
+  // 20261028000000): say so instead of a silent failure.
+  if (session && /row-level security|violates/i.test(String((lastError as { message?: string })?.message ?? ""))
+      && typeof window !== "undefined") {
+    window.alert("Llegaste al máximo de 100 archivos. Sacá imágenes o GIFs que no uses: el espacio se libera al día siguiente.");
+  }
   throw lastError;
+}
+
+/** The uploaded GIF as an optimized animated WebP (/api/media/optimize), or
+ * null to keep the original (any failure, slow server, no gain). */
+async function optimizeGif(storagePath: string): Promise<UploadResult | null> {
+  try {
+    const res = await fetch("/api/media/optimize", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: storagePath }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) return null;
+    const out = await res.json() as { path?: string; publicUrl?: string };
+    return out.path && out.publicUrl ? { publicUrl: out.publicUrl, storagePath: out.path } : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function uploadToStorage(file: File): Promise<UploadResult> {

@@ -211,15 +211,16 @@ export default function CardLayers({
         position: "absolute", inset: 0,
         transform: "scale(var(--hover-scale,1))",
         transition: "transform 0.2s ease",
-        willChange: "transform",
       }}>
         <div style={{
           ...style,
           position: "absolute",
           inset: 0,
           borderRadius: rad,
-          transform: "perspective(1000px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg))",
-          willChange: "transform",
+          // Flat unless tilted right now (useCardInteractions sets --tilt-tf
+          // while tilting): no permanent 3D layer — iPhone Safari dropped the
+          // see-through background of a card under one.
+          transform: "var(--tilt-tf, none)",
         }}>
           {/* Card stickers behind the card (2026-10-27): inside the tilt /
               hover-scale / floating wrappers, so they move with the card. */}

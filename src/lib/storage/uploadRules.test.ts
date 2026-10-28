@@ -6,7 +6,9 @@ const MB = 1024 * 1024;
 
 test("images, MP3s and fonts are accepted within their limits", () => {
   assert.equal(checkUpload({ name: "a.png", type: "image/png", size: 2 * MB }), null);
-  assert.equal(checkUpload({ name: "a.gif", type: "image/gif", size: 14 * MB }), null);
+  assert.equal(checkUpload({ name: "a.gif", type: "image/gif", size: 7.9 * MB }), null);
+  assert.match(checkUpload({ name: "a.gif", type: "image/gif", size: 9 * MB })!, /GIF pesa más de 8 MB/);
+  assert.equal(checkUpload({ name: "a.png", type: "image/png", size: 14 * MB }), null, "other pictures keep 15 MB");
   assert.equal(checkUpload({ name: "s.mp3", type: "audio/mpeg", size: 19 * MB }), null);
   assert.equal(checkUpload({ name: "f.woff2", type: "", size: MB }), null);
   assert.equal(checkUpload({ name: "f.ttf", type: "application/octet-stream", size: MB }), null);

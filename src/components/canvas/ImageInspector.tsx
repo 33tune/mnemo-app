@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import type { CanvasImage } from "@/types";
 import { Accordion, InspectorShell, MenuSection, MenuNote, TextInput, UploadField } from "@/ui";
 import type { LayerIndex } from "@/lib/layerOrder";
+import { isGifSrc } from "@/lib/storage/uploadRules";
 import { ObjectSection, ElementFooter, type ElementShellProps, type MeasureSpec } from "./ElementInspectorParts";
 
 /** The corner shapes the old canvas toolbar offered — same stored values
@@ -47,7 +48,7 @@ export default function ImageInspector(p: ImageInspectorProps) {
   const [openCard, setOpenCard] = useState<string | null>(null);
   const { image: img, updateImage } = p;
   const current = imageCornerValue(img);
-  const isGif = /\.gif($|\?)/i.test(img.src);
+  const isGif = isGifSrc(img.src);
   const corner = IMAGE_CORNERS.find(c => isCornerActive(current, c.value))?.label ?? `${current} px`;
   return (
     <InspectorShell

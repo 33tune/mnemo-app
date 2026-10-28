@@ -15,7 +15,7 @@ test("stickers are ghosts: never clickable, in the editor or on the public page"
 });
 
 test("they live inside the card's tilt / hover / floating wrappers (they move with it)", () => {
-  const tilt = LAYERS.indexOf("rotateX(var(--tilt-x,0deg))");
+  const tilt = LAYERS.indexOf('transform: "var(--tilt-tf, none)"');
   assert.ok(tilt > 0 && LAYERS.indexOf("{back}") > tilt && LAYERS.indexOf("{front}") > LAYERS.indexOf("{back}"));
   assert.ok(CARD.includes("back={<StickerLayer") && CARD.includes("front={<StickerLayer"));
 });
