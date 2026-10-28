@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { CanvasState } from "@/types";
-import { fitRoomToCard, cardViewRect, mobileView, rotatedBox, MOBILE_GUTTER, MOBILE_MAX_SCALE } from "./mobileFit";
+import { fitRoomToCard, cardViewRect, cardClipPath, mobileView, rotatedBox, MOBILE_GUTTER, MOBILE_MAX_SCALE } from "./mobileFit";
 
 const base = (over: Partial<CanvasState>): CanvasState => ({
   cards: [], images: [], texts: [], galleries: [], profiles: [], medias: [], guestbooks: [], socialCards: [],
@@ -20,6 +20,26 @@ test("phones show only the card: no images, texts, Music or old widgets", () => 
   assert.equal(fit.state.images.length + fit.state.texts.length + fit.state.musicCards.length, 0);
   assert.deepEqual(fit.card, { x: 800, y: 300, w: 300, h: 400 });
   assert.equal(fitRoomToCard(base({ profiles: [{ ...(card as object), isPublic: false } as never] })), null);
+});
+
+test("a see-through card keeps what's behind it (and only what it covers)", () => {
+  const front = { ...(card as object), zIndex: 5, layer: 1 } as never; // z 105
+  const behind = { ...(img("behind", 700, 250, 600, 600) as object), zIndex: 1, layer: 0 } as never; // z 1, covers it
+  const away = { ...(img("away", 1500, 900) as object), zIndex: 1, layer: 0 } as never;  // z 1, elsewhere
+  const over = { ...(img("over", 820, 320) as object), zIndex: 9, layer: 1 } as never;   // z 109, in front
+  const txt = { id: "t", x: 820, y: 400, content: "hola", size: 20, rotation: 0, isPublic: true, zIndex: 0, layer: 0 } as never;
+  const fit = fitRoomToCard(base({ profiles: [front], images: [behind, away, over], texts: [txt] }))!;
+  assert.deepEqual(fit.state.images.map(i => i.id), ["behind"]);
+  assert.equal(fit.state.texts.length, 1);
+  assert.deepEqual(fit.card, { x: 800, y: 300, w: 300, h: 400 }, "the view still fits the card alone");
+});
+
+test("cardClipPath: the card's rounded box, rotated with it", () => {
+  const flat = cardClipPath({ x: 10, y: 20, w: 100, h: 0 } as never, 50, 0);
+  assert.match(flat, /^polygon\(/);
+  assert.ok(flat.includes("110px 20px") && flat.includes("10px 70px"), flat);
+  const turned = cardClipPath({ x: 0, y: 0, w: 100, rotation: 90 } as never, 100, 0);
+  assert.ok(turned.includes("100px 100px") && turned.includes("0px 0px"), turned);
 });
 
 test("adding images never moves the card on the phone", () => {

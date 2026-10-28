@@ -1,6 +1,6 @@
 /**
  * How many pictures a room may hold (decision of 2026-10-27): 10 images on the
- * canvas. Stickers are the card's own (max 8, stickerGeometry.ts) and don't
+ * canvas. Stickers are the card's own (max 10, stickerGeometry.ts) and don't
  * count. A room saved with more before the limit keeps them; it only can't
  * add new ones until it is under the limit. Pure, so it's tested.
  */

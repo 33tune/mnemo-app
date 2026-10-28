@@ -251,6 +251,24 @@ planeado acá hasta confirmarlo.
 >   `temp_`) en callback, `/dashboard` y `/setup`, y `SetupScreen` verifica que el update tocó una fila. También se
 >   cortó `markActive` (escribía columnas que no existen: un 400 por edición).
 >
+> **Celular y vista previa (2026-10-28, pedido del usuario):**
+> - **Transparencia en el celular:** la card transparente/vidrio no dejaba ver nada porque el celular solo dibujaba la
+>   card. Ahora `fitRoomToCard` conserva las imágenes y textos libres que están DETRÁS de la card (z menor) y la tocan,
+>   dibujados recortados a su forma (`cardClipPath` + `BehindCardClip` en CanvasBoard). Además, en la vista pública el
+>   **wallpaper sigue a la sala** (posición/escala del `viewFit`), no a la esquina de la pantalla: detrás de la card se ve
+>   la misma parte del fondo que en el editor, en cualquier pantalla.
+> - **Sin saltito de scroll:** la vista pública usa `100dvh` también como mínimo, y `html, body` sin overflow ni rebote.
+> - **Inclinar en el celular:** si la card tiene Inclinación / Agrandar / Brillo / Foco, el dedo hace lo que el cursor
+>   (`useCardInteractions` › `onTouch*`, `touch-action: none` sobre la card) y el giroscopio inclina la card
+>   (`useGyroTilt`; en iPhone el primer toque pide el permiso de movimiento). Se ignoran los eventos de mouse que el
+>   celular dispara tras un toque.
+> - **Stickers:** máximo 10. Los de "delante" quedan encima de TODO (antes los bloques con z-index propio —logo,
+>   botones— los tapaban): la capa de contenido de `CardLayers` lleva `isolation: isolate` (también arregla los retro).
+> - **Vista previa al compartir:** la imagen salía en PNG de ~1,1 MB (WhatsApp descarta las de más de ~300 KB) y el
+>   link pasaba por la redirección `myland.lol` → `www`. Ahora JPEG (`ogJpeg`, 50–200 KB) con cache, `metadataBase`
+>   = https://www.myland.lol, y título/descripción por perfil (la consulta pedía una columna `photo` inexistente y
+>   siempre caía en "myLand").
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

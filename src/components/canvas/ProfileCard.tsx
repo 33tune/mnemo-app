@@ -8,7 +8,7 @@ import { SELECTION_Z_BOOST } from "@/lib/canvasZIndex";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
-import { useCardInteractions } from "@/hooks/useCardInteractions";
+import { useCardInteractions, useGyroTilt } from "@/hooks/useCardInteractions";
 import { StickerLayer, StickerEditor, withPreview, type StickerPreview } from "./CardStickers";
 import { useStickerEditing } from "@/lib/stickerEditing";
 import { isEventFromNode } from "@/lib/editorGuards";
@@ -351,8 +351,14 @@ function ProfileCard({
     ? { ...effectiveEffects, animations: { ...effectiveEffects.animations, floating: false } }
     : effectiveEffects;
 
-  const { onMouseMove: onInteractMove, onMouseEnter: onInteractEnter, onMouseLeave: onInteractLeave } =
-    useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>, true);
+  const interactions = useCardInteractions(effectiveEffects, cardRef as React.RefObject<HTMLElement | null>, true);
+  const { onMouseMove: onInteractMove, onMouseEnter: onInteractEnter, onMouseLeave: onInteractLeave } = interactions;
+  // Public view on a phone (2026-10-28): the finger and the phone's own tilt
+  // drive the same effects as the cursor — only those the card has turned on.
+  const touchFx = !canInteract && (interactions.tiltOn
+    || !!effectiveEffects.interactions?.spotlight || !!effectiveEffects.interactions?.hoverGlow
+    || (effectiveEffects.interactions?.hoverScale ?? 1) !== 1);
+  useGyroTilt(!canInteract && interactions.tiltOn, interactions);
   // Block 1 (panel <-> card pointer isolation): the config menu is portaled
   // to document.body from INSIDE this card's JSX, so React bubbles the
   // panel's mousemove/mouseover up to the handlers below (fiber tree, not
@@ -1189,7 +1195,13 @@ function ProfileCard({
         onMouseMove={handleInteractMove}
         onMouseOver={handleInteractOver}
         onMouseLeave={handleInteractLeave}
+        onTouchStart={touchFx ? interactions.onTouchStart : undefined}
+        onTouchMove={touchFx ? interactions.onTouchMove : undefined}
+        onTouchEnd={touchFx ? interactions.onTouchEnd : undefined}
+        onTouchCancel={touchFx ? interactions.onTouchEnd : undefined}
         style={{
+          // A finger dragging over the card tilts it, never pans / zooms the page.
+          ...(touchFx ? { touchAction: "none" as const } : {}),
           position: "absolute", left: card.x, top: card.y, width: card.w, height: renderH,
           zIndex: card.zIndex + card.layer * 100 + (isSel ? SELECTION_Z_BOOST : 0),
           transform: `${parallaxTransform} rotate(${card.rotation}deg)`,

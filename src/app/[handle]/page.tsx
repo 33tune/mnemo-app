@@ -17,21 +17,24 @@ export async function generateMetadata(
   const { handle } = await params;
   if (RESERVED.has(handle)) return { title: "myLand" };
   const supabase = await createClient();
+  // (It used to ask for a "photo" column that doesn't exist: the query failed
+  // and every shared link said just "myLand".)
   const { data } = await supabase
     .from("profiles")
-    .select("handle, photo")
+    .select("handle, display_name")
     .eq("handle", handle)
     .maybeSingle();
   if (!data) return { title: "myLand" };
   // The shared link's preview: the card itself is the image
   // (opengraph-image.tsx, a Next file convention).
-  const title = `@${data.handle} en myLand`;
-  const description = `Mirá la tarjeta de @${data.handle}: myland.lol/${data.handle}`;
+  const name = (data.display_name as string | null)?.trim();
+  const title = name && name !== data.handle ? `${name} (@${data.handle}) · myLand` : `@${data.handle} · myLand`;
+  const description = `Mirá la tarjeta de @${data.handle} en myLand: myland.lol/${data.handle}`;
   return {
-    title: `@${data.handle}`,
+    title,
     description,
-    icons: { icon: data.photo || "/favicon.ico" },
-    openGraph: { title, description, url: `https://myland.lol/${data.handle}`, siteName: "myLand", type: "profile" },
+    alternates: { canonical: `/${data.handle}` },
+    openGraph: { title, description, url: `/${data.handle}`, siteName: "myLand", type: "profile" },
     twitter: { card: "summary_large_image", title, description },
   };
 }

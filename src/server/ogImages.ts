@@ -14,14 +14,23 @@ async function drawable(url: string | null, maxSide: number): Promise<string | n
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length > 20 * 1024 * 1024) return null;
-    const png = await sharp(buf, { animated: false })
-      .resize(maxSide, maxSide, { fit: "inside", withoutEnlargement: true })
-      .png()
-      .toBuffer();
-    return `data:image/png;base64,${png.toString("base64")}`;
+    const img = sharp(buf, { animated: false }).resize(maxSide, maxSide, { fit: "inside", withoutEnlargement: true });
+    // JPEG unless it has see-through parts: far smaller, so the preview
+    // renders faster and comes out lighter.
+    if ((await img.metadata()).hasAlpha) {
+      return `data:image/png;base64,${(await img.png().toBuffer()).toString("base64")}`;
+    }
+    return `data:image/jpeg;base64,${(await img.jpeg({ quality: 82 }).toBuffer()).toString("base64")}`;
   } catch {
     return null;
   }
+}
+
+/** WhatsApp drops a preview picture over ~300 KB (and Instagram is strict
+ * too): next/og only writes PNG (~1 MB for a photo-heavy card), so the final
+ * picture is re-encoded as a JPEG of a ~100–200 KB. */
+export async function ogJpeg(png: ArrayBuffer): Promise<Buffer> {
+  return sharp(Buffer.from(png)).flatten({ background: "#0E0C12" }).jpeg({ quality: 80, mozjpeg: true }).toBuffer();
 }
 
 export async function withDrawableImages(og: OgCard): Promise<OgCard> {

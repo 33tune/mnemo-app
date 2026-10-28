@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import type { CardEffects } from "@/types";
 
 // Stage FASE 3 (Text & Motion Effects): hoverGlow/hoverScale extend this
@@ -63,7 +63,14 @@ export function useCardInteractions(
     rafRef.current = requestAnimationFrame(animate);
   }, [cardRef]);
 
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
+  // Phones (2026-10-28): a tap fires mouseover/mousemove right after the
+  // touch ends; ignoring mouse events shortly after a touch keeps a tapped
+  // card from staying scaled / tilted (mouseleave never comes on a phone).
+  const lastTouchAt = useRef(0);
+  const touching = useRef(false);
+  const fromTouch = () => Date.now() - lastTouchAt.current < 800;
+
+  const pointAt = useCallback((clientX: number, clientY: number) => {
     const el = cardRef.current;
     if (!el || (!tiltOn && !spotlightOn)) return;
 
@@ -73,8 +80,8 @@ export function useCardInteractions(
     // event from outside it (e.g. a portaled child's mousemove bubbling
     // through the React tree) can never push tilt/spotlight past the
     // values a real in-card position produces.
-    const nx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-    const ny = Math.min(1, Math.max(0, (e.clientY - r.top)  / r.height));
+    const nx = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    const ny = Math.min(1, Math.max(0, (clientY - r.top)  / r.height));
 
     if (tiltOn) {
       targetTilt.current.x = (ny - 0.5) * maxTilt * -1;
@@ -87,20 +94,24 @@ export function useCardInteractions(
     }
   }, [tiltOn, spotlightOn, maxTilt, cardRef, startLerpLoop]);
 
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!fromTouch()) pointAt(e.clientX, e.clientY);
+  }, [pointAt]);
+
   // Fires once on cursor entry — independent of onMouseMove, so hover-glow/
   // hover-scale engage immediately even if the cursor lands and never moves
   // again, unlike tilt/spotlight which are genuinely mouse-position-driven.
   // CSS `transition` on the reading elements (CardLayers.tsx) does the
   // smoothing here — no rAF loop needed, since these targets are simple
   // two-state (on/off) values, not a continuously-moving position.
-  const onMouseEnter = useCallback(() => {
+  const engage = useCallback(() => {
     const el = cardRef.current;
     if (!el) return;
     if (hoverGlowOn) el.style.setProperty("--hover-glow", "1");
     if (hoverScaleOn) el.style.setProperty("--hover-scale", String(hoverScaleTarget));
   }, [cardRef, hoverGlowOn, hoverScaleOn, hoverScaleTarget]);
 
-  const onMouseLeave = useCallback(() => {
+  const release = useCallback(() => {
     const el = cardRef.current;
     if (!el) return;
 
@@ -113,5 +124,87 @@ export function useCardInteractions(
     el.style.setProperty("--hover-scale", "1");
   }, [cardRef, startLerpLoop]);
 
-  return { onMouseMove, onMouseEnter, onMouseLeave };
+  const onMouseEnter = useCallback(() => { if (!fromTouch()) engage(); }, [engage]);
+  const onMouseLeave = useCallback(() => { if (!fromTouch()) release(); }, [release]);
+
+  // ── Phones: the finger does what the cursor does (2026-10-28) ───────────
+  // Pressing = entering (hover scale / glow); dragging = moving (tilt,
+  // spotlight); lifting = leaving. Only the effects the card has turned on.
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (!t) return;
+    lastTouchAt.current = Date.now();
+    touching.current = true;
+    engage();
+    pointAt(t.clientX, t.clientY);
+  }, [engage, pointAt]);
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (!t) return;
+    lastTouchAt.current = Date.now();
+    pointAt(t.clientX, t.clientY);
+  }, [pointAt]);
+  const onTouchEnd = useCallback(() => {
+    lastTouchAt.current = Date.now();
+    touching.current = false;
+    release();
+  }, [release]);
+
+  return { onMouseMove, onMouseEnter, onMouseLeave, onTouchStart, onTouchMove, onTouchEnd, tiltOn, maxTilt, targetTilt, touching, startLerpLoop };
+}
+
+/** iPhone (iOS 13+) shows the motion permission only from a tap. */
+type OrientationPermission = { requestPermission?: () => Promise<"granted" | "denied"> };
+
+/**
+ * Phones: the card's tilt follows the phone's own tilt (gyroscope), relative
+ * to how it was held when the page opened — only while no finger is on the
+ * card (the finger wins). Android just works; on an iPhone the first tap on
+ * the page asks for the motion permission (Safari requires a tap).
+ */
+export function useGyroTilt(
+  enabled: boolean,
+  ix: Pick<ReturnType<typeof useCardInteractions>, "maxTilt" | "targetTilt" | "touching" | "startLerpLoop">,
+) {
+  const { maxTilt, targetTilt, touching, startLerpLoop } = ix;
+  const maxRef = useRef(maxTilt);
+  maxRef.current = maxTilt;
+  useEffectOnce(enabled, () => {
+    if (typeof window === "undefined" || !("DeviceOrientationEvent" in window)) return;
+    let base: { b: number; g: number } | null = null;
+    const RANGE = 25; // degrees of phone tilt for the full card tilt
+    const clamp = (v: number) => Math.max(-1, Math.min(1, v));
+    const onOrient = (ev: DeviceOrientationEvent) => {
+      if (ev.beta == null || ev.gamma == null || touching.current) return;
+      if (!base) base = { b: ev.beta, g: ev.gamma };
+      // Slowly re-center, so a phone set down at a new angle settles flat.
+      base.b += (ev.beta - base.b) * 0.01;
+      base.g += (ev.gamma - base.g) * 0.01;
+      // ±max/2, the same range the cursor reaches at the card's edges.
+      targetTilt.current.x = clamp((ev.beta - base.b) / RANGE) * maxRef.current * -0.5;
+      targetTilt.current.y = clamp((ev.gamma - base.g) / RANGE) * maxRef.current * 0.5;
+      startLerpLoop();
+    };
+    const listen = () => window.addEventListener("deviceorientation", onOrient);
+    const Perm = window.DeviceOrientationEvent as unknown as OrientationPermission;
+    let ask: (() => void) | null = null;
+    if (typeof Perm.requestPermission === "function") {
+      ask = () => {
+        document.removeEventListener("touchend", ask!);
+        Perm.requestPermission!().then(s => { if (s === "granted") listen(); }).catch(() => {});
+      };
+      document.addEventListener("touchend", ask, { passive: true });
+    } else {
+      listen();
+    }
+    return () => {
+      window.removeEventListener("deviceorientation", onOrient);
+      if (ask) document.removeEventListener("touchend", ask);
+    };
+  });
+}
+
+/** useEffect keyed only on `enabled` (the handlers read refs). */
+function useEffectOnce(enabled: boolean, run: () => void | (() => void)) {
+  useEffect(() => (enabled ? run() : undefined), [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 }

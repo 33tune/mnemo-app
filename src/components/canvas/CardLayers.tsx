@@ -301,7 +301,10 @@ export default function CardLayers({
           )}
 
           {/* ── Content Layer ── */}
-          <div style={{ position: "absolute", inset: 0, borderRadius: rad, filter: contentFilter }}>
+          {/* isolation: the blocks' own z-index stays inside the content, so
+              the retro overlays and the stickers in front (later siblings)
+              really paint over it — the logo / buttons used to cover them. */}
+          <div style={{ position: "absolute", inset: 0, borderRadius: rad, filter: contentFilter, isolation: "isolate" }}>
             {children}
           </div>
 

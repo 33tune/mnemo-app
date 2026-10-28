@@ -3,12 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { publicStateOf } from "@/lib/publishedState";
 import { ogCardOf } from "@/lib/ogCard";
 import { OgCardImage, OgFallbackImage, OG_SIZE } from "@/components/og/OgCardImage";
-import { withDrawableImages } from "@/server/ogImages";
+import { withDrawableImages, ogJpeg } from "@/server/ogImages";
 
 // The preview WhatsApp / Instagram / Discord show for myland.lol/<name>: the
-// published card (ogCard.ts). Same data the public page shows.
+// published card (ogCard.ts). Same data the public page shows. Served as a
+// light JPEG (ogJpeg): WhatsApp ignores big pictures.
 export const size = OG_SIZE;
-export const contentType = "image/png";
+export const contentType = "image/jpeg";
 export const alt = "Tarjeta de myLand";
 
 export default async function Image({ params }: { params: Promise<{ handle: string }> }) {
@@ -26,5 +27,12 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
       if (card) og = await withDrawableImages(card);
     }
   } catch { /* the fallback below */ }
-  return new ImageResponse(og ? <OgCardImage og={og} /> : <OgFallbackImage handle={handle} />, size);
+  const png = await new ImageResponse(og ? <OgCardImage og={og} /> : <OgFallbackImage handle={handle} />, size).arrayBuffer();
+  return new Response(new Uint8Array(await ogJpeg(png)), {
+    headers: {
+      "Content-Type": "image/jpeg",
+      // Crawlers fetch it again and again; a published change shows within the hour.
+      "Cache-Control": "public, max-age=600, s-maxage=3600, stale-while-revalidate=86400",
+    },
+  });
 }

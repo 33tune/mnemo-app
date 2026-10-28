@@ -35,7 +35,8 @@ import { trackRender } from "@/lib/perfDebug";
 import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
 import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { mobileView, cardViewRect, type MobileFit } from "@/lib/mobileFit";
+import { mobileView, cardViewRect, cardClipPath, type MobileFit } from "@/lib/mobileFit";
+import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { desktopViewFit, dropOutsideRoomElements } from "@/lib/roomBounds";
 import { imageSlots, withinImageLimit, IMAGE_LIMIT_MESSAGE } from "@/lib/canvasLimits";
 import { safeTextHtml, storedTextToPlain } from "@/lib/safeText";
@@ -634,6 +635,29 @@ export default function CanvasBoard({
     }
     return { ready: !!viewerScreen && (!mobileFit || mobileCardH != null), vw, vh, ...fit, roomW, roomH };
   })() : null;
+  // Public view: the wallpaper follows the room (where the owner placed things
+  // over it in the editor), not the viewer's screen corner — so the part of it
+  // behind the card is the same on a phone and on any computer. Needs the
+  // image's own size to scale it with the view.
+  const [wallpaperSize, setWallpaperSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (canEdit || !wallpaper) { setWallpaperSize(null); return; }
+    let live = true;
+    const im = new Image();
+    im.onload = () => { if (live && im.naturalWidth > 0) setWallpaperSize({ w: im.naturalWidth, h: im.naturalHeight }); };
+    im.src = wallpaper;
+    return () => { live = false; };
+  }, [canEdit, wallpaper]);
+  // Phones: what's behind a see-through card (fitRoomToCard keeps it) shows
+  // only through the card — clipped to its shape, under it.
+  const behindClip = (() => {
+    if (!mobileFit) return null;
+    const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
+    if (!card) return null;
+    const h = mobileCardH && mobileCardH > 0 ? mobileCardH : card.h;
+    const radius = getProfileCardEffects(card).border?.radius ?? card.borderRadius ?? 0;
+    return { clipPath: cardClipPath(card, h, radius), zIndex: card.zIndex + card.layer * 100 - 1 };
+  })();
   // The effective canvas width for edit mode and animation center calculations
   const viewerW = viewFit ? viewFit.roomW : effectiveW;
 
@@ -3456,8 +3480,10 @@ export default function CanvasBoard({
       minHeight: "100vh",
       width: "100%",
       overflowX: "hidden",
-      // Public view: one screen, never a scroll (2026-10-27).
-      ...(!canEdit ? { height: "100dvh", overflow: "hidden" } : {}),
+      // Public view: one screen, never a scroll (2026-10-27). minHeight too:
+      // on phones 100vh counts the browser bar (taller than 100dvh), which
+      // left a few px of scroll — the little jump.
+      ...(!canEdit ? { height: "100dvh", minHeight: "100dvh", overflow: "hidden", overscrollBehavior: "none" } : {}),
       display: "flex", alignItems: "flex-start",
       cursor: addingText?"text":rotating?"crosshair":creatingCard?"crosshair":dragging?"grabbing":(spaceCursor?.url?`url(${spaceCursor.url}) 0 0, auto`:"default"),
       fontFamily: spaceFont ? `"${spaceFont.name}", ${SANS}` : SANS,
@@ -3472,6 +3498,12 @@ export default function CanvasBoard({
             backgroundImage: `url(${wallpaper})`,
             backgroundSize: "auto",
             backgroundRepeat: "repeat",
+            // Public view: tied to the room (see wallpaperSize). The layer
+            // starts blur*2 px off screen, hence the + offset.
+            ...(viewFit && wallpaperSize ? {
+              backgroundSize: `${wallpaperSize.w * viewFit.s}px ${wallpaperSize.h * viewFit.s}px`,
+              backgroundPosition: `${viewFit.tx + (wallpaperBlur > 0 ? wallpaperBlur * 2 : 0)}px ${viewFit.ty + (wallpaperBlur > 0 ? wallpaperBlur * 2 : 0)}px`,
+            } : {}),
             filter: wallpaperFilter || undefined,
             transition: "background-image 0.2s ease",
           }} />
@@ -3547,6 +3579,7 @@ export default function CanvasBoard({
       {/* ── Canvas content wrapper ── */}
       {!canEdit && (
         <style>{`
+          html, body { overflow: hidden; overscroll-behavior: none; }
           @keyframes el-reveal {
             from { opacity: 0; translate: var(--from-x, 0px) var(--from-y, 0px); scale: 0.78; }
             to   { opacity: 1; translate: 0px 0px; scale: 1; }
@@ -3687,7 +3720,8 @@ export default function CanvasBoard({
       {drawRectVis&&drawRectVis.w>0&&(<div style={{position:"absolute",left:drawRectVis.x,top:drawRectVis.y,width:drawRectVis.w,height:drawRectVis.h,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.02)",borderRadius:4,pointerEvents:"none",zIndex:600}} />)}
       {selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
-      {/* ── IMAGES ── */}
+      {/* ── IMAGES ── (phones: only the ones behind the card, clipped to it) */}
+      <BehindCardClip clip={behindClip}>
       {visImages.map((img,i)=>{
         const isSel=selectedIds.has(img.id);
         const ps=getParallaxStyle(img.layer,img.depth);
@@ -3779,6 +3813,7 @@ export default function CanvasBoard({
           </div>
         );
       })}
+      </BehindCardClip>
 
       {/* ── GALLERIES ── */}
       {visGalleries.map((gallery,i)=>{
@@ -4425,6 +4460,17 @@ export default function CanvasBoard({
 // Same signatures/operations as before; `defaultValue` and `danger` are new.
 /** L1-like surface for the "+" menu and the MyLand settings submenu (no
  * blur: the editor body is solid; Block 4 gives the chrome its own L0). */
+/** Phones (mobileFit): the room's images / texts behind the card, drawn only
+ * inside the card's shape and under it. Anywhere else: the children as is. */
+function BehindCardClip({ clip, children }: { clip: { clipPath: string; zIndex: number } | null; children: React.ReactNode }) {
+  if (!clip) return <>{children}</>;
+  return (
+    <div aria-hidden style={{ position: "absolute", inset: 0, clipPath: clip.clipPath, WebkitClipPath: clip.clipPath, zIndex: clip.zIndex, pointerEvents: "none" }}>
+      {children}
+    </div>
+  );
+}
+
 function TBtn({children,onClick,active,title}:{children:React.ReactNode;onClick:()=>void;active?:boolean;title?:string}) {
   return (
     <button onClick={onClick} title={title} style={{width:30,height:30,borderRadius:8,border:"none",background:active?"rgba(212,240,196,0.1)":"transparent",color:active?"rgba(212,240,196,0.8)":"rgba(255,255,255,0.38)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.12s"}}

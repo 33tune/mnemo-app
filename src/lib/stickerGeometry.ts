@@ -15,7 +15,7 @@
  */
 import type { CardSticker } from "@/types";
 
-export const STICKER_MAX = 8;
+export const STICKER_MAX = 10;
 /** How far past the card a sticker may go, as a fraction of its size per side. */
 export const STICKER_REACH = 0.25;
 /** Smallest sticker side, px. */
