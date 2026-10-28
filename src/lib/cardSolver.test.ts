@@ -128,3 +128,20 @@ test("magnet: snaps within a few px, lets go when dragged on, never blocks", () 
   const free = snapRect({ x: 140, y: 300, w: 80, h: 80 }, g, held.state);
   assert.equal(free.x, 140, "dragging on lets go");
 });
+
+test("side by side a few px too close: slides sideways, never drops below (zaid, 2026-10-28)", () => {
+  const specs = { pfp: fixed(93, 93), identity: fixed(128, 118) };
+  // identity desired 3 px right of the photo (the gap is 8)
+  const desired = { pfp: { x: 24, y: 20, w: 93 }, identity: { x: 120, y: 20, w: 128 } };
+  const at = (boxH: number) => input(desired, specs, { boxW: 396, boxH, compact: true, keepComposition: true });
+  const r = solveLayout(at(300));
+  assert.ok(r.fits);
+  assert.equal(r.rects.identity!.y, 20, "still next to the photo");
+  assert.equal(r.rects.identity!.x, 24 + 93 + BLOCK_GAP);
+  assert.equal(r.rects.pfp!.x, 24, "the photo never moves");
+  // the card's minimum is the side-by-side height, not the stacked one
+  assert.ok(solveMinHeight(at, 160, 600) < 20 + 93 + BLOCK_GAP + 118);
+  // a real overlap (not side by side) still stacks
+  const stacked = solveLayout(input({ pfp: desired.pfp, identity: { x: 60, y: 20, w: 128 } }, specs, { boxW: 396, boxH: 400, compact: true }));
+  assert.ok(stacked.rects.identity!.y >= 20 + 93 + BLOCK_GAP);
+});

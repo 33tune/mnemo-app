@@ -240,6 +240,25 @@ function compactVertical(i: SolveInput): Partial<Record<BlockKey, Rect>> | undef
     const w = wantedWidth(s, d, availW);
     return [{ k, r: { x: clamp(d.x, i.pad, Math.max(i.pad, i.boxW - i.pad - w)), y: d.y, w, h: s.heightAt(w) } as Rect }];
   }).sort((a, b) => a.r.y - b.r.y || a.r.x - b.r.x);
+  // Side by side but a few px closer than the gap (a text measured a little
+  // wider on another device): slide sideways to the gap instead of dropping
+  // the block below — a near-touch never re-arranges the card (2026-10-28).
+  const rowsOverlap = (a: Rect, b: Rect) => Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h)) < BLOCK_GAP - EPS;
+  for (let n = 0; n < items.length; n++) {
+    const r = items[n].r;
+    for (let m = 0; m < n; m++) {
+      const o = items[m].r;
+      if (!rowsOverlap(r, o)) continue;
+      const right = r.x + r.w / 2 >= o.x + o.w / 2;
+      const sep = right ? r.x - (o.x + o.w) : o.x - (r.x + r.w);
+      if (sep < -EPS || sep >= BLOCK_GAP - EPS) continue;
+      const x = right ? o.x + o.w + BLOCK_GAP : o.x - BLOCK_GAP - r.w;
+      if (x < i.pad - EPS || x + r.w > i.boxW - i.pad + EPS) continue;
+      const moved = { ...r, x };
+      if (items.slice(0, n).some(it => overlapArea(moved, it.r, BLOCK_GAP) > 0)) continue;
+      r.x = x;
+    }
+  }
   const shareColumn = (a: Rect, b: Rect) => Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w)) < BLOCK_GAP - EPS;
   for (let n = 0; n < items.length; n++) {
     const r = items[n].r;

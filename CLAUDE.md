@@ -314,6 +314,16 @@ planeado acá hasta confirmarlo.
 >   `browserslist` en `package.json` (Chrome 87, Edge 88, Firefox 78, Safari/iOS 14): 0 static blocks y 0 lookbehind
 >   en los chunks. No borrarlo. Pendiente: confirmarlo en ese iPhone.
 >
+> **Card estirada en otros dispositivos (2026-10-28, `zaid`):** el bloque del nombre quedaba a 3 px de la foto (el motor
+>   pide `BLOCK_GAP` = 8) porque la frase medía unos px más en el celular que en el Windows del dueño. El alto mínimo
+>   (`compactVertical`, solo vertical) lo mandaba DEBAJO de la foto y la card pasaba de 439 a 515: el nombre cambiaba
+>   de lugar y las imágenes del borde parecían subir (el estiramiento ya existía; las imágenes en el celular lo hicieron
+>   visible). Arreglo en `cardSolver.ts` › `compactVertical`: dos bloques lado a lado con menos de 8 px se separan de
+>   costado hasta 8 px antes de apilarse (la foto nunca se mueve). Barrido de todos los perfiles publicados: solo cambia
+>   `zaid` (vuelve a 439). **Causa de fondo sin arreglar (decidir con el usuario):** el primer `@import` de Google Fonts
+>   de `globals.css` se pierde en el build (Space Mono, DM Sans, Syne, Playfair, Bebas, Newsreader, Archivo NO cargan
+>   en ningún perfil; cada dispositivo usa su fuente de reemplazo). Arreglarlo cambia el aspecto de muchas cards.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
