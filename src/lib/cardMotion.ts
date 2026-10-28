@@ -67,25 +67,11 @@ const KEYFRAMES_CSS = `
   96%      { opacity: 0.6; }
   97%      { opacity: 0; }
 }
-/* Real multicolor gradient flow (bug fix — "shimmer" used to only sweep a
- * static highlight OVER a fixed gradient; this actually scrolls the
- * gradient's own colors through the text). Animates the registered
- * ${GRADIENT_FLOW_OFFSET_PROPERTY}, which offsets every stop of a
- * repeating-linear-gradient whose period is the full gradient line — one
- * full period per cycle, so 100% is identical to 0% (no seam), and the
- * motion follows the gradient's angle instead of always running along X
- * (a horizontal background-position sweep was invisible at 0°/180°). See
- * resolveGradientFlowCss in textEffects.ts.
- */
-@property ${GRADIENT_FLOW_OFFSET_PROPERTY} {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-@keyframes ${GRADIENT_FLOW_ANIMATION_NAME} {
-  from { ${GRADIENT_FLOW_OFFSET_PROPERTY}: 0%; }
-  to   { ${GRADIENT_FLOW_OFFSET_PROPERTY}: -100%; }
-}
+/* Gradient flow (textEffects.ts › resolveGradientFlowCss): the background
+ * (two periods, twice the element on the flow axis) moves by one period. */
+@keyframes ${GRADIENT_FLOW_ANIMATION_NAME}-x  { from { background-position: 0% 0%; } to { background-position: 100% 0%; } }
+@keyframes ${GRADIENT_FLOW_ANIMATION_NAME}-y  { from { background-position: 0% 0%; } to { background-position: 0% 100%; } }
+@keyframes ${GRADIENT_FLOW_ANIMATION_NAME}-xy { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
 /* Inherits so Name's per-letter spans glow in phase with their line. */
 @property ${TEXT_GLOW_PULSE_PROPERTY} {
   syntax: "<number>";
@@ -102,7 +88,9 @@ const KEYFRAMES_CSS = `
   @keyframes ${LETTER_BOUNCE_ANIMATION_NAME}        { from, to { transform: translateY(0); } }
   @keyframes ${LETTER_SHIMMER_PULSE_ANIMATION_NAME} { from, to { opacity: 1; } }
   @keyframes ${FLICKER_ANIMATION_NAME}              { from, to { opacity: 0; } }
-  @keyframes ${GRADIENT_FLOW_ANIMATION_NAME}        { from, to { ${GRADIENT_FLOW_OFFSET_PROPERTY}: 0%; } }
+  @keyframes ${GRADIENT_FLOW_ANIMATION_NAME}-x      { from, to { background-position: 0% 0%; } }
+  @keyframes ${GRADIENT_FLOW_ANIMATION_NAME}-y      { from, to { background-position: 0% 0%; } }
+  @keyframes ${GRADIENT_FLOW_ANIMATION_NAME}-xy     { from, to { background-position: 0% 0%; } }
   @keyframes ${TEXT_GLOW_PULSE_ANIMATION_NAME}      { from, to { ${TEXT_GLOW_PULSE_PROPERTY}: 0.85; } }
 }
 `;
@@ -189,7 +177,7 @@ export function resolveFlickerAnimation(speed = 1): string {
 /** `linear` (not ease-in-out) is required here, not a style choice — any
  * easing would speed up/slow down around the loop seam, reading as a
  * stutter each cycle instead of a continuous, constant-speed color flow. */
-export function resolveGradientFlowAnimation(speed = 1): string {
+export function resolveGradientFlowAnimation(speed = 1, axis: "x" | "y" | "xy" = "x"): string {
   const duration = clampDuration(GRADIENT_FLOW_BASE_DURATION_S / Math.max(0.1, speed));
-  return `${GRADIENT_FLOW_ANIMATION_NAME} ${duration.toFixed(2)}s linear infinite`;
+  return `${GRADIENT_FLOW_ANIMATION_NAME}-${axis} ${duration.toFixed(2)}s linear infinite`;
 }

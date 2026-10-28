@@ -59,7 +59,12 @@ export function getModuleCardEffects(card: ModuleCardEffectsSource, defaultRadiu
 
 export function getProfileCardEffects(card: ProfileCardEffectsSource): CardEffects {
   const variant = card.variant ?? "classic";
-  const isGlassVariant = variant === "glass" || (!card.bgColor && !card.bgImage);
+  // The legacy "no background → glass" default never applies once the owner
+  // picked their own background in the editor (effects.bg color / image):
+  // that card is meant to show what's behind it as is (2026-10-28 — an
+  // implicit 20px blur turned see-through cards flat on iPhone).
+  const ownBg = !!card.effects?.bg?.color || !!card.effects?.bg?.image;
+  const isGlassVariant = variant === "glass" || (!card.bgColor && !card.bgImage && !ownBg);
   const spotlightIntensity =
     variant === "guns"    ? 0.09 :
     variant === "minimal" ? 0    :

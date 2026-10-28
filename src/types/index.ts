@@ -339,7 +339,11 @@ export type CardSticker = {
   refW?:     number;
   refH?:     number;
   rotation?: number; // degrees
+  /** In front of the card's background (under its photo, texts and buttons). */
   front?:    boolean;
+  /** With `front`: above EVERYTHING of the card, its blocks included — a
+   * frame (2026-10-28). Absent on older stickers, which keep their look. */
+  over?:     boolean;
   opacity?:  number; // 0-1, default 1
   hidden?:   boolean;
 };

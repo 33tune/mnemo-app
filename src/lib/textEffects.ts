@@ -46,7 +46,7 @@
 import type { CSSProperties } from "react";
 import type { CardEffects, TextEffects, RoleTextEffect, TextGradientEffect, TextRole } from "@/types";
 import { withOpacity } from "./cardColors";
-import { resolveShimmerAnimation, resolveGradientFlowAnimation, resolveLetterBounceAnimation, resolveTextGlowPulseAnimation, GRADIENT_FLOW_OFFSET_PROPERTY, TEXT_GLOW_PULSE_PROPERTY } from "./cardMotion";
+import { resolveShimmerAnimation, resolveGradientFlowAnimation, resolveLetterBounceAnimation, resolveTextGlowPulseAnimation, TEXT_GLOW_PULSE_PROPERTY } from "./cardMotion";
 
 const DEFAULT_SHADOW_COLOR = "#000000";
 const DEFAULT_SHADOW_OPACITY_NO_COLOR = 0.5; // reproduces the pre-existing "rgba(0,0,0,0.5)" look when nothing is set
@@ -161,33 +161,37 @@ export function resolveGradientCss(gradient: TextGradientEffect): string {
 }
 
 /**
- * Bug fix — real animated gradient flow, along the gradient's OWN angle: a
- * `repeating-linear-gradient` whose period is exactly the full gradient
- * line (stops evenly spaced 0%→100%, closing back on the first color), with
- * every stop offset by the animated `--mnemo-flow-offset` custom property
- * (GRADIENT_FLOW_ANIMATION_NAME, cardMotion.ts — registered via @property so
- * it interpolates). Animating that offset by one full period (0% → -100%)
- * is seamless for any stop count, and — unlike the previous
- * `background-size:200%` + horizontal `background-position` sweep, which
- * only ever moved along X — it scrolls along whatever `angle` is set:
- * at 0°/180° the old approach produced no visible motion at all, and at
- * diagonal angles it jumped at every loop. Percentages here are relative to
- * the gradient line, so the visible density (one full period across the
- * element) is the same as before at the default 90°.
+ * Animated gradient flow, along the gradient's own direction (2026-10-28
+ * rewrite). It used to animate a registered custom property inside the
+ * gradient's stops; Safari / WebKit then painted the text as a solid
+ * gradient block (background-clip:text dropped while that property
+ * animates). Now it is the universally supported technique: the gradient
+ * holds TWO periods (stops evenly spread, closing on the first color, twice)
+ * over a background twice the element's size on the flow axis, and the
+ * background-position animates by one period (0% → 100% of the free space =
+ * one element length) — seamless, same density as before (one period across
+ * the element). The axis follows the angle: horizontal near 90°/270°,
+ * vertical near 0°/180°, both on diagonals (where tile edges may show a
+ * faint seam — the price of a technique every browser clips correctly).
  */
+export type GradientFlowAxis = "x" | "y" | "xy";
+export function gradientFlowAxis(angle = 90): GradientFlowAxis {
+  const a = ((angle % 180) + 180) % 180; // 0..179, direction-agnostic
+  if (Math.abs(a - 90) <= 22.5) return "x";
+  if (a <= 22.5 || a >= 157.5) return "y";
+  return "xy";
+}
+export const GRADIENT_FLOW_SIZE: Record<GradientFlowAxis, string> = { x: "200% 100%", y: "100% 200%", xy: "200% 200%" };
+
 export function resolveGradientFlowCss(gradient: TextGradientEffect): string {
   const stops = gradient.colors?.length ? gradient.colors
     : [gradient.from, gradient.to].filter((c): c is string => !!c);
   const safeStops = stops.length >= 2 ? stops : [...stops, ...stops];
   const angle = gradient.angle ?? 90;
-  const n = safeStops.length;
-  const positioned = [...safeStops, safeStops[0]].map((c, i) =>
-    // `, 0%` fallback: before cardMotion's <style> is injected (SSR, first
-    // frame) the property isn't registered/set yet — an unresolved var()
-    // would invalidate the whole background-image and, with
-    // `color: transparent`, leave the text invisible instead of static.
-    `${c} calc(var(${GRADIENT_FLOW_OFFSET_PROPERTY}, 0%) + ${+(i * 100 / n).toFixed(4)}%)`);
-  return `repeating-linear-gradient(${angle}deg, ${positioned.join(", ")})`;
+  const period = [...safeStops, safeStops[0]];
+  const twice = [...period, ...safeStops.slice(1), safeStops[0]];
+  const last = twice.length - 1;
+  return `linear-gradient(${angle}deg, ${twice.map((c, i) => `${c} ${+(i * 100 / last).toFixed(4)}%`).join(", ")})`;
 }
 
 /**
@@ -248,8 +252,11 @@ export function resolveTextEffectStyle(cardEffect?: TextEffects, roleEffect?: Ro
       // gradient, since only the highlight band — not the colors
       // themselves — ever animated). It now scrolls the gradient's own
       // colors continuously through the text — see resolveGradientFlowCss.
+      const axis = gradientFlowAxis(roleEffect!.gradient!.angle ?? 90);
       style.backgroundImage = resolveGradientFlowCss(roleEffect!.gradient!);
-      style.animation = resolveGradientFlowAnimation(roleEffect!.shimmer!.speed ?? 1);
+      style.backgroundSize = GRADIENT_FLOW_SIZE[axis];
+      style.backgroundRepeat = "repeat";
+      style.animation = resolveGradientFlowAnimation(roleEffect!.shimmer!.speed ?? 1, axis);
     } else if (hasShimmer) {
       // No explicit gradient — shimmer on a solid color. Nothing to
       // "flow" (a flat color has no hue to scroll through), so this stays
@@ -268,6 +275,9 @@ export function resolveTextEffectStyle(cardEffect?: TextEffects, roleEffect?: Ro
     style.backgroundClip = "text";
     style.WebkitBackgroundClip = "text";
     style.color = "transparent";
+    // Safari: without this an animated gradient fill (shimmer / flow) can
+    // paint as a solid block instead of being cut to the letters.
+    style.WebkitTextFillColor = "transparent";
   }
 
   if (pulse) {
@@ -322,6 +332,9 @@ export function resolveLetterEffectStyle(
   } as CSSProperties;
 
   if (roleEffect?.gradient) {
+    // Each letter shows its own slice of the line's gradient (static: the
+    // flow animates background-position, which would undo the slicing).
+    style.backgroundImage = resolveGradientCss(roleEffect.gradient);
     style.backgroundSize = `${total * 100}% 100%`;
     style.backgroundPosition = `${total > 1 ? +(index / (total - 1) * 100).toFixed(4) : 0}% 0`;
     style.backgroundRepeat = "no-repeat";
@@ -329,9 +342,8 @@ export function resolveLetterEffectStyle(
 
   const animations = [resolveLetterBounceAnimation(speed, delay)];
   if (roleEffect?.shimmer) {
-    animations.push(roleEffect.gradient
-      ? String(fill.animation)
-      : resolveShimmerAnimation(roleEffect.shimmer.speed ?? 1, delay));
+    // Gradient + shimmer per letter: the slices stay put (see above).
+    if (!roleEffect.gradient) animations.push(resolveShimmerAnimation(roleEffect.shimmer.speed ?? 1, delay));
   }
   style.animation = animations.join(", ");
   return style;

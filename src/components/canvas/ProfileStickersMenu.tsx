@@ -105,6 +105,10 @@ export default function ProfileStickersMenu({ card, onChange }: Props) {
   }
 
   const toggleHidden = (id: string) => setStickers(stickers.map(s => s.id === id ? { ...s, hidden: s.hidden ? undefined : true } : s));
+  // "Encima de todo" (2026-10-28): above the card's photo, texts and buttons
+  // too — a frame. Turning it on brings a sticker from behind to the front.
+  const toggleOver = (id: string) => setStickers(stickers.map(s => s.id !== id ? s
+    : s.over ? { ...s, over: undefined } : { ...s, front: true, over: true }));
   const remove = (id: string) => {
     setStickers(stickers.filter(s => s.id !== id));
     if (editing) stickerEditing.select([...edit.selected].filter(x => x !== id));
@@ -132,6 +136,7 @@ export default function ProfileStickersMenu({ card, onChange }: Props) {
 
       {stickers.length > 0 && (
         <MenuSection label="Capas" icon="layers" pinned summary="Arriba = delante">
+          <MenuNote icon="bring-front">Delante queda sobre el fondo de la tarjeta. Para que tape también la foto, los textos y los botones (un marco), activá “encima de todo”.</MenuNote>
           <div className="mn-layers" role="group" aria-label="Stickers y tarjeta, de adelante hacia atrás">
             <div role="list" className="mn-layers__list">
               {rows.map((id, i) => {
@@ -154,6 +159,8 @@ export default function ProfileStickersMenu({ card, onChange }: Props) {
                 const st = byId.get(id)!;
                 const isSel = editing && edit.selected.has(id);
                 const front = i < rows.indexOf(CARD_ROW);
+                const over = front && !!st.over;
+                const where = over ? "encima de todo" : front ? "delante" : "detrás";
                 const name = `Sticker ${number.get(id)}`;
                 return (
                   <div key={id} role="listitem" ref={el => { if (el) rowEls.current.set(id, el); else rowEls.current.delete(id); }}
@@ -165,16 +172,20 @@ export default function ProfileStickersMenu({ card, onChange }: Props) {
                       <Icon name="move" size={14} />
                     </span>
                     <button type="button" className="mn-layer__btn" aria-pressed={isSel}
-                      aria-label={`${name}, ${front ? "delante" : "detrás"} de la tarjeta${st.hidden ? ", oculto" : ""}. Alt más flechas para moverlo`}
+                      aria-label={`${name}, ${over ? "encima de todo" : `${where} de la tarjeta`}${st.hidden ? ", oculto" : ""}. Alt más flechas para moverlo`}
                       onKeyDown={e => rowKey(e, id)}
                       onClick={e => { e.stopPropagation(); pick(id, e.shiftKey || e.metaKey || e.ctrlKey); }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img className="mn-layer__thumb" src={st.src} alt="" draggable={false} style={{ objectFit: "contain", opacity: st.hidden ? 0.4 : 1 }} />
                       <span className="mn-layer__text">
                         <span className="mn-layer__name">{name}</span>
-                        <span className="mn-layer__detail">{[front ? "delante" : "detrás", st.hidden ? "oculto" : ""].filter(Boolean).join(" · ")}</span>
+                        <span className="mn-layer__detail">{[where, st.hidden ? "oculto" : ""].filter(Boolean).join(" · ")}</span>
                       </span>
                     </button>
+                    <IconButton icon="bring-front" pressed={over}
+                      aria-label={over ? `${name}: dejar de estar encima de todo` : `${name}: encima de todo (tapa la foto, los textos y los botones)`}
+                      title={over ? "Encima de todo: activado" : "Poner encima de todo"}
+                      onClick={e => { e.stopPropagation(); toggleOver(id); }} />
                     <IconButton icon={st.hidden ? "eye-off" : "eye"} aria-label={st.hidden ? `Mostrar ${name}` : `Ocultar ${name}`}
                       onClick={e => { e.stopPropagation(); toggleHidden(id); }} />
                     <IconButton icon="trash" tone="danger" aria-label={`Borrar ${name}`}

@@ -84,7 +84,7 @@ test("resolveFlickerAnimation: higher speed means shorter duration", () => {
 
 test("resolveGradientFlowAnimation: default speed produces the base duration, linear easing (constant speed, no seam stutter)", () => {
   const anim = resolveGradientFlowAnimation();
-  assert.equal(anim, `${GRADIENT_FLOW_ANIMATION_NAME} 6.00s linear infinite`);
+  assert.equal(anim, `${GRADIENT_FLOW_ANIMATION_NAME}-x 6.00s linear infinite`);
 });
 
 test("resolveGradientFlowAnimation: higher speed means shorter duration", () => {

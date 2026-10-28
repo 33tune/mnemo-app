@@ -51,13 +51,16 @@ interface CardLayersProps {
   borderRadius: number;
   style?:       CSSProperties;
   className?:   string;
-  /** Card stickers behind / in front of the card (ProfileCard). */
+  /** Card stickers (ProfileCard): behind the card · in front of its
+   * background (the blocks' own z-index still paints them over these, as it
+   * always did) · above everything (`over`, its own top stacking layer). */
   back?:        React.ReactNode;
   front?:       React.ReactNode;
+  over?:        React.ReactNode;
 }
 
 export default function CardLayers({
-  cardId, effects, isSel, children, borderRadius, style, back, front,
+  cardId, effects, isSel, children, borderRadius, style, back, front, over,
 }: CardLayersProps) {
   useCardAnimations(cardId, effects);
 
@@ -302,10 +305,10 @@ export default function CardLayers({
           )}
 
           {/* ── Content Layer ── */}
-          {/* isolation: the blocks' own z-index stays inside the content, so
-              the retro overlays and the stickers in front (later siblings)
-              really paint over it — the logo / buttons used to cover them. */}
-          <div style={{ position: "absolute", inset: 0, borderRadius: rad, filter: contentFilter, isolation: "isolate" }}>
+          {/* No isolation here on purpose: existing cards were designed with
+              "front" stickers (and the retro overlays) under the blocks that
+              have their own z-index. "Encima de todo" stickers use `over`. */}
+          <div style={{ position: "absolute", inset: 0, borderRadius: rad, filter: contentFilter }}>
             {children}
           </div>
 
@@ -336,8 +339,10 @@ export default function CardLayers({
               }} />
             </div>
           )}
-          {/* Card stickers in front of the card (above content and overlays). */}
+          {/* Card stickers in front of the card's background. */}
           {front}
+          {/* "Encima de todo" stickers: their own layer above every block. */}
+          {over ? <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none" }}>{over}</div> : null}
         </div>
       </div>
     </div>

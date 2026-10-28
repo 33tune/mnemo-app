@@ -98,7 +98,8 @@ export function stickersFromRows(stickers: readonly CardSticker[], rows: readonl
     const st = byId.get(rows[i]);
     if (!st) continue;
     const front = cardAt >= 0 && i < cardAt;
-    out.push(front === !!st.front ? st : { ...st, front });
+    // Moved behind the card: no longer "encima de todo" either.
+    out.push(front === !!st.front ? st : { ...st, front, ...(front ? {} : { over: undefined }) });
   }
   // Never lose a sticker the rows missed.
   for (const s of stickers) if (!rows.includes(s.id)) out.push(s);

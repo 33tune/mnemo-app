@@ -287,6 +287,23 @@ planeado acá hasta confirmarlo.
 >   los archivos que no menciona ninguna sala / op / perfil y tienen +24 h (hasta 500 por día). Primera pasada:
 >   54 archivos, 34,6 MB (167 → 133 MB).
 >
+> **Correcciones (2026-10-28, tercera tanda):**
+> - **Stickers en 3 niveles** (`stickerLevel` en `CardStickers.tsx`): detrás (`!front`) · delante (`front`: sobre el fondo
+>   de la card y DEBAJO de los bloques con z-index propio — foto, textos, botones, logo; así los diseñaron los dueños) ·
+>   **encima de todo** (`front` + `over`, slot `over` de `CardLayers` con z-index 50: un marco). Se sacó el
+>   `isolation: isolate` de la capa de contenido (hacía que "delante" tapara todo en cards ya armadas, p. ej. `drakovin`,
+>   `zaid`). Menú: botón "encima de todo" por sticker; pasar un sticker detrás le saca `over`.
+> - **Vidrio implícito:** `getProfileCardEffects` ponía `glass` por defecto a toda card sin `bgColor/bgImage` legacy,
+>   aunque el dueño hubiera elegido su color en `effects.bg` (p. ej. `sorceror`): en iPhone se veía el desenfoque de 20 px
+>   y la card "dejaba de ser transparente". Ahora con `effects.bg.color/image` propio no hay vidrio implícito.
+> - **Animaciones de entrada** del perfil público con relleno `backwards` (antes `both`): el `both` dejaba la animación
+>   aplicada para siempre, y en Chrome eso anulaba el vidrio en la vista pública (distinto del editor y de Safari).
+> - **Degradé animado ("brillo" con degradé):** antes animaba una propiedad CSS registrada (`@property`) dentro del
+>   degradé y en Safari/WebKit el texto se pintaba como un BLOQUE. Ahora: dos períodos del degradé sobre un fondo del
+>   doble de tamaño en el eje (`gradientFlowAxis`: x / y / xy según el ángulo) y `background-position` animado
+>   (`mnemo-text-gradient-flow-x|y|xy`). Con animación por letra + degradé + brillo, cada letra muestra su porción del
+>   degradé QUIETA (rebota igual). `-webkit-text-fill-color: transparent` en todo texto con degradé.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

@@ -26,11 +26,16 @@ const pos = (r: Rect, rotation = 0): React.CSSProperties => ({
   transform: rotation ? `rotate(${rotation}deg)` : undefined,
 });
 
-/** The stickers on one side of the card (paint order), never interactive. */
-export function StickerLayer({ stickers, cardW, cardH, front }: {
-  stickers: readonly CardSticker[]; cardW: number; cardH: number; front: boolean;
+/** Which of the card's three sticker levels a sticker paints on. */
+export type StickerLevel = "back" | "front" | "over";
+export const stickerLevel = (s: CardSticker): StickerLevel => !s.front ? "back" : s.over ? "over" : "front";
+
+/** The stickers on one level of the card (paint order), never interactive:
+ * behind the card · in front of its background (under its blocks) · above all. */
+export function StickerLayer({ stickers, cardW, cardH, level }: {
+  stickers: readonly CardSticker[]; cardW: number; cardH: number; level: StickerLevel;
 }) {
-  const list = stickers.filter(s => !s.hidden && !!s.front === front && s.src);
+  const list = stickers.filter(s => !s.hidden && stickerLevel(s) === level && s.src);
   if (!list.length) return null;
   return (
     <>

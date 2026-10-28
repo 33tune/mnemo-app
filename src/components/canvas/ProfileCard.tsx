@@ -1213,8 +1213,9 @@ function ProfileCard({
         <CardLayers
           cardId={card.id} effects={layerEffects} isSel={isSel}
           borderRadius={rad}
-          back={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} front={false} />}
-          front={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} front />}
+          back={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="back" />}
+          front={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="front" />}
+          over={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="over" />}
         >
           <div style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden" }}>
             {/* bg overlay tint for image cards */}
