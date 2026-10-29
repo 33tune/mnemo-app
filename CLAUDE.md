@@ -330,6 +330,13 @@ planeado acá hasta confirmarlo.
 >   en las variables de Vercel (lo carga el usuario). Sin subida de source maps (los errores llegan con código
 >   minificado; agregarla con `withSentryConfig` + token si hace falta). Probado con un DSN local: el evento sale.
 >
+> **Crews (2026-10-29, pedido del usuario):** círculos cerrados con casa pública `/c/<slug>` (mini-cards de los
+>   miembros, aviso, música, Discord, fondo), el Pacto `/c/<slug>/unirme?k=` (botón UNIRME), editor `/crews` (solo el
+>   dueño modifica) y el chip del crew destacado en la card (lugar y tamaño en `crew_members`, nunca en la card).
+>   30 miembros, 3 crews por persona, número de miembro y FUNDADOR (primeros 10). Webring y roles: para después.
+>   Todo en `src/features/crews/` + migración `20261029000000_crews.sql` (aplicada). **Detalle y cómo borrarlo:
+>   `docs/crews.md`.**
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

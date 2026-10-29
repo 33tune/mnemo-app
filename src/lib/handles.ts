@@ -7,7 +7,7 @@ export const HANDLE_RE = /^[a-z0-9_-]{3,20}$/;
 
 /** Routes a handle can't take (myland.lol/<handle> would shadow them). */
 export const RESERVED_HANDLES = new Set([
-  "login", "dashboard", "auth", "api", "admin", "settings", "myland", "browse", "setup", "space", "reset-password", "landing",
+  "login", "dashboard", "auth", "api", "admin", "settings", "myland", "browse", "setup", "space", "reset-password", "landing", "crews",
 ]);
 
 export function isClaimableHandle(h: string): boolean {

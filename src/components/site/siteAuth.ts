@@ -5,7 +5,7 @@
  * the design's own words. The pages call these through props.
  */
 import { createClient } from "@/lib/supabase/client";
-import { HANDLE_RE, RESERVED_HANDLES } from "@/lib/handles";
+import { HANDLE_RE, RESERVED_HANDLES, safeNextPath } from "@/lib/handles";
 
 export { RESERVED_HANDLES };
 
@@ -35,6 +35,12 @@ export async function checkHandle(h: string): Promise<HandleStatus> {
   return within(read, 4000, "ok");
 }
 
+/** Where to go after signing in: ?next= on this page (e.g. a crew's pact,
+ * Crews 2026-10-29), only a path on this site; "" when absent. */
+const nextParam = (): string => {
+  try { return safeNextPath(new URLSearchParams(window.location.search).get("next"), ""); } catch { return ""; }
+};
+
 const callback = (next?: string) =>
   `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`;
 
@@ -57,7 +63,7 @@ const actions = {
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
       email, password: pass,
-      options: { data: { handle }, emailRedirectTo: callback() },
+      options: { data: { handle }, emailRedirectTo: callback(nextParam() || undefined) },
     });
     if (error) return friendly(error.message);
     // Supabase answers an existing (confirmed) email with a user without identities.
@@ -72,13 +78,13 @@ const actions = {
       if (profErr && profErr.code === "23505") return { error: "Ese nombre se acaba de ocupar. Probá con otro.", kind: "" };
       if (profErr) return { error: "No pudimos crear tu sala: " + profErr.message, kind: "network" };
     }
-    return { next: "/dashboard" };
+    return { next: nextParam() || "/dashboard" };
   },
 
   async login({ email, pass }: { email: string; pass: string }): Promise<Result> {
     const { error } = await createClient().auth.signInWithPassword({ email, password: pass });
     if (error) return friendly(error.message);
-    return { next: "/dashboard" };
+    return { next: nextParam() || "/dashboard" };
   },
 
   /** "¿Te la olvidaste?": the email's link signs in and opens /reset-password. */
@@ -90,7 +96,7 @@ const actions = {
 
   /** Resolves with an error message, or never (the browser leaves for Google). */
   async google(): Promise<string | null> {
-    const { error } = await createClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: callback() } });
+    const { error } = await createClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: callback(nextParam() || undefined) } });
     return error ? friendly(error.message).error ?? error.message : null;
   },
 
@@ -98,7 +104,7 @@ const actions = {
     const supabase = createClient();
     const { error } = mode === "reset"
       ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: callback("/reset-password") })
-      : await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: callback() } });
+      : await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: callback(nextParam() || undefined) } });
     return error ? friendly(error.message).error ?? error.message : null;
   },
 };

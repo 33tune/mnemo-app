@@ -34,6 +34,12 @@ export async function runUserStorageCleanup(sb: SupabaseClient, userId: string, 
   if (profile.error) return { deleted: 0, aborted: "profiles" };
   collectStoragePaths(profile.data, used);
 
+  // Crews the user owns (emblem, background, music live in their folder).
+  // A database without crews (feature removed: 42P01) has nothing to keep.
+  const crews = await sb.from("crews").select("*").eq("owner_id", userId);
+  if (crews.error && crews.error.code !== "42P01" && crews.error.code !== "PGRST205") return { deleted: 0, aborted: "crews" };
+  collectStoragePaths(crews.data ?? [], used);
+
   // ── Candidates ───────────────────────────────────────────────────────────
   const queueRes = await sb.from("storage_cleanup_queue").select("id, path, created_at").eq("user_id", userId);
   const queue: QueuedFile[] = queueRes.error ? [] : (queueRes.data ?? []) as QueuedFile[];

@@ -74,6 +74,10 @@ export default function SetupScreen({ userId, suggestedName, phone }: { userId: 
       else setError("No pudimos guardarlo. Probá de nuevo.");
       return;
     }
+    // Came from a crew's invite (Crews): back to the pact to join.
+    let pact: string | null = null;
+    try { pact = localStorage.getItem("mnemo_pending_pact"); } catch { /* ignore */ }
+    if (pact && /^\/c\/[a-z0-9_-]{3,24}\/unirme\?k=[A-Za-z0-9%_-]{1,80}$/.test(pact)) { router.push(pact); router.refresh(); return; }
     if (phone) { setClaimed(handle); return; }
     router.push("/dashboard");
     router.refresh();

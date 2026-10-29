@@ -443,6 +443,10 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, onLogout }: {
                 <span>{tab.label}</span>
               </button>
             ))}
+            {/* Crews (2026-10-29): its own page. */}
+            <a className="mn-glassmenu__item" href="/crews" onClick={() => close(false)}>
+              <span>Crews</span>
+            </a>
             {onLogout && (
               <button type="button" className="mn-glassmenu__item" onClick={run(() => { void onLogout(); })}>
                 <span>Salir</span>
@@ -545,6 +549,9 @@ function CompactEditorTopbar({ editor, tabs, publishState, onPublish, onLogout }
               <span>Vista previa</span><Icon name="eye" size={15} />
             </a>
           )}
+          <a className="mn-menuitem" href="/crews" onClick={() => close(false)}>
+            <span>Crews</span>
+          </a>
           {onLogout && (
             <button type="button" className="mn-menuitem" onClick={run(() => { void onLogout(); })}>
               <span>Salir</span>

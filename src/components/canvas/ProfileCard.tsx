@@ -21,6 +21,7 @@ import { resolveLinkButtonStyle } from "@/lib/linkButtons";
 import { profileLayout, profileCardMinSize, positionsPatch, formatViewCount, type TextMeasurer, type DragState, type ProfileLayout, type BlockKey, type Rect } from "@/lib/profileCardLayout";
 import { guidesFor, snapRect, type SnapState } from "@/lib/cardSolver";
 import { getTextMeasurer, useFontsVersion } from "@/lib/textMeasure";
+import { CrewBadge } from "@/features/crews/CrewBadge";
 import { LinkButtonsBlock } from "./LinkButtonsBlock";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
@@ -1237,6 +1238,8 @@ function ProfileCard({
             {layout === "free" && renderFree()}
             {layout !== "free" && renderComposed()}
             {renderLogo()}
+            {/* Crews (2026-10-29): the featured crew's chip — nothing when none. */}
+            <CrewBadge userId={card.userId} cardW={card.w} cardH={renderH} pad={pad} draggable={isSel && !!canInteract} interactive={!canInteract} />
           </div>
         </CardLayers>
 
