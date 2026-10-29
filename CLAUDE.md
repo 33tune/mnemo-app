@@ -324,6 +324,12 @@ planeado acá hasta confirmarlo.
 >   de `globals.css` se pierde en el build (Space Mono, DM Sans, Syne, Playfair, Bebas, Newsreader, Archivo NO cargan
 >   en ningún perfil; cada dispositivo usa su fuente de reemplazo). Arreglarlo cambia el aspecto de muchas cards.
 >
+> **Avisos de errores (Sentry, 2026-10-29):** `@sentry/nextjs` en `src/instrumentation-client.ts` (navegador) y
+>   `src/instrumentation.ts` (servidor, `onRequestError`); `ErrorBoundary` reporta los errores que atrapa. Solo errores:
+>   sin trazas de rendimiento, sin replay, sin datos personales. **Apagado hasta que exista `NEXT_PUBLIC_SENTRY_DSN`**
+>   en las variables de Vercel (lo carga el usuario). Sin subida de source maps (los errores llegan con código
+>   minificado; agregarla con `withSentryConfig` + token si hace falta). Probado con un DSN local: el evento sale.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
