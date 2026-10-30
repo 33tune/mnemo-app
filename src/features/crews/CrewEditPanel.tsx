@@ -77,9 +77,9 @@ export function CrewEditPanel({ crew, onDraft, onDone, onSaved, onGone, sheet }:
         <MenuNote>{status ? status.text : "Los cambios se ven en la sala y se guardan solos."}</MenuNote>
         <Accordion open={section} onOpenChange={setSection}>
           <MenuSection label="Identidad" icon="sparkles" swatch={draft.color} summary={draft.font}>
-            <TextInput label="Nombre" value={draft.name} maxLength={CREW_LIMITS.name} onChange={v => { if (v.trim()) set("name", v, 700); else setDraft(d => ({ ...d, name: v })); }} />
-            <TextInput label="Lema" value={draft.motto} maxLength={CREW_LIMITS.motto} onChange={v => set("motto", v, 700)} />
-            <MenuNote>Es el juramento que se ve al unirse.</MenuNote>
+            <TextInput label="Nombre" placeholder="Nombre del crew" value={draft.name} maxLength={CREW_LIMITS.name} onChange={v => { if (v.trim()) set("name", v, 700); else setDraft(d => ({ ...d, name: v })); }} />
+            <TextInput label="Lema" placeholder="Lema (el juramento que se ve al unirse)" value={draft.motto} maxLength={CREW_LIMITS.motto} onChange={v => set("motto", v, 700)} />
+            <MenuNote>El link sigue siendo myland.lol/c/{crew.slug}, así no se rompen las invitaciones.</MenuNote>
             <UploadField kind="logo" value={draft.emblem_url} label="Emblema" caption="Emblema" accept="image/*"
               onFile={upload("emblem_url")} onRemove={() => set("emblem_url", "")} />
             <ColorRow label="Color" value={draft.color} onChange={v => { if (hex(v)) set("color", v.toLowerCase()); }} />

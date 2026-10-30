@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { miniCardOf, googleFontsHref, foundedText, CREW_FONTS } from "./crewLook";
-import { parseInvite, slugify, normalizeDiscord, DISCORD_RE, inkOn, memberNumber, isFounder, crewErrorText } from "./crewTypes";
+import { parseInvite, slugify, cleanCrewName, normalizeDiscord, DISCORD_RE, inkOn, memberNumber, isFounder, crewErrorText } from "./crewTypes";
 
 test("mini-card: the card's photo, name, colors and name font; a member without a public room still shows", () => {
   const m = miniCardOf({ name: "Zaid", handle: "zaid", photo: "https://x/p.webp", nameFont: "Bookman", nameColor: "#039f00",
@@ -26,7 +26,9 @@ test("Google fonts: one link for the ones that need it, device fonts skipped", (
 });
 
 test("crew helpers", () => {
-  assert.equal(slugify("Las del 5to B!"), "lasdel5tob");
+  assert.equal(slugify("Los Búhos"), "los-buhos");
+  assert.equal(slugify("  Ñandú  Club "), "nandu-club");
+  assert.equal(cleanCrewName("Night/Shift ✦ 99"), "NightShift 99");
   assert.ok(DISCORD_RE.test(normalizeDiscord("discord.gg/abc123")));
   assert.ok(!DISCORD_RE.test(normalizeDiscord("https://evil.com/discord.gg/x")));
   assert.equal(inkOn("#ffffff"), "#141118");

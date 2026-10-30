@@ -63,7 +63,14 @@ export const isFounder = (n: number) => n === 1;
 export const memberNumber = (n: number) => `#${String(n).padStart(2, "0")}`;
 
 /** Normalizes what the user types into a crew link. */
-export const slugify = (raw: string) => raw.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 24);
+/** A crew's link from its name: lowercase, no accents, spaces as "-"
+ * ("Los Búhos" → "los-buhos"). */
+export const slugify = (raw: string) => raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  .replace(/\s+/g, "-").replace(/[^a-z0-9_-]/g, "").replace(/-{2,}/g, "-").replace(/^-+|-+$/g, "").slice(0, 24);
+
+/** What a new crew's name may hold, so its link is the same name: letters
+ * (accents too), numbers, spaces, - and _; at most 24. */
+export const cleanCrewName = (raw: string) => raw.replace(/[^\p{L}\p{N} _-]/gu, "").replace(/\s{2,}/g, " ").slice(0, 24);
 
 /** A Discord invite the database accepts (crew_discord_ok). */
 export const DISCORD_RE = /^https:\/\/(www\.)?(discord\.gg|discord\.com\/invite)\/[A-Za-z0-9_-]{2,40}\/?$/;

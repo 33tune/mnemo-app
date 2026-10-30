@@ -14,8 +14,8 @@ import { InspectorShell, MenuSection, Accordion, MenuNote, TextInput, ActionButt
 import { crewApi, inviteUrl } from "./crewApi";
 import { CREW_FONTS, crewFontStyle, googleFontsHref } from "./crewLook";
 import {
-  CREW_LIMITS, CREW_MAX_MEMBERS, CREW_MAX_PER_USER, CREW_SLUG_RE, crewErrorText, inkOn, isFounder,
-  memberNumber, parseInvite, slugify, type Crew, type CrewHouse, type MyCrew,
+  CREW_MAX_MEMBERS, CREW_MAX_PER_USER, CREW_SLUG_RE, crewErrorText, inkOn, isFounder,
+  memberNumber, parseInvite, slugify, cleanCrewName, type Crew, type CrewHouse, type MyCrew,
 } from "./crewTypes";
 import { CrewHouseOverlay } from "./CrewHouseOverlay";
 
@@ -134,13 +134,13 @@ function CrewList({ crews, userId, onOpen, onChanged }: {
   );
 }
 
+/** Only the name: the link is the same name (slugify), so they never differ. */
 function CreateForm({ onCreated }: { onCreated: (id: string) => Promise<void> }) {
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugEdited, setSlugEdited] = useState(false);
   const [free, setFree] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const slug = slugify(name);
   const latest = useRef("");
   useEffect(() => {
     latest.current = slug;
@@ -149,8 +149,11 @@ function CreateForm({ onCreated }: { onCreated: (id: string) => Promise<void> })
     const t = setTimeout(async () => { const ok = await crewApi.slugFree(slug); if (latest.current === slug) setFree(ok); }, 350);
     return () => clearTimeout(t);
   }, [slug]);
-  const ok = name.trim().length > 0 && CREW_SLUG_RE.test(slug) && free === true && !busy;
-  const note = !slug ? "El link: de 3 a 24 letras, números, - o _." : !CREW_SLUG_RE.test(slug) ? "Usá de 3 a 24 letras, números, - o _." : free === null ? "Buscando…" : free ? "Libre." : "Ese link ya lo usa otro crew.";
+  const ok = CREW_SLUG_RE.test(slug) && free === true && !busy;
+  const bad = (!!name.trim() && !CREW_SLUG_RE.test(slug)) || free === false;
+  const note = !name.trim() ? "Letras, números y espacios. De 3 a 24."
+    : !CREW_SLUG_RE.test(slug) ? "Usá al menos 3 letras o números."
+    : free === null ? "Buscando…" : free ? "Libre." : "Ya hay un crew con ese nombre.";
   async function create() {
     if (!ok) return;
     setBusy(true); setError("");
@@ -158,12 +161,16 @@ function CreateForm({ onCreated }: { onCreated: (id: string) => Promise<void> })
     catch (e) { setBusy(false); setError(crewErrorText(e)); }
   }
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <TextInput label="Nombre del crew" value={name} maxLength={CREW_LIMITS.name}
-        onChange={v => { setName(v); if (!slugEdited) setSlug(slugify(v)); }} />
-      <TextInput label="Link de la sala · myland.lol/c/" value={slug} mono maxLength={24}
-        onChange={v => { setSlugEdited(true); setSlug(slugify(v)); }} />
-      <MenuNote tone={free === false || (!!slug && !CREW_SLUG_RE.test(slug)) ? "warn" : "hint"}>{note}</MenuNote>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <TextInput label="Nombre del crew" placeholder="Nombre del crew" value={name} maxLength={24}
+        onChange={v => { setName(cleanCrewName(v)); setError(""); }}
+        onKeyDown={e => { if (e.key === "Enter") void create(); }} />
+      <div aria-live="polite" style={{ display: "flex", flexDirection: "column", gap: 2, padding: "0 4px" }}>
+        <span style={{ font: `500 12px ${T.uiFont.mono}`, color: T.ui.text.secondary, overflowWrap: "anywhere" }}>
+          myland.lol/c/<span style={{ color: T.ui.text.primary }}>{slug || "…"}</span>
+        </span>
+        <MenuNote tone={bad ? "warn" : "hint"}>{note}</MenuNote>
+      </div>
       {error && <MenuNote tone="warn">{error}</MenuNote>}
       <ActionButton variant="primary" fullWidth disabled={!ok} onClick={create}>{busy ? "Creando…" : "Crear crew"}</ActionButton>
       <MenuNote>Vas a ser el dueño y el miembro #01.</MenuNote>

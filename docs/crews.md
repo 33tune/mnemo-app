@@ -6,7 +6,9 @@ Círculos cerrados con su propia sala. Pedido del usuario: retención por perten
 ## Qué es
 - **Botón CREWS en la barra izquierda del editor** (entre Capas y Tu sala): abre el panel Crews en el
   dock, con el mismo diseño y tema del editor.
-  - Sin crews: **Crear crew** (nombre + link) o **Unirme** pegando el link de invitación.
+  - Sin crews: **Crear crew** (solo el nombre, hasta 24 letras/números/espacios; el link es el mismo
+    nombre: "Los Búhos" → `myland.lol/c/los-buhos`, se ve mientras escribís) o **Unirme** pegando el link
+    de invitación. Renombrar el crew después no cambia el link (las invitaciones no se rompen).
   - Con crews: la lista (emblema, nombre, `#01 · fundador · 2/30 · dueño`). Cada crew abre su página:
     vista previa, **Visitar** (la sala a pantalla completa ENCIMA del editor; Esc o Cerrar vuelve) y
     **Pestaña nueva** (`/c/<slug>`).
