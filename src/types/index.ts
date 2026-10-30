@@ -360,6 +360,10 @@ export type CrewChip = {
   number:  number;
   /** 0.6 – 2, default 1. */
   size?:   number;
+  /** "tag" = only the crew's 2–4 letter tag (Crews v3); absent = the chip. */
+  style?:  "chip" | "tag";
+  /** The crew's tag (snapshot, like the name). */
+  tag?:    string;
 };
 
 export type ProfileCardData = {

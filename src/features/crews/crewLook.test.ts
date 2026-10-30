@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { miniCardOf, googleFontsHref, foundedText, CREW_FONTS } from "./crewLook";
-import { parseInvite, slugify, cleanCrewName, normalizeDiscord, DISCORD_RE, inkOn, memberNumber, isFounder, crewErrorText } from "./crewTypes";
+import { parseInvite, slugify, cleanCrewName, cleanTag, lineCount, URL_OK, normalizeUrl, timeAgo, normalizeDiscord, DISCORD_RE, inkOn, memberNumber, isFounder, crewErrorText } from "./crewTypes";
 
 test("mini-card: the card's photo, name, colors and name font; a member without a public room still shows", () => {
   const m = miniCardOf({ name: "Zaid", handle: "zaid", photo: "https://x/p.webp", nameFont: "Bookman", nameColor: "#039f00",
@@ -35,13 +35,21 @@ test("crew helpers", () => {
   assert.equal(inkOn("#000000"), "#ffffff");
   assert.equal(memberNumber(7), "#07");
   assert.ok(isFounder(1) && !isFounder(2));
-  assert.match(crewErrorText({ message: "crew_full" }), /30/);
+  assert.match(crewErrorText({ message: "banned" }), /No podés entrar/);
+  assert.match(crewErrorText({ message: "tag_taken" }), /tag/);
+  assert.equal(cleanTag("lx-m9!"), "LXM9");
+  assert.equal(lineCount("a\nb\nc"), 3);
+  assert.ok(URL_OK(normalizeUrl("youtube.com/@x")) && !URL_OK("https://nada") && !URL_OK(normalizeUrl("")));
+  const now = Date.parse("2026-10-31T12:00:00Z");
+  assert.equal(timeAgo("2026-10-31T11:59:40Z", now), "recién");
+  assert.equal(timeAgo("2026-10-31T11:45:00Z", now), "hace 15 min");
+  assert.equal(timeAgo("2026-10-31T07:00:00Z", now), "hace 5 h");
   assert.equal(foundedText("2026-10-29T12:00:00Z"), "Fundado el 29/10/2026");
 });
 
 test("invite links pasted in the Crews panel", () => {
   assert.deepEqual(parseInvite("https://www.myland.lol/c/gun/unirme?k=abc_12-X"), { slug: "gun", code: "abc_12-X" });
-  assert.deepEqual(parseInvite("  myland.lol/c/las-del-b/unirme?k=Zz9  "), { slug: "las-del-b", code: "Zz9" });
+  assert.deepEqual(parseInvite("  myland.lol/c/los-buhos/unirme?k=Zz9  "), { slug: "los-buhos", code: "Zz9" });
   assert.equal(parseInvite("https://www.myland.lol/c/gun"), null);
   assert.equal(parseInvite("hola"), null);
 });

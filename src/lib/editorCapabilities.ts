@@ -175,6 +175,8 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "crew.color": system("snapshot of the crew (chipOf) — refreshed when the Crew part opens"),
   "crew.emblem": system("snapshot of the crew (chipOf) — refreshed when the Crew part opens"),
   "crew.number": system("snapshot of the owner's member number (chipOf)"),
+  "crew.style": crewMenu(`${CREW} › Estilo`, "onChange({ crew: { ...chip, style: id === \"tag\" ? \"tag\" : undefined } })"),
+  "crew.tag": system("snapshot of the crew's tag (chipOf) — refreshed when the Crew part opens"),
   crewAnchorX: BLOCK_DRAG("crew"), crewAnchorY: BLOCK_DRAG("crew"),
   musicAnchorX: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   musicAnchorY: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),

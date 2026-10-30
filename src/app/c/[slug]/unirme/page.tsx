@@ -18,7 +18,7 @@ export default async function PactPage({ params, searchParams }: {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("crew_pact", { p_slug: slug, p_code: code });
   if (error || !data) notFound();
-  const pact = data as { crew: Omit<Crew, "notice">; valid: boolean; members: number; mine: number | null };
+  const pact = data as { crew: Crew; valid: boolean; members: number; mine: number | null; banned?: boolean };
 
   const { data: { user } } = await supabase.auth.getUser();
   let viewer: PactViewer = "guest";
@@ -27,5 +27,5 @@ export default async function PactPage({ params, searchParams }: {
     const named = !!profile && profile.onboarding_completed !== false && !(profile.handle as string).startsWith("temp_");
     viewer = named ? "ready" : "needs-name";
   }
-  return <CrewPactView crew={pact.crew} code={code} valid={pact.valid} members={pact.members} mine={pact.mine} viewer={viewer} />;
+  return <CrewPactView crew={pact.crew} code={code} valid={pact.valid} members={pact.members} mine={pact.mine} banned={!!pact.banned} viewer={viewer} />;
 }

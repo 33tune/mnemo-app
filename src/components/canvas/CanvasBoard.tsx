@@ -62,6 +62,9 @@ import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANE
 import { toLayerItems, visualOrder, reorder as reorderLayers, moveWithinLayer, setLayer as setElementLayer, bringToFront, layerLabels, positionAfter, LAYER_NAMES as LAYER_TITLES, type LayerPatch } from "@/lib/layerOrder";
 import type { LayerRow } from "./LayersPanel";
 import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail";
+import { useCrewsHub, CrewShortcuts, CrewInbox } from "@/features/crews/CrewsHub";
+import { CrewHouseOverlay } from "@/features/crews/CrewHouseOverlay";
+import type { Crew as CrewRow } from "@/features/crews/crewTypes";
 import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from "./CanvasGrid";
 import type { RoomOp } from "./RoomInspector";
 import {
@@ -971,6 +974,24 @@ export default function CanvasBoard({
   };
 
   const router = useRouter();
+  // Crews v3: the viewer's crews (rail shortcuts, messages, the card's chip)
+  // and the room open over the editor.
+  const crewsHub = useCrewsHub(!!canEdit);
+  const [crewRoom, setCrewRoom] = useState<{ slug: string; from: DOMRect | null; edit: boolean; n: number } | null>(null);
+  const openCrewRoom = useCallback((crew: CrewRow, from: DOMRect | null, edit = false) =>
+    setCrewRoom(r => ({ slug: crew.slug, from, edit, n: (r?.n ?? 0) + 1 })), []);
+  // A card showing a crew its owner is no longer in (left, removed, or the
+  // crew was deleted) drops the chip by itself — not an undo step. Only once
+  // the list really loaded (null = not known yet / unreachable).
+  useEffect(() => {
+    if (!canEdit || !crewsHub.mine) return;
+    const ids = new Set(crewsHub.mine.map(m => m.crew.id));
+    for (const p of profiles) {
+      if (p.crew && !ids.has(p.crew.id)) {
+        enqueueOpRef.current({ type: "update_profile", id: p.id, patch: { crew: undefined, crewAnchorX: undefined, crewAnchorY: undefined } }, { record: false });
+      }
+    }
+  }, [canEdit, crewsHub.mine, profiles]);
 
   const { handleMouseMoveParallax, getParallaxStyle: parallaxStyleOf } = useParallax();
   // Editor v3 Phase I (review I-R MAYOR 2): while the grid is shown or
@@ -3556,9 +3577,17 @@ export default function CanvasBoard({
           layersPanelId={LAYERS_PANEL_ID}
           crewsOpen={crewsOpen}
           onCrews={() => { if (crewsOpen) closeInspector(); else { setMenuOpen(false); openCrews(); } }}
+          crewShortcuts={<CrewShortcuts hub={crewsHub} onOpen={(c, r) => openCrewRoom(c, r)} />}
           addMenuId="mnemo-add-menu"
           roomInspectorId="mnemo-room-inspector"
         />
+      )}
+      {/* Crews v3: notices from the pinned crews, and a crew's room over the editor. */}
+      {railShown && <CrewInbox hub={crewsHub} onOpen={c => openCrewRoom(c, null)} />}
+      {crewRoom && (
+        <CrewHouseOverlay key={crewRoom.n} slug={crewRoom.slug} from={crewRoom.from}
+          onClose={() => { setCrewRoom(null); crewsHub.reload(); }}
+          edit={{ start: crewRoom.edit, onSaved: crewsHub.reload, onGone: crewsHub.reload }} />
       )}
 
       {/* Liquid glass (L5, DS .lg-hint): with nothing selected, a pill at
@@ -4241,7 +4270,7 @@ export default function CanvasBoard({
             grid: gridOn, onGrid: setGridOn,
             snap: gridSnapOn, onSnap: setGridSnapOn,
           }}
-          crews={crewsOpen ? { userId: currentUserId, initialCrewId: crewsDeepLink, initialEdit: crewsDeepEdit } : undefined}
+          crews={crewsOpen ? { hub: crewsHub, onOpenRoom: openCrewRoom, initialCrewId: crewsDeepLink, initialEdit: crewsDeepEdit } : undefined}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));
             const byId = new Map(elements.map(e => [e.id, e] as const));

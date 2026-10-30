@@ -3,17 +3,16 @@
  * The crew's house over the whole screen (Crews, 2026-10-30) — still the
  * dashboard, nothing navigates away. Esc or "Cerrar" goes back.
  * It opens like a glass window unfolding from the button that opened it.
- * The owner can edit the crew here (`edit`): the menu slides in on the right
+ * The founder and admins edit the crew here (`edit`): the menu slides in on the right
  * and the room redraws with every change (CrewEditPanel).
  */
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
-import { createClient } from "@/lib/supabase/client";
 import { crewApi } from "./crewApi";
 import CrewHouseView from "./CrewHouseView";
 import { CrewEditPanel, CREW_EDIT_PANEL_W } from "./CrewEditPanel";
-import type { Crew, CrewHouse } from "./crewTypes";
+import { isAdminRole, type Crew, type CrewHouse } from "./crewTypes";
 
 /** Over the dock and the beta bits; under the first-time tour. */
 const OVERLAY_Z = 2147481800;
@@ -24,13 +23,12 @@ export interface CrewOverlayEdit {
   start?: boolean;
   /** Saved: the panel's list refreshes. */
   onSaved?: () => void;
-  /** The crew was deleted. */
+  /** The crew was deleted, or the viewer left it. */
   onGone: () => void;
 }
 
-export function CrewHouseOverlay({ slug, viewerId, onClose, inEditor = true, from, initial, edit }: {
+export function CrewHouseOverlay({ slug, onClose, inEditor = true, from, initial, edit }: {
   slug: string;
-  viewerId?: string;
   onClose: () => void;
   /** Over the editor: profiles open in a new tab. Over a public profile (its
    * crew chip): they open here. */
@@ -39,21 +37,21 @@ export function CrewHouseOverlay({ slug, viewerId, onClose, inEditor = true, fro
   from?: DOMRect | null;
   /** The house already loaded (no blank frame while it fetches). */
   initial?: CrewHouse | null;
-  /** The owner can edit (only shown to the owner). */
+  /** In the editor: the founder and admins edit the crew here. */
   edit?: CrewOverlayEdit;
 }) {
-  const [me, setMe] = useState<string | undefined>(viewerId);
-  useEffect(() => {
-    if (viewerId) return;
-    createClient().auth.getUser().then(({ data }) => setMe(data.user?.id)).catch(() => {});
-  }, [viewerId]);
   const [house, setHouse] = useState<CrewHouse | null | undefined>(initial ?? undefined);
-  useEffect(() => { crewApi.house(slug).then(h => setHouse(prev => (prev && h ? { ...h, crew: prev.crew.id === h.crew.id && editingRef.current ? prev.crew : h.crew } : h))).catch(() => setHouse(h => h ?? null)); }, [slug]);
-
-  const isOwner = !!me && !!house && me === house.crew.owner_id;
   const [editing, setEditing] = useState(!!edit?.start);
   const editingRef = useRef(editing);
   editingRef.current = editing;
+  // While editing, the crew shown is the edit menu's draft; the rest refreshes.
+  const reload = useCallback(() => {
+    crewApi.house(slug)
+      .then(h => setHouse(prev => (prev && h && editingRef.current && prev.crew.id === h.crew.id ? { ...h, crew: prev.crew } : h)))
+      .catch(() => setHouse(h => h ?? null));
+  }, [slug]);
+  useEffect(() => { reload(); }, [reload]);
+
   const [closing, setClosing] = useState(false);
   const [frostDone, setFrostDone] = useState(false);
   // The menu waits for the window to open; switching to edit later, it comes in at once.
@@ -83,10 +81,10 @@ export function CrewHouseOverlay({ slug, viewerId, onClose, inEditor = true, fro
   const onDraft = useCallback((crew: Crew) => setHouse(h => (h ? { ...h, crew } : h)), []);
 
   if (typeof document === "undefined") return null;
-  const isMember = !!me && !!house?.members.some(m => m.user_id === me);
-  const canEdit = !!edit && isOwner;
+  const canEdit = !!edit && isAdminRole(house?.me?.role);
   const showPanel = canEdit && editing;
   const fromClip = clipFrom(from);
+  const side = showPanel && !narrow;
 
   return createPortal(
     <div {...{ [EDITOR_UI_ATTR]: "" }} data-popover-z={OVERLAY_Z + 10} role="dialog" aria-modal="true"
@@ -101,9 +99,10 @@ export function CrewHouseOverlay({ slug, viewerId, onClose, inEditor = true, fro
           No se pudo abrir la sala. <button type="button" onClick={close} style={{ marginTop: 12 }}>Cerrar</button>
         </div>
       ) : (
-        <CrewHouseView house={house} viewerIsMember={isMember} viewerIsOwner={isOwner}
-          onClose={close} closeSide={showPanel && !narrow ? "left" : "right"} padRight={showPanel && !narrow ? CREW_EDIT_PANEL_W + 32 : 0}
-          onManage={canEdit && !editing ? () => setEditing(true) : undefined} editing={showPanel} newTabProfiles={inEditor} />
+        <CrewHouseView house={house} reload={reload}
+          onClose={close} closeSide="left" padRight={side ? CREW_EDIT_PANEL_W + 32 : 0}
+          onEdit={canEdit && !editing ? () => setEditing(true) : undefined} editing={showPanel} newTabProfiles={inEditor}
+          onLeft={() => { edit?.onGone(); close(); }} />
       )}
       {/* The frosted glass the window unfolds from; it clears as it opens. */}
       {!reduce && (closing || !frostDone) && (
@@ -112,8 +111,8 @@ export function CrewHouseOverlay({ slug, viewerId, onClose, inEditor = true, fro
       {showPanel && house && (
         <div className={reduce ? undefined : "crew-panel-in"} style={{ ["--crew-panel-delay" as string]: `${panelDelay.current}ms` } as CSSProperties}
           onAnimationEnd={() => { panelDelay.current = 0; }}>
-          <CrewEditPanel crew={house.crew} onDraft={onDraft} sheet={narrow}
-            onDone={() => setEditing(false)} onSaved={edit?.onSaved}
+          <CrewEditPanel crew={house.crew} isOwner={house.me?.role === "owner"} onDraft={onDraft} sheet={narrow}
+            onDone={() => { setEditing(false); reload(); }} onSaved={edit?.onSaved}
             onGone={() => { edit?.onGone(); onClose(); }} />
         </div>
       )}

@@ -35,8 +35,19 @@ export interface CrewChipMetrics {
   numberSize: number;
 }
 
+/** The tag style shows the tag only when the crew has one. */
+export const isTagChip = (chip: Pick<CrewChip, "style" | "tag">) => chip.style === "tag" && !!chip.tag;
+
 export function crewChipMetrics(chip: CrewChip, measure?: TextMeasurer): CrewChipMetrics {
   const s = crewChipScale(chip);
+  if (isTagChip(chip)) {
+    // A small square-ish pill with the tag in the crew's font.
+    const h = Math.round(22 * s), nameSize = Math.round(12 * s), pad = Math.round(7 * s);
+    const tagW = measure
+      ? measure.width(chip.tag!, { family: crewFontStyle(chip.font), size: nameSize, weight: 800, letterSpacing: 0 })
+      : chip.tag!.length * nameSize * 0.78;
+    return { h, w: Math.ceil(pad * 2 + tagW + 2), emblem: 0, padL: pad, padR: pad, gap: 0, nameSize, numberSize: 0 };
+  }
   const h = Math.round(26 * s);
   const nameSize = Math.round(12 * s), numberSize = Math.round(10 * s);
   const gap = Math.round(6 * s);

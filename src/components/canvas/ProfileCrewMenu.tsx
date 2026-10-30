@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from "react";
 import type { CrewChip, ProfileCardData } from "@/types";
-import { MenuSection, SliderRow, MenuNote, SwitchRow, ActionButton, Icon, T } from "@/ui";
+import { MenuSection, SliderRow, MenuNote, SwitchRow, ActionButton, Icon, Tabs, T } from "@/ui";
 import { CREW_CHIP_SIZE_MAX, CREW_CHIP_SIZE_MIN, crewFontStyle, crewNumberText } from "@/lib/crewChip";
 import { crewApi } from "@/features/crews/crewApi";
 import { inkOn, type MyCrew } from "@/features/crews/crewTypes";
@@ -16,21 +16,22 @@ import { RAIL_CREWS_BUTTON_ID } from "./EditorHost";
 type CrewPatch = Partial<Pick<ProfileCardData, "crew" | "crewAnchorX" | "crewAnchorY">>;
 
 /** The card's chip for one of your crews (keeps the size it already had). */
-export function chipOf(m: MyCrew, size?: number): CrewChip {
+export function chipOf(m: MyCrew, size?: number, style?: CrewChip["style"]): CrewChip {
   return {
     id: m.crew.id, slug: m.crew.slug, name: m.crew.name, font: m.crew.font, color: m.crew.color,
     ...(m.crew.emblem_url ? { emblem: m.crew.emblem_url } : {}), number: m.number, ...(size != null ? { size } : {}),
+    ...(style ? { style } : {}), ...(m.crew.tag ? { tag: m.crew.tag } : {}),
   };
 }
 
 const sameChip = (a: CrewChip, b: CrewChip) =>
-  a.id === b.id && a.slug === b.slug && a.name === b.name && a.font === b.font && a.color === b.color && (a.emblem ?? "") === (b.emblem ?? "") && a.number === b.number;
+  a.id === b.id && a.slug === b.slug && a.name === b.name && a.font === b.font && a.color === b.color && (a.emblem ?? "") === (b.emblem ?? "") && a.number === b.number && (a.tag ?? "") === (b.tag ?? "");
 
 export default function ProfileCrewMenu({ card, onChange }: { card: ProfileCardData; onChange: (patch: CrewPatch) => void }) {
   const [crews, setCrews] = useState<MyCrew[] | null>(null);
   useEffect(() => {
     if (!card.userId) { setCrews([]); return; }
-    crewApi.mine(card.userId).then(setCrews).catch(() => setCrews([]));
+    crewApi.mine().then(setCrews).catch(() => setCrews([]));
   }, [card.userId]);
 
   const chip = card.crew;
@@ -39,11 +40,11 @@ export default function ProfileCrewMenu({ card, onChange }: { card: ProfileCardD
   // The crew changed (name, color, emblem…): the card follows.
   useEffect(() => {
     if (!chip || !current) return;
-    const fresh = chipOf(current, chip.size);
+    const fresh = chipOf(current, chip.size, chip.style);
     if (!sameChip(chip, fresh)) onChange({ crew: fresh });
   }, [chip, current, onChange]);
 
-  const show = (m: MyCrew) => onChange({ crew: chipOf(m, chip?.size) });
+  const show = (m: MyCrew) => onChange({ crew: chipOf(m, chip?.size, chip?.style) });
   const hide = () => onChange({ crew: undefined, crewAnchorX: undefined, crewAnchorY: undefined });
   const openCrews = () => document.getElementById(RAIL_CREWS_BUTTON_ID)?.click();
 
@@ -64,7 +65,7 @@ export default function ProfileCrewMenu({ card, onChange }: { card: ProfileCardD
           onChange={v => { if (v) { const first = crews[0]; if (first) show(first); } else hide(); }} />
         {chip && !current && (
           <>
-            <MenuNote tone="warn">Ya no sos parte de {chip.name}: no se muestra en tu perfil.</MenuNote>
+            <MenuNote tone="warn">Ya no sos parte de {chip.name}: se saca solo de tu card.</MenuNote>
             <ActionButton variant="secondary" fullWidth onClick={hide}>Quitar de la card</ActionButton>
           </>
         )}
@@ -87,6 +88,16 @@ export default function ProfileCrewMenu({ card, onChange }: { card: ProfileCardD
           </div>
         )}
       </MenuSection>
+      {chip && (
+        <MenuSection label="Estilo" pinned>
+          <Tabs label="Estilo del crew en la card" active={chip.style === "tag" ? "tag" : "chip"}
+            tabs={[{ id: "chip", label: "Chip" }, { id: "tag", label: "Tag" }]}
+            onChange={id => { if (id === "tag" && !(current?.crew.tag ?? chip.tag)) return; onChange({ crew: { ...chip, style: id === "tag" ? "tag" : undefined } }); }} />
+          <MenuNote>{(current?.crew.tag ?? chip.tag)
+            ? `Chip: emblema, nombre y tu número. Tag: solo ${current?.crew.tag ?? chip.tag}.`
+            : "Este crew todavía no tiene tag. Lo eligen el fundador o un admin."}</MenuNote>
+        </MenuSection>
+      )}
       {chip && (
         <MenuSection label="Tamaño" icon="maximize" summary={`${Math.round((chip.size ?? 1) * 100)}%`}>
           <SliderRow label="Tamaño" icon="maximize" min={CREW_CHIP_SIZE_MIN} max={CREW_CHIP_SIZE_MAX} step={0.05} value={chip.size ?? 1}

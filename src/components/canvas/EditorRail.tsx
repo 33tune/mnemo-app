@@ -31,6 +31,8 @@ interface EditorRailProps {
   onCrews: () => void;
   addMenuId: string;
   roomInspectorId: string;
+  /** Crews v3: the pinned crews' emblems under the tools. */
+  crewShortcuts?: React.ReactNode;
 }
 
 function RailButton({ icon, label, tip, keys, pressed, expanded, controls, disabled, onClick, id }: {
@@ -68,7 +70,7 @@ function RailButton({ icon, label, tip, keys, pressed, expanded, controls, disab
 // left edge; the active tool sits on an indicator that glides between the
 // buttons (spring), tooltips to the right. The logo moved to the brand
 // capsule (Topbar).
-export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpen, onRoom, layersOpen, onLayers, layersPanelId, crewsOpen, onCrews, addMenuId, roomInspectorId }: EditorRailProps) {
+export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpen, onRoom, layersOpen, onLayers, layersPanelId, crewsOpen, onCrews, addMenuId, roomInspectorId, crewShortcuts }: EditorRailProps) {
   const active = addOpen ? 1 : layersOpen ? 2 : crewsOpen ? 3 : roomOpen ? 4 : selectActive ? 0 : -1;
   return (
     <nav
@@ -83,6 +85,7 @@ export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpe
       <RailButton icon="layers" label="Capas" keys="L" id={RAIL_LAYERS_BUTTON_ID} expanded={layersOpen} controls={layersPanelId} onClick={onLayers} />
       <RailButton icon="crew" label="Crews" tip="Crews" id={RAIL_CREWS_BUTTON_ID} expanded={crewsOpen} controls={CREWS_PANEL_ID} onClick={onCrews} />
       <RailButton icon="gear" label="Tu sala" tip="Ajustes de tu sala" id={RAIL_ROOM_BUTTON_ID} expanded={roomOpen} controls={roomInspectorId} onClick={onRoom} />
+      {crewShortcuts}
     </nav>
   );
 }

@@ -346,6 +346,13 @@ planeado acá hasta confirmarlo.
 >   **Editar la sala del crew (2026-10-30, pedido del usuario):** el panel del dueño son accesos directos (Editar la
 >   sala, Miembros con buscador, Invitación); "Editar la sala" despliega la sala a pantalla completa como ventana de
 >   vidrio desde el botón y abre a la derecha el menú (`CrewEditPanel.tsx`) que edita en vivo. Ver `docs/crews.md`.
+>   **Crews v3 (2026-10-31, pedido del usuario): canal de difusión.** Miembros y crews infinitos; Fundador + Admins;
+>   sacar / bloquear; avisos de 24 h (públicos o solo miembros, hasta 10 activos) que llegan como mensaje al dashboard
+>   de quien tiene el crew fijado; hasta 10 crews fijados como emblemas en la barra izquierda (tocar = se despliega la
+>   sala); sala con pestañas Sala / Miembros; fuente principal y secundaria; links fijos; TAG de 2–4 caracteres (en la
+>   card: Chip o Tag); el chip se saca solo si el crew se borra o te vas. Migración
+>   `supabase/migrations/20261031000000_crews_v3.sql` (probada en un Postgres 16 local con stubs). Detalle:
+>   `docs/crews.md`.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

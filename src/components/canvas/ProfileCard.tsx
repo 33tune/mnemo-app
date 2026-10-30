@@ -337,6 +337,7 @@ function ProfileCard({
   const linksDidDragRef = useRef(false);
   /** Same as linksDidDragRef, for the link buttons' <a>s. */
   const buttonsDidDragRef = useRef(false);
+  const [crewGone, setCrewGone] = useState(false);
 
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
@@ -956,7 +957,8 @@ function ProfileCard({
   const linkButtons = (card.linkButtons ?? []).filter(b => b.url);
   const buttonStyle = resolveLinkButtonStyle(card.linkButtonStyle, baseColor);
   const composed = layout === "free" ? undefined
-    : profileLayout(card, {
+    // Crews: a public card whose crew is gone (or that its owner left) lays out without the chip.
+    : profileLayout(crewGone && card.crew ? { ...card, crew: undefined } : card, {
       w: card.w, h: cardH, measure, viewCount,
       drag: drag ?? undefined,
       // Continuity while the shape of things changes under the pointer.
@@ -1168,7 +1170,7 @@ function ProfileCard({
             style={{ ...box(rects.crew), transition: motion("crew"), cursor: canInteract ? grab : "pointer", ...partOutline("crew"), ...dragOutline("crew") }}
             onMouseDown={down("crew")}
           >
-            <CrewChipView chip={card.crew} userId={card.userId} verify={!canInteract} />
+            <CrewChipView chip={card.crew} userId={card.userId} verify={!canInteract} onGone={() => setCrewGone(true)} />
           </div>
         )}
         {/* Magnet guides — editor only, while dragging. */}
