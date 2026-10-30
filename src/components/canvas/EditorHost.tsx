@@ -36,7 +36,7 @@ export const LAYERS_PANEL_ID = "mnemo-layers-panel";
 /** Crews (2026-10-30): the rail's "Crews" button and its panel. */
 export const RAIL_CREWS_BUTTON_ID = "mnemo-rail-crews";
 export const CREWS_PANEL_ID = "mnemo-crews-panel";
-type CrewsProps = Pick<CrewsPanelProps, "userId" | "initialCrewId">;
+type CrewsProps = Pick<CrewsPanelProps, "userId" | "initialCrewId" | "initialEdit">;
 
 /** Render-time facts about a ProfileCard that only its render knows
  * (composition / views). ProfileCard reports them while its inspector is

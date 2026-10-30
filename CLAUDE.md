@@ -343,6 +343,9 @@ planeado acá hasta confirmarlo.
 >   publica con la card); en el perfil público se verifica la membresía y tocarlo abre la sala encima. Fondo de la
 >   sala como el de myLand (tamaño natural, repetido, GIF animado). Arreglo general: las WebP/PNG animadas ya no se
 >   "achican" al subir (perdían la animación; `isAnimatedImageHeader`).
+>   **Editar la sala del crew (2026-10-30, pedido del usuario):** el panel del dueño son accesos directos (Editar la
+>   sala, Miembros con buscador, Invitación); "Editar la sala" despliega la sala a pantalla completa como ventana de
+>   vidrio desde el botón y abre a la derecha el menú (`CrewEditPanel.tsx`) que edita en vivo. Ver `docs/crews.md`.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

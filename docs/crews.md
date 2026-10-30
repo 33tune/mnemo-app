@@ -10,9 +10,15 @@ Círculos cerrados con su propia sala. Pedido del usuario: retención por perten
   - Con crews: la lista (emblema, nombre, `#01 · fundador · 2/30 · dueño`). Cada crew abre su página:
     vista previa, **Visitar** (la sala a pantalla completa ENCIMA del editor; Esc o Cerrar vuelve) y
     **Pestaña nueva** (`/c/<slug>`).
-  - Solo el dueño ve, debajo, Identidad (nombre, lema, emblema, color, fuente), Sala (fondo, imagen o
-    GIF de fondo, música, aviso, Discord), Invitación (copiar / renovar link), Miembros (sacar) y
-    Borrar crew. Se guarda solo. Los demás ven "Irme del crew".
+  - El dueño ve accesos directos: **Editar la sala**, **Miembros** (buscador por nombre o @, sacar) e
+    **Invitación** (copiar / renovar link). Los demás ven "Irme del crew".
+  - **Editar la sala** (solo el dueño): la sala se despliega a pantalla completa como una ventana de
+    vidrio que nace del botón (se desempaña al abrirse; al cerrar se pliega) y después aparece a la
+    derecha el menú (`CrewEditPanel.tsx`): Identidad (nombre, lema, emblema, color, fuente), Sala (fondo,
+    imagen o GIF, música), Aviso y Discord, y Borrar crew. Cada cambio se ve en la sala al instante y se
+    guarda solo; "Listo" cierra el menú y deja la sala. También se entra con "Editar crew" dentro de la
+    sala, o desde `/c/<slug>` (lleva a `/dashboard?crews=<id>&edit`). Sin animación con "reducir
+    movimiento".
 - **Sala** `myland.lol/c/<slug>`: emblema, nombre (fuente y color del crew), lema, "Fundado el …",
   miembros (máx. 30), aviso, música, Discord, y la grilla de **mini-cards** de los miembros (número
   `#07`; FUNDADOR solo el #01, el que lo creó). El fondo funciona igual que el de la sala de myLand:

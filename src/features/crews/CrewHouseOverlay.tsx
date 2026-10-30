@@ -1,53 +1,174 @@
 "use client";
 /**
- * Crews › Visitar (2026-10-30): the crew's house over the whole editor — still
- * the dashboard, nothing navigates away. Esc or "Cerrar" goes back.
+ * The crew's house over the whole screen (Crews, 2026-10-30) — still the
+ * dashboard, nothing navigates away. Esc or "Cerrar" goes back.
+ * It opens like a glass window unfolding from the button that opened it.
+ * The owner can edit the crew here (`edit`): the menu slides in on the right
+ * and the room redraws with every change (CrewEditPanel).
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
 import { createClient } from "@/lib/supabase/client";
 import { crewApi } from "./crewApi";
 import CrewHouseView from "./CrewHouseView";
-import type { CrewHouse } from "./crewTypes";
+import { CrewEditPanel, CREW_EDIT_PANEL_W } from "./CrewEditPanel";
+import type { Crew, CrewHouse } from "./crewTypes";
 
-export function CrewHouseOverlay({ slug, viewerId, onClose, onManage, inEditor = true }: {
+/** Over the dock and the beta bits; under the first-time tour. */
+const OVERLAY_Z = 2147481800;
+const OPEN_MS = 560, CLOSE_MS = 320;
+
+export interface CrewOverlayEdit {
+  /** Open straight into the editor. */
+  start?: boolean;
+  /** Saved: the panel's list refreshes. */
+  onSaved?: () => void;
+  /** The crew was deleted. */
+  onGone: () => void;
+}
+
+export function CrewHouseOverlay({ slug, viewerId, onClose, inEditor = true, from, initial, edit }: {
   slug: string;
   viewerId?: string;
   onClose: () => void;
-  onManage?: (crewId: string) => void;
-  /** Over the editor (Crews › Visitar): profiles open in a new tab. Over a
-   * public profile (its crew chip): they open here. */
+  /** Over the editor: profiles open in a new tab. Over a public profile (its
+   * crew chip): they open here. */
   inEditor?: boolean;
+  /** Where it unfolds from (the button that opened it). */
+  from?: DOMRect | null;
+  /** The house already loaded (no blank frame while it fetches). */
+  initial?: CrewHouse | null;
+  /** The owner can edit (only shown to the owner). */
+  edit?: CrewOverlayEdit;
 }) {
   const [me, setMe] = useState<string | undefined>(viewerId);
   useEffect(() => {
     if (viewerId) return;
     createClient().auth.getUser().then(({ data }) => setMe(data.user?.id)).catch(() => {});
   }, [viewerId]);
-  const [house, setHouse] = useState<CrewHouse | null | undefined>(undefined);
-  useEffect(() => { crewApi.house(slug).then(setHouse).catch(() => setHouse(null)); }, [slug]);
+  const [house, setHouse] = useState<CrewHouse | null | undefined>(initial ?? undefined);
+  useEffect(() => { crewApi.house(slug).then(h => setHouse(prev => (prev && h ? { ...h, crew: prev.crew.id === h.crew.id && editingRef.current ? prev.crew : h.crew } : h))).catch(() => setHouse(h => h ?? null)); }, [slug]);
+
+  const isOwner = !!me && !!house && me === house.crew.owner_id;
+  const [editing, setEditing] = useState(!!edit?.start);
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  const [closing, setClosing] = useState(false);
+  const [frostDone, setFrostDone] = useState(false);
+  // The menu waits for the window to open; switching to edit later, it comes in at once.
+  const panelDelay = useRef(edit?.start ? Math.round(OPEN_MS * 0.55) : 0);
+  const reduce = useReducedMotion();
+  const narrow = useNarrow();
+
+  const close = useCallback(() => {
+    if (closing) return;
+    if (reduce) { onClose(); return; }
+    setClosing(true);
+    setTimeout(onClose, CLOSE_MS);
+  }, [closing, reduce, onClose]);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // Inside the edit menu (or one of its pickers) Esc is theirs.
+      const t = e.target as Element | null;
+      if (t?.closest?.("[data-crew-editor],[data-mnemo-editor]")) return;
+      e.stopPropagation(); close();
+    };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
+  }, [close]);
+
+  const onDraft = useCallback((crew: Crew) => setHouse(h => (h ? { ...h, crew } : h)), []);
+
   if (typeof document === "undefined") return null;
   const isMember = !!me && !!house?.members.some(m => m.user_id === me);
+  const canEdit = !!edit && isOwner;
+  const showPanel = canEdit && editing;
+  const fromClip = clipFrom(from);
+
   return createPortal(
-    <div {...{ [EDITOR_UI_ATTR]: "" }} role="dialog" aria-modal="true" aria-label={house ? `Sala de ${house.crew.name}` : "Sala del crew"}
+    <div {...{ [EDITOR_UI_ATTR]: "" }} data-popover-z={OVERLAY_Z + 10} role="dialog" aria-modal="true"
+      aria-label={house ? `Sala de ${house.crew.name}` : "Sala del crew"}
       onKeyDown={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
-      style={{ position: "fixed", inset: 0, zIndex: 2147481800, // over the dock and the beta bits; under the first-time tour
-       overflowY: "auto", overscrollBehavior: "contain", background: "#0E0C12" }}>
+      className={reduce ? undefined : closing ? "crew-fold" : "crew-unfold"}
+      style={{ position: "fixed", inset: 0, zIndex: OVERLAY_Z, overflowY: "auto", overscrollBehavior: "contain", background: "#0E0C12",
+        ["--crew-from" as string]: fromClip } as CSSProperties}>
+      <style>{OVERLAY_CSS}</style>
       {house === undefined ? null : house === null ? (
         <div style={{ minHeight: "100%", display: "grid", placeItems: "center", color: "#fff", font: "600 15px var(--font-sans)" }}>
-          No se pudo abrir la sala. <button type="button" onClick={onClose} style={{ marginTop: 12 }}>Cerrar</button>
+          No se pudo abrir la sala. <button type="button" onClick={close} style={{ marginTop: 12 }}>Cerrar</button>
         </div>
       ) : (
-        <CrewHouseView house={house} viewerIsMember={isMember} viewerIsOwner={!!me && me === house.crew.owner_id}
-          onClose={onClose} onManage={onManage} newTabProfiles={inEditor} />
+        <CrewHouseView house={house} viewerIsMember={isMember} viewerIsOwner={isOwner}
+          onClose={close} closeSide={showPanel && !narrow ? "left" : "right"} padRight={showPanel && !narrow ? CREW_EDIT_PANEL_W + 32 : 0}
+          onManage={canEdit && !editing ? () => setEditing(true) : undefined} editing={showPanel} newTabProfiles={inEditor} />
+      )}
+      {/* The frosted glass the window unfolds from; it clears as it opens. */}
+      {!reduce && (closing || !frostDone) && (
+        <div aria-hidden className={closing ? "crew-frost crew-frost--in" : "crew-frost"} onAnimationEnd={() => { if (!closing) setFrostDone(true); }} />
+      )}
+      {showPanel && house && (
+        <div className={reduce ? undefined : "crew-panel-in"} style={{ ["--crew-panel-delay" as string]: `${panelDelay.current}ms` } as CSSProperties}
+          onAnimationEnd={() => { panelDelay.current = 0; }}>
+          <CrewEditPanel crew={house.crew} onDraft={onDraft} sheet={narrow}
+            onDone={() => setEditing(false)} onSaved={edit?.onSaved}
+            onGone={() => { edit?.onGone(); onClose(); }} />
+        </div>
       )}
     </div>,
     document.body,
   );
 }
+
+/** clip-path inset() that shows only `r` (a rounded window), or a centered one. */
+function clipFrom(r?: DOMRect | null): string {
+  if (typeof window === "undefined") return "inset(0)";
+  const W = window.innerWidth, H = window.innerHeight;
+  if (!r) return `inset(${H * 0.18}px ${W * 0.18}px ${H * 0.18}px ${W * 0.18}px round 32px)`;
+  const t = Math.max(0, r.top), l = Math.max(0, r.left);
+  return `inset(${t}px ${Math.max(0, W - r.right)}px ${Math.max(0, H - r.bottom)}px ${l}px round 22px)`;
+}
+
+function useReducedMotion(): boolean {
+  const [r, setR] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setR(m.matches);
+    const on = () => setR(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return r;
+}
+
+/** Below this the edit menu is a bottom sheet (the room keeps the width). */
+function useNarrow(): boolean {
+  const [n, setN] = useState(false);
+  useEffect(() => {
+    const on = () => setN(window.innerWidth < 900);
+    on();
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return n;
+}
+
+const OVERLAY_CSS = `
+@keyframes crew-unfold { from { clip-path: var(--crew-from); } to { clip-path: inset(0 round 0); } }
+@keyframes crew-fold { from { clip-path: inset(0 round 0); opacity: 1; } to { clip-path: var(--crew-from); opacity: 0; } }
+@keyframes crew-frost-out { from { opacity: 1; } 55% { opacity: .85; } to { opacity: 0; } }
+@keyframes crew-frost-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes crew-panel-fade { from { opacity: 0; } to { opacity: 1; } }
+.crew-unfold { animation: crew-unfold ${OPEN_MS}ms cubic-bezier(.2,.85,.2,1) both; }
+.crew-fold { animation: crew-fold ${CLOSE_MS}ms cubic-bezier(.4,0,.8,.4) both; }
+.crew-frost { position: fixed; inset: 0; pointer-events: none; z-index: 2;
+  background: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.06) 45%, rgba(255,255,255,.14));
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+  animation: crew-frost-out ${OPEN_MS + 140}ms ease-out both; }
+.crew-frost--in { animation: crew-frost-in ${CLOSE_MS}ms ease-in both; }
+/* Opacity only on the wrapper (a transform would trap the fixed dock); the dock slides in by itself. */
+.crew-panel-in { animation: crew-panel-fade 380ms ease-out var(--crew-panel-delay, 0ms) both; }
+`;

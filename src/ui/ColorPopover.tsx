@@ -280,7 +280,9 @@ export function ColorPopover({ anchor, value, alpha, label, onChange, onClose }:
       }}
       style={{
         position: "fixed", left: pos?.left ?? -9999, top: pos?.top ?? -9999,
-        width: WIDTH, padding: 12, boxSizing: "border-box", zIndex: T.z.popover,
+        width: WIDTH, padding: 12, boxSizing: "border-box",
+        // Over a full-screen layer (the crew's room editor) that sets its own level.
+        zIndex: Number(anchor?.closest("[data-popover-z]")?.getAttribute("data-popover-z")) || T.z.popover,
         display: "flex", flexDirection: "column", gap: 10, fontFamily: T.uiFont.sans,
         visibility: pos ? "visible" : "hidden",
       }}

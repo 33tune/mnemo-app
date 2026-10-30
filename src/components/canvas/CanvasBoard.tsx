@@ -790,13 +790,17 @@ export default function CanvasBoard({
   const layersOpen = editorSel.target?.kind === "layers";
   /** Crews (2026-10-30): the Crews panel is open. */
   const crewsOpen = editorSel.target?.kind === "crews";
-  // /dashboard?crews[=<crew id>] (the house's "Editar crew"): opens the panel.
+  // /dashboard?crews[=<crew id>][&edit] (the house's "Editar crew"): opens the panel (and the crew's editor).
   const [crewsDeepLink, setCrewsDeepLink] = useState<string | null>(null);
+  const [crewsDeepEdit, setCrewsDeepEdit] = useState(false);
   useEffect(() => {
     if (!canEdit) return;
-    const v = new URLSearchParams(window.location.search).get("crews");
+    const qs = new URLSearchParams(window.location.search);
+    const v = qs.get("crews");
     if (v == null) return;
-    setCrewsDeepLink(/^[0-9a-f-]{36}$/.test(v) ? v : null);
+    const id = /^[0-9a-f-]{36}$/.test(v) ? v : null;
+    setCrewsDeepLink(id);
+    setCrewsDeepEdit(!!id && qs.has("edit"));
     openCrews();
   }, [canEdit, openCrews]);
   const inspectorProfile = inspectorCardId && inspectorEnabled
@@ -4237,7 +4241,7 @@ export default function CanvasBoard({
             grid: gridOn, onGrid: setGridOn,
             snap: gridSnapOn, onSnap: setGridSnapOn,
           }}
-          crews={crewsOpen ? { userId: currentUserId, initialCrewId: crewsDeepLink } : undefined}
+          crews={crewsOpen ? { userId: currentUserId, initialCrewId: crewsDeepLink, initialEdit: crewsDeepEdit } : undefined}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));
             const byId = new Map(elements.map(e => [e.id, e] as const));

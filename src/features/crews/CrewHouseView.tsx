@@ -11,13 +11,17 @@ import { Icon, CrewShell, PrimaryButton, WellButton } from "./CrewShell";
 import { miniCardOf, crewFontStyle, googleFontsHref, nameFontKey, foundedText, type MiniCard } from "./crewLook";
 import { inkOn, isFounder, memberNumber, CREW_MAX_MEMBERS, type CrewHouse } from "./crewTypes";
 
-export default function CrewHouseView({ house, joinedNumber, viewerIsMember, viewerIsOwner, onClose, onManage, newTabProfiles }: {
+export default function CrewHouseView({ house, joinedNumber, viewerIsMember, viewerIsOwner, onClose, onManage, newTabProfiles, editing, closeSide, padRight }: {
   house: CrewHouse;
   /** Open over the editor (Crews › Visitar): a close button, profiles open
    * in a new tab, "Editar crew" goes to the panel. */
   onClose?: () => void;
   onManage?: (crewId: string) => void;
   newTabProfiles?: boolean;
+  /** The owner is editing it (the menu is open on the right). */
+  editing?: boolean;
+  closeSide?: "left" | "right";
+  padRight?: number;
   /** Just joined through the pact: "Sos el miembro #n". */
   joinedNumber?: number | null;
   viewerIsMember: boolean;
@@ -35,7 +39,7 @@ export default function CrewHouseView({ house, joinedNumber, viewerIsMember, vie
   }, [welcome]);
 
   return (
-    <CrewShell bg={crew.bg_color} bgImage={crew.bg_image} extraFontsHref={fontsHref} glow={false} align="start" onClose={onClose}>
+    <CrewShell bg={crew.bg_color} bgImage={crew.bg_image} extraFontsHref={fontsHref} glow={false} align="start" onClose={onClose} closeSide={closeSide} padRight={padRight}>
       <header style={{ width: "min(960px,100%)", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 12, padding: "8px 0 18px" }}>
         {crew.emblem_url
           ? <img src={crew.emblem_url} alt="" style={{ width: 112, height: 112, objectFit: "contain", filter: `drop-shadow(0 10px 30px ${accent}66)` }} />
@@ -58,9 +62,9 @@ export default function CrewHouseView({ house, joinedNumber, viewerIsMember, vie
               <DiscordGlyph /> Discord
             </WellButton>
           )}
-          {viewerIsOwner && (onManage
+          {viewerIsOwner && !editing && (onManage
             ? <WellButton onClick={() => onManage(crew.id)}><Icon name="pencil" size={15} /> Editar crew</WellButton>
-            : <WellButton href={`/dashboard?crews=${crew.id}`}><Icon name="pencil" size={15} /> Editar crew</WellButton>)}
+            : <WellButton href={`/dashboard?crews=${crew.id}&edit`}><Icon name="pencil" size={15} /> Editar crew</WellButton>)}
         </div>
       </header>
 

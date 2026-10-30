@@ -18,10 +18,14 @@ export const ML_VARS = {
 
 const SITE_FONTS_HREF = "https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&display=swap";
 
-export function CrewShell({ children, bg, bgImage, extraFontsHref, glow = true, align = "center", onClose }: {
+export function CrewShell({ children, bg, bgImage, extraFontsHref, glow = true, align = "center", onClose, closeSide = "right", padRight = 0 }: {
   children: ReactNode;
   /** Shown over the editor: a close button instead of the myLand pill. */
   onClose?: () => void;
+  /** Editing the crew: the close button goes left (the menu is on the right). */
+  closeSide?: "left" | "right";
+  /** Room kept for the edit menu on the right (px). */
+  padRight?: number;
   bg?: string;
   bgImage?: string | null;
   extraFontsHref?: string | null;
@@ -36,7 +40,7 @@ export function CrewShell({ children, bg, bgImage, extraFontsHref, glow = true, 
       <div className="lg" data-editor-theme="dark" style={{
         ...ML_VARS, minHeight: "100dvh", background: bg ?? "var(--ml-bg)", color: "var(--ml-ink)", fontFamily: "var(--font-sans)",
         display: "grid", gridTemplateColumns: "minmax(0,1fr)", placeItems: align === "center" ? "center" : "start center",
-        padding: "84px 16px 40px", boxSizing: "border-box", position: "relative", overflowX: "hidden",
+        padding: `84px ${16 + padRight}px 40px 16px`, transition: "padding .35s cubic-bezier(.2,.8,.2,1)", boxSizing: "border-box", position: "relative", overflowX: "hidden",
       }}>
         {bgImage && (
           // Like the room's wallpaper: the picture (or GIF) at its own size, tiled.
@@ -47,7 +51,7 @@ export function CrewShell({ children, bg, bgImage, extraFontsHref, glow = true, 
         )}
         {onClose ? (
           <button type="button" onClick={onClose} className="lg-glass crew-close" aria-label="Cerrar la sala del crew" autoFocus
-            style={{ position: "fixed", top: 14, right: 14, display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 18px 0 14px", border: "none", borderRadius: 999, color: "var(--glass-ink)", font: "650 14px var(--font-sans)", cursor: "pointer", zIndex: 5 }}>
+            style={{ position: "fixed", top: 14, ...(closeSide === "left" ? { left: 14 } : { right: 14 }), display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 18px 0 14px", border: "none", borderRadius: 999, color: "var(--glass-ink)", font: "650 14px var(--font-sans)", cursor: "pointer", zIndex: 5 }}>
             <Icon name="close" size={16} /> Cerrar
           </button>
         ) : (

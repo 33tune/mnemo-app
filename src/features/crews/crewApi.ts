@@ -46,14 +46,17 @@ export const crewApi = {
   },
 
   /** Members of a crew with their handles (for the owner's list). */
-  async members(crewId: string): Promise<{ user_id: string; number: number; handle: string }[]> {
+  async members(crewId: string): Promise<{ user_id: string; number: number; handle: string; name: string | null }[]> {
     const client = sb();
     const { data, error } = await client.from("crew_members").select("user_id, number").eq("crew_id", crewId).order("number");
     if (error) throw error;
     const ids = (data ?? []).map(m => m.user_id as string);
-    const { data: profs } = ids.length ? await client.from("profiles").select("user_id, handle").in("user_id", ids) : { data: [] };
-    const handle = new Map((profs ?? []).map(p => [p.user_id as string, p.handle as string]));
-    return (data ?? []).map(m => ({ user_id: m.user_id as string, number: m.number as number, handle: handle.get(m.user_id as string) ?? "?" }));
+    const { data: profs } = ids.length ? await client.from("profiles").select("user_id, handle, display_name").in("user_id", ids) : { data: [] };
+    const prof = new Map((profs ?? []).map(p => [p.user_id as string, p as { handle: string; display_name: string | null }]));
+    return (data ?? []).map(m => {
+      const p = prof.get(m.user_id as string);
+      return { user_id: m.user_id as string, number: m.number as number, handle: p?.handle ?? "?", name: p?.display_name ?? null };
+    });
   },
 };
 

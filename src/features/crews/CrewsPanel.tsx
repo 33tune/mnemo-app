@@ -4,19 +4,18 @@
  * the editor's own parts (InspectorShell, MenuSection, fields) so it follows
  * the editor's theme. Without crews: create one or join one by pasting its
  * invite link. With crews: each one opens its page here — a preview, Visitar
- * (the house, full screen, still in the dashboard), open it in a new tab, and
- * for the owner, everything about it (saved as you go). Only the owner edits.
+ * (the house, full screen, still in the dashboard), open it in a new tab.
+ * The owner gets shortcuts (members with a search, the invite link) and
+ * "Editar": the crew's room unfolds full screen and is edited live there
+ * (CrewHouseOverlay + CrewEditPanel). Only the owner edits.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  InspectorShell, MenuSection, Accordion, MenuNote, TextInput, TextArea, ColorRow, FontField, UploadField, ActionButton, Icon, T,
-} from "@/ui";
-import { uploadToStorage } from "@/lib/storage";
+import { InspectorShell, MenuSection, Accordion, MenuNote, TextInput, ActionButton, Icon, T } from "@/ui";
 import { crewApi, inviteUrl } from "./crewApi";
 import { CREW_FONTS, crewFontStyle, googleFontsHref } from "./crewLook";
 import {
-  CREW_LIMITS, CREW_MAX_MEMBERS, CREW_MAX_PER_USER, CREW_SLUG_RE, DISCORD_RE, crewErrorText, inkOn, isFounder,
-  memberNumber, normalizeDiscord, parseInvite, slugify, type Crew, type CrewHouse, type CrewPatch, type MyCrew,
+  CREW_LIMITS, CREW_MAX_MEMBERS, CREW_MAX_PER_USER, CREW_SLUG_RE, crewErrorText, inkOn, isFounder,
+  memberNumber, parseInvite, slugify, type Crew, type CrewHouse, type MyCrew,
 } from "./crewTypes";
 import { CrewHouseOverlay } from "./CrewHouseOverlay";
 
@@ -24,6 +23,8 @@ export interface CrewsPanelProps {
   userId?: string;
   /** Open this crew's page when the panel opens (?crews=<id>). */
   initialCrewId?: string | null;
+  /** …and open its editor (?crews=<id>&edit, the house's "Editar crew"). */
+  initialEdit?: boolean;
   // Shell
   id?: string;
   onClose: () => void;
@@ -36,14 +37,14 @@ export interface CrewsPanelProps {
   onExpand: () => void;
 }
 
-const FONT_OPTIONS = CREW_FONTS.map(f => ({ key: f, label: f, style: crewFontStyle(f) }));
 const ALL_FONTS_HREF = googleFontsHref(CREW_FONTS);
 
 export default function CrewsPanel(p: CrewsPanelProps) {
   const [crews, setCrews] = useState<MyCrew[] | null>(null);
   const [error, setError] = useState("");
   const [openId, setOpenId] = useState<string | null>(p.initialCrewId ?? null);
-  const [visiting, setVisiting] = useState<string | null>(null);
+  const [visiting, setVisiting] = useState<Visit | null>(null);
+  const autoEdit = useRef(!!p.initialEdit);
 
   const reload = useCallback(async () => {
     if (!p.userId) return;
@@ -76,16 +77,19 @@ export default function CrewsPanel(p: CrewsPanelProps) {
           <MenuNote>Cargando…</MenuNote>
         ) : open ? (
           <CrewPage key={open.crew.id} mine={open} userId={p.userId!} onBack={() => setOpenId(null)}
-            onVisit={() => setVisiting(open.crew.slug)} onChanged={reload} onGone={async () => { setOpenId(null); await reload(); }} />
+            autoEdit={autoEdit} onVisit={setVisiting} onChanged={reload} />
         ) : (
           <CrewList crews={crews} userId={p.userId!} onOpen={setOpenId} onChanged={reload} />
         )}
       </div>
-      {visiting && <CrewHouseOverlay slug={visiting} viewerId={p.userId} onClose={() => setVisiting(null)}
-        onManage={id => { setVisiting(null); setOpenId(id); }} />}
+      {visiting && <CrewHouseOverlay key={visiting.slug} slug={visiting.slug} viewerId={p.userId} from={visiting.from} initial={visiting.house}
+        onClose={() => { setVisiting(null); void reload(); }}
+        edit={{ start: visiting.edit, onSaved: () => void reload(), onGone: () => { setOpenId(null); void reload(); } }} />}
     </InspectorShell>
   );
 }
+
+interface Visit { slug: string; from: DOMRect | null; edit: boolean; house: CrewHouse | null }
 
 // ── The list: your crews, create, join ─────────────────────────────────────
 
@@ -195,13 +199,24 @@ function JoinForm({ onJoined }: { onJoined: () => Promise<void> }) {
 
 // ── One crew: preview, visit, manage ───────────────────────────────────────
 
-function CrewPage({ mine, userId, onBack, onVisit, onChanged, onGone }: {
-  mine: MyCrew; userId: string; onBack: () => void; onVisit: () => void; onChanged: () => Promise<void>; onGone: () => Promise<void>;
+function CrewPage({ mine, userId, onBack, onVisit, onChanged, autoEdit }: {
+  mine: MyCrew; userId: string; onBack: () => void; onVisit: (v: Visit) => void; onChanged: () => Promise<void>;
+  autoEdit: React.MutableRefObject<boolean>;
 }) {
   const owner = mine.crew.owner_id === userId;
   const [house, setHouse] = useState<CrewHouse | null>(null);
   const [section, setSection] = useState<string | null>(null);
+  const editRef = useRef<HTMLDivElement>(null);
   useEffect(() => { crewApi.house(mine.crew.slug).then(setHouse).catch(() => setHouse(null)); }, [mine.crew.slug, mine.crew]);
+  const go = (el: HTMLElement | null, edit: boolean) => onVisit({ slug: mine.crew.slug, from: el?.getBoundingClientRect() ?? null, edit, house });
+  // "Editar crew" from the house page: straight into the editor.
+  useEffect(() => {
+    if (!owner || !autoEdit.current) return;
+    autoEdit.current = false;
+    const t = setTimeout(() => go(editRef.current, true), 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [owner]);
 
   return (
     <>
@@ -212,21 +227,31 @@ function CrewPage({ mine, userId, onBack, onVisit, onChanged, onGone }: {
 
       <Preview crew={mine.crew} house={house} number={mine.number} />
 
+      {owner && (
+        <div ref={editRef}>
+          <ActionButton variant="primary" fullWidth onClick={() => go(editRef.current, true)}><Icon name="pencil" size={15} />Editar la sala</ActionButton>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1 }}><ActionButton variant="primary" fullWidth onClick={onVisit}><Icon name="maximize" size={15} />Visitar</ActionButton></div>
+        <div style={{ flex: 1 }}><ActionButton variant={owner ? "secondary" : "primary"} fullWidth onClick={e => go(e.currentTarget as HTMLElement, false)}><Icon name="maximize" size={15} />Visitar</ActionButton></div>
         <div style={{ flex: 1 }}><ActionButton variant="secondary" fullWidth onClick={() => window.open(`/c/${mine.crew.slug}`, "_blank", "noopener")}><Icon name="external" size={15} />Pestaña nueva</ActionButton></div>
       </div>
 
       {owner ? (
         <Accordion open={section} onOpenChange={setSection}>
-          <OwnerSections crew={mine.crew} userId={userId} onChanged={onChanged} onGone={onGone} />
+          <MenuSection label="Miembros" icon="crew" summary={`${house?.members.length ?? mine.members} de ${CREW_MAX_MEMBERS}`}>
+            <MembersBox crew={mine.crew} userId={userId} onChanged={onChanged} />
+          </MenuSection>
+          <MenuSection label="Invitación" icon="link" summary="Solo con el link">
+            <InviteBox crew={mine.crew} />
+          </MenuSection>
         </Accordion>
       ) : (
         <>
           <MenuNote>Solo el dueño puede cambiar el crew.</MenuNote>
           <ActionButton variant="danger" fullWidth onClick={async () => {
             if (!window.confirm(`¿Irte de ${mine.crew.name}? Para volver vas a necesitar otra invitación y otro número.`)) return;
-            try { await crewApi.leave(mine.crew.id); await onGone(); } catch (e) { window.alert(crewErrorText(e)); }
+            try { await crewApi.leave(mine.crew.id); onBack(); await onChanged(); } catch (e) { window.alert(crewErrorText(e)); }
           }}>Irme del crew</ActionButton>
         </>
       )}
@@ -259,85 +284,6 @@ function Preview({ crew, house, number }: { crew: Crew; house: CrewHouse | null;
   );
 }
 
-/** The owner's sections — every change is saved as you go. */
-function OwnerSections({ crew, userId, onChanged, onGone }: { crew: Crew; userId: string; onChanged: () => Promise<void>; onGone: () => Promise<void> }) {
-  const [draft, setDraft] = useState<Crew>(crew);
-  const [status, setStatus] = useState<{ tone: "hint" | "warn"; text: string } | null>(null);
-  const pending = useRef<CrewPatch>({});
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const flush = useCallback(async () => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
-    const patch = pending.current;
-    pending.current = {};
-    if (!Object.keys(patch).length) return;
-    try { await crewApi.update(crew.id, patch); setStatus({ tone: "hint", text: "Guardado." }); await onChanged(); }
-    catch (e) { setStatus({ tone: "warn", text: crewErrorText(e) }); }
-  }, [crew.id, onChanged]);
-  useEffect(() => () => { void flush(); }, [flush]);
-
-  /** Text fields save a moment after you stop typing; the rest right away. */
-  const set = <K extends keyof CrewPatch>(k: K, v: CrewPatch[K], wait = 0) => {
-    setDraft(d => ({ ...d, [k]: v }));
-    setStatus(null);
-    pending.current = { ...pending.current, [k]: v };
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void flush(), wait);
-  };
-  const upload = (k: "emblem_url" | "bg_image" | "music_url") => async (f: File) => {
-    setStatus({ tone: "hint", text: "Subiendo…" });
-    try { set(k, (await uploadToStorage(f)).publicUrl); } catch { setStatus(null); }
-  };
-  const hex = (v: string) => /^#[0-9a-f]{6}$/i.test(v);
-  const discord = normalizeDiscord(draft.discord_url ?? "");
-  const discordBad = !!discord && !DISCORD_RE.test(discord);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {status && <MenuNote tone={status.tone}>{status.text}</MenuNote>}
-
-      <MenuSection label="Identidad" icon="sparkles" swatch={draft.color} summary={draft.font}>
-        <TextInput label="Nombre" value={draft.name} maxLength={CREW_LIMITS.name} onChange={v => { if (v.trim()) set("name", v, 700); else setDraft(d => ({ ...d, name: v })); }} />
-        <TextInput label="Lema" value={draft.motto} maxLength={CREW_LIMITS.motto} onChange={v => set("motto", v, 700)} />
-        <MenuNote>Es el juramento que se ve al unirse.</MenuNote>
-        <UploadField kind="logo" value={draft.emblem_url} label="Emblema" caption="Emblema" accept="image/*"
-          onFile={upload("emblem_url")} onRemove={() => set("emblem_url", "")} />
-        <ColorRow label="Color" value={draft.color} onChange={v => { if (hex(v)) set("color", v.toLowerCase()); }} />
-        <FontField label="Fuente" value={draft.font} fonts={FONT_OPTIONS} sample={draft.name || "Crew"} onChange={v => set("font", v)} />
-      </MenuSection>
-
-      <MenuSection label="Sala" icon="room" swatch={draft.bg_color} summary={draft.bg_image ? "Con imagen" : "Color"}>
-        <ColorRow label="Fondo" value={draft.bg_color} onChange={v => { if (hex(v)) set("bg_color", v.toLowerCase()); }} />
-        <UploadField kind="cover" value={draft.bg_image} label="Imagen o GIF de fondo" caption="Fondo" accept="image/*"
-          onFile={upload("bg_image")} onRemove={() => set("bg_image", "")} />
-        <MenuNote>Como el fondo de tu sala: a su tamaño, repetido.</MenuNote>
-        <UploadField kind="audio" value={draft.music_url} label="Música" caption="MP3" accept=".mp3,audio/mpeg"
-          onFile={upload("music_url")} onRemove={() => set("music_url", "")} />
-        <TextArea value={draft.notice} maxLength={CREW_LIMITS.notice} rows={3} placeholder="Aviso fijo arriba de los miembros" onChange={v => set("notice", v, 900)} />
-        <TextInput label="Discord" value={draft.discord_url ?? ""} mono placeholder="discord.gg/…" onChange={v => {
-          setDraft(d => ({ ...d, discord_url: v }));
-          const n = normalizeDiscord(v);
-          if (!n || DISCORD_RE.test(n)) set("discord_url", n, 700);
-        }} />
-        {discordBad && <MenuNote tone="warn">Usá un link de invitación (discord.gg/…).</MenuNote>}
-      </MenuSection>
-
-      <MenuSection label="Invitación" icon="link" summary="Solo con el link">
-        <InviteBox crew={crew} />
-      </MenuSection>
-
-      <MenuSection label="Miembros" icon="crew" summary="Ver y sacar">
-        <MembersBox crew={crew} userId={userId} onChanged={onChanged} />
-      </MenuSection>
-
-      <ActionButton variant="danger" fullWidth onClick={async () => {
-        if (!window.confirm(`¿Borrar ${crew.name} para siempre? Todos dejan de ser miembros.`)) return;
-        try { await crewApi.remove(crew.id); await onGone(); } catch (e) { window.alert(crewErrorText(e)); }
-      }}><Icon name="trash" size={15} />Borrar crew</ActionButton>
-    </div>
-  );
-}
-
 function InviteBox({ crew }: { crew: Crew }) {
   const [code, setCode] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -361,19 +307,25 @@ function InviteBox({ crew }: { crew: Crew }) {
 }
 
 function MembersBox({ crew, userId, onChanged }: { crew: Crew; userId: string; onChanged: () => Promise<void> }) {
-  const [list, setList] = useState<{ user_id: string; number: number; handle: string }[] | null>(null);
+  const [list, setList] = useState<{ user_id: string; number: number; handle: string; name: string | null }[] | null>(null);
+  const [q, setQ] = useState("");
   const [note, setNote] = useState("");
   const load = useCallback(() => crewApi.members(crew.id).then(setList).catch(e => setNote(crewErrorText(e))), [crew.id]);
   useEffect(() => { void load(); }, [load]);
   if (!list) return <MenuNote>Cargando…</MenuNote>;
+  const needle = q.trim().toLowerCase().replace(/^@/, "");
+  const shown = needle ? list.filter(m => m.handle.toLowerCase().includes(needle) || (m.name ?? "").toLowerCase().includes(needle)) : list;
   return (
     <>
-      <MenuNote>{list.length} de {CREW_MAX_MEMBERS}</MenuNote>
-      <div role="list" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {list.map(m => (
-          <div key={m.user_id} role="listitem" style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 40, padding: "0 4px 0 12px", borderRadius: 12, background: T.ui.surface.control }}>
-            <span style={{ font: `700 12px ${T.uiFont.mono}`, color: T.ui.text.tertiary, width: 30 }}>{memberNumber(m.number)}</span>
-            <span style={{ flex: 1, minWidth: 0, font: `600 13px ${T.uiFont.sans}`, color: T.ui.text.primary, overflow: "hidden", textOverflow: "ellipsis" }}>@{m.handle}</span>
+      <TextInput label="Buscar" value={q} placeholder="Nombre o @usuario" onChange={setQ} />
+      <div role="list" aria-label="Miembros" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {shown.map(m => (
+          <div key={m.user_id} role="listitem" style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 44, padding: "4px 4px 4px 12px", borderRadius: 12, background: T.ui.surface.control }}>
+            <span style={{ font: `700 12px ${T.uiFont.mono}`, color: T.ui.text.tertiary, width: 30, flex: "none" }}>{memberNumber(m.number)}</span>
+            <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+              <span style={{ font: `600 13px ${T.uiFont.sans}`, color: T.ui.text.primary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name || m.handle}</span>
+              <span style={{ font: `500 11px ${T.uiFont.mono}`, color: T.ui.text.tertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{m.handle}</span>
+            </span>
             {m.user_id === userId
               ? <span style={{ font: `600 12px ${T.uiFont.sans}`, color: T.ui.text.tertiary, padding: "0 10px" }}>{isFounder(m.number) ? "fundador · vos" : "vos"}</span>
               : <ActionButton variant="ghost" onClick={async () => {
@@ -382,6 +334,7 @@ function MembersBox({ crew, userId, onChanged }: { crew: Crew; userId: string; o
                 }}>Sacar</ActionButton>}
           </div>
         ))}
+        {shown.length === 0 && <MenuNote>Nadie con “{q.trim()}”.</MenuNote>}
       </div>
       {note && <MenuNote tone="warn">{note}</MenuNote>}
     </>
