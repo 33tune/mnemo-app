@@ -83,6 +83,10 @@ export const SETTINGS_INDEX: Readonly<Record<SearchObject, readonly SettingsCard
     ["Distribución", "spacing", ["Ancho", "Separación"]],
     ["Al pasar el cursor", "pointer", ["Elevar", "Brillo", "Invertir"]],
   ],
+  crew: [
+    ["Crew", null, ["Mostrar en la card"]],
+    ["Tamaño", "maximize", ["Tamaño"]],
+  ],
   stickers: [
     ["Stickers", null, ["Agregar sticker", "Editar", "Aplicar"]],
     ["Capas", "layers", ["Tarjeta"]],

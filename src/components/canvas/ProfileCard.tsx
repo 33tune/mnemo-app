@@ -21,7 +21,7 @@ import { resolveLinkButtonStyle } from "@/lib/linkButtons";
 import { profileLayout, profileCardMinSize, positionsPatch, formatViewCount, type TextMeasurer, type DragState, type ProfileLayout, type BlockKey, type Rect } from "@/lib/profileCardLayout";
 import { guidesFor, snapRect, type SnapState } from "@/lib/cardSolver";
 import { getTextMeasurer, useFontsVersion } from "@/lib/textMeasure";
-import { CrewBadge } from "@/features/crews/CrewBadge";
+import { CrewChipView } from "@/features/crews/CrewChipView";
 import { LinkButtonsBlock } from "./LinkButtonsBlock";
 import { nextAnchorAxis } from "@/lib/anchorDrag";
 import {
@@ -1161,6 +1161,16 @@ function ProfileCard({
               didDragRef={isAnchorDraggable ? buttonsDidDragRef : undefined} />
           </div>
         )}
+        {rects.crew && card.crew && (
+          <div
+            data-canvas-hot=""
+            {...partProps("crew")}
+            style={{ ...box(rects.crew), transition: motion("crew"), cursor: canInteract ? grab : "pointer", ...partOutline("crew"), ...dragOutline("crew") }}
+            onMouseDown={down("crew")}
+          >
+            <CrewChipView chip={card.crew} userId={card.userId} verify={!canInteract} />
+          </div>
+        )}
         {/* Magnet guides — editor only, while dragging. */}
         {drag && drag.lineX != null && (
           <div aria-hidden style={{ position: "absolute", left: drag.lineX - 0.5, top: 0, bottom: 0, width: 1, background: withOpacity(baseColor, 0.4), pointerEvents: "none" }} />
@@ -1238,8 +1248,6 @@ function ProfileCard({
             {layout === "free" && renderFree()}
             {layout !== "free" && renderComposed()}
             {renderLogo()}
-            {/* Crews (2026-10-29): the featured crew's chip — nothing when none. */}
-            <CrewBadge userId={card.userId} cardW={card.w} cardH={renderH} pad={pad} draggable={isSel && !!canInteract} interactive={!canInteract} />
           </div>
         </CardLayers>
 

@@ -336,6 +336,13 @@ planeado acá hasta confirmarlo.
 >   30 miembros, 3 crews por persona, número de miembro y FUNDADOR (primeros 10). Webring y roles: para después.
 >   Todo en `src/features/crews/` + migración `20261029000000_crews.sql` (aplicada). **Detalle y cómo borrarlo:
 >   `docs/crews.md`.**
+>   **Crews v2 (2026-10-30, pedido del usuario):** botón CREWS en la barra izquierda → panel en el dock (crear, unirse
+>   pegando el link, lista, vista previa, Visitar = la sala a pantalla completa encima del editor, pestaña nueva;
+>   el dueño edita ahí mismo). `/crews` redirige a `/dashboard?crews`. FUNDADOR solo el #01. El chip es un BLOQUE
+>   del motor de la card (Contenido › Crew: mostrar, cuál, tamaño; se arrastra; `card.crew` + `crewAnchorX/Y`, se
+>   publica con la card); en el perfil público se verifica la membresía y tocarlo abre la sala encima. Fondo de la
+>   sala como el de myLand (tamaño natural, repetido, GIF animado). Arreglo general: las WebP/PNG animadas ya no se
+>   "achican" al subir (perdían la animación; `isAnimatedImageHeader`).
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

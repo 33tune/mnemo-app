@@ -75,6 +75,7 @@ const links    = at("ProfileContactLinksMenu.tsx");
 const logo     = at("ProfileLogoMenu.tsx");
 const stk      = at("ProfileStickersMenu.tsx");
 const btns     = at("ProfileLinkButtonsMenu.tsx");
+const crewMenu = at("ProfileCrewMenu.tsx");
 const config   = at("ProfileConfigMenu.tsx");
 const type     = at("ProfileTypographyMenu.tsx");
 const bgMenu   = at("ProfileBackgroundMenu.tsx");
@@ -99,6 +100,7 @@ const BIO = obj("Bio"), SOBRE_MI = obj("Sobre mí"), VISITAS = obj("Visitas"), F
 const FONDO = obj("Fondo de la card");
 const STICKERS = obj("Stickers");
 const BOTONES = obj("Botones");
+const CREW = obj("Crew");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");
 const TIPO = "Tipografía";
@@ -164,6 +166,16 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "linkButtonStyle.hover.glow": btns(`${BOTONES} › Al pasar el cursor › Brillo`, "ctl.setHover({ glow: v || undefined })"),
   "linkButtonStyle.hover.invert": btns(`${BOTONES} › Al pasar el cursor › Invertir`, "ctl.setHover({ invert: v || undefined })"),
   buttonsAnchorX: BLOCK_DRAG("buttons"), buttonsAnchorY: BLOCK_DRAG("buttons"),
+  // Crews (2026-10-30): the crew chip, a block of the engine.
+  "crew.id": crewMenu(`${CREW} › Crew que se muestra`, "onClick={() => show(m)}"),
+  "crew.size": crewMenu(`${CREW} › Tamaño`, "onChange({ crew: { ...chip, size: v } })"),
+  "crew.slug": system("snapshot of the crew (chipOf) — refreshed when the Crew part opens"),
+  "crew.name": system("snapshot of the crew (chipOf) — refreshed when the Crew part opens"),
+  "crew.font": system("snapshot of the crew (chipOf) — refreshed when the Crew part opens"),
+  "crew.color": system("snapshot of the crew (chipOf) — refreshed when the Crew part opens"),
+  "crew.emblem": system("snapshot of the crew (chipOf) — refreshed when the Crew part opens"),
+  "crew.number": system("snapshot of the owner's member number (chipOf)"),
+  crewAnchorX: BLOCK_DRAG("crew"), crewAnchorY: BLOCK_DRAG("crew"),
   musicAnchorX: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   musicAnchorY: retired("Music left ProfileCard (Product closeout) — deprecated, nothing reads it"),
   music: retired("Music is an independent canvas element now (MusicCardData)"),

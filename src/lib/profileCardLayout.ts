@@ -30,6 +30,7 @@ import { CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "./contactLinksBlock";
 import { linkButtonHeight, resolveLinkButtonStyle } from "./linkButtons";
 import { resolveCardTypography, resolveTypographyMetrics, TYPOGRAPHY_METRICS } from "./cardTypography";
 import { getFontStyle } from "./fontList";
+import { crewChipMetrics } from "./crewChip";
 
 export type { BlockKey, Rect };
 
@@ -325,6 +326,12 @@ export function profileBlocks(card: ProfileCardData, o: ProfileLayoutOptions = {
       heightAt: () => buttons.length * bh + (buttons.length - 1) * style.gap,
     };
   }
+  // Crews (2026-10-30): the crew chip — a fixed-size pill (never narrower).
+  if (card.crew) {
+    const m = crewChipMetrics(card.crew, o.measure);
+    const w = Math.min(m.w, availW);
+    specs.crew = { natW: w, minW: w, heightAt: () => m.h };
+  }
   return { specs, text, identityRows, identityRoles, pad, avatarSize, align };
 }
 
@@ -339,8 +346,9 @@ export const ANCHOR_FIELDS: Record<BlockKey, AnchorKeys> = {
   about: { x: "aboutAnchorX", y: "aboutAnchorY" },
   links: { x: "linksAnchorX", y: "linksAnchorY" },
   buttons: { x: "buttonsAnchorX", y: "buttonsAnchorY" },
+  crew: { x: "crewAnchorX", y: "crewAnchorY" },
 };
-const STACK: BlockKey[] = ["pfp", "identity", "location", "views", "about", "links", "buttons"];
+const STACK: BlockKey[] = ["pfp", "identity", "crew", "location", "views", "about", "links", "buttons"];
 
 function anchorOf(card: ProfileCardData, key: BlockKey): { x: number; y: number } | undefined {
   const f = ANCHOR_FIELDS[key];
@@ -406,6 +414,13 @@ export function desiredRects(card: ProfileCardData, b: ProfileBlocks, W: number,
   // Saved (or previous-engine) positions; a block without one goes under
   // the rest (under the photo for a previous-engine card).
   for (const k of present) fromAnchor(k);
+  // A crew chip just added goes right under the name (visible; the solver
+  // makes room), not under everything.
+  if (specs.crew && !out.crew && out.identity) {
+    const w = width("crew");
+    const idH = specs.identity!.heightAt(out.identity.w);
+    out.crew = { x: Math.max(pad, Math.min(alignX(w, out.identity.x, out.identity.w, align), W - pad - w)), y: out.identity.y + idH + ROW_GAP, w };
+  }
   if (!out.pfp) {
     const w = width("pfp");
     out.pfp = { x: alignX(w, pad, availW, align), y: pad, w };

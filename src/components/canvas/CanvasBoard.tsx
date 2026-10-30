@@ -687,7 +687,7 @@ export default function CanvasBoard({
   const inspectorCardId = profileTargetId(editorSel.target);
   const inspectorCardIdRef = useRef<string | null>(null);
   inspectorCardIdRef.current = inspectorCardId;
-  const { openProfile, openRoom, openLayers, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
+  const { openProfile, openRoom, openLayers, openCrews, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
   /** Editor v3 Phase G: the element (card, text, image, Music) any inspector
    * is editing — focus / collapse / view-freeze logic is the same for all. */
   const inspectorTargetElId = targetId(editorSel.target);
@@ -788,6 +788,17 @@ export default function CanvasBoard({
   const roomOpen = editorSel.target?.kind === "room";
   /** Editor v3 Phase E: Capas (the Layers panel) is open. */
   const layersOpen = editorSel.target?.kind === "layers";
+  /** Crews (2026-10-30): the Crews panel is open. */
+  const crewsOpen = editorSel.target?.kind === "crews";
+  // /dashboard?crews[=<crew id>] (the house's "Editar crew"): opens the panel.
+  const [crewsDeepLink, setCrewsDeepLink] = useState<string | null>(null);
+  useEffect(() => {
+    if (!canEdit) return;
+    const v = new URLSearchParams(window.location.search).get("crews");
+    if (v == null) return;
+    setCrewsDeepLink(/^[0-9a-f-]{36}$/.test(v) ? v : null);
+    openCrews();
+  }, [canEdit, openCrews]);
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
     : undefined;
@@ -814,7 +825,7 @@ export default function CanvasBoard({
     // "Tu sala" moves nothing (it is about the whole room); as a sheet it
     // takes the max share of the viewport.
     // Phase E: Capas, like Tu sala, is about the whole room — nothing moves.
-    if ((roomOpen || layersOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
+    if ((roomOpen || layersOpen || crewsOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
     if (!inspectorBox) return { dx: 0, dy: 0, sheetH: 0, covered: false };
     // Phase G (review G-R MAYOR 1): a free element moves — the smallest
     // shift that uncovers it, KEPT while it still shows it (moving it, its
@@ -905,7 +916,7 @@ export default function CanvasBoard({
   // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
-  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen) && canInteract) || roomShown;
+  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || crewsOpen) && canInteract) || roomShown;
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
   const cardSelected = elements.some(el => el.elementType === "profile" && selectedIds.has(el.id));
@@ -3539,6 +3550,8 @@ export default function CanvasBoard({
           layersOpen={layersOpen}
           onLayers={() => { if (layersOpen) closeInspector(); else { setMenuOpen(false); openLayers(); } }}
           layersPanelId={LAYERS_PANEL_ID}
+          crewsOpen={crewsOpen}
+          onCrews={() => { if (crewsOpen) closeInspector(); else { setMenuOpen(false); openCrews(); } }}
           addMenuId="mnemo-add-menu"
           roomInspectorId="mnemo-room-inspector"
         />
@@ -4224,6 +4237,7 @@ export default function CanvasBoard({
             grid: gridOn, onGrid: setGridOn,
             snap: gridSnapOn, onSnap: setGridSnapOn,
           }}
+          crews={crewsOpen ? { userId: currentUserId, initialCrewId: crewsDeepLink } : undefined}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));
             const byId = new Map(elements.map(e => [e.id, e] as const));

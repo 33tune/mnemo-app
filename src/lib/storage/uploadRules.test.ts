@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkUpload, uploadKind, UPLOAD_LIMITS } from "./uploadRules";
+import { checkUpload, uploadKind, UPLOAD_LIMITS, isAnimatedImageHeader } from "./uploadRules";
 
 const MB = 1024 * 1024;
 
@@ -36,4 +36,19 @@ test("stored content type and picture shrinking", async () => {
   assert.equal(shouldShrink({ name: "a.svg", type: "" }), false);
   assert.equal(shouldShrink({ name: "a.png", type: "image/png" }), true);
   assert.equal(shouldShrink({ name: "a.mp3", type: "audio/mpeg" }), false);
+});
+
+test("animated WebP / APNG are recognized (never flattened by shrinkImage)", async () => {
+  const sharp = (await import("sharp")).default;
+  const frame = (c: string) => sharp({ create: { width: 8, height: 8, channels: 4, background: c } }).png().toBuffer();
+  const still = await sharp(await frame("#f00")).webp().toBuffer();
+  const anim = await sharp([await frame("#f00"), await frame("#00f")], { join: { animated: true } }).webp().toBuffer();
+  assert.equal(isAnimatedImageHeader(new Uint8Array(still)), false);
+  assert.equal(isAnimatedImageHeader(new Uint8Array(anim)), true);
+  assert.equal(isAnimatedImageHeader(new Uint8Array(await frame("#0f0"))), false);
+  // APNG: acTL before IDAT
+  const png = new Uint8Array(await frame("#0f0"));
+  const actl = new Uint8Array([0, 0, 0, 8, 0x61, 0x63, 0x54, 0x4c, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const apng = new Uint8Array([...png.slice(0, 33), ...actl, ...png.slice(33)]);
+  assert.equal(isAnimatedImageHeader(apng), true);
 });

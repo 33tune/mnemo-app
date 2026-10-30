@@ -73,6 +73,27 @@ export function shouldShrink(file: { name: string; type: string }): boolean {
   return t !== "image/gif" && t !== "image/svg+xml";
 }
 
+/**
+ * An animated WebP or PNG (APNG), from the first bytes of the file. Many
+ * "GIFs" saved from the web are animated WebP: re-encoding them on a canvas
+ * keeps only the first frame, so they go as they are (2026-10-30).
+ */
+export function isAnimatedImageHeader(b: Uint8Array): boolean {
+  const ascii = (at: number, s: string) => s.split("").every((c, i) => b[at + i] === c.charCodeAt(0));
+  // WebP: RIFF....WEBP VP8X with the animation flag (bit 1 of byte 20).
+  if (ascii(0, "RIFF") && ascii(8, "WEBP") && ascii(12, "VP8X")) return (b[20] & 0x02) !== 0;
+  // PNG: an acTL chunk before the first IDAT.
+  if (b[0] === 0x89 && ascii(1, "PNG")) {
+    for (let i = 8; i + 8 <= b.length; ) {
+      const len = ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
+      if (ascii(i + 4, "acTL")) return true;
+      if (ascii(i + 4, "IDAT")) return false;
+      i += 12 + len;
+    }
+  }
+  return false;
+}
+
 /** A GIF, as uploaded or as optimized on the server (<uuid>-gif.webp). */
 export function isGifSrc(src: string | null | undefined): boolean {
   return /(\.gif|-gif\.webp)(\?|$)/i.test(src ?? "");

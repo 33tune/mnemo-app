@@ -18,8 +18,10 @@ export const ML_VARS = {
 
 const SITE_FONTS_HREF = "https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&display=swap";
 
-export function CrewShell({ children, bg, bgImage, extraFontsHref, glow = true, align = "center" }: {
+export function CrewShell({ children, bg, bgImage, extraFontsHref, glow = true, align = "center", onClose }: {
   children: ReactNode;
+  /** Shown over the editor: a close button instead of the myLand pill. */
+  onClose?: () => void;
   bg?: string;
   bgImage?: string | null;
   extraFontsHref?: string | null;
@@ -37,15 +39,23 @@ export function CrewShell({ children, bg, bgImage, extraFontsHref, glow = true, 
         padding: "84px 16px 40px", boxSizing: "border-box", position: "relative", overflowX: "hidden",
       }}>
         {bgImage && (
-          <div aria-hidden style={{ position: "fixed", inset: 0, backgroundImage: `url("${bgImage}")`, backgroundSize: "cover", backgroundPosition: "center", pointerEvents: "none" }} />
+          // Like the room's wallpaper: the picture (or GIF) at its own size, tiled.
+          <div aria-hidden style={{ position: "fixed", inset: 0, backgroundImage: `url("${bgImage}")`, backgroundSize: "auto", backgroundRepeat: "repeat", backgroundPosition: "center top", pointerEvents: "none" }} />
         )}
         {glow && !bgImage && (
           <div aria-hidden style={{ position: "absolute", left: "50%", top: 260, width: "min(900px,140vw)", height: "min(520px,110vw)", transform: "translate(-50%,-50%)", pointerEvents: "none", background: "radial-gradient(40% 50% at 30% 60%,rgba(255,225,77,.18),transparent 70%),radial-gradient(42% 52% at 70% 40%,rgba(255,79,148,.28),transparent 70%)", filter: "blur(48px)" }} />
         )}
-        <a href="/" className="lg-glass" style={{ position: "fixed", top: 14, left: 14, display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 16px 0 10px", borderRadius: 999, color: "var(--glass-ink)", textDecoration: "none", zIndex: 5 }}>
-          <img src="/landing/logo.png" alt="" style={{ width: 30, height: "auto", display: "block" }} />
-          <span style={{ font: "800 20px/1 var(--font-display)", letterSpacing: "-0.055em" }}>myLand</span>
-        </a>
+        {onClose ? (
+          <button type="button" onClick={onClose} className="lg-glass crew-close" aria-label="Cerrar la sala del crew" autoFocus
+            style={{ position: "fixed", top: 14, right: 14, display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 18px 0 14px", border: "none", borderRadius: 999, color: "var(--glass-ink)", font: "650 14px var(--font-sans)", cursor: "pointer", zIndex: 5 }}>
+            <Icon name="close" size={16} /> Cerrar
+          </button>
+        ) : (
+          <a href="/" className="lg-glass" style={{ position: "fixed", top: 14, left: 14, display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 16px 0 10px", borderRadius: 999, color: "var(--glass-ink)", textDecoration: "none", zIndex: 5 }}>
+            <img src="/landing/logo.png" alt="" style={{ width: 30, height: "auto", display: "block" }} />
+            <span style={{ font: "800 20px/1 var(--font-display)", letterSpacing: "-0.055em" }}>myLand</span>
+          </a>
+        )}
         <div style={{ position: "relative", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1 }}>
           {children}
         </div>
@@ -133,7 +143,7 @@ export function Notice({ children, tone = "info" }: { children: ReactNode; tone?
 
 const CREW_CSS = `
 .ml-site .crew-well:hover:not(:disabled){background:var(--glass-well-hover)}
-.ml-site .crew-well:focus-visible,.ml-site .crew-primary:focus-visible{outline:none;box-shadow:var(--glass-ring)}
+.ml-site .crew-well:focus-visible,.ml-site .crew-primary:focus-visible,.ml-site .crew-close:focus-visible{outline:none;box-shadow:var(--glass-ring)}
 .ml-site .crew-primary:active:not(:disabled){transform:scale(.98)}
 .ml-site .crew-mini{transition:transform .2s var(--glass-spring)}
 .ml-site .crew-mini:hover{transform:translateY(-3px)}

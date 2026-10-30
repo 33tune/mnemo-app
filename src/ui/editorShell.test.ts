@@ -151,7 +151,7 @@ test("Phase D review: \"Tu sala\" opens on touch devices too (room settings were
   assert.ok(BOARD.includes('{inspectorEnabled && (canInteract || roomShown) && ('));
   // Phase E: Capas joins the card's inspector on the canInteract side (no touch editing).
   // Phase G: so do the text / image / Music inspectors.
-  assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen) && canInteract) || roomShown;"));
+  assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || crewsOpen) && canInteract) || roomShown;"));
 });
 
 test("Phase D review: object chrome clears the 60px topbar and the rail (placement only, geometry keeps 44)", () => {

@@ -61,12 +61,13 @@ test("ProfileCard: data-role on every part wrapper it already renders (composed 
   // which puts the part marker on the row's own wrapper.
   assert.ok(CARD.includes("<div {...partProps(role)} style={{ position: \"absolute\", left: r.x, top: r.y"));
   for (const r of ["name", "handle", "descriptor", "bio", "location", "views"]) assert.ok(CARD.includes(`row("${r}", `), r);
-  for (const r of ["photo", "links", "buttons", "logo"]) assert.ok(CARD.includes(`{...partProps("${r}")}`), r);
+  for (const r of ["photo", "links", "buttons", "crew", "logo"]) assert.ok(CARD.includes(`{...partProps("${r}")}`), r);
   assert.ok(CARD.includes("{...partProps(elemKey as PartRole)}"), "free layout wrappers");
   // The hit-stack is unchanged: text lines are NOT marked hot (only the
   // existing photo / links / logo / chrome markers, plus the link buttons,
   // which hold real <a>s exactly like the links row).
-  assert.equal((CARD.match(/data-canvas-hot=""/g) ?? []).length, 4);
+  // Crews (2026-10-30): the crew chip too (a button on the public card).
+  assert.equal((CARD.match(/data-canvas-hot=""/g) ?? []).length, 5);
 });
 
 test("D5: the outline is editor-only (menuOpen = inspector open AND canInteract) and the memo compares activePart", () => {

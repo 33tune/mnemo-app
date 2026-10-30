@@ -11,8 +11,13 @@ import { Icon, CrewShell, PrimaryButton, WellButton } from "./CrewShell";
 import { miniCardOf, crewFontStyle, googleFontsHref, nameFontKey, foundedText, type MiniCard } from "./crewLook";
 import { inkOn, isFounder, memberNumber, CREW_MAX_MEMBERS, type CrewHouse } from "./crewTypes";
 
-export default function CrewHouseView({ house, joinedNumber, viewerIsMember, viewerIsOwner }: {
+export default function CrewHouseView({ house, joinedNumber, viewerIsMember, viewerIsOwner, onClose, onManage, newTabProfiles }: {
   house: CrewHouse;
+  /** Open over the editor (Crews › Visitar): a close button, profiles open
+   * in a new tab, "Editar crew" goes to the panel. */
+  onClose?: () => void;
+  onManage?: (crewId: string) => void;
+  newTabProfiles?: boolean;
   /** Just joined through the pact: "Sos el miembro #n". */
   joinedNumber?: number | null;
   viewerIsMember: boolean;
@@ -30,7 +35,7 @@ export default function CrewHouseView({ house, joinedNumber, viewerIsMember, vie
   }, [welcome]);
 
   return (
-    <CrewShell bg={crew.bg_color} bgImage={crew.bg_image} extraFontsHref={fontsHref} glow={false} align="start">
+    <CrewShell bg={crew.bg_color} bgImage={crew.bg_image} extraFontsHref={fontsHref} glow={false} align="start" onClose={onClose}>
       <header style={{ width: "min(960px,100%)", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 12, padding: "8px 0 18px" }}>
         {crew.emblem_url
           ? <img src={crew.emblem_url} alt="" style={{ width: 112, height: 112, objectFit: "contain", filter: `drop-shadow(0 10px 30px ${accent}66)` }} />
@@ -53,7 +58,9 @@ export default function CrewHouseView({ house, joinedNumber, viewerIsMember, vie
               <DiscordGlyph /> Discord
             </WellButton>
           )}
-          {viewerIsOwner && <WellButton href={`/crews?crew=${crew.id}`}><Icon name="pencil" size={15} /> Editar crew</WellButton>}
+          {viewerIsOwner && (onManage
+            ? <WellButton onClick={() => onManage(crew.id)}><Icon name="pencil" size={15} /> Editar crew</WellButton>
+            : <WellButton href={`/dashboard?crews=${crew.id}`}><Icon name="pencil" size={15} /> Editar crew</WellButton>)}
         </div>
       </header>
 
@@ -67,7 +74,7 @@ export default function CrewHouseView({ house, joinedNumber, viewerIsMember, vie
       <ul aria-label="Miembros" style={{ listStyle: "none", margin: 0, padding: 0, width: "min(960px,100%)", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14 }}>
         {members.map(m => (
           <li key={m.user_id} style={{ width: "min(180px,calc(50% - 7px))" }}>
-            <MiniCardLink mini={miniCardOf(m.card, m.handle, m.display_name)} number={m.number} accent={accent} />
+            <MiniCardLink mini={miniCardOf(m.card, m.handle, m.display_name)} number={m.number} accent={accent} newTab={!!newTabProfiles} />
           </li>
         ))}
       </ul>
@@ -88,10 +95,10 @@ export default function CrewHouseView({ house, joinedNumber, viewerIsMember, vie
   );
 }
 
-function MiniCardLink({ mini, number, accent }: { mini: MiniCard; number: number; accent: string }) {
+function MiniCardLink({ mini, number, accent, newTab }: { mini: MiniCard; number: number; accent: string; newTab?: boolean }) {
   const founder = isFounder(number);
   return (
-    <a href={`/${mini.handle}`} className="crew-mini" aria-label={`${mini.name}, @${mini.handle}, miembro ${memberNumber(number)}${founder ? ", fundador" : ""}`}
+    <a href={`/${mini.handle}`} target={newTab ? "_blank" : undefined} rel={newTab ? "noopener" : undefined} className="crew-mini" aria-label={`${mini.name}, @${mini.handle}, miembro ${memberNumber(number)}${founder ? ", fundador" : ""}`}
       style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "18px 12px 14px", borderRadius: Math.min(26, mini.radius + 6), textDecoration: "none", overflow: "hidden", minHeight: 196, boxSizing: "border-box",
         background: mini.bg, boxShadow: "0 1px 2px rgba(0,0,0,.3),0 18px 40px -18px rgba(0,0,0,.65)" }}>
       {mini.bgImage && <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: `url("${mini.bgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.9 }} />}

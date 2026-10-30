@@ -7,8 +7,6 @@
 
 export const CREW_MAX_MEMBERS = 30;
 export const CREW_MAX_PER_USER = 3;
-/** The first members wear the "fundador" mark. */
-export const CREW_FOUNDERS = 10;
 export const CREW_SLUG_RE = /^[a-z0-9_-]{3,24}$/;
 export const CREW_LIMITS = { name: 40, motto: 120, notice: 280 } as const;
 
@@ -48,20 +46,6 @@ export interface CrewHouse {
   members: CrewHouseMember[];
 }
 
-/** The crew a user features on their card (crew_badge_of). */
-export interface CrewBadgeData {
-  crew_id: string;
-  slug: string;
-  name: string;
-  emblem_url: string | null;
-  color: string;
-  font: string;
-  number: number;
-  x: number;
-  y: number;
-  size: number;
-}
-
 export interface MyCrew {
   crew: Crew;
   number: number;
@@ -72,7 +56,8 @@ export interface MyCrew {
   members: number;
 }
 
-export const isFounder = (n: number) => n >= 1 && n <= CREW_FOUNDERS;
+/** Only the one who created the crew is its founder (#01, user decision 2026-10-30). */
+export const isFounder = (n: number) => n === 1;
 
 /** "#007"-style member number. */
 export const memberNumber = (n: number) => `#${String(n).padStart(2, "0")}`;
@@ -115,4 +100,10 @@ export function crewErrorText(raw: unknown): string {
   if (m.includes("auth")) return "Tenés que entrar a tu cuenta.";
   if (/fetch|network/i.test(m)) return "No pudimos conectarnos. Revisá tu internet y probá de nuevo.";
   return "Algo salió mal. Probá de nuevo.";
+}
+
+/** A pasted invite link (or its path) → the crew and its code; null if it isn't one. */
+export function parseInvite(raw: string): { slug: string; code: string } | null {
+  const m = /\/c\/([a-z0-9_-]{3,24})\/unirme\?(?:.*&)?k=([A-Za-z0-9%_-]{1,80})/.exec(raw.trim());
+  return m ? { slug: m[1], code: decodeURIComponent(m[2]) } : null;
 }

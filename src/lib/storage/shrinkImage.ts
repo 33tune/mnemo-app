@@ -1,16 +1,18 @@
 "use client";
-import { shrinkSize, shouldShrink } from "./uploadRules";
+import { shrinkSize, shouldShrink, isAnimatedImageHeader } from "./uploadRules";
 
 /**
  * Pictures are stored small (2026-10-27): at most IMAGE_MAX_SIDE on the long
  * side, re-encoded as WebP (JPEG where the browser can't write WebP and the
  * picture has no transparency). Storage and every visitor's download shrink
- * ~10×. GIFs and SVGs go as they are, and so does any file the re-encode
+ * ~10×. GIFs, SVGs and animated WebP / PNG go as they are (a canvas keeps
+ * only the first frame), and so does any file the re-encode
  * would not make smaller. Never throws: on any problem the original goes.
  */
 export async function shrinkImage(file: File): Promise<File> {
   if (!shouldShrink(file) || typeof createImageBitmap !== "function") return file;
   try {
+    if (isAnimatedImageHeader(new Uint8Array(await file.slice(0, 64 * 1024).arrayBuffer()))) return file;
     const bmp = await createImageBitmap(file);
     const size = shrinkSize(bmp.width, bmp.height);
     if (!size) { bmp.close(); return file; }

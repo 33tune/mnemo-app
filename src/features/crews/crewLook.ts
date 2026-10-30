@@ -27,9 +27,7 @@ export function miniCardOf(card: Record<string, unknown> | null, handle: string,
 /** Fonts the crews pages can pick (the card's own list + the site's display face). */
 export const CREW_FONTS: string[] = ["Unbounded", ...CANVAS_FONTS.map(f => f.key)];
 
-export function crewFontStyle(font: string): string {
-  return font === "Unbounded" ? "'Unbounded', sans-serif" : getFontStyle(font);
-}
+export { crewFontStyle } from "@/lib/crewChip";
 
 /** Fonts served by Google (the rest are device fonts). */
 const GOOGLE: Record<string, string> = {

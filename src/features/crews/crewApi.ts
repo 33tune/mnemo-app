@@ -2,7 +2,7 @@
 /** Every crew read and write from the browser: the database functions of
  * migrations/20261029000000_crews.sql (each one checks who is calling). */
 import { createClient } from "@/lib/supabase/client";
-import type { Crew, CrewBadgeData, CrewPatch, MyCrew } from "./crewTypes";
+import type { Crew, CrewHouse, CrewPatch, MyCrew } from "./crewTypes";
 
 const sb = () => createClient();
 
@@ -20,10 +20,7 @@ export const crewApi = {
   kick: (id: string, userId: string) => rpc<void>("crew_kick", { p_id: id, p_user: userId }),
   join: (slug: string, code: string) => rpc<number>("crew_join", { p_slug: slug, p_code: code }),
   leave: (id: string) => rpc<void>("crew_leave", { p_id: id }),
-  feature: (id: string | null) => rpc<void>("crew_feature", { p_id: id }),
-  setBadge: (id: string, x: number, y: number, size: number) =>
-    rpc<void>("crew_set_badge", { p_id: id, p_x: x, p_y: y, p_size: size }),
-  badgeOf: (userId: string) => rpc<CrewBadgeData | null>("crew_badge_of", { p_user: userId }),
+  house: (slug: string) => rpc<CrewHouse | null>("crew_house", { p_slug: slug }),
 
   /** Is myland.lol/c/<slug> free? */
   async slugFree(slug: string): Promise<boolean> {

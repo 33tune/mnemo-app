@@ -48,7 +48,7 @@ test("part picker: groups (Tarjeta / Perfil / Contenido), every part of the grou
   assert.deepEqual(PART_GROUPS.map(g => [g.label, g.parts]), [
     ["Tarjeta", ["cardBg", "cardFx", "allText", "stickers"]],
     ["Perfil", ["photo", "name", "handle", "descriptor", "location", "bio", "about"]],
-    ["Contenido", ["links", "buttons", "logo", "views"]],
+    ["Contenido", ["links", "buttons", "crew", "logo", "views"]],
   ]);
   assert.equal(new Set(PART_ORDER).size, INSPECTOR_OBJECTS.length, "every part is in exactly one group");
   assert.ok(PART_GROUPS.every(g => g.parts.length <= 7), "a group fits the 7-column row");

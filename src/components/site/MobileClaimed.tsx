@@ -52,7 +52,6 @@ export function MobileClaimed({ handle }: { handle: string }) {
         Ahora entrá a <b style={{ color: "var(--ml-ink)" }}>myland.lol</b> desde una compu para armar tu tarjeta y tu sala. Desde el celular solo se ven los perfiles.
       </p>
       <a href={`/${handle}`} style={{ ...primary, marginTop: 6 }}>Ver mi perfil</a>
-      <a href="/crews" style={secondary}>Mis crews</a>
       <a href="/" style={secondary}>Volver al inicio</a>
     </Shell>
   );

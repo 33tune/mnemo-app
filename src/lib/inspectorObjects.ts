@@ -18,7 +18,7 @@ import { effectState } from "./effectBinding";
 import { isCardGlowFlagVisible } from "./effectEditorDefaults";
 import { getProfileCardEffects } from "./profileCardEffects";
 
-export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers";
+export type ObjectId = TextRole | "photo" | "links" | "buttons" | "crew" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers";
 
 export type ObjectKind = "role" | "block" | "card" | "all";
 /** Review r2: the list is a MAP of the card in three fixed clusters —
@@ -157,6 +157,11 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
       const n = (card.linkButtons ?? []).length;
       return n ? { text: "Botones", spoken: n === 1 ? "1 botón" : `${n} botones` } : { text: "Botones", placeholder: true };
     } },
+  // Crews (2026-10-30): the crew shown on the card.
+  { id: "crew", caption: "Crew", placeholder: "Crew", kind: "block", group: "block",
+    chip: ({ card }) => card.crew
+      ? { text: "Crew", thumb: card.crew.emblem, spoken: card.crew.name }
+      : { text: "Crew", placeholder: true } },
   { id: "logo", caption: "Logo", placeholder: "Logo", kind: "block", group: "block",
     chip: ({ card }) => card.logo?.url ? { text: "Logo", thumb: card.logo.url, spoken: "imagen" } : { text: "Logo", placeholder: true, emptyThumb: true } },
   { id: "cardBg", caption: "Fondo de la card", shortCaption: "Fondo", placeholder: "Fondo", kind: "card", group: "card",
@@ -231,6 +236,7 @@ export function objectModified(id: ObjectId, card: ProfileCardData): boolean {
   switch (id) {
     case "photo":   return set(card.pfpSizePx) || set(card.pfpRadius) || set(fx?.pfp);
     case "links":   return set(card.linksIconSize) || set(card.linksIconColor) || set(card.linksIconOpacity) || set(card.blockStyle?.links);
+    case "crew":    return card.crew?.size != null && card.crew.size !== 1;
     case "logo":    return !!card.logo && (set(card.logo.opacity) || set(card.logo.rotation) || set(card.logo.zIndex));
     case "cardBg":  return set(fx?.bg) || set(fx?.gradient) || set(fx?.border?.radius);
     case "cardFx": {
@@ -293,7 +299,7 @@ export interface PartGroup { id: PartGroupId; label: string; parts: readonly Obj
 export const PART_GROUPS: readonly PartGroup[] = [
   { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText", "stickers"] },
   { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio", "about"] },
-  { id: "content", label: "Contenido", parts: ["links", "buttons", "logo", "views"] },
+  { id: "content", label: "Contenido", parts: ["links", "buttons", "crew", "logo", "views"] },
 ];
 export function partGroupOf(id: ObjectId): PartGroup {
   return PART_GROUPS.find(g => g.parts.includes(id)) ?? PART_GROUPS[0];
@@ -337,6 +343,7 @@ export const OBJECT_FILES: Record<ObjectId, readonly string[]> = {
   photo:      [IDENTITY],
   links:      [`${C}ProfileContactLinksMenu.tsx`],
   buttons:    [`${C}ProfileLinkButtonsMenu.tsx`],
+  crew:       [`${C}ProfileCrewMenu.tsx`],
   logo:       [`${C}ProfileLogoMenu.tsx`],
   cardBg:     [`${C}ProfileBackgroundMenu.tsx`, EFFECTS, `${C}ProfileConfigMenu.tsx`],
   cardFx:     [EFFECTS],

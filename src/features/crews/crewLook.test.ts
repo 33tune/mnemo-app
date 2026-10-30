@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { miniCardOf, googleFontsHref, foundedText, CREW_FONTS } from "./crewLook";
-import { slugify, normalizeDiscord, DISCORD_RE, inkOn, memberNumber, isFounder, crewErrorText } from "./crewTypes";
+import { parseInvite, slugify, normalizeDiscord, DISCORD_RE, inkOn, memberNumber, isFounder, crewErrorText } from "./crewTypes";
 
 test("mini-card: the card's photo, name, colors and name font; a member without a public room still shows", () => {
   const m = miniCardOf({ name: "Zaid", handle: "zaid", photo: "https://x/p.webp", nameFont: "Bookman", nameColor: "#039f00",
@@ -32,7 +32,14 @@ test("crew helpers", () => {
   assert.equal(inkOn("#ffffff"), "#141118");
   assert.equal(inkOn("#000000"), "#ffffff");
   assert.equal(memberNumber(7), "#07");
-  assert.ok(isFounder(10) && !isFounder(11));
+  assert.ok(isFounder(1) && !isFounder(2));
   assert.match(crewErrorText({ message: "crew_full" }), /30/);
   assert.equal(foundedText("2026-10-29T12:00:00Z"), "Fundado el 29/10/2026");
+});
+
+test("invite links pasted in the Crews panel", () => {
+  assert.deepEqual(parseInvite("https://www.myland.lol/c/gun/unirme?k=abc_12-X"), { slug: "gun", code: "abc_12-X" });
+  assert.deepEqual(parseInvite("  myland.lol/c/las-del-b/unirme?k=Zz9  "), { slug: "las-del-b", code: "Zz9" });
+  assert.equal(parseInvite("https://www.myland.lol/c/gun"), null);
+  assert.equal(parseInvite("hola"), null);
 });
