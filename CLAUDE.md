@@ -330,29 +330,20 @@ planeado acá hasta confirmarlo.
 >   en las variables de Vercel (lo carga el usuario). Sin subida de source maps (los errores llegan con código
 >   minificado; agregarla con `withSentryConfig` + token si hace falta). Probado con un DSN local: el evento sale.
 >
-> **Crews (2026-10-29, pedido del usuario):** círculos cerrados con casa pública `/c/<slug>` (mini-cards de los
->   miembros, aviso, música, Discord, fondo), el Pacto `/c/<slug>/unirme?k=` (botón UNIRME), editor `/crews` (solo el
->   dueño modifica) y el chip del crew destacado en la card (lugar y tamaño en `crew_members`, nunca en la card).
->   30 miembros, 3 crews por persona, número de miembro y FUNDADOR (primeros 10). Webring y roles: para después.
->   Todo en `src/features/crews/` + migración `20261029000000_crews.sql` (aplicada). **Detalle y cómo borrarlo:
->   `docs/crews.md`.**
->   **Crews v2 (2026-10-30, pedido del usuario):** botón CREWS en la barra izquierda → panel en el dock (crear, unirse
->   pegando el link, lista, vista previa, Visitar = la sala a pantalla completa encima del editor, pestaña nueva;
->   el dueño edita ahí mismo). `/crews` redirige a `/dashboard?crews`. FUNDADOR solo el #01. El chip es un BLOQUE
->   del motor de la card (Contenido › Crew: mostrar, cuál, tamaño; se arrastra; `card.crew` + `crewAnchorX/Y`, se
->   publica con la card); en el perfil público se verifica la membresía y tocarlo abre la sala encima. Fondo de la
->   sala como el de myLand (tamaño natural, repetido, GIF animado). Arreglo general: las WebP/PNG animadas ya no se
->   "achican" al subir (perdían la animación; `isAnimatedImageHeader`).
->   **Editar la sala del crew (2026-10-30, pedido del usuario):** el panel del dueño son accesos directos (Editar la
->   sala, Miembros con buscador, Invitación); "Editar la sala" despliega la sala a pantalla completa como ventana de
->   vidrio desde el botón y abre a la derecha el menú (`CrewEditPanel.tsx`) que edita en vivo. Ver `docs/crews.md`.
->   **Crews v3 (2026-10-31, pedido del usuario): canal de difusión.** Miembros y crews infinitos; Fundador + Admins;
->   sacar / bloquear; avisos de 24 h (públicos o solo miembros, hasta 10 activos) que llegan como mensaje al dashboard
->   de quien tiene el crew fijado; hasta 10 crews fijados como emblemas en la barra izquierda (tocar = se despliega la
->   sala); sala con pestañas Sala / Miembros; fuente principal y secundaria; links fijos; TAG de 2–4 caracteres (en la
->   card: Chip o Tag); el chip se saca solo si el crew se borra o te vas. Migración
->   `supabase/migrations/20261031000000_crews_v3.sql` (probada en un Postgres 16 local con stubs). Detalle:
->   `docs/crews.md`.
+> **Crews ELIMINADOS (2026-11-03, decisión del usuario):** el sistema entero (salas de crew, avisos, roles, accesos
+>   directos en la barra, notificaciones, chip/tag en la card, `/c/*`, `/crews`) se sacó como si nunca hubiera existido.
+>   El código volvió al estado anterior (`ad59d29`); la base se limpia con
+>   `supabase/migrations/20261103000000_remove_crews.sql` (borra tablas y funciones `crew_*`, el cron `crew-posts-gc`, las
+>   claves `crew*` de las cards y deja `storage_gc_candidates` sin crews). Se conserva un arreglo general que nació ahí:
+>   las WebP/PNG animadas no se "achican" al subir (`isAnimatedImageHeader` en `uploadRules.ts`, usado por
+>   `shrinkImage.ts`). No reintroducir crews sin pedido explícito.
+>
+> **Buscar cards (2026-11-03, pedido del usuario):** lupa "Buscar" en la barra izquierda del editor (entre Capas y Tu
+>   sala) → panel en el dock (`SearchPanel.tsx`, target `"search"` de `editorSelection`, sobrevive a cualquier
+>   selección como Capas). Busca por @usuario o nombre en `GET /api/search?q=` (`src/lib/userSearch.ts`: limpia la
+>   consulta, escapa `%`/`_`, ordena handle exacto → empieza con → nombre → palabra; máx. 20). Solo perfiles reales
+>   (sin `temp_`, onboarding hecho) con sala; cada fila muestra la foto, el nombre y los colores de la card PUBLICADA
+>   (`publicStateOf` + `ogCardOf`) y abre `/<handle>` en otra pestaña.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

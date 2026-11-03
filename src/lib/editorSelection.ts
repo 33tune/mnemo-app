@@ -26,15 +26,15 @@
 import { useCallback, useMemo, useReducer, type SetStateAction } from "react";
 import { DEFAULT_OBJECT, OBJECT_IDS, type ObjectId } from "./inspectorObjects";
 
-export type EditorTargetKind = "room" | "layers" | "crews" | "profile" | "text" | "image" | "music";
+export type EditorTargetKind = "room" | "layers" | "search" | "profile" | "text" | "image" | "music";
 
 export type EditorTarget =
   | { kind: "room" }
   /** Editor v3 Phase E: the Layers panel (rail › Capas). Not tied to one
    * element: the selection changes FROM it, so it survives any selection. */
   | { kind: "layers" }
-  /** Crews (2026-10-30): the Crews panel (rail › Crews), like Capas. */
-  | { kind: "crews" }
+  /** Buscar (rail, 2026-11-03): find other cards; survives any selection too. */
+  | { kind: "search" }
   | { kind: "profile"; id: string; objectId: ObjectId }
   | { kind: "text" | "image" | "music"; id: string };
 
@@ -53,7 +53,7 @@ export type EditorSelectionAction =
 export const INITIAL_EDITOR_SELECTION: EditorSelectionState = { selectedIds: new Set(), target: null };
 
 export function targetId(target: EditorTarget | null): string | null {
-  return target && target.kind !== "room" && target.kind !== "layers" && target.kind !== "crews" ? target.id : null;
+  return target && target.kind !== "room" && target.kind !== "layers" && target.kind !== "search" ? target.id : null;
 }
 
 /** The ProfileCard inspector's id ("Editar"'s aria-controls) and the
@@ -80,7 +80,7 @@ export function profileTargetId(target: EditorTarget | null): string | null {
 /** A target stays valid only while it matches the selection: an element
  * target needs its element selected; "room" (Tu sala) needs an empty one. */
 function targetSurvives(target: EditorTarget, selectedIds: Set<string>): boolean {
-  if (target.kind === "layers" || target.kind === "crews") return true;
+  if (target.kind === "layers" || target.kind === "search") return true;
   return target.kind === "room" ? selectedIds.size === 0 : selectedIds.has(target.id);
 }
 
@@ -150,8 +150,7 @@ export interface EditorSelection {
   openRoom: () => void;
   /** Editor v3 Phase E: opens Capas (the selection stays as it is). */
   openLayers: () => void;
-  /** Crews: opens the Crews panel (the selection stays as it is). */
-  openCrews: () => void;
+  openSearch: () => void;
   /** Editor v3 Phase G: opens the inspector of a selected text / image /
    * Music (no-op if it is not selected). */
   openElement: (kind: ElementTargetKind, id: string) => void;
@@ -173,7 +172,7 @@ export function useEditorSelection(memory: SelectionMemory = selectionMemory): E
     dispatch({ type: "open", target: { kind: "room" } });
   }, []);
   const openLayers = useCallback(() => dispatch({ type: "open", target: { kind: "layers" } }), []);
-  const openCrews = useCallback(() => dispatch({ type: "open", target: { kind: "crews" } }), []);
+  const openSearch = useCallback(() => dispatch({ type: "open", target: { kind: "search" } }), []);
   const openElement = useCallback((kind: ElementTargetKind, id: string) => dispatch({ type: "open", target: { kind, id } }), []);
   const closeInspector = useCallback(() => dispatch({ type: "close" }), []);
   const profileId = profileTargetId(state.target);
@@ -183,6 +182,6 @@ export function useEditorSelection(memory: SelectionMemory = selectionMemory): E
   }, [memory, profileId]);
   return useMemo(() => ({
     selectedIds: state.selectedIds, target: state.target,
-    setSelectedIds, openProfile, openRoom, openLayers, openCrews, openElement, closeInspector, setObject, memory,
-  }), [state, setSelectedIds, openProfile, openRoom, openLayers, openCrews, openElement, closeInspector, setObject, memory]);
+    setSelectedIds, openProfile, openRoom, openLayers, openSearch, openElement, closeInspector, setObject, memory,
+  }), [state, setSelectedIds, openProfile, openRoom, openLayers, openSearch, openElement, closeInspector, setObject, memory]);
 }

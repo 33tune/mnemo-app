@@ -58,13 +58,10 @@ import { resolvePartClick, isPartRole, type PartClick, type PartRole } from "@/l
 import { snapNudgeDelta } from "@/lib/gridSnap";
 import { inspectorObject, chipLabel } from "@/lib/inspectorObjects";
 import type { MeasureSpec } from "./ElementInspectorParts";
-import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANEL_ID } from "./EditorHost";
+import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANEL_ID, SEARCH_PANEL_ID } from "./EditorHost";
 import { toLayerItems, visualOrder, reorder as reorderLayers, moveWithinLayer, setLayer as setElementLayer, bringToFront, layerLabels, positionAfter, LAYER_NAMES as LAYER_TITLES, type LayerPatch } from "@/lib/layerOrder";
 import type { LayerRow } from "./LayersPanel";
 import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail";
-import { useCrewsHub, CrewShortcuts, CrewInbox } from "@/features/crews/CrewsHub";
-import { CrewHouseOverlay } from "@/features/crews/CrewHouseOverlay";
-import type { Crew as CrewRow } from "@/features/crews/crewTypes";
 import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from "./CanvasGrid";
 import type { RoomOp } from "./RoomInspector";
 import {
@@ -690,7 +687,7 @@ export default function CanvasBoard({
   const inspectorCardId = profileTargetId(editorSel.target);
   const inspectorCardIdRef = useRef<string | null>(null);
   inspectorCardIdRef.current = inspectorCardId;
-  const { openProfile, openRoom, openLayers, openCrews, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
+  const { openProfile, openRoom, openLayers, openSearch, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
   /** Editor v3 Phase G: the element (card, text, image, Music) any inspector
    * is editing — focus / collapse / view-freeze logic is the same for all. */
   const inspectorTargetElId = targetId(editorSel.target);
@@ -791,21 +788,7 @@ export default function CanvasBoard({
   const roomOpen = editorSel.target?.kind === "room";
   /** Editor v3 Phase E: Capas (the Layers panel) is open. */
   const layersOpen = editorSel.target?.kind === "layers";
-  /** Crews (2026-10-30): the Crews panel is open. */
-  const crewsOpen = editorSel.target?.kind === "crews";
-  // /dashboard?crews[=<crew id>][&edit] (the house's "Editar crew"): opens the panel (and the crew's editor).
-  const [crewsDeepLink, setCrewsDeepLink] = useState<string | null>(null);
-  const [crewsDeepEdit, setCrewsDeepEdit] = useState(false);
-  useEffect(() => {
-    if (!canEdit) return;
-    const qs = new URLSearchParams(window.location.search);
-    const v = qs.get("crews");
-    if (v == null) return;
-    const id = /^[0-9a-f-]{36}$/.test(v) ? v : null;
-    setCrewsDeepLink(id);
-    setCrewsDeepEdit(!!id && qs.has("edit"));
-    openCrews();
-  }, [canEdit, openCrews]);
+  const searchOpen = editorSel.target?.kind === "search";
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
     : undefined;
@@ -832,7 +815,7 @@ export default function CanvasBoard({
     // "Tu sala" moves nothing (it is about the whole room); as a sheet it
     // takes the max share of the viewport.
     // Phase E: Capas, like Tu sala, is about the whole room — nothing moves.
-    if ((roomOpen || layersOpen || crewsOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
+    if ((roomOpen || layersOpen || searchOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
     if (!inspectorBox) return { dx: 0, dy: 0, sheetH: 0, covered: false };
     // Phase G (review G-R MAYOR 1): a free element moves — the smallest
     // shift that uncovers it, KEPT while it still shows it (moving it, its
@@ -923,7 +906,7 @@ export default function CanvasBoard({
   // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
-  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || crewsOpen) && canInteract) || roomShown;
+  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen) && canInteract) || roomShown;
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
   const cardSelected = elements.some(el => el.elementType === "profile" && selectedIds.has(el.id));
@@ -974,24 +957,6 @@ export default function CanvasBoard({
   };
 
   const router = useRouter();
-  // Crews v3: the viewer's crews (rail shortcuts, messages, the card's chip)
-  // and the room open over the editor.
-  const crewsHub = useCrewsHub(!!canEdit);
-  const [crewRoom, setCrewRoom] = useState<{ slug: string; from: DOMRect | null; edit: boolean; n: number } | null>(null);
-  const openCrewRoom = useCallback((crew: CrewRow, from: DOMRect | null, edit = false) =>
-    setCrewRoom(r => ({ slug: crew.slug, from, edit, n: (r?.n ?? 0) + 1 })), []);
-  // A card showing a crew its owner is no longer in (left, removed, or the
-  // crew was deleted) drops the chip by itself — not an undo step. Only once
-  // the list really loaded (null = not known yet / unreachable).
-  useEffect(() => {
-    if (!canEdit || !crewsHub.mine) return;
-    const ids = new Set(crewsHub.mine.map(m => m.crew.id));
-    for (const p of profiles) {
-      if (p.crew && !ids.has(p.crew.id)) {
-        enqueueOpRef.current({ type: "update_profile", id: p.id, patch: { crew: undefined, crewAnchorX: undefined, crewAnchorY: undefined } }, { record: false });
-      }
-    }
-  }, [canEdit, crewsHub.mine, profiles]);
 
   const { handleMouseMoveParallax, getParallaxStyle: parallaxStyleOf } = useParallax();
   // Editor v3 Phase I (review I-R MAYOR 2): while the grid is shown or
@@ -3575,19 +3540,12 @@ export default function CanvasBoard({
           layersOpen={layersOpen}
           onLayers={() => { if (layersOpen) closeInspector(); else { setMenuOpen(false); openLayers(); } }}
           layersPanelId={LAYERS_PANEL_ID}
-          crewsOpen={crewsOpen}
-          onCrews={() => { if (crewsOpen) closeInspector(); else { setMenuOpen(false); openCrews(); } }}
-          crewShortcuts={<CrewShortcuts hub={crewsHub} onOpen={(c, r) => openCrewRoom(c, r)} />}
+          searchOpen={searchOpen}
+          onSearch={() => { if (searchOpen) closeInspector(); else { setMenuOpen(false); openSearch(); } }}
+          searchPanelId={SEARCH_PANEL_ID}
           addMenuId="mnemo-add-menu"
           roomInspectorId="mnemo-room-inspector"
         />
-      )}
-      {/* Crews v3: notices from the pinned crews, and a crew's room over the editor. */}
-      {railShown && <CrewInbox hub={crewsHub} onOpen={c => openCrewRoom(c, null)} />}
-      {crewRoom && (
-        <CrewHouseOverlay key={crewRoom.n} slug={crewRoom.slug} from={crewRoom.from}
-          onClose={() => { setCrewRoom(null); crewsHub.reload(); }}
-          edit={{ start: crewRoom.edit, onSaved: crewsHub.reload, onGone: crewsHub.reload }} />
       )}
 
       {/* Liquid glass (L5, DS .lg-hint): with nothing selected, a pill at
@@ -4270,7 +4228,6 @@ export default function CanvasBoard({
             grid: gridOn, onGrid: setGridOn,
             snap: gridSnapOn, onSnap: setGridSnapOn,
           }}
-          crews={crewsOpen ? { hub: crewsHub, onOpenRoom: openCrewRoom, initialCrewId: crewsDeepLink, initialEdit: crewsDeepEdit } : undefined}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));
             const byId = new Map(elements.map(e => [e.id, e] as const));

@@ -2,7 +2,7 @@
 import React from "react";
 import { T, Icon, type IconName } from "@/ui";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
-import { RAIL_ROOM_BUTTON_ID, RAIL_LAYERS_BUTTON_ID, RAIL_CREWS_BUTTON_ID, CREWS_PANEL_ID } from "./EditorHost";
+import { RAIL_ROOM_BUTTON_ID, RAIL_LAYERS_BUTTON_ID, RAIL_SEARCH_BUTTON_ID } from "./EditorHost";
 
 /** id of the rail's "Agregar" button (the "+" menu returns focus here). */
 export const RAIL_ADD_BUTTON_ID = "mnemo-rail-add";
@@ -11,7 +11,7 @@ export const RAIL_ADD_BUTTON_ID = "mnemo-rail-add";
 const RAIL_STEP = 48;
 /** Where the "+" menu opens next to the rail (left, top) — DS: 12px right
  * of the capsule, centered on it. */
-export const RAIL_ADD_MENU_POS = { left: T.ui.size.railW + 12, top: "calc(50% - 96px)" } as const;
+export const RAIL_ADD_MENU_POS = { left: T.ui.size.railW + 12, top: "calc(50% - 120px)" } as const;
 
 interface EditorRailProps {
   addOpen: boolean;
@@ -26,13 +26,12 @@ interface EditorRailProps {
   layersOpen: boolean;
   onLayers: () => void;
   layersPanelId: string;
-  /** Crews (2026-10-30): the Crews panel in the dock. */
-  crewsOpen: boolean;
-  onCrews: () => void;
+  /** Buscar (2026-11-03): find other people's cards. */
+  searchOpen: boolean;
+  onSearch: () => void;
+  searchPanelId: string;
   addMenuId: string;
   roomInspectorId: string;
-  /** Crews v3: the pinned crews' emblems under the tools. */
-  crewShortcuts?: React.ReactNode;
 }
 
 function RailButton({ icon, label, tip, keys, pressed, expanded, controls, disabled, onClick, id }: {
@@ -70,8 +69,8 @@ function RailButton({ icon, label, tip, keys, pressed, expanded, controls, disab
 // left edge; the active tool sits on an indicator that glides between the
 // buttons (spring), tooltips to the right. The logo moved to the brand
 // capsule (Topbar).
-export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpen, onRoom, layersOpen, onLayers, layersPanelId, crewsOpen, onCrews, addMenuId, roomInspectorId, crewShortcuts }: EditorRailProps) {
-  const active = addOpen ? 1 : layersOpen ? 2 : crewsOpen ? 3 : roomOpen ? 4 : selectActive ? 0 : -1;
+export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpen, onRoom, layersOpen, onLayers, layersPanelId, searchOpen, onSearch, searchPanelId, addMenuId, roomInspectorId }: EditorRailProps) {
+  const active = addOpen ? 1 : layersOpen ? 2 : searchOpen ? 3 : roomOpen ? 4 : selectActive ? 0 : -1;
   return (
     <nav
       aria-label="Herramientas"
@@ -83,9 +82,8 @@ export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpe
       <RailButton icon="pointer" label="Seleccionar" keys="V" pressed={selectActive} onClick={onSelectTool} />
       <RailButton icon="plus" label="Agregar" keys="A" id={RAIL_ADD_BUTTON_ID} expanded={addOpen} controls={addMenuId} onClick={onAdd} />
       <RailButton icon="layers" label="Capas" keys="L" id={RAIL_LAYERS_BUTTON_ID} expanded={layersOpen} controls={layersPanelId} onClick={onLayers} />
-      <RailButton icon="crew" label="Crews" tip="Crews" id={RAIL_CREWS_BUTTON_ID} expanded={crewsOpen} controls={CREWS_PANEL_ID} onClick={onCrews} />
+      <RailButton icon="search" label="Buscar" tip="Buscar cards" id={RAIL_SEARCH_BUTTON_ID} expanded={searchOpen} controls={searchPanelId} onClick={onSearch} />
       <RailButton icon="gear" label="Tu sala" tip="Ajustes de tu sala" id={RAIL_ROOM_BUTTON_ID} expanded={roomOpen} controls={roomInspectorId} onClick={onRoom} />
-      {crewShortcuts}
     </nav>
   );
 }

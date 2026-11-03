@@ -11,7 +11,7 @@ import { cardBaseColor } from "@/lib/cardColors";
 import ProfileInspector from "./ProfileInspector";
 import RoomInspector from "./RoomInspector";
 import LayersPanel from "./LayersPanel";
-import CrewsPanel, { type CrewsPanelProps } from "@/features/crews/CrewsPanel";
+import SearchPanel from "./SearchPanel";
 import TextInspector from "./TextInspector";
 import ImageInspector from "./ImageInspector";
 import MusicInspector from "./MusicInspector";
@@ -33,10 +33,9 @@ export const RAIL_ROOM_BUTTON_ID = "mnemo-rail-room";
 /** Editor v3 Phase E: the rail's "Capas" button and the panel's id. */
 export const RAIL_LAYERS_BUTTON_ID = "mnemo-rail-layers";
 export const LAYERS_PANEL_ID = "mnemo-layers-panel";
-/** Crews (2026-10-30): the rail's "Crews" button and its panel. */
-export const RAIL_CREWS_BUTTON_ID = "mnemo-rail-crews";
-export const CREWS_PANEL_ID = "mnemo-crews-panel";
-type CrewsProps = Pick<CrewsPanelProps, "hub" | "onOpenRoom" | "initialCrewId" | "initialEdit">;
+/** Buscar (2026-11-03): the rail's lupa and its panel. */
+export const RAIL_SEARCH_BUTTON_ID = "mnemo-rail-search";
+export const SEARCH_PANEL_ID = "mnemo-search-panel";
 
 /** Render-time facts about a ProfileCard that only its render knows
  * (composition / views). ProfileCard reports them while its inspector is
@@ -68,8 +67,6 @@ interface EditorHostProps {
   room?:     RoomProps;
   /** "Capas" (target kind "layers"): the stacking list + writers. */
   layers?:   LayersProps;
-  /** Crews (target kind "crews"). */
-  crews?:    CrewsProps;
   /** Editor v3 Phase G: the element inspectors (target kinds "text" /
    * "image" / "music"); each is given only while its element is the target. */
   text?:     TextProps;
@@ -93,7 +90,7 @@ interface EditorHostProps {
 // ProfileCard no longer mounts it. Phase B hosted the ProfileCard inspector;
 // Tu sala (D), Capas (E) and Texto / Imagen / Música (G) joined it.
 export function EditorHost({
-  target, profile, facts, room, layers, crews, text, image, music, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
+  target, profile, facts, room, layers, text, image, music, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
 }: EditorHostProps) {
   if (typeof document === "undefined") return null;
   // Editor v3 Phase D: "Tu sala" — the inspector with nothing selected.
@@ -116,11 +113,11 @@ export function EditorHost({
       document.body,
     );
   }
-  // Crews (2026-10-30).
-  if (target?.kind === "crews" && crews) {
+  // Buscar: other people's cards (opens each in a new tab).
+  if (target?.kind === "search") {
     return createPortal(
-      <CrewsPanel {...crews} id={CREWS_PANEL_ID} onClose={onClose}
-        returnFocusTo={() => document.getElementById(RAIL_CREWS_BUTTON_ID)}
+      <SearchPanel id={SEARCH_PANEL_ID} onClose={onClose}
+        returnFocusTo={() => document.getElementById(RAIL_SEARCH_BUTTON_ID)}
         top={top} width={layout.width} mode={layout.mode} height={layout.height}
         collapsed={layout.collapsed} onExpand={onExpand} />,
       document.body,

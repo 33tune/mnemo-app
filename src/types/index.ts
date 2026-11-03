@@ -348,24 +348,6 @@ export type CardSticker = {
   hidden?:   boolean;
 };
 
-/** Crews: what a card's crew chip shows (src/lib/crewChip.ts sizes it). */
-export type CrewChip = {
-  id:      string;
-  slug:    string;
-  name:    string;
-  font:    string;
-  color:   string;
-  emblem?: string;
-  /** The owner's member number in that crew. */
-  number:  number;
-  /** 0.6 – 2, default 1. */
-  size?:   number;
-  /** "tag" = only the crew's 2–4 letter tag (Crews v3); absent = the chip. */
-  style?:  "chip" | "tag";
-  /** The crew's tag (snapshot, like the name). */
-  tag?:    string;
-};
-
 export type ProfileCardData = {
   id:              string;
   userId?:         string;
@@ -430,13 +412,6 @@ export type ProfileCardData = {
   aboutAnchorY?:    number;
   buttonsAnchorX?:  number;
   buttonsAnchorY?:  number;
-  /** Crews (2026-10-30): the crew the owner shows on the card — a block of
-   * the layout engine (Contenido › Crew). A snapshot of the crew's look and
-   * the owner's number; the public card re-checks it against the crew.
-   * Absent = no chip. */
-  crew?:            CrewChip;
-  crewAnchorX?:     number;
-  crewAnchorY?:     number;
   /** Free layout engine (2026-10-15): 2 = every block's position is saved
    * (the anchors above, pfp included) — set by the first drag that ends.
    * Absent: the starting arrangement (profileCardLayout.ts). */

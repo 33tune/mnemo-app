@@ -12,7 +12,6 @@ import ProfileMetadataMenu, { type MetadataPart } from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
 import ProfileLinkButtonsMenu from "./ProfileLinkButtonsMenu";
 import ProfileLogoMenu from "./ProfileLogoMenu";
-import ProfileCrewMenu from "./ProfileCrewMenu";
 import ProfileStickersMenu from "./ProfileStickersMenu";
 import { RoleTextSection, GlobalTextSection } from "./ProfileTypographyMenu";
 import ProfileBackgroundMenu from "./ProfileBackgroundMenu";
@@ -144,9 +143,6 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
   buttons: [
     { key: "buttons", num: N1, render: c => <ProfileLinkButtonsMenu card={c.card} baseColor={c.baseColor} fits={c.buttonsFits}
       onChange={c.onChange} /> },
-  ],
-  crew: [
-    { key: "crew", num: N1, render: c => <ProfileCrewMenu card={c.card} onChange={c.onChange} /> },
   ],
   logo: [
     { key: "logo", num: N1, render: c => <ProfileLogoMenu logo={c.card.logo} onChange={c.onChange} /> },
