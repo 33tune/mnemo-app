@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, memo, type CSSProperties } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, memo, type CSSProperties } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects, ContactLink } from "@/types";
 import { getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
@@ -36,10 +36,8 @@ import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveTextEffectStyle, resolveLetterEffectStyle, roleFxOnly, anyTextGlowPulse } from "@/lib/textEffects";
 import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
 import {
-  entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT, withEmboss, holoOn, holoScopeOf, holoSheetStyle,
-  lenticularImages, lenticularOpacity,
+  entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT, withGlitter, reliefLayers, reliefTransform, reliefShade, holoOn, holoScopeOf, holoSheetStyle,
 } from "@/lib/cardFoil";
-import CardGlitter from "./CardGlitter";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 import { PART_ATTR, PART_CLICK_SLOP, partFromTarget, movedBeyondSlop, type PartClick, type PartRole } from "@/lib/partNavigation";
 import type { ObjectId } from "@/lib/inspectorObjects";
@@ -244,9 +242,6 @@ function initFreePos(card: ProfileCardData): FreePos {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-/** One glitter pattern per text (they don't repeat across the card). */
-const GLITTER_SEED = { name: 1, handle: 2, descriptor: 3, bio: 4, location: 5, views: 6, about: 7 } as const;
-
 function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
@@ -373,6 +368,8 @@ function ProfileCard({
   // replays it once.
   const ENTER_DELAY_MS = 80;
   const glitterOn = !!effectiveEffects.glitter?.enabled;
+  // Only the name: small texts extruded turn unreadable (tested).
+  const reliefOn = !!effectiveEffects.emboss?.enabled;
   const [entrancePreview, setEntrancePreview] = useState(0);
   useEffect(() => {
     if (!canInteract) return;
@@ -390,7 +387,7 @@ function ProfileCard({
   }, [entrancePreview]);
   const entering = !canInteract || entrancePreview > 0;
   const ownEntrance = entering ? entranceAnimation(effectiveEffects, ENTER_DELAY_MS) : undefined;
-  useFoilKeyframes(!!ownEntrance);
+  useFoilKeyframes(!!ownEntrance || glitterOn);
   // Block 1 (panel <-> card pointer isolation): the config menu is portaled
   // to document.body from INSIDE this card's JSX, so React bubbles the
   // panel's mousemove/mouseover up to the handlers below (fiber tree, not
@@ -535,16 +532,16 @@ function ProfileCard({
   // split. One resolveTextEffectStyle call per role, not one shared style
   // object, since each role's gradient/shimmer is independent.
   const textRoles = card.effects?.textRoles;
-  const nameEffectStyle       = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.name, resolvedColors.name), effectiveEffects);
-  const handleEffectStyle     = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle, resolvedColors.handle), effectiveEffects);
-  const descriptorEffectStyle = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor, resolvedColors.descriptor), effectiveEffects);
+  const nameEffectStyle       = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.name, resolvedColors.name), effectiveEffects, resolvedColors.name);
+  const handleEffectStyle     = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle, resolvedColors.handle), effectiveEffects, resolvedColors.handle);
+  const descriptorEffectStyle = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor, resolvedColors.descriptor), effectiveEffects, resolvedColors.descriptor);
   // Block 1: the flat-shimmer surface uses the color Location/Views really
   // render with (block textColor override included, same expression as
   // LocationLine/ViewsLine below), not the bare role color.
-  const locationEffectStyle   = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location), effectiveEffects);
-  const bioEffectStyle        = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio), effectiveEffects);
-  const viewsEffectStyle      = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views), effectiveEffects);
-  const aboutEffectStyle      = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.about, resolvedColors.about), effectiveEffects);
+  const locationEffectStyle   = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location), effectiveEffects, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location);
+  const bioEffectStyle        = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio), effectiveEffects, resolvedColors.bio);
+  const viewsEffectStyle      = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views), effectiveEffects, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views);
+  const aboutEffectStyle      = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.about, resolvedColors.about), effectiveEffects, resolvedColors.about);
   // Product closeout — shimmer fix: shimmer no longer requires gradient to
   // be set (see textEffects.ts's header), so "is shimmer active anywhere"
   // is now just "is `shimmer` present", not "gradient AND shimmer".
@@ -558,7 +555,7 @@ function ProfileCard({
   const nameLetterAnim = textRoles?.name?.letterAnimation;
   // The line around Name's letters: its own shadow / glow / stroke / blur
   // (else the legacy card-wide ones), never the per-letter fill.
-  const nameShadowStyle = withEmboss(resolveTextEffectStyle(effectiveEffects.text, roleFxOnly(textRoles?.name)), effectiveEffects);
+  const nameShadowStyle = resolveTextEffectStyle(effectiveEffects.text, roleFxOnly(textRoles?.name));
   // Stage FASE 1: per-block visual overrides (background/radius always;
   // textColor/iconColor only for the 3 blocks without their own finer-grained
   // color system — see blockStyle.ts's header for why Identity/Links don't
@@ -715,7 +712,6 @@ function ProfileCard({
 
   // ── Element renderers ─────────────────────────────────────────────────────
 
-  const lentImages = lenticularImages(effectiveEffects, card.photo ?? "");
   const photoHolo = holoOn(effectiveEffects) && holoScopeOf(effectiveEffects) === "photo";
   function AvatarEl({ size = avatarSize, style }: { size?: number; style?: CSSProperties }) {
     // Stage FASE 3: outer wrapper owns size/positioning (what `style`
@@ -740,22 +736,15 @@ function ProfileCard({
         }}>
           {card.photo ? (
             <img src={card.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} draggable={false} />
-          ) : lentImages.length > 1 ? null : (
+          ) : (
             <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width={size * 0.34} height={size * 0.34} viewBox="0 0 24 24" fill="none" stroke={faintColor} strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
               </svg>
             </div>
           )}
-          {/* Lenticular (2026-11-04): the next images take over as the
-              light (tilt) moves across the card. */}
-          {lentImages.slice(1).map((src, i) => (
-            <img key={i} src={src} alt="" aria-hidden draggable={false}
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-                opacity: lenticularOpacity(i + 1, lentImages.length) as unknown as number }} />
-          ))}
           {/* Holo de verdad on the photo only. */}
-          {photoHolo ? <div data-fx="holo" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}><div style={holoSheetStyle(effectiveEffects, false, { w: size, h: size })} /></div> : null}
+          {photoHolo ? <div data-fx="holo" data-light="" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}><div style={holoSheetStyle(effectiveEffects, false, { w: size, h: size })} /></div> : null}
         </div>
       </div>
     );
@@ -1097,18 +1086,25 @@ function ProfileCard({
     const row = (role: "name" | "handle" | "descriptor" | "bio" | "location" | "views" | "about", content: React.ReactNode) => {
       const r = rows[role];
       if (!r) return null;
+      const relief = reliefOn && role === "name" ? reliefLayers(effectiveEffects) : null;
       return (
-        <Fragment key={role}>
-          <div {...partProps(role)} style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, overflow: "hidden", transition: REFLOW_TRANSITION, ...partOutline(role) }}>
-            {content}
-          </div>
-          {/* Glitter: a sibling over the row (not clipped by it), measuring it. */}
-          {glitterOn ? (
-            <div style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, pointerEvents: "none", zIndex: 4, transition: REFLOW_TRANSITION }}>
-              <CardGlitter fx={effectiveEffects} seed={GLITTER_SEED[role]} />
+        <div key={role} {...partProps(role)} {...(relief ? { "data-light": "" } : {})}
+          style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, overflow: relief ? "visible" : "hidden", transition: REFLOW_TRANSITION,
+            ...(relief ? { perspective: 420 } : {}), ...partOutline(role) }}>
+          {relief ? (
+            // Relieve 3D (2026-11-04): the text extruded in Z — copies stacked
+            // back, darker the deeper — turning toward the light.
+            <div style={{ position: "relative", transformStyle: "preserve-3d", transform: reliefTransform(relief.maxDeg) }}>
+              {Array.from({ length: relief.count }, (_, k) => relief.count - k).map(i => (
+                <div key={i} aria-hidden style={{ position: "absolute", inset: 0, transform: `translateZ(${(-i * relief.step).toFixed(2)}px)`,
+                  filter: `brightness(${reliefShade(i, relief.count)})`, pointerEvents: "none" }}>
+                  {content}
+                </div>
+              ))}
+              <div style={{ position: "relative", transform: "translateZ(0.1px)" }}>{content}</div>
             </div>
-          ) : null}
-        </Fragment>
+          ) : content}
+        </div>
       );
     };
     const box = (r: Rect): CSSProperties => ({ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h });

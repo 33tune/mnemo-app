@@ -67,8 +67,10 @@ export function useCardInteractions(
       const cl = currentLight.current, tl = targetLight.current;
       cl.x += (tl.x - cl.x) * LERP * 1.4;
       cl.y += (tl.y - cl.y) * LERP * 1.4;
-      el.style.setProperty("--lx", cl.x.toFixed(4));
-      el.style.setProperty("--ly", cl.y.toFixed(4));
+      // FPS (2026-11-04): only the layers that use the light get the vars
+      // ([data-light]); set on the card itself they restyled every element
+      // of the card on every frame.
+      setLightVars(el, cl.x.toFixed(4), cl.y.toFixed(4));
       const lightSettled = Math.abs(cl.x - tl.x) < 0.001 && Math.abs(cl.y - tl.y) < 0.001;
 
       const tiltSettled = Math.abs(currentTilt.current.x - tx) < 0.01 && Math.abs(currentTilt.current.y - ty) < 0.01;
@@ -100,11 +102,12 @@ export function useCardInteractions(
   useEffect(() => {
     if (!idleOn || typeof window === "undefined") return;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    let raf = 0;
+    let raf = 0, last = 0;
     const t0 = performance.now();
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
-      if (heldRef.current || document.hidden) return;
+      if (heldRef.current || document.hidden || now - last < 33) return; // ~30 fps is plenty for a drift
+      last = now;
       const t = (now - t0) / 1000;
       targetLight.current = {
         x: 0.5 + Math.sin(t * 0.55) * 0.34,
@@ -166,7 +169,7 @@ export function useCardInteractions(
     if (!el) return;
     if (hoverGlowOn) el.style.setProperty("--hover-glow", "1");
     if (hoverScaleOn) el.style.setProperty("--hover-scale", String(hoverScaleTarget));
-    if (lightOn) { el.style.setProperty("--la", "1"); heldRef.current = true; }
+    if (lightOn) { setLightHeld(el, "1"); heldRef.current = true; }
   }, [cardRef, hoverGlowOn, hoverScaleOn, hoverScaleTarget, lightOn]);
 
   const release = useCallback(() => {
@@ -177,7 +180,7 @@ export function useCardInteractions(
     targetLight.current = { ...LIGHT_REST };
     heldRef.current = false;
     startLerpLoop();
-    el.style.setProperty("--la", "0");
+    setLightHeld(el, "0");
 
     el.style.setProperty("--spot-x", "-200%");
     el.style.setProperty("--spot-y", "-200%");
@@ -255,7 +258,7 @@ export function useGyroTilt(
       if (lightOnRef.current && Math.abs(dx) + Math.abs(dy) > 0.04) {
         targetLight.current = { x: 0.5 + dx * 0.5, y: 0.5 + dy * 0.5 };
         heldRef.current = true;
-        cardRef.current?.style.setProperty("--la", "1");
+        if (cardRef.current) setLightHeld(cardRef.current, "1");
       }
       startLerpLoop();
     };
@@ -281,4 +284,15 @@ export function useGyroTilt(
 /** useEffect keyed only on `enabled` (the handlers read refs). */
 function useEffectOnce(enabled: boolean, run: () => void | (() => void)) {
   useEffect(() => (enabled ? run() : undefined), [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/** The light vars go only on the layers that read them (see the loop). */
+const LIGHT_SEL = "[data-light]";
+function setLightVars(card: HTMLElement, x: string, y: string) {
+  const els = card.querySelectorAll<HTMLElement>(LIGHT_SEL);
+  for (let i = 0; i < els.length; i++) { els[i].style.setProperty("--lx", x); els[i].style.setProperty("--ly", y); }
+}
+function setLightHeld(card: HTMLElement, v: string) {
+  const els = card.querySelectorAll<HTMLElement>(LIGHT_SEL);
+  for (let i = 0; i < els.length; i++) els[i].style.setProperty("--la", v);
 }

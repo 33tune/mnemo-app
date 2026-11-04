@@ -1,9 +1,10 @@
+import type React from "react";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   holoOn, glareOn, lightEffectsOn, holoSheetStyle, glareStyle, entranceAnimation, entranceShineAnimation,
   entranceDuration, holoGradient, HOLO_PALETTES, HOLO_STYLES, ENTRANCE_STYLES, lightIdleOn, holoStyleOf, holoScopeOf,
-  borderStrips, strassPoints, lenticularImages, embossShadow, withEmboss, glitterSparkles, ghostContentFilter,
+  borderStrips, strassPoints, reliefLayers, reliefTransform, withGlitter, ghostContentFilter,
 } from "./cardFoil";
 
 test("absent / disabled = off (no existing card changes)", () => {
@@ -76,14 +77,21 @@ test("strass: stones all around the border, inside the card", () => {
   assert.ok(strassPoints(300, 400, 24, 9, 1).length < pts.length, "more gap = fewer stones");
 });
 
-test("lenticular: the photo first, max 2 extra; emboss, ghost and glitter only when on", () => {
-  assert.deepEqual(lenticularImages({ lenticular: { enabled: true, images: ["a", "b", "c"] } }, "p"), ["p", "a", "b"]);
-  assert.deepEqual(lenticularImages({ lenticular: { enabled: false, images: ["a"] } }, "p"), []);
-  assert.equal(embossShadow({}), undefined);
-  assert.match(String(embossShadow({ emboss: { enabled: true } })), /var\(--lx/);
-  assert.equal(withEmboss({ textShadow: "1px 1px red" }, { emboss: { enabled: true } }).textShadow?.startsWith("1px 1px red, "), true);
+test("relief is real depth: more depth, more layers; it turns with the light", () => {
+  const a = reliefLayers({ emboss: { enabled: true, depth: 0 } }), b = reliefLayers({ emboss: { enabled: true, depth: 1 } });
+  assert.ok(b.count > a.count && b.count * b.step > a.count * a.step);
+  assert.match(reliefTransform(12), /rotateY\(calc\(\(var\(--lx/);
+});
+
+test("glitter fills the letters (no extra elements); off = untouched; keeps a gradient", () => {
+  const plain: React.CSSProperties = { color: "#fff" };
+  assert.equal(withGlitter(plain, {}, "#fff"), plain);
+  const g = withGlitter(plain, { glitter: { enabled: true } }, "#fff");
+  assert.equal(g.backgroundClip, "text");
+  assert.equal(g.color, "transparent");
+  assert.equal(String(g.backgroundImage).split("url(").length - 1, 2, "flakes + glints");
+  const grad = withGlitter({ backgroundImage: "linear-gradient(red, blue)", animation: "flow 2s" }, { glitter: { enabled: true } }, "#fff");
+  assert.match(String(grad.backgroundImage), /linear-gradient\(red, blue\)$/);
+  assert.equal(grad.animation, "flow 2s", "a role's own animation stays");
   assert.equal(ghostContentFilter({}), undefined);
-  const a = glitterSparkles(200, 40, { glitter: { enabled: true } }, 3), b = glitterSparkles(200, 40, { glitter: { enabled: true } }, 3);
-  assert.deepEqual(a, b, "same sparkles every render");
-  assert.ok(a.length >= 2 && a.length <= 60);
 });

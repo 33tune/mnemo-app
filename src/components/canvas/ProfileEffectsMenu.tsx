@@ -2,14 +2,13 @@
 import React from "react";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import type { CardEffects } from "@/types";
-import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs, FontSelect, SwitchRow, ActionButton, UploadField, GroupLabel } from "@/ui";
+import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs, FontSelect, SwitchRow, ActionButton, GroupLabel } from "@/ui";
 import {
   HOLO_STYLES, HOLO_SCOPES, ENTRANCE_STYLES, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE,
   ENTRANCE_DEFAULT_DURATION, ENTRANCE_DEFAULT_STYLE, ENTRANCE_PREVIEW_EVENT, holoOn, glareOn, holoStyleOf, holoScopeOf,
   EMBOSS_DEFAULT_DEPTH, GHOST_DEFAULT_INTENSITY, GLITTER_DEFAULT_AMOUNT, GLITTER_DEFAULT_SIZE, STRASS_DEFAULT_SIZE, STRASS_DEFAULT_GAP,
-  LENTICULAR_MAX_EXTRA, GLITTER_COLOR_LABEL, STRASS_COLOR_LABEL,
+  GLITTER_COLOR_LABEL, STRASS_COLOR_LABEL,
 } from "@/lib/cardFoil";
-import { uploadToStorage } from "@/lib/storage";
 import { effectActions, effectState, type EffectOwner } from "@/lib/effectBinding";
 import {
   CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_RADIUS_FALLBACK,
@@ -91,7 +90,7 @@ export function useCardEffectActions({ effective, raw, onChange }: Props) {
     onChange({ ...raw, entrance: { ...raw?.entrance, ...patch } });
   }
   /** One writer for the 2026-11-04 evening set (turning one off keeps it). */
-  function patchFx<K extends "emboss" | "ghost" | "lenticular" | "glitter" | "strass">(key: K, patch: Partial<NonNullable<CardEffects[K]>>) {
+  function patchFx<K extends "emboss" | "ghost" | "glitter" | "strass">(key: K, patch: Partial<NonNullable<CardEffects[K]>>) {
     onChange({ ...raw, [key]: { enabled: false, ...(raw?.[key] as object | undefined), ...patch } });
   }
 
@@ -160,17 +159,9 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
   const holo = effective.holo, glare = effective.glare, entrance = effective.entrance;
   const holoIsOn = holoOn(effective), glareIsOn = glareOn(effective), entranceOn = !!entrance?.enabled;
   const holoName = HOLO_STYLES.find(s => s.id === holoStyleOf(effective))?.label;
-  const emboss = effective.emboss, ghost = effective.ghost, lent = effective.lenticular, glitter = effective.glitter, strass = effective.strass;
-  const lentImgs = lent?.images ?? [];
-  async function setLentImage(i: number, f: File) {
-    const { publicUrl } = await uploadToStorage(f);
-    const next = [...lentImgs]; next[i] = publicUrl;
-    patchFx("lenticular", { enabled: true, images: next.filter(Boolean) });
-  }
-  const removeLentImage = (i: number) => patchFx("lenticular", { enabled: true, images: lentImgs.filter((_, j) => j !== i) });
+  const emboss = effective.emboss, ghost = effective.ghost, glitter = effective.glitter, strass = effective.strass;
   const entranceName = ENTRANCE_STYLES.find(s => s.id === (entrance?.style ?? ENTRANCE_DEFAULT_STYLE))?.label;
-  const collect = [holoIsOn && "Holo", glareIsOn && "Reflejo", !!emboss?.enabled && "Relieve", !!ghost?.enabled && "Fantasma",
-    !!lent?.enabled && "Lenticular", !!glitter?.enabled && "Glitter", !!strass?.enabled && "Strass", entranceOn && "Entrada"];
+  const collect = [holoIsOn && "Holo", glareIsOn && "Reflejo", !!emboss?.enabled && "Relieve", !!ghost?.enabled && "Fantasma", !!glitter?.enabled && "Glitter", !!strass?.enabled && "Strass", entranceOn && "Entrada"];
   // The Brillo tile: on = the outer glow (O3 neutral color and a visible
   // intensity for a new glow — effectBinding); off = both flags off in ONE
   // write (color/intensity stay, like the flags always did).
@@ -230,7 +221,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             ) : null}
           </EffectRow>
           <EffectRow id="emboss" label="Relieve" icon="case" preview="t-shadow" on={!!emboss?.enabled}
-            onToggle={v => patchFx("emboss", { enabled: v })} state={emboss?.enabled ? "En los textos" : undefined}>
+            onToggle={v => patchFx("emboss", { enabled: v })} state={emboss?.enabled ? "Nombre en 3D" : undefined}>
             {emboss?.enabled ? (
               <SliderRow label="Profundidad" icon="case" min={0} max={1} step={0.01} value={emboss.depth ?? EMBOSS_DEFAULT_DEPTH}
                 onChange={v => patchFx("emboss", { enabled: true, depth: v })} fmt={pct} />
@@ -241,19 +232,6 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             {ghost?.enabled ? (
               <SliderRow label="Intensidad" icon="blend" min={0.05} max={1} step={0.01} value={ghost.intensity ?? GHOST_DEFAULT_INTENSITY}
                 onChange={v => patchFx("ghost", { enabled: true, intensity: v })} fmt={pct} />
-            ) : null}
-          </EffectRow>
-          <EffectRow id="lenticular" label="Lenticular" icon="image" preview="c-tilt" on={!!lent?.enabled}
-            onToggle={v => patchFx("lenticular", { enabled: v })}
-            state={lent?.enabled ? `${1 + lentImgs.length} imágenes` : undefined}>
-            {lent?.enabled ? (
-              <>
-                <MenuNote>Al inclinar la card, tu foto cambia a estas imágenes.</MenuNote>
-                {Array.from({ length: Math.min(LENTICULAR_MAX_EXTRA, lentImgs.length + 1) }, (_, i) => (
-                  <UploadField key={i} kind="avatar" value={lentImgs[i] || null} label={`Imagen ${i + 2}`} caption={`Imagen ${i + 2}`} accept="image/*"
-                    onFile={f => { void setLentImage(i, f); }} onRemove={() => removeLentImage(i)} />
-                ))}
-              </>
             ) : null}
           </EffectRow>
           <EffectRow id="glitter" label="Glitter" icon="sparkles" preview="t-shim" on={!!glitter?.enabled}

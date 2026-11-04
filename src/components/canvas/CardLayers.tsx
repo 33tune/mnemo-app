@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, type CSSProperties } from "react";
 import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
+import StrassGL from "./StrassGL";
 import { useMotionKeyframes, resolveGlowPulseAnimation, resolveFlickerAnimation } from "@/lib/cardMotion";
 import {
   holoOn, glareOn, holoSheetStyle, glareStyle, useFoilKeyframes, entranceShineAnimation, holoScopeOf, borderStrips, holoRingWidth,
@@ -222,7 +223,7 @@ export default function CardLayers({
   const scope = holoScopeOf(effects);
   const box = cardW > 0 && cardH > 0 ? { w: cardW, h: cardH } : undefined;
   const holoLayer = holo && scope !== "photo" ? (
-    <div data-fx="holo" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
+    <div data-fx="holo" data-light="" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
       {scope === "border" && box
         ? borderStrips(box.w, box.h, holoRingWidth(box.w, box.h)).map((s, i) => (
             <div key={i} style={{ position: "absolute", left: s.x, top: s.y, width: s.w, height: s.h, overflow: "hidden" }}>
@@ -391,14 +392,14 @@ export default function CardLayers({
           {holoOverAll ? holoLayer : null}
           {/* Fantasma: a milky veil and an iridescent edge. */}
           {ghost ? (
-            <div data-fx="ghost" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
+            <div data-fx="ghost" data-light="" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
               <div style={ghostVeilStyle(ghost)} />
               <div style={{ ...ghostEdgeStyle(ghost, box ? holoRingWidth(box.w, box.h) : 14), borderRadius: rad }} />
             </div>
           ) : null}
           {strass && box ? <StrassRing w={box.w} h={box.h} radius={rad} cfg={strass} /> : null}
           {glare ? (
-            <div data-fx="glare" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
+            <div data-fx="glare" data-light="" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
               <div style={glareStyle(glare)} />
             </div>
           ) : null}
@@ -431,7 +432,9 @@ function StrassRing({ w, h, radius, cfg }: { w: number; h: number; radius: numbe
   const id = `strass-${color}`;
   const r = size / 2;
   return (
-    <div data-fx="strass" aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+    <div data-fx="strass" data-light="" aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {/* Real 3D gems (WebGL); the flat stones only if WebGL is missing. */}
+      <StrassGL w={w} h={h} pts={pts} size={size} color={color} fallback={
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         <defs>
           <radialGradient id={id} cx="35%" cy="30%" r="75%">
@@ -448,13 +451,12 @@ function StrassRing({ w, h, radius, cfg }: { w: number; h: number; radius: numbe
             <circle cx={p.x - r * 0.32} cy={p.y - r * 0.34} r={r * 0.22} fill="rgba(255,255,255,0.9)" />
           </g>
         ))}
-      </svg>
+      </svg>} />
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", inset: 0, overflow: "visible", WebkitMaskImage: STRASS_GLINT_MASK, maskImage: STRASS_GLINT_MASK, mixBlendMode: "screen" }}>
         {pts.map((p, i) => {
           const g = r * 1.9;
           return (
             <g key={i} fill="white">
-              <circle cx={p.x} cy={p.y} r={r * 0.95} fill="rgba(255,255,255,0.55)" />
               <path d={`M${p.x} ${p.y - g} Q${p.x + g * 0.12} ${p.y - g * 0.12} ${p.x + g} ${p.y} Q${p.x + g * 0.12} ${p.y + g * 0.12} ${p.x} ${p.y + g} Q${p.x - g * 0.12} ${p.y + g * 0.12} ${p.x - g} ${p.y} Q${p.x - g * 0.12} ${p.y - g * 0.12} ${p.x} ${p.y - g} Z`} />
             </g>
           );

@@ -59,7 +59,7 @@ test("every part is an inspector object; no card-level object is a part", () => 
 test("ProfileCard: data-role on every part wrapper it already renders (composed and free), no new hot controls", () => {
   // Free layout engine (2026-10-15): every text row goes through row(role, …),
   // which puts the part marker on the row's own wrapper.
-  assert.ok(CARD.includes("<div {...partProps(role)} style={{ position: \"absolute\", left: r.x, top: r.y"));
+  assert.ok(CARD.includes("<div key={role} {...partProps(role)}") && CARD.includes("style={{ position: \"absolute\", left: r.x, top: r.y, width: r.w, height: r.h, overflow: relief"));
   for (const r of ["name", "handle", "descriptor", "bio", "location", "views"]) assert.ok(CARD.includes(`row("${r}", `), r);
   for (const r of ["photo", "links", "buttons", "logo"]) assert.ok(CARD.includes(`{...partProps("${r}")}`), r);
   assert.ok(CARD.includes("{...partProps(elemKey as PartRole)}"), "free layout wrappers");

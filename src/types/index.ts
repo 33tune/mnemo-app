@@ -924,9 +924,6 @@ export type CardEffects = {
   emboss?: { enabled: boolean; depth?: number };        // 0-1
   /** Fantasma: a pale, silvery card with a sheen only on its edges. */
   ghost?: { enabled: boolean; intensity?: number };     // 0-1
-  /** Lenticular: the photo changes to these images as the card tilts
-   * (the card's own photo first). */
-  lenticular?: { enabled: boolean; images?: string[] };
   /** Glitter: little sparkles twinkling over the texts. */
   glitter?: { enabled: boolean; color?: "white" | "gold" | "pink" | "rainbow"; amount?: number; size?: number };
   /** Strass: rhinestones around the border, lit where the light passes. */
