@@ -365,6 +365,13 @@ planeado acá hasta confirmarlo.
 >     usa el menú de compartir (Instagram › Historia); en la compu descarga.
 >   - El aviso BETA del editor se oculta mientras el panel lateral está abierto (tapaba los botones de la barra).
 >   - Sin QA en un iPhone / Android real (giroscopio, compartir a Instagram).
+>   - **Feedback del usuario (2026-11-04) — NO implementado, anotado:** los efectos de Colección "se ven genéricos"
+>     (la Galaxia sobre todo). **Queda el Reflejo** (le gusta). **Aprobado para después: "holo de verdad"** como las
+>     cards de colección: brillo por zonas (solo la foto / solo el borde / todo menos la foto, tipo "reverse holo"),
+>     acabados reales (rayos verticales, arcoíris "rainbow rare", relieve/textura grabada que aparece solo donde pega la
+>     luz, oro), foil que se sale del recuadro de la foto; reemplaza los 4 acabados actuales (Galaxia se va).
+>     Referencia: simeydotme/pokemon-cards-css. **Antes de empezar, el usuario quiere decidir un set de animaciones /
+>     efectos más destacables (no genéricos)** — no arrancar nada de esto sin su OK sobre la lista final.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
