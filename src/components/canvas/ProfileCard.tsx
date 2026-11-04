@@ -559,7 +559,9 @@ function ProfileCard({
   const nameLetterAnim = textRoles?.name?.letterAnimation;
   // The line around Name's letters: its own shadow / glow / stroke / blur
   // (else the legacy card-wide ones), never the per-letter fill.
-  const nameShadowStyle = resolveTextEffectStyle(effectiveEffects.text, roleFxOnly(textRoles?.name));
+  // Relieve also on the per-letter name (the filter composites the whole
+  // subtree: the bouncing letters are lit as one word).
+  const nameShadowStyle = withEmboss(resolveTextEffectStyle(effectiveEffects.text, roleFxOnly(textRoles?.name)), effectiveEffects, card.id);
   // Stage FASE 1: per-block visual overrides (background/radius always;
   // textColor/iconColor only for the 3 blocks without their own finer-grained
   // color system — see blockStyle.ts's header for why Identity/Links don't

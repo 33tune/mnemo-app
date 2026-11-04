@@ -423,6 +423,19 @@ planeado acá hasta confirmarlo.
 >       chicos sobre cada texto (`glitterSparkles`: 3–9 px, máx. 30 por texto; estrellas con clip-path + puntitos),
 >       `CardGlitter.tsx` en una capa hermana de la fila, animados solo con transform/opacity (sin drop-shadow).
 >     - **Fantasma ELIMINADO** (decisión del usuario): sin tipo, menú ni render.
+>   - **Celular e historia (2026-11-04, feedback del usuario tras probar en el iPhone):**
+>     - **Glitter v4** (`CardGlitter.tsx`): UN canvas por texto (antes hasta 30 spans animados por texto: cientos de capas
+>       en el celular, lag, y Safari dibujaba mal las estrellas recortadas). Un reloj compartido a ~24 fps para todos, se
+>       frena fuera de pantalla y con la pestaña oculta; sprites (brillo + estrella / punto por color) dibujados una vez.
+>     - **Relieve:** el nombre con animación por letra no tenía el filtro (`nameShadowStyle` sin `withEmboss`): arreglado.
+>       En el celular (`pointer: coarse`) el filtro se recalcula como máximo ~15 veces por segundo y solo con un cambio
+>       visible de luz. Strass en el celular: canvas a 1,5× y ~30 redibujos por segundo; la sombra de cada piedra va dentro
+>       de la escena (antes `drop-shadow` CSS sobre un canvas que se redibuja).
+>     - **Historia igual en iPhone y PC** (`cardSnapshot.ts`): WebKit dibujaba el brillo/sombra exterior grande de la card
+>       como un rectángulo corrido detrás ("sombra fea") y dejaba afuera los canvas (glitter, piedras). Ahora las sombras
+>       exteriores de las capas del tamaño de la card se sacan de la foto y se dibujan en un canvas debajo (solo afuera de
+>       la card, como CSS; `splitShadowList`/`parseShadow` con test) y cada canvas pasa a un `<img>` quieto durante la foto.
+>       Verificado con WebKitGTK (MiniBrowser por WebDriver, UA de iPhone) — mismo motor que Safari.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

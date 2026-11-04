@@ -22,14 +22,19 @@ export default function EmbossFilter({ cardId, fx }: { cardId: string; fx: CardE
   const p = embossParams(fx);
 
   useEffect(() => {
-    let raf = 0, lx0 = NaN, ly0 = NaN;
+    let raf = 0, lx0 = NaN, ly0 = NaN, last = 0;
+    // The lighting filter re-runs on every text each time the light moves:
+    // on a phone (gyroscope, finger) at most ~15 times a second and only for
+    // a visible change, so it never eats the frame.
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches;
+    const minGap = coarse ? 66 : 0, minStep = coarse ? 0.012 : 0.003;
     const read = (n: string, d: number) => { const v = parseFloat(host.current?.style.getPropertyValue(n) ?? ""); return isFinite(v) ? v : d; };
-    const tick = () => {
+    const tick = (now = 0) => {
       raf = requestAnimationFrame(tick);
-      if (document.hidden) return;
+      if (document.hidden || now - last < minGap) return;
       const lx = read("--lx", LIGHT_REST.x), ly = read("--ly", LIGHT_REST.y);
-      if (Math.abs(lx - lx0) < 0.003 && Math.abs(ly - ly0) < 0.003) return;
-      lx0 = lx; ly0 = ly;
+      if (Math.abs(lx - lx0) < minStep && Math.abs(ly - ly0) < minStep) return;
+      lx0 = lx; ly0 = ly; last = now;
       const { azimuth, elevation } = embossLight(lx, ly);
       for (const el of [diff.current, spec.current]) {
         el?.setAttribute("azimuth", azimuth.toFixed(1));

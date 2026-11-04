@@ -29,3 +29,11 @@ test("the card fits the story box; the still is inside the video", () => {
   assert.ok(STILL_T > 0 && STILL_T < STORY_SECONDS);
   assert.equal(STORY_FRAMES, STORY_FPS * STORY_SECONDS);
 });
+
+import { splitShadowList, parseShadow } from "./cardSnapshot";
+test("box-shadow parsing: outer vs inset, color with commas", () => {
+  const parts = splitShadowList("rgba(255, 255, 255, 0.5) 0px 0px 24px 0px, rgb(0, 0, 0) 2px 4px 10px 3px inset");
+  assert.equal(parts.length, 2);
+  assert.deepEqual(parseShadow(parts[0]), { color: "rgba(255, 255, 255, 0.5)", x: 0, y: 0, blur: 24, spread: 0, inset: false });
+  assert.deepEqual(parseShadow(parts[1]), { color: "rgb(0, 0, 0)", x: 2, y: 4, blur: 10, spread: 3, inset: true });
+});

@@ -50,7 +50,12 @@ export async function snapshotCard(el: HTMLElement): Promise<CardSnapshot> {
   // would show them at their first frame: glitter invisible, entrance
   // offsets). Everything is restored right after (the dialog covers the page).
   const undo: (() => void)[] = [];
-  for (const s of subjects) undo.push(await stillImages(s, ratio), freezeAnimations(s));
+  for (const s of subjects) undo.push(await stillImages(s, ratio), await stillCanvases(s), freezeAnimations(s));
+  // The card's own outer glow / shadow: WebKit (every iPhone browser) draws a
+  // big box-shadow inside the SVG snapshot as a hard, shifted rectangle. They
+  // are taken out of the picture and drawn here on a canvas, the same on any
+  // browser (the inset ones, inside the card, stay in the picture).
+  const outer = takeOuterShadows(el, cardRect, undo);
   const common = {
     pixelRatio: ratio,
     width: cardW + pad * 2,
@@ -97,14 +102,112 @@ export async function snapshotCard(el: HTMLElement): Promise<CardSnapshot> {
         } as Partial<CSSStyleDeclaration>,
         filter: skip,
       });
-  let canvas: HTMLCanvasElement;
+  let shot: HTMLCanvasElement;
   try {
     if (isWebKit()) await shoot().catch(() => null);
-    canvas = await shoot();
+    shot = await shoot();
   } finally {
     undo.forEach(u => u());
   }
+  const canvas = outer.shadows.length ? withShadows(shot, outer, { cardW, cardH, pad, ratio }) : shot;
   return { canvas, cardW, cardH, pad };
+}
+
+type OuterShadow = { color: string; x: number; y: number; blur: number; spread: number; alpha: number };
+
+/** Splits a computed box-shadow list at the commas outside parentheses. */
+export function splitShadowList(v: string): string[] {
+  const out: string[] = [];
+  let depth = 0, cur = "";
+  for (const ch of v) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
+    cur += ch;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+/** One computed shadow ("rgba(…) 0px 0px 24px 0px [inset]") → parts. */
+export function parseShadow(part: string): { color: string; x: number; y: number; blur: number; spread: number; inset: boolean } | null {
+  const inset = /\binset\b/.test(part);
+  // Computed styles always give the color as rgb()/rgba() (sometimes hex).
+  const colorMatch = part.match(/(rgba?|hsla?)\([^)]*\)|#[0-9a-f]{3,8}/i);
+  const color = colorMatch ? colorMatch[0] : "rgba(0,0,0,1)";
+  const rest = part.replace(color, " ");
+  const nums = [...rest.matchAll(/(-?[\d.]+)px/g)].map(m => parseFloat(m[1]));
+  if (nums.length < 2) return null;
+  return { color, x: nums[0], y: nums[1], blur: nums[2] ?? 0, spread: nums[3] ?? 0, inset };
+}
+
+/** Finds the card-sized layers with outer box-shadows, keeps their numbers
+ * and leaves only the inset ones on them until `undo`. */
+function takeOuterShadows(card: HTMLElement, cardRect: DOMRect, undo: (() => void)[]): { shadows: OuterShadow[]; radius: number } {
+  const shadows: OuterShadow[] = [];
+  let radius = 0;
+  for (const e of card.querySelectorAll<HTMLElement>("*")) {
+    const cs = getComputedStyle(e);
+    if (!cs.boxShadow || cs.boxShadow === "none") continue;
+    const r = e.getBoundingClientRect();
+    if (Math.abs(r.width - cardRect.width) > 3 || Math.abs(r.height - cardRect.height) > 3) continue;
+    const parts = splitShadowList(cs.boxShadow);
+    const parsed = parts.map(parseShadow);
+    if (!parsed.some(p => p && !p.inset)) continue;
+    // Opacity of the layer and of its parents inside the card (glow pulse).
+    let alpha = 1;
+    for (let n: HTMLElement | null = e; n && n !== card; n = n.parentElement) alpha *= parseFloat(getComputedStyle(n).opacity) || 0;
+    if (alpha > 0.01) {
+      for (const p of parsed) if (p && !p.inset) shadows.push({ color: p.color, x: p.x, y: p.y, blur: p.blur, spread: p.spread, alpha });
+      radius = Math.max(radius, parseFloat(cs.borderTopLeftRadius) || 0);
+    }
+    const old = e.style.boxShadow;
+    const insetOnly = parts.filter((_, i) => parsed[i]?.inset).join(", ");
+    e.style.boxShadow = insetOnly || "none";
+    undo.push(() => { e.style.boxShadow = old; });
+  }
+  return { shadows, radius };
+}
+
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+/** The outer shadows (outside the card only, like CSS) under the picture. */
+function withShadows(shot: HTMLCanvasElement, outer: { shadows: OuterShadow[]; radius: number },
+  g: { cardW: number; cardH: number; pad: number; ratio: number }): HTMLCanvasElement {
+  const W = shot.width, H = shot.height;
+  const k = W / (g.cardW + g.pad * 2);   // device px per CSS px of the picture
+  const sh = document.createElement("canvas");
+  sh.width = W; sh.height = H;
+  const c = sh.getContext("2d")!;
+  const FAR = 100000;
+  for (const s of outer.shadows) {
+    c.save();
+    c.globalAlpha = s.alpha;
+    c.shadowColor = s.color;
+    c.shadowBlur = s.blur * k;
+    c.shadowOffsetX = (s.x + FAR) * k;
+    c.shadowOffsetY = s.y * k;
+    c.fillStyle = "#000";
+    roundRectPath(c, (g.pad - s.spread - FAR) * k, (g.pad - s.spread) * k, (g.cardW + s.spread * 2) * k, (g.cardH + s.spread * 2) * k, (outer.radius + s.spread) * k);
+    c.fill();
+    c.restore();
+  }
+  // CSS never paints an outer shadow under the box itself.
+  c.globalCompositeOperation = "destination-out";
+  roundRectPath(c, g.pad * k, g.pad * k, g.cardW * k, g.cardH * k, outer.radius * k);
+  c.fill();
+  c.globalCompositeOperation = "source-over";
+  c.drawImage(shot, 0, 0);
+  return sh;
 }
 
 /** Inline-freezes every running animation under `root` (itself included) at
@@ -125,6 +228,32 @@ function freezeAnimations(root: HTMLElement): () => void {
     st.translate = now.translate; st.scale = now.scale; st.rotate = now.rotate;
     undo.push(() => Object.assign(st, old));
   }
+  return () => undo.forEach(u => u());
+}
+
+/** Canvases (glitter, the strass gems) become, just for the snapshot, an
+ * <img> of their current frame: WebKit leaves canvases out of the SVG
+ * picture, and a fixed image also comes out the same in both shots. */
+async function stillCanvases(root: HTMLElement): Promise<() => void> {
+  const undo: (() => void)[] = [];
+  await Promise.all([...root.querySelectorAll("canvas")].map(async cv => {
+    if (!cv.width || !cv.height || !cv.parentElement) return;
+    let url: string;
+    try { url = cv.toDataURL("image/png"); } catch { return; }
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "";
+    img.setAttribute("style", cv.getAttribute("style") ?? "");
+    const cs = getComputedStyle(cv);
+    img.style.width = cs.width;
+    img.style.height = cs.height;
+    if (cs.position === "static") img.style.display = "block";
+    cv.parentElement.insertBefore(img, cv);
+    const oldDisplay = cv.style.display;
+    cv.style.display = "none";
+    await img.decode().catch(() => {});
+    undo.push(() => { img.remove(); cv.style.display = oldDisplay; });
+  }));
   return () => undo.forEach(u => u());
 }
 
