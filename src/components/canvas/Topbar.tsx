@@ -19,6 +19,8 @@ export interface EditorTopbarProps {
   onRedo: () => void;
   /** The public profile (Vista previa). */
   previewHref?: string;
+  /** "Compartir tu card" (story image / video, ShareCardDialog). */
+  onShare?: () => void;
   undoKeys: string;
   redoKeys: string;
   /** Narrow viewports (the bottom-sheet layout, design screen 10): wordmark,
@@ -418,6 +420,12 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, onLogout }: {
             <Icon name="eye" size={17} />
           </a>
         )}
+        {editor.onShare && (
+          <button type="button" className="mn-gbtn mn-tip" data-tip-side="bottom" data-tip="Compartir como historia"
+            aria-label="Compartir tu card como historia" onClick={editor.onShare}>
+            <Icon name="share" size={17} />
+          </button>
+        )}
         <button ref={moreRef} type="button" className="mn-gbtn mn-tip" data-tip-side="bottom" data-tip="Más opciones"
           aria-label="Más opciones"
           aria-expanded={open} aria-controls={open ? WIDE_MORE_MENU_ID : undefined}
@@ -544,6 +552,11 @@ function CompactEditorTopbar({ editor, tabs, publishState, onPublish, onLogout }
               aria-label="Vista previa (se abre en otra pestaña)">
               <span>Vista previa</span><Icon name="eye" size={15} />
             </a>
+          )}
+          {editor.onShare && (
+            <button type="button" className="mn-menuitem" onClick={run(editor.onShare)}>
+              <span>Compartir como historia</span><Icon name="share" size={15} />
+            </button>
           )}
           {onLogout && (
             <button type="button" className="mn-menuitem" onClick={run(() => { void onLogout(); })}>

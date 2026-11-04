@@ -264,6 +264,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
 const pfp = at("ProfileIdentityMenu.tsx");
 const FOTO = `${FOTO_OBJ} › Efectos de la foto`;
 const RETRO = `${EFECTOS} › Retro`;
+const COLECCION = `${EFECTOS} › Colección`;
 
 export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "bg.color": bgMenu(`${FONDO} › Color › Color`, "patchBg({ color: v })"),
@@ -339,6 +340,18 @@ export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "retro.flicker.speed": fxMenu(`${RETRO} › Flicker › Velocidad`, "patchRetro({ flicker: { ...retro.flicker!, enabled: true, speed: v } })"),
   "retro.chromaticAberration.enabled": fxMenu(`${RETRO} › Aberración cromática`, "patchRetro({ chromaticAberration: { enabled: v"),
   "retro.chromaticAberration.intensity": fxMenu(`${RETRO} › Aberración cromática › Intensidad`, "patchRetro({ chromaticAberration: { enabled: true, intensity: v } })"),
+  "holo.enabled": fxMenu(`${COLECCION} › Holográfico`, "patchHolo({ enabled: v,"),
+  "holo.style": fxMenu(`${COLECCION} › Holográfico › Acabado`, "patchHolo({ enabled: true, style: v"),
+  "holo.intensity": fxMenu(`${COLECCION} › Holográfico › Intensidad`, "patchHolo({ enabled: true, intensity: v })"),
+  "holo.scope": fxMenu(`${COLECCION} › Holográfico › Dónde`, 'patchHolo({ enabled: true, scope: id === "bg"'),
+  "holo.idle": fxMenu(`${COLECCION} › Holográfico › Moverse solo`, "patchHolo({ enabled: true, idle: v ? undefined : false })"),
+  "glare.enabled": fxMenu(`${COLECCION} › Reflejo`, "patchGlare({ enabled: v,"),
+  "glare.intensity": fxMenu(`${COLECCION} › Reflejo › Intensidad`, "patchGlare({ enabled: true, intensity: v })"),
+  "glare.size": fxMenu(`${COLECCION} › Reflejo › Tamaño`, "patchGlare({ enabled: true, size: v })"),
+  "entrance.enabled": fxMenu(`${COLECCION} › Entrada`, "patchEntrance({ enabled: v,"),
+  "entrance.style": fxMenu(`${COLECCION} › Entrada › Animación`, "patchEntrance({ enabled: true, style: v"),
+  "entrance.duration": fxMenu(`${COLECCION} › Entrada › Duración`, "patchEntrance({ enabled: true, duration: v })"),
+  "entrance.shine": fxMenu(`${COLECCION} › Entrada › Destello al entrar`, "patchEntrance({ enabled: true, shine: v || undefined })"),
   opacity: retired("legacy whole-card opacity: CardLayers never reads effects.opacity (only bg.opacity — product rule: opacity affects only the background)"),
   padding: retired("never exposed: it would change the box computeBlockLayout measures"),
 };
@@ -520,6 +533,11 @@ export const MUSIC_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "retro.flicker.enabled": unsupported(MUSIC_GAP), "retro.flicker.intensity": unsupported(MUSIC_GAP),
   "retro.flicker.speed": unsupported(MUSIC_GAP),
   "retro.chromaticAberration.enabled": unsupported(MUSIC_GAP), "retro.chromaticAberration.intensity": unsupported(MUSIC_GAP),
+  "holo.enabled": unsupported(PROFILE_ONLY), "holo.style": unsupported(PROFILE_ONLY), "holo.intensity": unsupported(PROFILE_ONLY),
+  "holo.scope": unsupported(PROFILE_ONLY), "holo.idle": unsupported(PROFILE_ONLY),
+  "glare.enabled": unsupported(PROFILE_ONLY), "glare.intensity": unsupported(PROFILE_ONLY), "glare.size": unsupported(PROFILE_ONLY),
+  "entrance.enabled": unsupported(PROFILE_ONLY), "entrance.style": unsupported(PROFILE_ONLY),
+  "entrance.duration": unsupported(PROFILE_ONLY), "entrance.shine": unsupported(PROFILE_ONLY),
   opacity: retired("legacy whole-card opacity: CardLayers never reads effects.opacity (only bg.opacity — product rule: opacity affects only the background)"),
   padding: retired("never exposed: it would change the box the layout measures"),
 };

@@ -2,7 +2,11 @@
 import React from "react";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import type { CardEffects } from "@/types";
-import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs } from "@/ui";
+import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs, FontSelect, SwitchRow, ActionButton } from "@/ui";
+import {
+  HOLO_STYLES, ENTRANCE_STYLES, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE,
+  ENTRANCE_DEFAULT_DURATION, ENTRANCE_DEFAULT_STYLE, ENTRANCE_PREVIEW_EVENT, holoOn, glareOn,
+} from "@/lib/cardFoil";
 import { effectActions, effectState, type EffectOwner } from "@/lib/effectBinding";
 import {
   CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_RADIUS_FALLBACK,
@@ -72,6 +76,16 @@ export function useCardEffectActions({ effective, raw, onChange }: Props) {
   function patchRetro(patch: Partial<NonNullable<CardEffects["retro"]>>) {
     onChange({ ...raw, retro: { ...raw?.retro, ...patch } });
   }
+  // Colección (2026-11-04, cardFoil.ts): turning one off keeps its settings.
+  function patchHolo(patch: Partial<NonNullable<CardEffects["holo"]>>) {
+    onChange({ ...raw, holo: { enabled: false, ...raw?.holo, ...patch } });
+  }
+  function patchGlare(patch: Partial<NonNullable<CardEffects["glare"]>>) {
+    onChange({ ...raw, glare: { enabled: false, ...raw?.glare, ...patch } });
+  }
+  function patchEntrance(patch: Partial<NonNullable<CardEffects["entrance"]>>) {
+    onChange({ ...raw, entrance: { ...raw?.entrance, ...patch } });
+  }
 
   // Bug fix (Block 1): off pauses the whole shadow config; on restores it
   // with a visible intensity (effectBinding.setEffectEnabled). Glow flags:
@@ -94,7 +108,7 @@ export function useCardEffectActions({ effective, raw, onChange }: Props) {
 
   return {
     bord, glow, inter, anim, sh, fx, patchBorder, patchGlow, patchGlowAnimation, patchShadow, patchInteractions,
-    patchAnimations, patchRetro, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
+    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
     shadowFx, glowInt, hoverScaleOn, retro,
   };
 }
@@ -131,9 +145,15 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
   const { raw } = props;
   const {
     bord, glow, inter, anim, sh, fx, patchBorder, patchGlow, patchGlowAnimation, patchShadow, patchInteractions,
-    patchAnimations, patchRetro, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
+    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
     shadowFx, glowInt, hoverScaleOn, retro,
   } = useCardEffectActions(props);
+  const { effective } = props;
+  const holo = effective.holo, glare = effective.glare, entrance = effective.entrance;
+  const holoIsOn = holoOn(effective), glareIsOn = glareOn(effective), entranceOn = !!entrance?.enabled;
+  const holoName = HOLO_STYLES.find(s => s.id === (holo?.style ?? "rainbow"))?.label;
+  const entranceName = ENTRANCE_STYLES.find(s => s.id === (entrance?.style ?? ENTRANCE_DEFAULT_STYLE))?.label;
+  const collect = [holoIsOn && "Holográfico", glareIsOn && "Reflejo", entranceOn && "Entrada"];
   // The Brillo tile: on = the outer glow (O3 neutral color and a visible
   // intensity for a new glow — effectBinding); off = both flags off in ONE
   // write (color/intensity stay, like the flags always did).
@@ -153,6 +173,66 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
   const count = (l: unknown[]) => l.filter(Boolean).length;
   return (
     <>
+      {/* Colección (2026-11-04): what makes the card feel like a collectible —
+          a foil that moves with the light, a glare, and how it enters. */}
+      <MenuSection label="Colección" icon="sparkles" active={count(collect)} summary={names(collect)}>
+        <EffectList label="Colección">
+          <EffectRow id="holo" label="Holográfico" icon="sparkles" preview="c-holo" on={holoIsOn}
+            onToggle={v => patchHolo({ enabled: v, intensity: v && !(holo?.intensity) ? HOLO_DEFAULT_INTENSITY : holo?.intensity })}
+            state={holoIsOn ? holoName : undefined}>
+            {holoIsOn ? (
+              <>
+                <MenuRow label="Acabado">
+                  <FontSelect value={holo?.style ?? "rainbow"} onChange={v => patchHolo({ enabled: true, style: v as NonNullable<CardEffects["holo"]>["style"] })}
+                    fonts={HOLO_STYLES.map(s => ({ key: s.id, label: s.label }))} />
+                </MenuRow>
+                <SliderRow label="Intensidad" icon="sparkles" min={0.05} max={1} step={0.01} value={holo?.intensity ?? HOLO_DEFAULT_INTENSITY}
+                  onChange={v => patchHolo({ enabled: true, intensity: v })} fmt={pct} />
+                <MenuRow label="Dónde">
+                  <Tabs tabs={[{ id: "card", label: "Toda la card" }, { id: "bg", label: "Solo fondo" }]} active={holo?.scope ?? "card"}
+                    onChange={id => patchHolo({ enabled: true, scope: id === "bg" ? "bg" : undefined })} label="Dónde" />
+                </MenuRow>
+                <SwitchRow label="Moverse solo" icon="play" value={holo?.idle !== false}
+                  onChange={v => patchHolo({ enabled: true, idle: v ? undefined : false })} />
+                <MenuNote>Se mueve con el mouse, el dedo o el giroscopio del celular.</MenuNote>
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="glare" label="Reflejo" icon="sun" preview="c-glare" on={glareIsOn}
+            onToggle={v => patchGlare({ enabled: v, intensity: v && !(glare?.intensity) ? GLARE_DEFAULT_INTENSITY : glare?.intensity })}
+            state={glareIsOn ? pct(glare?.intensity ?? GLARE_DEFAULT_INTENSITY) : undefined}>
+            {glareIsOn ? (
+              <>
+                <SliderRow label="Intensidad" icon="sun" min={0.05} max={1} step={0.01} value={glare?.intensity ?? GLARE_DEFAULT_INTENSITY}
+                  onChange={v => patchGlare({ enabled: true, intensity: v })} fmt={pct} />
+                <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={glare?.size ?? GLARE_DEFAULT_SIZE}
+                  onChange={v => patchGlare({ enabled: true, size: v })} fmt={pct} />
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="entrance" label="Entrada" icon="play" preview="c-enter" on={entranceOn}
+            onToggle={v => patchEntrance({ enabled: v, style: entrance?.style ?? ENTRANCE_DEFAULT_STYLE })}
+            state={entranceOn ? entranceName : undefined}>
+            {entranceOn ? (
+              <>
+                <MenuRow label="Animación">
+                  <FontSelect value={entrance?.style ?? ENTRANCE_DEFAULT_STYLE} onChange={v => patchEntrance({ enabled: true, style: v as NonNullable<CardEffects["entrance"]>["style"] })}
+                    fonts={ENTRANCE_STYLES.map(s => ({ key: s.id, label: s.label }))} />
+                </MenuRow>
+                <SliderRow label="Duración" icon="rotate" min={0.3} max={3} step={0.1} value={entrance?.duration ?? ENTRANCE_DEFAULT_DURATION}
+                  onChange={v => patchEntrance({ enabled: true, duration: v })} fmt={v => `${v.toFixed(1).replace(".", ",")} s`} />
+                <SwitchRow label="Destello al entrar" icon="sparkles" value={!!entrance?.shine}
+                  onChange={v => patchEntrance({ enabled: true, shine: v || undefined })} />
+                <ActionButton fullWidth onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent(ENTRANCE_PREVIEW_EVENT)); }}>
+                  Ver entrada
+                </ActionButton>
+                <MenuNote>Se ve cada vez que alguien abre tu perfil.</MenuNote>
+              </>
+            ) : null}
+          </EffectRow>
+        </EffectList>
+      </MenuSection>
+
       <MenuSection label="Luz" icon="sun" active={count(light)} summary={names(light)}>
         <EffectList label="Luz">
           <EffectRow id="border" label="Borde" icon="frame" preview="c-border" active={borderW > 0}

@@ -903,6 +903,27 @@ export type CardEffects = {
     flicker?:   { enabled: boolean; intensity?: number; speed?: number };
     chromaticAberration?: { enabled: boolean; intensity?: number }; // 0-1, subtle RGB offset
   };
+  // Collectible-card effects (2026-11-04, cardFoil.ts): a foil sheen and a
+  // glare that follow the light (cursor / finger / gyroscope), and the
+  // card's entrance on the public profile. Absent = off (entrance absent =
+  // the profile's default reveal).
+  holo?: {
+    enabled: boolean;
+    style?: "rainbow" | "glitter" | "metal" | "galaxy";
+    intensity?: number;          // 0-1
+    /** "card" = over everything (default) · "bg" = only the background. */
+    scope?: "card" | "bg";
+    /** Slow drift when nobody moves the light (default on). */
+    idle?: boolean;
+  };
+  glare?: { enabled: boolean; intensity?: number; size?: number }; // 0-1 each
+  entrance?: {
+    enabled?: boolean;
+    style?: "fade" | "rise" | "pop" | "flip" | "drop" | "spin";
+    duration?: number;           // s
+    /** A light sweep across the card once it has entered. */
+    shine?: boolean;
+  };
   opacity?: number;
   padding?: number;
   // Block 1 ("apagar no borra"): editor-only stash of effects the user

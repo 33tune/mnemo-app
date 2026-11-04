@@ -32,7 +32,7 @@ export function EffectList({ children, label }: { children: React.ReactNode; lab
 export type TilePreview =
   | "t-shadow" | "t-glow" | "t-stroke" | "t-blur" | "t-shim" | "t-let" | "t-grad"
   | "c-border" | "c-shadow" | "c-glow" | "c-pulse" | "c-grad" | "c-glass" | "c-blur" | "c-float" | "c-tilt"
-  | "c-spot" | "c-scan" | "c-noise" | "c-flick" | "c-chroma";
+  | "c-spot" | "c-scan" | "c-noise" | "c-flick" | "c-chroma" | "c-holo" | "c-glare" | "c-enter";
 
 interface EffectRowProps {
   /** Unique within its EffectList. */

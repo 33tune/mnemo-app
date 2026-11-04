@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useCallback, useEffect } from "react";
 import type { CardEffects } from "@/types";
+import { lightEffectsOn, LIGHT_REST } from "@/lib/cardFoil";
 
 // Stage FASE 3 (Text & Motion Effects): hoverGlow/hoverScale extend this
 // SAME hook (not a second mouse-event system) — same ref, same CSS-var
@@ -19,6 +20,10 @@ export function useCardInteractions(
   const targetTilt = useRef({ x: 0, y: 0 });
   const currentTilt = useRef({ x: 0, y: 0 });
   const isAnimating = useRef(false);
+  // Holográfico / Reflejo (2026-11-04, cardFoil.ts): the light point on the
+  // card (0–1), eased in the same loop as the tilt; --lx / --ly / --la.
+  const targetLight  = useRef<{ x: number; y: number }>({ ...LIGHT_REST });
+  const currentLight = useRef<{ x: number; y: number }>({ ...LIGHT_REST });
 
   const tiltOn      = effects?.interactions?.tilt3d    ?? false;
   const spotlightOn = effects?.interactions?.spotlight ?? false;
@@ -29,6 +34,11 @@ export function useCardInteractions(
   // 1 or unset both mean "no scale", since scale(1) is a no-op anyway.
   const hoverScaleTarget = effects?.interactions?.hoverScale;
   const hoverScaleOn = hoverScaleTarget != null && hoverScaleTarget !== 1;
+  const lightOn = lightEffectsOn(effects);
+  const tiltOnRef = useRef(tiltOn);
+  tiltOnRef.current = tiltOn;
+  const lightOnRef = useRef(lightOn);
+  lightOnRef.current = lightOn;
 
   const startLerpLoop = useCallback(() => {
     if (isAnimating.current) return;
@@ -51,7 +61,14 @@ export function useCardInteractions(
       el.style.setProperty("--tilt-x", `${currentTilt.current.x.toFixed(3)}deg`);
       el.style.setProperty("--tilt-y", `${currentTilt.current.y.toFixed(3)}deg`);
 
-      const settled = Math.abs(currentTilt.current.x - tx) < 0.01 && Math.abs(currentTilt.current.y - ty) < 0.01;
+      const cl = currentLight.current, tl = targetLight.current;
+      cl.x += (tl.x - cl.x) * LERP * 1.4;
+      cl.y += (tl.y - cl.y) * LERP * 1.4;
+      el.style.setProperty("--lx", cl.x.toFixed(4));
+      el.style.setProperty("--ly", cl.y.toFixed(4));
+      const lightSettled = Math.abs(cl.x - tl.x) < 0.001 && Math.abs(cl.y - tl.y) < 0.001;
+
+      const settled = lightSettled && Math.abs(currentTilt.current.x - tx) < 0.01 && Math.abs(currentTilt.current.y - ty) < 0.01;
       // The 3D transform exists only while the card is really tilted
       // (CardLayers reads --tilt-tf): a card at rest is flat. iPhone Safari
       // composites a 3D layer apart and lost what's behind a see-through
@@ -80,7 +97,7 @@ export function useCardInteractions(
 
   const pointAt = useCallback((clientX: number, clientY: number) => {
     const el = cardRef.current;
-    if (!el || (!tiltOn && !spotlightOn)) return;
+    if (!el || (!tiltOn && !spotlightOn && !lightOn)) return;
 
     const r  = el.getBoundingClientRect();
     if (r.width <= 0 || r.height <= 0) return;
@@ -96,11 +113,15 @@ export function useCardInteractions(
       targetTilt.current.y = (nx - 0.5) * maxTilt;
       startLerpLoop();
     }
+    if (lightOn) {
+      targetLight.current = { x: nx, y: ny };
+      startLerpLoop();
+    }
     if (spotlightOn) {
       el.style.setProperty("--spot-x", `${nx * 100}%`);
       el.style.setProperty("--spot-y", `${ny * 100}%`);
     }
-  }, [tiltOn, spotlightOn, maxTilt, cardRef, startLerpLoop]);
+  }, [tiltOn, spotlightOn, lightOn, maxTilt, cardRef, startLerpLoop]);
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!fromTouch()) pointAt(e.clientX, e.clientY);
@@ -117,14 +138,17 @@ export function useCardInteractions(
     if (!el) return;
     if (hoverGlowOn) el.style.setProperty("--hover-glow", "1");
     if (hoverScaleOn) el.style.setProperty("--hover-scale", String(hoverScaleTarget));
-  }, [cardRef, hoverGlowOn, hoverScaleOn, hoverScaleTarget]);
+    if (lightOn) el.style.setProperty("--la", "1");
+  }, [cardRef, hoverGlowOn, hoverScaleOn, hoverScaleTarget, lightOn]);
 
   const release = useCallback(() => {
     const el = cardRef.current;
     if (!el) return;
 
     targetTilt.current = { x: 0, y: 0 };
+    targetLight.current = { ...LIGHT_REST };
     startLerpLoop();
+    el.style.setProperty("--la", "0");
 
     el.style.setProperty("--spot-x", "-200%");
     el.style.setProperty("--spot-y", "-200%");
@@ -158,7 +182,10 @@ export function useCardInteractions(
     release();
   }, [release]);
 
-  return { onMouseMove, onMouseEnter, onMouseLeave, onTouchStart, onTouchMove, onTouchEnd, tiltOn, maxTilt, targetTilt, touching, startLerpLoop };
+  return {
+    onMouseMove, onMouseEnter, onMouseLeave, onTouchStart, onTouchMove, onTouchEnd, tiltOn, lightOn, maxTilt, targetTilt,
+    targetLight, tiltOnRef, lightOnRef, cardRef, touching, startLerpLoop,
+  };
 }
 
 /** iPhone (iOS 13+) shows the motion permission only from a tap. */
@@ -172,9 +199,10 @@ type OrientationPermission = { requestPermission?: () => Promise<"granted" | "de
  */
 export function useGyroTilt(
   enabled: boolean,
-  ix: Pick<ReturnType<typeof useCardInteractions>, "maxTilt" | "targetTilt" | "touching" | "startLerpLoop">,
+  ix: Pick<ReturnType<typeof useCardInteractions>,
+    "maxTilt" | "targetTilt" | "targetLight" | "tiltOnRef" | "lightOnRef" | "cardRef" | "touching" | "startLerpLoop">,
 ) {
-  const { maxTilt, targetTilt, touching, startLerpLoop } = ix;
+  const { maxTilt, targetTilt, targetLight, tiltOnRef, lightOnRef, cardRef, touching, startLerpLoop } = ix;
   const maxRef = useRef(maxTilt);
   maxRef.current = maxTilt;
   useEffectOnce(enabled, () => {
@@ -188,9 +216,17 @@ export function useGyroTilt(
       // Slowly re-center, so a phone set down at a new angle settles flat.
       base.b += (ev.beta - base.b) * 0.01;
       base.g += (ev.gamma - base.g) * 0.01;
+      const dy = clamp((ev.beta - base.b) / RANGE), dx = clamp((ev.gamma - base.g) / RANGE);
       // ±max/2, the same range the cursor reaches at the card's edges.
-      targetTilt.current.x = clamp((ev.beta - base.b) / RANGE) * maxRef.current * -0.5;
-      targetTilt.current.y = clamp((ev.gamma - base.g) / RANGE) * maxRef.current * 0.5;
+      if (tiltOnRef.current) {
+        targetTilt.current.x = dy * maxRef.current * -0.5;
+        targetTilt.current.y = dx * maxRef.current * 0.5;
+      }
+      // Holográfico / Reflejo: the light slides across the card as it turns.
+      if (lightOnRef.current) {
+        targetLight.current = { x: 0.5 + dx * 0.5, y: 0.5 + dy * 0.5 };
+        cardRef.current?.style.setProperty("--la", "1");
+      }
       startLerpLoop();
     };
     const listen = () => window.addEventListener("deviceorientation", onOrient);

@@ -587,6 +587,9 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-scan"] { background: repeating-linear-gradient(0deg, currentColor 0 1.5px, transparent 1.5px 3.5px); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-noise"] { background: radial-gradient(currentColor 0.8px, transparent 1px) 0 0 / 3px 3px; opacity: 0.85; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-flick"] { opacity: 0.45; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-holo"] { background: linear-gradient(115deg, var(--ui-accent-main), var(--ui-accent-focus), currentColor, var(--ui-accent-main)); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-glare"] { background: linear-gradient(115deg, color-mix(in srgb, currentColor 35%, transparent) 30%, currentColor 50%, color-mix(in srgb, currentColor 35%, transparent) 70%); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-enter"] { transform: translateY(3px) scale(0.85); opacity: 0.75; box-shadow: 0 -4px 0 -2px color-mix(in srgb, currentColor 40%, transparent); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-chroma"] { background: transparent; box-shadow: inset 0 0 0 2px currentColor, -2.5px 0 0 var(--ui-accent-main), 2.5px 0 0 var(--ui-accent-focus); }
 @media (forced-colors: active) {
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile { border: 1px solid ButtonText; }

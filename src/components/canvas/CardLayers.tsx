@@ -4,6 +4,7 @@ import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
 import { useMotionKeyframes, resolveGlowPulseAnimation, resolveFlickerAnimation } from "@/lib/cardMotion";
+import { holoOn, glareOn, holoSheetStyle, glareStyle, useFoilKeyframes, entranceShineAnimation } from "@/lib/cardFoil";
 
 // "Product closeout" (Parte 8): static SVG feTurbulence grain texture, same
 // technique GuestbookWidget.tsx/MobilePublicCanvas.tsx already use for their
@@ -57,10 +58,16 @@ interface CardLayersProps {
   back?:        React.ReactNode;
   front?:       React.ReactNode;
   over?:        React.ReactNode;
+  /** Public view: play the one-time entrance light sweep (effects.entrance.shine). */
+  entering?:    boolean;
+  /** Delay of the card's entrance (ms), so the sweep follows it. */
+  enterDelayMs?: number;
+  /** The card's background is light (the foil tints instead of adding light). */
+  lightCard?:   boolean;
 }
 
 export default function CardLayers({
-  cardId, effects, isSel, children, borderRadius, style, back, front, over,
+  cardId, effects, isSel, children, borderRadius, style, back, front, over, entering, enterDelayMs = 0, lightCard = false,
 }: CardLayersProps) {
   useCardAnimations(cardId, effects);
 
@@ -194,6 +201,19 @@ export default function CardLayers({
 
   useMotionKeyframes(glowPulseOn || !!flicker?.enabled);
 
+  // Holográfico / Reflejo (2026-11-04, cardFoil.ts): follow the light vars
+  // (--lx / --ly / --la) that useCardInteractions sets on the card.
+  const holo = effects && holoOn(effects) ? effects : undefined;
+  const glare = effects && glareOn(effects) ? effects : undefined;
+  const shine = entering ? entranceShineAnimation(effects, enterDelayMs) : undefined;
+  useFoilKeyframes(!!holo || !!shine);
+  const holoLayer = holo ? (
+    <div data-fx="holo" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
+      <div style={holoSheetStyle(holo, lightCard)} />
+    </div>
+  ) : null;
+  const holoOverAll = holo && holo.holo?.scope !== "bg";
+
   return (
     // Stage FASE 1: floating (outer, owns `animation`) and tilt (inner, owns
     // the static `transform`) are now two nested elements instead of one
@@ -274,6 +294,9 @@ export default function CardLayers({
             pointerEvents: "none",
           }} />
 
+          {/* Holográfico on the background only (scope "bg"). */}
+          {holo && !holoOverAll ? holoLayer : null}
+
           {/* ── Layer 1: Gradient Overlay ── */}
           {grad && (
             <div style={{
@@ -341,6 +364,23 @@ export default function CardLayers({
           )}
           {/* Card stickers in front of the card's background. */}
           {front}
+          {/* Holográfico over the whole card, then the glare on top, then the
+              entrance sweep — all under the "encima de todo" stickers. */}
+          {holoOverAll ? holoLayer : null}
+          {glare ? (
+            <div data-fx="glare" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
+              <div style={glareStyle(glare)} />
+            </div>
+          ) : null}
+          {shine ? (
+            <div aria-hidden style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
+              <div style={{
+                position: "absolute", top: "-20%", bottom: "-20%", left: 0, width: "70%",
+                background: "linear-gradient(105deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 80%)",
+                mixBlendMode: "overlay", animation: shine,
+              }} />
+            </div>
+          ) : null}
           {/* "Encima de todo" stickers: their own layer above every block. */}
           {over ? <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none" }}>{over}</div> : null}
         </div>

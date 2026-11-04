@@ -123,11 +123,13 @@ export function BugReport({ open, onOpenChange }: { open: boolean; onOpenChange:
 
 /** The editor's pair: banner at the top (between the bar's capsules, hidden
  * when they'd overlap) and the report button at the bottom-left. */
-export function EditorBeta() {
+/** `dockOpen`: the side panel pushes the top bar's actions to the middle,
+ * under the banner — the banner steps aside while it is open. */
+export function EditorBeta({ dockOpen = false }: { dockOpen?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <BetaBanner top={24} hideBelow={1180} onReport={() => setOpen(true)} />
+      {!dockOpen && <BetaBanner top={24} hideBelow={1180} onReport={() => setOpen(true)} />}
       <BugReport open={open} onOpenChange={setOpen} />
     </>
   );

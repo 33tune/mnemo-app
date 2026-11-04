@@ -345,6 +345,27 @@ planeado acá hasta confirmarlo.
 >   (sin `temp_`, onboarding hecho) con sala; cada fila muestra la foto, el nombre y los colores de la card PUBLICADA
 >   (`publicStateOf` + `ogCardOf`) y abre `/<handle>` en otra pestaña.
 >
+> **Cards de colección (2026-11-04, pedido del usuario: "somos una card, un núcleo"; foco en efectos, no en red social):**
+>   - **Colección** (primera sección de Tarjeta › Efectos, `src/lib/cardFoil.ts`): **Holográfico** (`effects.holo`:
+>     acabado Arcoíris / Glitter / Metal / Galaxia, intensidad, "Toda la card" o "Solo fondo", "Moverse solo") y
+>     **Reflejo** (`effects.glare`: intensidad, tamaño). Siguen una "luz" (`--lx/--ly/--la` en la card) que mueven el
+>     mouse, el dedo y el giroscopio (`useCardInteractions` / `useGyroTilt`, aun sin Inclinar 3D). Sobre card oscura
+>     suman luz (color-dodge / screen); sobre card clara tiñen (multiply). La máscara va en la lámina misma (una
+>     máscara en el padre aislaría el blend). **Entrada** (`effects.entrance`: Aparecer / Subir / Pop / Voltear / Caer
+>     / Girar, duración, "Destello al entrar", botón "Ver entrada" en el editor): reemplaza el reveal por defecto del
+>     perfil público; usa `translate/scale/rotate` sueltos (no pisa el `transform` de la card). Todo apagado si falta
+>     el campo: ninguna card existente cambia. Music no los ofrece (matriz de capacidades).
+>   - **Compartir como historia** (`src/components/share/ShareCardDialog.tsx`, `src/lib/export/`): botón en la barra
+>     del editor y pastilla "Compartir" abajo a la derecha del perfil público (para cualquiera). Imagen JPEG o video de
+>     6 s, 1080×1920: el fondo de la sala (mosaico a la escala de la card), la card entrando, girando apenas y con el
+>     holo / reflejo moviéndose (`storyRender.ts`, cuadros deterministas). La card es UNA foto del DOM
+>     (`html-to-image`, sin sus capas holo/glare ni la chrome); las `<img>` pasan a fotos quietas solo durante la
+>     foto (los GIF gigantes no se dibujaban). No incluye imágenes/textos sueltos de la sala. Video: WebCodecs H.264 +
+>     `mp4-muxer`; si no hay, MediaRecorder en tiempo real (H.264 MP4 si el navegador puede, si no WebM). En el celular
+>     usa el menú de compartir (Instagram › Historia); en la compu descarga.
+>   - El aviso BETA del editor se oculta mientras el panel lateral está abierto (tapaba los botones de la barra).
+>   - Sin QA en un iPhone / Android real (giroscopio, compartir a Instagram).
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

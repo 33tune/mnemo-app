@@ -64,6 +64,9 @@ import type { LayerRow } from "./LayersPanel";
 import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail";
 import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from "./CanvasGrid";
 import type { RoomOp } from "./RoomInspector";
+import ShareCardDialog from "@/components/share/ShareCardDialog";
+import { getProfileCardEffects } from "@/lib/profileCardEffects";
+import { cardIsLight } from "@/lib/cardColors";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
   HISTORY_TEXT_IDLE_MS, ownHistoryStep, inOwnHistoryStep, undoShortcutOwner, historyShortcut, type EditorHistory, type HistoryEntry, type Snap,
@@ -788,6 +791,15 @@ export default function CanvasBoard({
   const roomOpen = editorSel.target?.kind === "room";
   /** Editor v3 Phase E: Capas (the Layers panel) is open. */
   const layersOpen = editorSel.target?.kind === "layers";
+  // Compartir tu card (2026-11-04): story image / video (ShareCardDialog).
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareReturnRef = useRef<HTMLElement | null>(null);
+  function openShare() {
+    shareReturnRef.current = document.activeElement as HTMLElement | null;
+    // The card at rest: no selection ring, no inspector over it.
+    if (canEdit) { setSelectedIds(new Set()); closeInspector(); }
+    setShareOpen(true);
+  }
   const searchOpen = editorSel.target?.kind === "search";
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
@@ -3522,6 +3534,7 @@ export default function CanvasBoard({
           canUndo: histFlags.canUndo, canRedo: histFlags.canRedo,
           onUndo: () => runHistoryRef.current("undo"), onRedo: () => runHistoryRef.current("redo"),
           previewHref: userHandle ? `/${userHandle}` : undefined,
+          onShare: visProfiles.length ? openShare : undefined,
           undoKeys: isMacUi ? "⌘Z" : "Ctrl+Z", redoKeys: isMacUi ? "⇧⌘Z" : "Ctrl+Y",
           compact: inspLayout.mode === "sheet",
           right: UIT.ui.size.dockMargin + fabShift,
@@ -4204,6 +4217,37 @@ export default function CanvasBoard({
           <span className="mn-partpill__key"><span className="mn-partpill__kbd">esc</span> volver</span>
         </div>
       )}
+      {/* Compartir tu card (2026-11-04): on the public profile, a small
+          button; in the editor, the top bar's share button. */}
+      {!canEdit && visProfiles.length > 0 && !shareOpen && (
+        <button type="button" data-export-skip="" onClick={openShare} aria-label="Compartir esta card como historia"
+          style={{ position: "fixed", right: 16, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", zIndex: 2147481000,
+            display: "flex", alignItems: "center", gap: 8, height: 44, padding: "0 16px", borderRadius: 999,
+            border: "1px solid rgba(255,255,255,0.18)", background: "rgba(14,14,18,0.6)", color: "#fff",
+            backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+            font: "600 14px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" />
+          </svg>
+          Compartir
+        </button>
+      )}
+      {shareOpen && visProfiles[0] && (() => {
+        const prof = visProfiles[0];
+        const fx = getProfileCardEffects(prof);
+        return (
+          <ShareCardDialog
+            onClose={() => setShareOpen(false)}
+            getCard={() => document.querySelector<HTMLElement>(`[data-profile-card][data-card-id="${prof.id}"]`) ?? document.querySelector<HTMLElement>("[data-profile-card]")}
+            returnFocusTo={() => shareReturnRef.current}
+            scene={{
+              fx, radius: fx.border?.radius ?? prof.borderRadius ?? 20, lightCard: cardIsLight(prof, fx),
+              handle: prof.handle || userHandle,
+              bg: { color: bgColor, image: wallpaper || undefined, brightness: wallpaperBrightness },
+            }}
+          />
+        );
+      })()}
       {inspectorEnabled && (canInteract || roomShown) && (
         <EditorHost
           target={editorSel.target}
@@ -4420,7 +4464,7 @@ export default function CanvasBoard({
       )}
 
       {/* ── Beta notice + "Reportar un error" (BetaBits.tsx) ── */}
-      {railShown && <EditorBeta />}
+      {railShown && <EditorBeta dockOpen={inspectorShown && !sheetMode} />}
 
       {/* ── First-visit tour (only where the editor's rail is: computers) ── */}
       {tourStep && railShown && (

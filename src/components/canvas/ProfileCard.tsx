@@ -35,6 +35,7 @@ import { withOpacity, resolveCardColors, cardIsLight, cardBaseColor } from "@/li
 import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveTextEffectStyle, resolveLetterEffectStyle, roleFxOnly, anyTextGlowPulse } from "@/lib/textEffects";
 import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
+import { entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT } from "@/lib/cardFoil";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 import { PART_ATTR, PART_CLICK_SLOP, partFromTarget, movedBeyondSlop, type PartClick, type PartRole } from "@/lib/partNavigation";
 import type { ObjectId } from "@/lib/inspectorObjects";
@@ -355,10 +356,33 @@ function ProfileCard({
   const { onMouseMove: onInteractMove, onMouseEnter: onInteractEnter, onMouseLeave: onInteractLeave } = interactions;
   // Public view on a phone (2026-10-28): the finger and the phone's own tilt
   // drive the same effects as the cursor — only those the card has turned on.
-  const touchFx = !canInteract && (interactions.tiltOn
+  const touchFx = !canInteract && (interactions.tiltOn || interactions.lightOn
     || !!effectiveEffects.interactions?.spotlight || !!effectiveEffects.interactions?.hoverGlow
     || (effectiveEffects.interactions?.hoverScale ?? 1) !== 1);
-  useGyroTilt(!canInteract && interactions.tiltOn, interactions);
+  useGyroTilt(!canInteract && (interactions.tiltOn || interactions.lightOn), interactions);
+
+  // Entrada (2026-11-04, cardFoil.ts): the card's own entrance on the public
+  // profile (replaces the default reveal); in the editor, "Ver entrada"
+  // replays it once.
+  const ENTER_DELAY_MS = 80;
+  const [entrancePreview, setEntrancePreview] = useState(0);
+  useEffect(() => {
+    if (!canInteract) return;
+    // Back to 0 first, so a second "Ver entrada" restarts the animation.
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const on = () => { setEntrancePreview(0); clearTimeout(t); t = setTimeout(() => setEntrancePreview(Date.now()), 40); };
+    window.addEventListener(ENTRANCE_PREVIEW_EVENT, on);
+    return () => { window.removeEventListener(ENTRANCE_PREVIEW_EVENT, on); clearTimeout(t); };
+  }, [canInteract]);
+  useEffect(() => {
+    if (!entrancePreview) return;
+    const t = setTimeout(() => setEntrancePreview(0), (entranceDuration(effectiveEffects) + 1.6) * 1000 + 200);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entrancePreview]);
+  const entering = !canInteract || entrancePreview > 0;
+  const ownEntrance = entering ? entranceAnimation(effectiveEffects, ENTER_DELAY_MS) : undefined;
+  useFoilKeyframes(!!ownEntrance);
   // Block 1 (panel <-> card pointer isolation): the config menu is portaled
   // to document.body from INSIDE this card's JSX, so React bubbles the
   // panel's mousemove/mouseover up to the handlers below (fiber tree, not
@@ -1180,6 +1204,7 @@ function ProfileCard({
       <div
         ref={cardRef}
         data-profile-card=""
+        data-card-id={card.id}
         onMouseDown={menuOpen ? e => e.stopPropagation() : onMouseDown}
         onMouseDownCapture={e => { partDownRef.current = { x: e.clientX, y: e.clientY, wasSelected: isSel }; }}
         onClick={e => {
@@ -1208,10 +1233,12 @@ function ProfileCard({
           willChange: "transform", userSelect: "none",
           cursor: draggingId === card.id ? "grabbing" : menuOpen ? "default" : "grab",
           ...entryAnimStyle,
+          ...(ownEntrance ? { animation: ownEntrance } : {}),
         }}
       >
         <CardLayers
           cardId={card.id} effects={layerEffects} isSel={isSel}
+          entering={entering} enterDelayMs={ENTER_DELAY_MS} lightCard={isLight}
           borderRadius={rad}
           back={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="back" />}
           front={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="front" />}
