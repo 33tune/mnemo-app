@@ -374,8 +374,11 @@ planeado acá hasta confirmarlo.
 >     efectos más destacables (no genéricos)** — no arrancar nada de esto sin su OK sobre la lista final.
 >     **Lista que va armando el usuario (2026-11-04):** SÍ: Reflejo (ya existe), Holo de verdad, **Relieve en los
 >     textos** (nombre/textos grabados, tipo Ultimate Rare de Yu-Gi-Oh, la luz se mueve sobre el relieve), **Fantasma**
->     (card pálida/plateada tipo holograma, brillo solo en los bordes, tipo Ghost Rare). NO: Frame Break. Sigue
->     buscando más ideas antes de implementar.
+>     (card pálida/plateada tipo holograma, brillo solo en los bordes, tipo Ghost Rare), **Imagen lenticular** (2–3
+>     fotos que cambian al inclinar, mouse o giroscopio), **Acabados de figuritas** dentro del Holo de verdad (Hielo
+>     quebrado / Cracked Ice, Refractor, Mojo). NO: Frame Break. Lo demás propuesto (paralelos numerados 1/1, autógrafo,
+>     estuche de coleccionista, revelado tipo sobre, desarmar/armar, quemar y aparecer, visitante premiado, etc.) no fue
+>     elegido todavía. Implementar solo con su OK.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
