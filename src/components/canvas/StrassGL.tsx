@@ -12,6 +12,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { CardEffects } from "@/types";
 import { STRASS_COLORS } from "@/lib/cardFoil";
+import { exportActive, onExportFrame } from "@/lib/export/exportClock";
 
 type Strass = NonNullable<CardEffects["strass"]>;
 
@@ -123,7 +124,7 @@ export default function StrassGL({ w, h, pts, size, color, fallback }: {
         const read = (el: HTMLElement | null, n: string, d: number) => { const v = parseFloat(el?.style.getPropertyValue(n) ?? ""); return isFinite(v) ? v : d; };
         const tick = (now = 0) => {
           raf = requestAnimationFrame(tick);
-          if (document.hidden || now - last < minGap) return;
+          if (document.hidden || exportActive() || now - last < minGap) return;
           const lx = read(host, "--lx", 0.38), ly = read(host, "--ly", 0.28);
           const tx = read(card, "--tilt-x", 0), ty = read(card, "--tilt-y", 0);
           if (Math.abs(lx - lastX) < 0.002 && Math.abs(ly - lastY) < 0.002 && Math.abs(tx - lastTx) < 0.02 && Math.abs(ty - lastTy) < 0.02) return;
@@ -131,7 +132,15 @@ export default function StrassGL({ w, h, pts, size, color, fallback }: {
           draw(lx, ly, tx, ty);
         };
         tick();
+        // Story capture: drawn now, at the frame's light (exportClock.ts).
+        const offExport = onExportFrame(() => {
+          const lx = read(host, "--lx", 0.38), ly = read(host, "--ly", 0.28);
+          const tx = read(card, "--tilt-x", 0), ty = read(card, "--tilt-y", 0);
+          lastX = lx; lastY = ly; lastTx = tx; lastTy = ty;
+          draw(lx, ly, tx, ty);
+        });
         cleanup = () => {
+          offExport();
           cancelAnimationFrame(raf);
           geo.dispose(); mat.dispose(); shadowGeo.dispose(); shadowMat.dispose(); shadowTex.dispose(); env.dispose(); pmrem.dispose(); renderer.dispose();
         };

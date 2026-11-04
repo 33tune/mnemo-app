@@ -1,53 +1,68 @@
 "use client";
 /**
- * "Compartir tu card" (2026-11-04, user request): the card as an Instagram
- * story — a still image or a short animated video (storyRender.ts) — shared
- * from the phone's share sheet, or downloaded on a computer. Opened from the
- * editor's top bar and from the public profile's "Compartir" button.
- * Self-styled (it also lives on the public profile, outside the editor).
+ * "Compartir tu card" (2026-11-04, user request; redone the same day): the
+ * public profile as a phone shows it, as an Instagram story — a PNG still (a
+ * screenshot) or a 5 s video (a screen recording, frame by frame) — shared
+ * from the phone's share sheet, or downloaded on a computer (storyRender.ts,
+ * cardSnapshot.ts). Opened from the editor's top bar and from the public
+ * profile's "Compartir" button. Self-styled (it also lives on the public
+ * profile, outside the editor).
  */
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { snapshotCard, loadImage, sceneFrom, type SceneInput } from "@/lib/export/cardSnapshot";
-import { drawStoryFrame, STORY_W, STORY_H, STORY_SECONDS, type StoryScene } from "@/lib/export/storyRender";
-import { storyImage, storyVideo, shareOrDownload } from "@/lib/export/encodeStory";
+import { startCapture, loadImage, cardRoomRect } from "@/lib/export/cardSnapshot";
+import { storyView, storyBackground, drawStoryFrame, STORY_W, STORY_H, STORY_FPS, type StoryView } from "@/lib/export/storyRender";
+import { storyVideo, shareOrDownload, canvasToBlob } from "@/lib/export/encodeStory";
+import { cardViewRect } from "@/lib/mobileFit";
+import type { ProfileCardData } from "@/types";
 
 export interface ShareCardDialogProps {
   onClose: () => void;
   /** The card's DOM element ([data-profile-card]). */
   getCard: () => HTMLElement | null;
-  scene: Omit<SceneInput, "bg" | "logo"> & { bg: { color: string; image?: string; brightness?: number } };
+  /** The card's data (its place in the room and its stickers). */
+  card: Pick<ProfileCardData, "x" | "y" | "w" | "h" | "stickers">;
+  handle: string;
+  /** The room's background, as Tu sala › Fondo sets it. */
+  bg: { color: string; image?: string; blur?: number; brightness?: number; vignette?: number };
   /** Where focus returns. */
   returnFocusTo?: () => HTMLElement | null;
 }
 
 type Busy = null | { what: "image" | "video"; progress: number };
+type Ready = { el: HTMLElement; view: StoryView; background: HTMLCanvasElement; still: HTMLCanvasElement };
 
 const isPhone = () => typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-export default function ShareCardDialog({ onClose, getCard, scene: input, returnFocusTo }: ShareCardDialogProps) {
+export default function ShareCardDialog({ onClose, getCard, card, handle, bg, returnFocusTo }: ShareCardDialogProps) {
   const previewRef = useRef<HTMLCanvasElement>(null);
   const firstBtn = useRef<HTMLButtonElement>(null);
-  const [scene, setScene] = useState<StoryScene | null>(null);
+  const [ready, setReady] = useState<Ready | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [note, setNote] = useState<string | null>(null);
   const phone = isPhone();
 
-  // Build the scene once: the card's snapshot, the room's wallpaper, the logo.
+  // The story's phone view of the card, its background and the still (a
+  // screenshot of that view), once.
   useEffect(() => {
     let alive = true;
     const t = setTimeout(async () => {
       try {
         const el = getCard();
         if (!el) throw new Error("no card");
-        const [snap, bgImg, logo] = await Promise.all([snapshotCard(el), loadImage(input.bg.image ?? ""), loadImage("/logo.png")]);
-        if (!alive) return;
-        setScene(sceneFrom(snap, {
-          ...input,
-          bg: { color: input.bg.color, image: bgImg, imageW: bgImg?.naturalWidth, imageH: bgImg?.naturalHeight, brightness: input.bg.brightness },
-          logo,
-        }));
+        // The card where it is really drawn (with its stickers), not its stored x / y.
+        const at = cardRoomRect(el);
+        const view = storyView(cardViewRect({ ...card, x: at.x, y: at.y, w: at.w }, at.h));
+        const img = await loadImage(bg.image ?? "");
+        const background = storyBackground({ color: bg.color, image: img, imageW: img?.naturalWidth, imageH: img?.naturalHeight, blur: bg.blur, brightness: bg.brightness, vignette: bg.vignette }, view);
+        const cap = await startCapture(el, view.region, view.ratio);
+        let first: Awaited<ReturnType<typeof cap.frame>>;
+        try { first = await cap.frame(0); } finally { cap.done(); }
+        const still = document.createElement("canvas");
+        still.width = STORY_W; still.height = STORY_H;
+        drawStoryFrame(still.getContext("2d")!, background, first.shot, first.glass);
+        if (alive) setReady({ el, view, background, still });
       } catch {
         if (alive) setError("No pudimos armar la imagen de tu card. Probá de nuevo.");
       }
@@ -56,21 +71,11 @@ export default function ShareCardDialog({ onClose, getCard, scene: input, return
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Live preview, looping.
+  // Preview = the still.
   useEffect(() => {
-    if (!scene || !previewRef.current) return;
-    const ctx = previewRef.current.getContext("2d")!;
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    let raf = 0;
-    const t0 = performance.now();
-    const tick = () => {
-      const t = reduce ? STORY_SECONDS * 0.86 : ((performance.now() - t0) / 1000) % STORY_SECONDS;
-      drawStoryFrame(ctx, scene, t);
-      if (!reduce) raf = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(raf);
-  }, [scene]);
+    if (!ready || !previewRef.current) return;
+    previewRef.current.getContext("2d")!.drawImage(ready.still, 0, 0);
+  }, [ready]);
 
   // Focus in, Esc out, focus back.
   useEffect(() => {
@@ -80,31 +85,46 @@ export default function ShareCardDialog({ onClose, getCard, scene: input, return
     return () => window.removeEventListener("keydown", onKey, true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const busyRef = useRef(false);
+  busyRef.current = !!busy;
   const close = () => {
-    if (busy) return;
+    if (busyRef.current) return;
     onClose();
     requestAnimationFrame(() => returnFocusTo?.()?.focus({ preventScroll: true }));
   };
 
-  const fileBase = `myland-${input.handle || "card"}`;
+  const fileBase = `myland-${handle || "card"}`;
   async function doImage() {
-    if (!scene || busy) return;
+    if (!ready || busy) return;
     setBusy({ what: "image", progress: 0 }); setNote(null);
     try {
-      const blob = await storyImage(scene);
-      const r = await shareOrDownload(blob, `${fileBase}.jpg`, "Mi card de myLand");
+      const blob = await canvasToBlob(ready.still, "image/png");
+      const r = await shareOrDownload(blob, `${fileBase}.png`, "Mi card de myLand");
       if (r === "downloaded") setNote("Imagen guardada. Subila como historia desde tu celular.");
     } catch { setNote("No se pudo crear la imagen."); }
     setBusy(null);
   }
   async function doVideo() {
-    if (!scene || busy) return;
-    setBusy({ what: "video", progress: 0 }); setNote(null);
+    if (!ready || busy) return;
+    setBusy({ what: "video", progress: 0 }); setNote("Grabando tu card cuadro por cuadro. Puede tardar un minuto: no cierres esta ventana.");
+    let cap: Awaited<ReturnType<typeof startCapture>> | null = null;
     try {
-      const v = await storyVideo(scene, p => setBusy({ what: "video", progress: p }));
+      cap = await startCapture(ready.el, ready.view.region, ready.view.ratio);
+      const c = cap;
+      const preview = previewRef.current?.getContext("2d");
+      const v = await storyVideo(async (ctx, i) => {
+        const f = await c.frame(i / STORY_FPS);
+        drawStoryFrame(ctx, ready.background, f.shot, f.glass);
+        // The preview shows what is being recorded.
+        if (preview && i % 3 === 0) preview.drawImage(ctx.canvas, 0, 0);
+      }, p => setBusy({ what: "video", progress: p }));
+      c.done(); cap = null;
+      setNote(null);
+      previewRef.current?.getContext("2d")!.drawImage(ready.still, 0, 0);
       const r = await shareOrDownload(v.blob, `${fileBase}.${v.ext}`, "Mi card de myLand");
       if (r === "downloaded") setNote(v.ext === "mp4" ? "Video guardado. Subilo como historia desde tu celular." : "Video guardado (WebM). Si Instagram no lo acepta, probá desde Chrome o Safari.");
     } catch { setNote("No se pudo crear el video en este navegador. Probá con la imagen."); }
+    cap?.done();
     setBusy(null);
   }
 
@@ -112,8 +132,8 @@ export default function ShareCardDialog({ onClose, getCard, scene: input, return
   const btn = (primary: boolean): React.CSSProperties => ({
     flex: 1, minHeight: 48, borderRadius: 999, border: primary ? "none" : "1px solid rgba(255,255,255,0.18)",
     background: primary ? "#ffffff" : "rgba(255,255,255,0.08)", color: primary ? "#0b0b0e" : "#ffffff",
-    font: "600 15px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", cursor: scene && !busy ? "pointer" : "default",
-    opacity: scene && !busy ? 1 : 0.55, padding: "0 16px",
+    font: "600 15px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", cursor: ready && !busy ? "pointer" : "default",
+    opacity: ready && !busy ? 1 : 0.55, padding: "0 16px",
   });
 
   if (typeof document === "undefined") return null;
@@ -135,7 +155,7 @@ export default function ShareCardDialog({ onClose, getCard, scene: input, return
         <div style={{ position: "relative", alignSelf: "center", width: "min(250px, 62vw)", aspectRatio: `${STORY_W} / ${STORY_H}`, borderRadius: 18, overflow: "hidden", background: "#0b0b0e" }}>
           <canvas ref={previewRef} width={STORY_W} height={STORY_H} role="img" aria-label="Vista previa de la historia"
             style={{ width: "100%", height: "100%", display: "block" }} />
-          {!scene && (
+          {!ready && (
             <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "rgba(255,255,255,0.7)", fontSize: 14, textAlign: "center", padding: 16 }}>
               {error ?? "Preparando tu card…"}
             </div>
@@ -145,10 +165,10 @@ export default function ShareCardDialog({ onClose, getCard, scene: input, return
           {phone ? "Elegí Instagram › Historia en el menú de compartir." : "Bajala y subila como historia desde tu celular."}
         </p>
         <div style={{ display: "flex", gap: 10 }}>
-          <button ref={firstBtn} type="button" style={btn(true)} aria-disabled={!scene || !!busy || undefined} onClick={doVideo}>
-            {busy?.what === "video" ? `Armando… ${Math.round(busy.progress * 100)}%` : `${verb} video`}
+          <button ref={firstBtn} type="button" style={btn(true)} aria-disabled={!ready || !!busy || undefined} onClick={doVideo}>
+            {busy?.what === "video" ? `Grabando… ${Math.round(busy.progress * 100)}%` : `${verb} video`}
           </button>
-          <button type="button" style={btn(false)} aria-disabled={!scene || !!busy || undefined} onClick={doImage}>
+          <button type="button" style={btn(false)} aria-disabled={!ready || !!busy || undefined} onClick={doImage}>
             {busy?.what === "image" ? "Armando…" : "Imagen"}
           </button>
         </div>

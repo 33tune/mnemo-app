@@ -1,32 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { storyFrameParams, storyCardScale, STORY_CARD_BOX, STORY_SECONDS, STILL_T, STORY_FRAMES, STORY_FPS } from "./storyRender";
+import { storyView, STORY_VIEW_W, STORY_VIEW_H, STORY_DPR, STORY_W, STORY_H, STORY_FRAMES, STORY_FPS, STORY_SECONDS } from "./storyRender";
+import { mobileView, MOBILE_GUTTER } from "@/lib/mobileFit";
 
-test("the card comes in, then turns gently; frames are deterministic", () => {
-  const a = storyFrameParams(0), b = storyFrameParams(0.8), c = storyFrameParams(3);
-  assert.equal(a.intro, 0);
-  assert.equal(b.intro, 1);
-  assert.equal(a.rotY, 0, "no turn while entering");
-  assert.ok(Math.abs(c.rotY) <= 11 && Math.abs(c.rotX) <= 4);
-  assert.deepEqual(storyFrameParams(2.3), storyFrameParams(2.3));
-  for (let i = 0; i <= 60; i++) {
-    const f = storyFrameParams(i / 10);
-    assert.ok(f.lx >= 0 && f.lx <= 1 && f.ly >= 0 && f.ly <= 1, `light inside the card at ${i / 10}s`);
+test("the story is the phone view: same scale and place as mobileView", () => {
+  for (const card of [{ x: 1000, y: 500, w: 320, h: 440 }, { x: 80, y: 60, w: 600, h: 900 }, { x: 0, y: 0, w: 240, h: 220 }]) {
+    const v = storyView(card), m = mobileView(STORY_VIEW_W, STORY_VIEW_H, card);
+    assert.equal(v.s, m.s);
+    // The region is what the phone screen shows, at full story resolution.
+    assert.ok(Math.abs(v.region.w * v.ratio - STORY_W) < 1e-6 && Math.abs(v.region.h * v.ratio - STORY_H) < 1e-6);
+    // The card lands where the phone draws it, inside the gutter.
+    const left = (card.x - v.region.x) * v.s;
+    assert.ok(left >= MOBILE_GUTTER - 1e-6 && left + card.w * v.s <= STORY_VIEW_W - MOBILE_GUTTER + 1e-6);
   }
-});
-
-test("one light sweep, after the entrance", () => {
-  assert.equal(storyFrameParams(0.5).sweep, -1);
-  assert.ok(storyFrameParams(1.4).sweep > 0);
-  assert.equal(storyFrameParams(3).sweep, -1);
-});
-
-test("the card fits the story box; the still is inside the video", () => {
-  for (const [w, h] of [[240, 220], [400, 600], [640, 900], [300, 1200]]) {
-    const s = storyCardScale(w, h);
-    assert.ok(w * s <= STORY_CARD_BOX.w + 1e-6 && h * s <= STORY_CARD_BOX.h + 1e-6);
-  }
-  assert.ok(STILL_T > 0 && STILL_T < STORY_SECONDS);
+  assert.ok(Math.abs(STORY_VIEW_W / STORY_VIEW_H - 9 / 16) < 1e-9);
+  assert.ok(Math.abs(STORY_DPR * STORY_VIEW_W - STORY_W) < 1e-9);
   assert.equal(STORY_FRAMES, STORY_FPS * STORY_SECONDS);
 });
 
@@ -36,4 +24,22 @@ test("box-shadow parsing: outer vs inset, color with commas", () => {
   assert.equal(parts.length, 2);
   assert.deepEqual(parseShadow(parts[0]), { color: "rgba(255, 255, 255, 0.5)", x: 0, y: 0, blur: 24, spread: 0, inset: false });
   assert.deepEqual(parseShadow(parts[1]), { color: "rgb(0, 0, 0)", x: 2, y: 4, blur: 10, spread: 3, inset: true });
+});
+
+import { frameAt } from "./stillMedia";
+test("animated pictures: the frame for the video's time, looping", () => {
+  const f = { ends: [100, 200, 350], total: 350 };
+  assert.equal(frameAt(f, 0), 0);
+  assert.equal(frameAt(f, 0.099), 0);
+  assert.equal(frameAt(f, 0.1), 1);
+  assert.equal(frameAt(f, 0.3), 2);
+  assert.equal(frameAt(f, 0.36), 0, "loops");
+  assert.equal(frameAt({ ends: [1], total: 1 }, 3), 0);
+});
+
+import { withoutParallax } from "./cardSnapshot";
+test("capture: the mouse parallax goes, the rotation stays", () => {
+  assert.equal(withoutParallax("translate(12.4px, -10.9px) rotate(3deg)"), "rotate(3deg)");
+  assert.equal(withoutParallax("translate(0px, 0px) rotate(0deg)"), "rotate(0deg)");
+  assert.equal(withoutParallax("rotate(5deg)"), "rotate(5deg)");
 });

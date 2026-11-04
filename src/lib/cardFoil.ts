@@ -68,6 +68,10 @@ export const ENTRANCE_DEFAULT_STYLE: EntranceStyle = "rise";
 export const ENTRANCE_PREVIEW_EVENT = "mnemo:entrance-preview";
 /** Where the light rests when nobody moves it: up and to the left. */
 export const LIGHT_REST = { x: 0.38, y: 0.28 } as const;
+/** "Moverse solo": where the light drifts by itself at time `t` (s). */
+export function idleLight(t: number): { x: number; y: number } {
+  return { x: 0.5 + Math.sin(t * 0.55) * 0.34, y: 0.42 + Math.sin(t * 0.37 + 1.2) * 0.26 };
+}
 
 /** Main colors of each finish (also what the story export draws). */
 export const HOLO_PALETTES: Record<HoloStyle, string[]> = {

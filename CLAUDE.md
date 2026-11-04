@@ -438,6 +438,31 @@ planeado acá hasta confirmarlo.
 >       exteriores de las capas del tamaño de la card se sacan de la foto y se dibujan en un canvas debajo (solo afuera de
 >       la card, como CSS; `splitShadowList`/`parseShadow` con test) y cada canvas pasa a un `<img>` quieto durante la foto.
 >       Verificado con WebKitGTK (MiniBrowser por WebDriver, UA de iPhone) — mismo motor que Safari.
+>   - **Historia = captura / grabación de la vista del celular (2026-11-04, pedido del usuario: "siempre pone el mismo
+>     efecto, se ve zoomeado, en mala calidad; debería verse igual que la vista mobile, como una captura y una grabación de
+>     pantalla; NO crear efectos nuevos").** REEMPLAZA lo de arriba sobre la historia (card entrando, girando, holo/reflejo
+>     dibujados aparte, viñeta, pastilla `myland.lol/…`): todo eso se borró.
+>     - `storyRender.ts`: la historia es un celular de 390 CSS px en 9:16 a 1080×1920 (≈2,77 px por px). Misma cuenta que
+>       el perfil público (`mobileView`): la card con sus stickers al tamaño y lugar del celular; el fondo de la sala como lo
+>       pone la vista pública (wallpaper atado a la sala, a la escala de la vista, con el desenfoque / brillo / viñeta del
+>       dueño). Imagen = PNG (una captura).
+>     - `cardSnapshot.ts` › `startCapture`: foto (html-to-image) de la región de la sala que muestra ese celular — la card
+>       real + las imágenes / textos que la tocan — a resolución completa; holo, reflejo, glitter y strass salen como en
+>       pantalla. El vidrio (`backdrop-filter`) se dibuja aparte (la foto SVG no ve lo de atrás: salía un panel blanco) y las
+>       sombras exteriores también (WebKit); ambos siguen a la card si flota.
+>     - **Video = grabación cuadro a cuadro** (5 s, 30 fps, 14 Mbps): las animaciones CSS de la card se pausan y se ponen en
+>       el tiempo de cada cuadro (Web Animations), y lo que mueve JS (luz que se mueve sola, glitter, strass) lo pone
+>       `exportClock.ts` (`onExportFrame`, fases "light" → "paint"). Durante la captura no hay inclinación ni dedo/mouse/
+>       giroscopio: la card en reposo, haciendo solo lo que hace sola. Una card sin nada que se mueva reutiliza el cuadro.
+>     - `stillMedia.ts`: cada `<img>` y cada imagen de fondo CSS pasa, durante la captura, a un data URL chico al tamaño en
+>       que se ve (JPEG si no tiene transparencia, si no WebP/PNG); los GIF / WebP animados se decodifican cuadro por cuadro
+>       (`ImageDecoder`, donde exista) y el video muestra el cuadro que corresponde (antes el fondo GIF de 7 MB de `zaid` se
+>       re-decodificaba en cada cuadro y quedaba quieto). Sin `ImageDecoder`, quedan quietos.
+>     - Sin WebCodecs H.264, los cuadros se hacen primero (JPEG) y se reproducen en un MediaRecorder.
+>     - En el editor, el paralaje del mouse (translate delante del `rotate` de cada elemento) se saca durante la captura
+>       (`withoutParallax`): antes la card salía corrida.
+>     - Medido en la máquina de pruebas (4 núcleos, sin GPU, sin H.264 en WebCodecs → camino MediaRecorder): imagen ~5–6 s,
+>       video 5 s de `zaid` ~72 s y de `nico` ~90 s. En un celular / compu real debería ser menos; sin QA en iPhone real.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

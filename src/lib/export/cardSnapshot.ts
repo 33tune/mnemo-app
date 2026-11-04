@@ -1,22 +1,22 @@
 /**
- * One picture of the real card (DOM → canvas, html-to-image), for the story
- * export (storyRender.ts). Without its holo / glare layers (drawn per frame
- * by the export) and without the editor's chrome; at rest (no parallax,
- * rotation or entrance), with room around it for stickers and glow.
+ * The capture behind the story (storyRender.ts): a picture of the part of the
+ * room a phone shows — the real card, plus the room's images and free texts
+ * that touch it, nothing else (no wallpaper, grid or editor chrome) — at the
+ * story's full resolution, like a screenshot. The card's holo / glare /
+ * glitter / strass are in it as they are on screen.
+ *
+ * A capture session (`startCapture`) can take many frames: the card's CSS
+ * animations are paused and set to each frame's time (Web Animations), and
+ * its JS-driven motion is put at that time by the export clock
+ * (exportClock.ts). Everything is restored at `done()`.
  */
-import type { StoryScene } from "./storyRender";
-import { STORY_CARD_BOX } from "./storyRender";
-
-export interface CardSnapshot {
-  canvas: HTMLCanvasElement;
-  cardW: number;
-  cardH: number;
-  pad: number;
-}
+import { setExportFrame, endExport } from "./exportClock";
+import { STORY_SECONDS, type Rect } from "./storyRender";
+import { stillMedia } from "./stillMedia";
 
 /** Safari (every browser on an iPhone) decodes the pictures inside the SVG
  * snapshot only on a second draw: the first one comes out without images
- * (stickers, photos) and without the strass canvas. */
+ * (stickers, photos) and without the canvases. */
 function isWebKit(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
@@ -26,94 +26,162 @@ function isWebKit(): boolean {
 const ROOM_EL = "[data-room-el]";
 const touches = (a: DOMRect, b: DOMRect) => a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom;
 
-export async function snapshotCard(el: HTMLElement): Promise<CardSnapshot> {
-  const { toCanvas } = await import("html-to-image");
-  const cardW = el.offsetWidth, cardH = el.offsetHeight;
-  // Stickers may stick out 25 % on each side; glows and shadows too.
-  const pad = Math.round(Math.max(cardW, cardH) * 0.3);
-  const scale = Math.min(STORY_CARD_BOX.w / cardW, STORY_CARD_BOX.h / cardH, 4);
-  const ratio = Math.max(1, Math.min(3, scale));
+/** A see-through card's frosted glass (backdrop-filter), in picture px: the
+ * SVG picture cannot see what is behind the card (it drew a white panel), so
+ * the story draws it — the room's background, filtered, inside the card. */
+export interface Backdrop { x: number; y: number; w: number; h: number; r: number; filter: string; alpha: number }
 
-  // The room's images / free texts that touch the card go in the picture too
-  // (on a phone they are drawn around it, and they are part of the look).
-  const root = el.parentElement;
-  const cardRect = el.getBoundingClientRect();
-  const extras = root && el.offsetParent === root
-    ? [...root.querySelectorAll<HTMLElement>(`:scope > ${ROOM_EL}`)].filter(n => touches(n.getBoundingClientRect(), cardRect))
-    : [];
-  const withRoom = extras.length > 0 && !!root;
-  const subjects = [el, ...extras];
-
-  // Big GIFs / photos inside an SVG snapshot fail to draw (multi-MB data
-  // URLs): each <img> becomes, just for the snapshot, a still at the size
-  // it is shown. Animations are frozen at the current frame (an SVG picture
-  // would show them at their first frame: glitter invisible, entrance
-  // offsets). Everything is restored right after (the dialog covers the page).
-  const undo: (() => void)[] = [];
-  for (const s of subjects) undo.push(await stillImages(s, ratio), await stillCanvases(s), freezeAnimations(s));
-  // The card's own outer glow / shadow: WebKit (every iPhone browser) draws a
-  // big box-shadow inside the SVG snapshot as a hard, shifted rectangle. They
-  // are taken out of the picture and drawn here on a canvas, the same on any
-  // browser (the inset ones, inside the card, stay in the picture).
-  const outer = takeOuterShadows(el, cardRect, undo);
-  const common = {
-    pixelRatio: ratio,
-    width: cardW + pad * 2,
-    height: cardH + pad * 2,
-    cacheBust: false,
-  };
-  const skip = (node: Node) => {
-    if (!(node instanceof HTMLElement)) return true;
-    if (node.dataset?.fx === "holo" || node.dataset?.fx === "glare") return false;
-    if (node.hasAttribute("data-mnemo-chrome") || node.hasAttribute("data-export-skip")) return false;
-    return true;
-  };
-  const shoot = () => withRoom
-    ? toCanvas(root!, {
-        ...common,
-        // The room, shifted so the card sits `pad` in from the corner; only
-        // the card and what touches it (no wallpaper, grid or chrome).
-        style: {
-          position: "absolute", left: "0", top: "0", margin: "0",
-          insetInlineStart: "0", insetBlockStart: "0", insetInlineEnd: "auto", insetBlockEnd: "auto",
-          width: `${root!.offsetWidth}px`, height: `${root!.offsetHeight}px`,
-          inlineSize: `${root!.offsetWidth}px`, blockSize: `${root!.offsetHeight}px`,
-          transform: `translate(${pad - el.offsetLeft}px, ${pad - el.offsetTop}px)`, transformOrigin: "0 0",
-          translate: "none", scale: "none", rotate: "none", animation: "none",
-          background: "transparent", backgroundImage: "none", backgroundColor: "transparent",
-          filter: "none", overflow: "visible", clipPath: "none",
-        } as Partial<CSSStyleDeclaration>,
-        filter: node => {
-          if (node instanceof HTMLElement && node.parentElement === root) return subjects.includes(node);
-          return skip(node);
-        },
-      })
-    : toCanvas(el, {
-        ...common,
-        // html-to-image sizes the node itself to width / height: the card keeps
-        // its own size here and sits `pad` in from the corner.
-        style: {
-          // The clone carries every computed property, the logical insets too
-          // (they come later and would win over left / top): set both.
-          position: "absolute", left: `${pad}px`, top: `${pad}px`, margin: "0",
-          insetInlineStart: `${pad}px`, insetBlockStart: `${pad}px`, insetInlineEnd: "auto", insetBlockEnd: "auto",
-          width: `${cardW}px`, height: `${cardH}px`, inlineSize: `${cardW}px`, blockSize: `${cardH}px`,
-          transform: "none", translate: "none", scale: "none", rotate: "none", animation: "none",
-        } as Partial<CSSStyleDeclaration>,
-        filter: skip,
-      });
-  let shot: HTMLCanvasElement;
-  try {
-    if (isWebKit()) await shoot().catch(() => null);
-    shot = await shoot();
-  } finally {
-    undo.forEach(u => u());
-  }
-  const canvas = outer.shadows.length ? withShadows(shot, outer, { cardW, cardH, pad, ratio }) : shot;
-  return { canvas, cardW, cardH, pad };
+export interface Frame {
+  /** The picture: region × ratio px. */
+  shot: HTMLCanvasElement;
+  /** The card's frosted glass, where it is in this frame. */
+  glass: Backdrop[];
 }
 
-type OuterShadow = { color: string; x: number; y: number; blur: number; spread: number; alpha: number };
+/** Where the card element really is in the room (room px; the view may be
+ * scaled or moved, and the editor may draw it apart from its stored x / y). */
+export function cardRoomRect(el: HTMLElement): Rect {
+  const root = el.parentElement!;
+  const cardRect = el.getBoundingClientRect(), rootRect = root.getBoundingClientRect();
+  const k = rootRect.width / (root.offsetWidth || rootRect.width) || 1;
+  return {
+    x: el.offsetParent === root ? el.offsetLeft : (cardRect.left - rootRect.left) / k,
+    y: el.offsetParent === root ? el.offsetTop : (cardRect.top - rootRect.top) / k,
+    w: el.offsetWidth,
+    h: el.offsetHeight,
+  };
+}
+
+export interface Capture {
+  /** The frame at time `t` (s since the capture began). */
+  frame(t: number): Promise<Frame>;
+  /** Restores the page. */
+  done(): void;
+}
+
+/**
+ * `region` = the room rectangle to picture (room px), `ratio` = output px per
+ * room px. The card element is `[data-profile-card]`, a child of the room.
+ */
+export async function startCapture(el: HTMLElement, region: Rect, ratio: number): Promise<Capture> {
+  const { toCanvas, getFontEmbedCSS } = await import("html-to-image");
+  const root = el.parentElement!;
+  const cardRect = el.getBoundingClientRect();
+  // The room's images / free texts that touch the card (the phone draws them).
+  const extras = el.offsetParent === root
+    ? [...root.querySelectorAll<HTMLElement>(`:scope > ${ROOM_EL}`)].filter(n => touches(n.getBoundingClientRect(), cardRect))
+    : [];
+  const subjects = [el, ...extras];
+  const { x: cardX, y: cardY, w: cardW, h: cardH } = cardRoomRect(el);
+
+  const undo: (() => void)[] = [];
+  const restore = () => { while (undo.length) undo.pop()!(); };
+  try {
+    // Every picture at the size it is shown in the story (animated ones frame
+    // by frame), as small data URLs: stillMedia.ts.
+    const media = await stillMedia(subjects, ratio, STORY_SECONDS);
+    undo.push(() => media.undo());
+    // Transitions still running (the editor's panel closing, a hover
+    // ending) end now: the picture is the card at rest, not halfway.
+    const isTransition = (a: Animation) => typeof CSSTransition !== "undefined" && a instanceof CSSTransition;
+    for (const sub of [root, ...subjects]) {
+      for (const a of sub.getAnimations?.({ subtree: sub !== root }) ?? []) if (isTransition(a)) { try { a.finish(); } catch { /* gone */ } }
+    }
+    // The card's own animations: paused, then set to each frame's time.
+    const anims = subjects.flatMap(sub => sub.getAnimations?.({ subtree: true }) ?? []).filter(a => !isTransition(a));
+    const running = anims.map(a => a.playState === "running");
+    const base = anims.map(a => { a.pause(); return Number(a.currentTime ?? 0); });
+    undo.push(() => anims.forEach((a, i) => { try { if (running[i]) a.play(); } catch { /* gone */ } }));
+    undo.push(endExport);
+    const animated = animatedElements(anims);
+    const glassLayers = takeBackdrops(el, ratio, undo);
+    const glassNow = (): Backdrop[] => {
+      const cr = el.getBoundingClientRect();
+      const kk = cr.width / (cardW || cr.width) || 1;
+      return glassLayers.map(gl => {
+        const rr = gl.el.getBoundingClientRect();
+        return {
+          x: (cardX - region.x + (rr.left - cr.left) / kk) * ratio, y: (cardY - region.y + (rr.top - cr.top) / kk) * ratio,
+          w: cardW * ratio, h: cardH * ratio, r: gl.r, filter: gl.filter, alpha: gl.alpha,
+        };
+      });
+    };
+    const fontEmbedCSS = await getFontEmbedCSS(root).catch(() => "");
+    let firstShot = true;
+    // A frame with nothing moving is the previous frame (no CSS animation, no
+    // canvas, the same light): it is not pictured again.
+    const lightOf = () => [...el.querySelectorAll<HTMLElement>("[data-light]")].map(n => n.style.getPropertyValue("--lx") + n.style.getPropertyValue("--ly")).join();
+    const still = anims.length === 0 && !media.animated && !subjects.some(sub => sub.querySelector("canvas"));
+    let last: { light: string; pic: Frame } | null = null;
+
+    const skip = (node: Node) => {
+      if (!(node instanceof HTMLElement)) return true;
+      if (node.hasAttribute("data-mnemo-chrome") || node.hasAttribute("data-export-skip")) return false;
+      return true;
+    };
+    const shoot = () => toCanvas(root, {
+      pixelRatio: ratio,
+      width: region.w,
+      height: region.h,
+      cacheBust: false,
+      fontEmbedCSS,
+      // The room, shifted so the region's corner is the picture's corner;
+      // only the card and what touches it.
+      style: {
+        position: "absolute", left: "0", top: "0", margin: "0",
+        insetInlineStart: "0", insetBlockStart: "0", insetInlineEnd: "auto", insetBlockEnd: "auto",
+        width: `${root.offsetWidth}px`, height: `${root.offsetHeight}px`,
+        inlineSize: `${root.offsetWidth}px`, blockSize: `${root.offsetHeight}px`,
+        transform: `translate(${-region.x}px, ${-region.y}px)`, transformOrigin: "0 0",
+        translate: "none", scale: "none", rotate: "none", animation: "none", transition: "none",
+        background: "transparent", backgroundImage: "none", backgroundColor: "transparent",
+        filter: "none", overflow: "visible", clipPath: "none",
+      } as Partial<CSSStyleDeclaration>,
+      filter: node => {
+        if (node instanceof HTMLElement && node.parentElement === root) return subjects.includes(node);
+        return skip(node);
+      },
+    });
+
+    return {
+      async frame(t: number) {
+        anims.forEach((a, i) => { try { a.currentTime = base[i] + t * 1000; } catch { /* gone */ } });
+        setExportFrame(t);
+        media.at(t);
+        const light = lightOf();
+        if (still && last && last.light === light) return last.pic;
+        const per: (() => void)[] = [];
+        try {
+          per.push(neutralParallax(subjects));
+          per.push(freezeAnimations(animated));
+          for (const sub of subjects) per.push(await stillCanvases(sub));
+          // WebKit (every iPhone browser) draws a big outer box-shadow inside
+          // the SVG snapshot as a hard, shifted rectangle: the card's own are
+          // taken out and drawn on a canvas under the picture.
+          const outer = takeOuterShadows(el, el.getBoundingClientRect(), per);
+          if (firstShot && isWebKit()) await shoot().catch(() => null);
+          firstShot = false;
+          const shot = await shoot();
+          const pic = outer.shadows.length
+            ? withShadows(shot, outer, { x: cardX - region.x, y: cardY - region.y, w: cardW, h: cardH, ratio })
+            : shot;
+          const fr = { shot: pic, glass: glassNow() };
+          last = { light, pic: fr };
+          return fr;
+        } finally {
+          while (per.length) per.pop()!();
+        }
+      },
+      done: restore,
+    };
+  } catch (e) {
+    restore();
+    throw e;
+  }
+}
+
+/** ox / oy: where the layer is now vs the card (room px) — a floating card's layers move. */
+type OuterShadow = { color: string; x: number; y: number; blur: number; spread: number; alpha: number; ox: number; oy: number };
 
 /** Splits a computed box-shadow list at the commas outside parentheses. */
 export function splitShadowList(v: string): string[] {
@@ -158,7 +226,9 @@ function takeOuterShadows(card: HTMLElement, cardRect: DOMRect, undo: (() => voi
     let alpha = 1;
     for (let n: HTMLElement | null = e; n && n !== card; n = n.parentElement) alpha *= parseFloat(getComputedStyle(n).opacity) || 0;
     if (alpha > 0.01) {
-      for (const p of parsed) if (p && !p.inset) shadows.push({ color: p.color, x: p.x, y: p.y, blur: p.blur, spread: p.spread, alpha });
+      const k = cardRect.width / (card.offsetWidth || cardRect.width) || 1;
+      const ox = (r.left - cardRect.left) / k, oy = (r.top - cardRect.top) / k;
+      for (const p of parsed) if (p && !p.inset) shadows.push({ color: p.color, x: p.x, y: p.y, blur: p.blur, spread: p.spread, alpha, ox, oy });
       radius = Math.max(radius, parseFloat(cs.borderTopLeftRadius) || 0);
     }
     const old = e.style.boxShadow;
@@ -180,11 +250,11 @@ function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: n
   ctx.closePath();
 }
 
-/** The outer shadows (outside the card only, like CSS) under the picture. */
+/** The outer shadows (outside the card only, like CSS) under the picture.
+ * `g` = the card's box in the picture (room px) and the picture's px per room px. */
 function withShadows(shot: HTMLCanvasElement, outer: { shadows: OuterShadow[]; radius: number },
-  g: { cardW: number; cardH: number; pad: number; ratio: number }): HTMLCanvasElement {
-  const W = shot.width, H = shot.height;
-  const k = W / (g.cardW + g.pad * 2);   // device px per CSS px of the picture
+  g: { x: number; y: number; w: number; h: number; ratio: number }): HTMLCanvasElement {
+  const W = shot.width, H = shot.height, k = g.ratio;
   const sh = document.createElement("canvas");
   sh.width = W; sh.height = H;
   const c = sh.getContext("2d")!;
@@ -197,36 +267,109 @@ function withShadows(shot: HTMLCanvasElement, outer: { shadows: OuterShadow[]; r
     c.shadowOffsetX = (s.x + FAR) * k;
     c.shadowOffsetY = s.y * k;
     c.fillStyle = "#000";
-    roundRectPath(c, (g.pad - s.spread - FAR) * k, (g.pad - s.spread) * k, (g.cardW + s.spread * 2) * k, (g.cardH + s.spread * 2) * k, (outer.radius + s.spread) * k);
+    roundRectPath(c, (g.x + s.ox - s.spread - FAR) * k, (g.y + s.oy - s.spread) * k, (g.w + s.spread * 2) * k, (g.h + s.spread * 2) * k, (outer.radius + s.spread) * k);
     c.fill();
     c.restore();
   }
   // CSS never paints an outer shadow under the box itself.
   c.globalCompositeOperation = "destination-out";
-  roundRectPath(c, g.pad * k, g.pad * k, g.cardW * k, g.cardH * k, outer.radius * k);
-  c.fill();
+  for (const o of new Set(outer.shadows.map(s => `${s.ox},${s.oy}`))) {
+    const [ox, oy] = o.split(",").map(Number);
+    roundRectPath(c, (g.x + ox) * k, (g.y + oy) * k, g.w * k, g.h * k, outer.radius * k);
+    c.fill();
+  }
   c.globalCompositeOperation = "source-over";
   c.drawImage(shot, 0, 0);
   return sh;
 }
 
-/** Inline-freezes every running animation under `root` (itself included) at
- * the frame it is showing; returns the undo. */
-function freezeAnimations(root: HTMLElement): () => void {
-  const els: Element[] = [root, ...root.querySelectorAll("*")];
+/** Card-sized layers with a backdrop-filter: their filter (px scaled to the
+ * picture), radius and opacity; the filter is turned off until `undo`. */
+function takeBackdrops(card: HTMLElement, ratio: number, undo: (() => void)[]): { el: HTMLElement; r: number; filter: string; alpha: number }[] {
+  const out: { el: HTMLElement; r: number; filter: string; alpha: number }[] = [];
+  const cr = card.getBoundingClientRect();
+  for (const e of [card, ...card.querySelectorAll<HTMLElement>("*")]) {
+    const cs = getComputedStyle(e) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
+    const f = cs.backdropFilter && cs.backdropFilter !== "none" ? cs.backdropFilter : cs.webkitBackdropFilter;
+    if (!f || f === "none") continue;
+    const rr = e.getBoundingClientRect();
+    if (Math.abs(rr.width - cr.width) <= 3 && Math.abs(rr.height - cr.height) <= 3) {
+      // The layer's opacity (and its parents' inside the card) fades the glass too.
+      let alpha = 1;
+      for (let n: HTMLElement | null = e; n && n !== card.parentElement; n = n.parentElement) alpha *= parseFloat(getComputedStyle(n).opacity) || 0;
+      out.push({ el: e, alpha, r: (parseFloat(cs.borderTopLeftRadius) || 0) * ratio, filter: f.replace(/(-?[\d.]+)px/g, (_, n) => `${parseFloat(n) * ratio}px`) });
+    }
+    const old = { a: e.style.backdropFilter, b: e.style.getPropertyValue("-webkit-backdrop-filter") };
+    e.style.backdropFilter = "none";
+    e.style.setProperty("-webkit-backdrop-filter", "none");
+    undo.push(() => { e.style.backdropFilter = old.a; if (old.b) e.style.setProperty("-webkit-backdrop-filter", old.b); else e.style.removeProperty("-webkit-backdrop-filter"); });
+  }
+  return out;
+}
+
+/** The mouse parallax (CanvasBoard / useParallax: a translate in front of
+ * each room element's own transform) at rest: the card and what touches it
+ * where the owner placed them, as a phone shows them. Rotation stays. */
+export function withoutParallax(transform: string): string {
+  return transform.replace(/^\s*translate(?:3d)?\([^)]*\)\s*/, "").trim();
+}
+function neutralParallax(els: HTMLElement[]): () => void {
   const undo: (() => void)[] = [];
   for (const e of els) {
-    if (!(e instanceof HTMLElement || e instanceof SVGElement)) continue;
+    const old = e.style.transform;
+    if (!old) continue;
+    const next = withoutParallax(old);
+    if (next === old) continue;
+    e.style.transform = next || "none";
+    undo.push(() => { e.style.transform = old; });
+  }
+  return () => undo.forEach(u => u());
+}
+
+/** The elements the animations run on, and the properties they animate. */
+function animatedElements(anims: Animation[]): Map<HTMLElement | SVGElement, Set<string>> {
+  const out = new Map<HTMLElement | SVGElement, Set<string>>();
+  for (const a of anims) {
+    const eff = a.effect as KeyframeEffect | null;
+    const target = eff?.target as HTMLElement | SVGElement | null | undefined;
+    if (!target) continue;
+    const props = out.get(target) ?? new Set<string>();
+    try {
+      for (const kf of eff!.getKeyframes()) {
+        for (const key of Object.keys(kf)) {
+          if (key === "offset" || key === "computedOffset" || key === "easing" || key === "composite") continue;
+          props.add(key.startsWith("--") ? key : key.replace(/[A-Z]/g, m => "-" + m.toLowerCase()));
+        }
+      }
+    } catch { /* keep what we have */ }
+    out.set(target, props);
+  }
+  return out;
+}
+
+/** Inline-freezes each animated element at the value it shows now (the SVG
+ * picture would restart its animations from their first frame); returns the
+ * undo. Every animated property is kept (background-position of a shimmer,
+ * a pulse's opacity, a letter's bounce…), then the animation is removed. */
+function freezeAnimations(animated: Map<HTMLElement | SVGElement, Set<string>>): () => void {
+  const undo: (() => void)[] = [];
+  const base = ["opacity", "transform", "translate", "scale", "rotate"];
+  for (const [e, props] of animated) {
+    if (!e.isConnected) continue;
     const cs = getComputedStyle(e);
-    if (!cs.animationName || cs.animationName === "none") continue;
-    const st = (e as HTMLElement | SVGElement).style;
-    const old = { animation: st.animation, opacity: st.opacity, transform: st.transform, translate: st.translate, scale: st.scale, rotate: st.rotate };
-    const now = { opacity: cs.opacity, transform: cs.transform, translate: cs.translate, scale: cs.scale, rotate: cs.rotate };
+    const st = e.style;
+    const names = [...new Set([...base, ...props])];
+    const now = names.map(n => [n, cs.getPropertyValue(n)] as const);
+    const old = names.map(n => [n, st.getPropertyValue(n), st.getPropertyPriority(n)] as const);
+    const oldAnim = st.animation, oldTrans = st.transition;
     st.animation = "none";
-    st.opacity = now.opacity;
-    st.transform = now.transform === "none" ? "" : now.transform;
-    st.translate = now.translate; st.scale = now.scale; st.rotate = now.rotate;
-    undo.push(() => Object.assign(st, old));
+    st.transition = "none";
+    for (const [n, v] of now) if (v) st.setProperty(n, v);
+    undo.push(() => {
+      for (const [n, v, pr] of old) { if (v) st.setProperty(n, v, pr); else st.removeProperty(n); }
+      st.animation = oldAnim;
+      st.transition = oldTrans;
+    });
   }
   return () => undo.forEach(u => u());
 }
@@ -239,7 +382,9 @@ async function stillCanvases(root: HTMLElement): Promise<() => void> {
   await Promise.all([...root.querySelectorAll("canvas")].map(async cv => {
     if (!cv.width || !cv.height || !cv.parentElement) return;
     let url: string;
-    try { url = cv.toDataURL("image/png"); } catch { return; }
+    // WebP: much faster to write than PNG on every video frame (PNG where
+    // the browser can't write WebP).
+    try { url = cv.toDataURL("image/webp", 0.95); if (!url.startsWith("data:image/webp")) url = cv.toDataURL("image/png"); } catch { return; }
     const img = document.createElement("img");
     img.src = url;
     img.alt = "";
@@ -257,39 +402,6 @@ async function stillCanvases(root: HTMLElement): Promise<() => void> {
   return () => undo.forEach(u => u());
 }
 
-async function stillImages(root: HTMLElement, ratio: number): Promise<() => void> {
-  const imgs = [...root.querySelectorAll("img")].filter(i => i.currentSrc || i.src);
-  const undo: (() => void)[] = [];
-  await Promise.all(imgs.map(async img => {
-    const src = img.currentSrc || img.src;
-    if (src.startsWith("data:")) return;
-    const r = img.getBoundingClientRect();
-    const w = Math.max(1, Math.round(Math.min(1400, (img.offsetWidth || r.width) * ratio)));
-    const h = Math.max(1, Math.round(Math.min(1400, (img.offsetHeight || r.height) * ratio)));
-    const im = await loadImage(src);
-    if (!im) return;
-    try {
-      const c = document.createElement("canvas");
-      // object-fit is kept by the <img> itself: draw the whole picture at a
-      // size close to how it is shown, never stretched.
-      const k = Math.min(1, Math.max(w / im.naturalWidth, h / im.naturalHeight) * 1.05);
-      c.width = Math.max(1, Math.round(im.naturalWidth * k));
-      c.height = Math.max(1, Math.round(im.naturalHeight * k));
-      c.getContext("2d")!.drawImage(im, 0, 0, c.width, c.height);
-      const url = c.toDataURL("image/png");
-      const old = { src: img.getAttribute("src"), srcset: img.getAttribute("srcset") };
-      img.removeAttribute("srcset");
-      img.src = url;
-      await img.decode().catch(() => {});
-      undo.push(() => {
-        if (old.srcset != null) img.setAttribute("srcset", old.srcset);
-        if (old.src != null) img.setAttribute("src", old.src);
-      });
-    } catch { /* tainted or too big: leave it */ }
-  }));
-  return () => undo.forEach(u => u());
-}
-
 /** Loads an image for the canvas (CORS, so the canvas stays exportable). */
 export function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise(resolve => {
@@ -302,8 +414,3 @@ export function loadImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-export type SceneInput = Omit<StoryScene, "card" | "snapW" | "snapH" | "cardW" | "cardH" | "pad">;
-
-export function sceneFrom(snap: CardSnapshot, input: SceneInput): StoryScene {
-  return { ...input, card: snap.canvas, snapW: snap.canvas.width, snapH: snap.canvas.height, cardW: snap.cardW, cardH: snap.cardH, pad: snap.pad };
-}

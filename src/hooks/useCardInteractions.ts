@@ -1,7 +1,8 @@
 "use client";
 import { useRef, useCallback, useEffect } from "react";
 import type { CardEffects } from "@/types";
-import { lightEffectsOn, lightIdleOn, LIGHT_REST } from "@/lib/cardFoil";
+import { lightEffectsOn, lightIdleOn, LIGHT_REST, idleLight } from "@/lib/cardFoil";
+import { exportActive, onExportFrame } from "@/lib/export/exportClock";
 
 // Stage FASE 3 (Text & Motion Effects): hoverGlow/hoverScale extend this
 // SAME hook (not a second mouse-event system) — same ref, same CSS-var
@@ -109,15 +110,35 @@ export function useCardInteractions(
       if (heldRef.current || document.hidden || now - last < 33) return; // ~30 fps is plenty for a drift
       last = now;
       const t = (now - t0) / 1000;
-      targetLight.current = {
-        x: 0.5 + Math.sin(t * 0.55) * 0.34,
-        y: 0.42 + Math.sin(t * 0.37 + 1.2) * 0.26,
-      };
+      if (exportActive()) return; // the capture drives it (below)
+      targetLight.current = idleLight(t);
       startLerpLoop();
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [idleOn, startLerpLoop]);
+
+  // Story video / image capture (export/exportClock.ts): the card at rest —
+  // no tilt, nobody holding the light — and the light where the card puts it
+  // by itself at the frame's time (its drift, or the rest point).
+  const idleOnRef = useRef(idleOn);
+  idleOnRef.current = idleOn;
+  useEffect(() => onExportFrame(t => {
+    const el = cardRef.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const light = idleOnRef.current && !reduce ? idleLight(t) : { ...LIGHT_REST };
+    targetTilt.current = { x: 0, y: 0 };
+    currentTilt.current = { x: 0, y: 0 };
+    targetLight.current = { ...light };
+    currentLight.current = { ...light };
+    heldRef.current = false;
+    el.style.setProperty("--tilt-x", "0deg");
+    el.style.setProperty("--tilt-y", "0deg");
+    el.style.setProperty("--tilt-tf", "none");
+    setLightVars(el, light.x.toFixed(4), light.y.toFixed(4));
+    setLightHeld(el, "0");
+  }, "light"), [cardRef]);
 
   // Phones (2026-10-28): a tap fires mouseover/mousemove right after the
   // touch ends; ignoring mouse events shortly after a touch keeps a tapped
@@ -128,7 +149,7 @@ export function useCardInteractions(
 
   const pointAt = useCallback((clientX: number, clientY: number) => {
     const el = cardRef.current;
-    if (!el || (!tiltOn && !spotlightOn && !lightOn)) return;
+    if (!el || exportActive() || (!tiltOn && !spotlightOn && !lightOn)) return;
 
     const r  = el.getBoundingClientRect();
     if (r.width <= 0 || r.height <= 0) return;
@@ -166,7 +187,7 @@ export function useCardInteractions(
   // two-state (on/off) values, not a continuously-moving position.
   const engage = useCallback(() => {
     const el = cardRef.current;
-    if (!el) return;
+    if (!el || exportActive()) return;
     if (hoverGlowOn) el.style.setProperty("--hover-glow", "1");
     if (hoverScaleOn) el.style.setProperty("--hover-scale", String(hoverScaleTarget));
     if (lightOn) { setLightHeld(el, "1"); heldRef.current = true; }
@@ -174,7 +195,7 @@ export function useCardInteractions(
 
   const release = useCallback(() => {
     const el = cardRef.current;
-    if (!el) return;
+    if (!el || exportActive()) return;
 
     targetTilt.current = { x: 0, y: 0 };
     targetLight.current = { ...LIGHT_REST };
@@ -245,7 +266,7 @@ export function useGyroTilt(
     const RANGE = 14;
     const clamp = (v: number) => Math.max(-1, Math.min(1, v));
     const onOrient = (ev: DeviceOrientationEvent) => {
-      if (ev.beta == null || ev.gamma == null || touching.current) return;
+      if (ev.beta == null || ev.gamma == null || touching.current || exportActive()) return;
       if (!base) base = { b: ev.beta, g: ev.gamma };
       // Slowly re-center, so a phone set down at a new angle settles flat.
       base.b += (ev.beta - base.b) * 0.004;

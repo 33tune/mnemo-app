@@ -65,8 +65,6 @@ import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail"
 import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from "./CanvasGrid";
 import type { RoomOp } from "./RoomInspector";
 import ShareCardDialog from "@/components/share/ShareCardDialog";
-import { getProfileCardEffects } from "@/lib/profileCardEffects";
-import { cardIsLight } from "@/lib/cardColors";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
   HISTORY_TEXT_IDLE_MS, ownHistoryStep, inOwnHistoryStep, undoShortcutOwner, historyShortcut, type EditorHistory, type HistoryEntry, type Snap,
@@ -4234,17 +4232,14 @@ export default function CanvasBoard({
       )}
       {shareOpen && visProfiles[0] && (() => {
         const prof = visProfiles[0];
-        const fx = getProfileCardEffects(prof);
         return (
           <ShareCardDialog
             onClose={() => setShareOpen(false)}
             getCard={() => document.querySelector<HTMLElement>(`[data-profile-card][data-card-id="${prof.id}"]`) ?? document.querySelector<HTMLElement>("[data-profile-card]")}
             returnFocusTo={() => shareReturnRef.current}
-            scene={{
-              fx, radius: fx.border?.radius ?? prof.borderRadius ?? 20, lightCard: cardIsLight(prof, fx),
-              handle: prof.handle || userHandle,
-              bg: { color: bgColor, image: wallpaper || undefined, brightness: wallpaperBrightness },
-            }}
+            card={prof}
+            handle={prof.handle || userHandle}
+            bg={{ color: bgColor, image: wallpaper || undefined, blur: wallpaperBlur, brightness: wallpaperBrightness, vignette: wallpaperVignette }}
           />
         );
       })()}

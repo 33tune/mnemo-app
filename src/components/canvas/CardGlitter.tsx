@@ -16,6 +16,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CardEffects } from "@/types";
 import { glitterSparkles, type GlitterSpark } from "@/lib/cardFoil";
+import { exportActive, onExportFrame } from "@/lib/export/exportClock";
 
 type Box = { x: number; y: number; w: number; h: number };
 /** Room around the text box so the sparkles on its edge are not cut. */
@@ -28,7 +29,8 @@ const painters = new Set<Painter>();
 let raf = 0, last = 0;
 function loop(now: number) {
   raf = painters.size ? requestAnimationFrame(loop) : 0;
-  if (document.hidden || now - last < 1000 / FPS) return;
+  // A story capture paints each frame itself (onExportFrame below).
+  if (document.hidden || exportActive() || now - last < 1000 / FPS) return;
   last = now;
   const t = now / 1000;
   painters.forEach(p => p(t));
@@ -164,6 +166,7 @@ export default function CardGlitter({ fx, seed }: { fx: CardEffects; seed: numbe
     canvas.height = Math.ceil((box.h + BLEED * 2) * dpr);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduce) { paint(ctx, dpr, box, sparks, 0, true); return; }
+    const offExport = onExportFrame(t => paint(ctx, dpr, box, sparks, t, false));
     let visible = true;
     const painter: Painter = t => { if (visible) paint(ctx, dpr, box, sparks, t, false); };
     paint(ctx, dpr, box, sparks, performance.now() / 1000, false);
@@ -172,7 +175,7 @@ export default function CardGlitter({ fx, seed }: { fx: CardEffects; seed: numbe
       ? new IntersectionObserver(([e]) => { visible = !!e?.isIntersecting; })
       : null;
     io?.observe(canvas);
-    return () => { removePainter(painter); io?.disconnect(); };
+    return () => { removePainter(painter); io?.disconnect(); offExport(); };
     // fx is read only through the glitter settings below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [box, seed, g?.amount, g?.size, g?.color, g?.enabled]);
