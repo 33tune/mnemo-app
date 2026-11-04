@@ -11,7 +11,7 @@
  * frame is deterministic: frame i is always the same picture.
  */
 import type { CardEffects } from "@/types";
-import { HOLO_PALETTES, HOLO_BLEND, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE, holoOn, glareOn, clamp01, type HoloStyle } from "@/lib/cardFoil";
+import { HOLO_PALETTES, HOLO_BLEND, HOLO_STRENGTH, HOLO_STRENGTH_LIGHT, holoStyleOf, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE, holoOn, glareOn, clamp01, type HoloStyle } from "@/lib/cardFoil";
 
 export const STORY_W = 1080;
 export const STORY_H = 1920;
@@ -137,10 +137,8 @@ const STARS = sparkles(70, 11);
 
 /** The holo foil over a card of w×h (in story px), at the frame's light. */
 function drawHolo(ctx: CanvasRenderingContext2D, w: number, h: number, r: number, fx: CardEffects, light: boolean, f: FrameParams) {
-  const style = (fx.holo?.style ?? "rainbow") as HoloStyle;
-  const strength = light
-    ? { rainbow: 0.38, glitter: 0.42, metal: 0.45, galaxy: 0.35 }[style]
-    : { rainbow: 0.6, glitter: 0.65, metal: 0.5, galaxy: 0.65 }[style];
+  const style: HoloStyle = holoStyleOf(fx);
+  const strength = (light ? HOLO_STRENGTH_LIGHT : HOLO_STRENGTH)[style] * 0.8;
   const k = clamp01(fx.holo?.intensity ?? HOLO_DEFAULT_INTENSITY) * strength * (0.7 + 0.3 * f.la);
   const W = Math.ceil(w), H = Math.ceil(h);
   const c = scratchCanvas(W, H);
@@ -155,14 +153,14 @@ function drawHolo(ctx: CanvasRenderingContext2D, w: number, h: number, r: number
   for (let i = 0; i <= reps * (pal.length - 1); i++) g.addColorStop(i / (reps * (pal.length - 1)), pal[i % (pal.length - 1)]);
   c.fillStyle = g;
   c.fillRect(0, 0, W, H);
-  if (style === "glitter" || style === "galaxy") {
-    const pts = style === "glitter" ? GLITTER : STARS;
+  if (style === "gold" || style === "cracked") {
+    const pts = style === "gold" ? GLITTER : STARS;
     c.fillStyle = "#ffffff";
     for (const [px, py, pz] of pts) {
       const tw = 0.4 + 0.6 * Math.abs(Math.sin(pz * 20 + f.lx * 9 + f.ly * 7));
       c.globalAlpha = tw;
       c.beginPath();
-      c.arc(px * W, py * H, (style === "glitter" ? 1.2 : 1.6) + pz * 1.6, 0, Math.PI * 2);
+      c.arc(px * W, py * H, (style === "gold" ? 1.2 : 1.6) + pz * 1.6, 0, Math.PI * 2);
       c.fill();
     }
     c.globalAlpha = 1;

@@ -379,6 +379,23 @@ planeado acá hasta confirmarlo.
 >     quebrado / Cracked Ice, Refractor, Mojo). NO: Frame Break. Lo demás propuesto (paralelos numerados 1/1, autógrafo,
 >     estuche de coleccionista, revelado tipo sobre, desarmar/armar, quemar y aparecer, visitante premiado, etc.) no fue
 >     elegido todavía. Implementar solo con su OK.
+>   - **IMPLEMENTADO (2026-11-04, noche) — Colección v2** (`cardFoil.ts`, `CardLayers.tsx`, `CardGlitter.tsx`,
+>     `ProfileCard.tsx`, menú en Tarjeta › Efectos › Colección):
+>     - **Holo de verdad** (`effects.holo`): 7 acabados — Rayos, Arcoíris secreto, Relieve (textura grabada), Oro, Hielo
+>       quebrado, Refractor, Mojo — hechos con capas de fondo (texturas quietas + colores que siguen la luz) y una máscara
+>       radial en la luz; zonas `scope`: Toda / Fondo (debajo del contenido) / Foto (dentro de la foto) / Borde (4 tiras,
+>       el patrón alineado). Los acabados viejos se mapean: glitter→cracked, metal→refractor, galaxy→mojo (`holoStyleOf`).
+>     - **Relieve en los textos** (`effects.emboss`): sombras claras/oscuras en `em` según la luz, sumadas a las de cada
+>       texto (`withEmboss`). **Fantasma** (`effects.ghost`): contenido gris/pálido (filter), velo lechoso con brillo pastel
+>       y canto iridiscente. **Lenticular** (`effects.lenticular.images`, hasta 2 extra): la foto cambia al inclinar
+>       (opacidad por `--lx`). **Glitter** (`effects.glitter`): destellos SVG sobre cada texto (medidos con un Range, en una
+>       capa hermana de la fila para que no se corten). **Strass** (`effects.strass`): piedras SVG a lo largo del borde
+>       redondeado y destellos que solo se ven cerca de la luz.
+>     - **"Moverse solo"** ahora mueve la LUZ (rAF en `useCardInteractions`, frena con reduced motion y pestaña oculta),
+>       para holo / fantasma / strass. **Importante:** el reposo 3D se decide SOLO por la inclinación (`tiltSettled`): con
+>       la luz moviéndose la card quedaba siempre en 3D (riesgo de la transparencia en iPhone).
+>     - Historia: el holo se dibuja en el canvas con los nuevos acabados (aprox.); glitter/strass/fantasma salen quietos en
+>       la foto del DOM. `nico` ya usaba holo+reflejo+destello publicados.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

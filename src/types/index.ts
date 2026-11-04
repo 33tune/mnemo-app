@@ -909,14 +909,28 @@ export type CardEffects = {
   // the profile's default reveal).
   holo?: {
     enabled: boolean;
-    style?: "rainbow" | "glitter" | "metal" | "galaxy";
+    /** Real finishes (2026-11-04 evening). Older saved values ("glitter",
+     * "metal", "galaxy") map to the closest one (cardFoil › holoStyleOf). */
+    style?: "rays" | "rainbow" | "etched" | "gold" | "cracked" | "refractor" | "mojo" | "glitter" | "metal" | "galaxy";
     intensity?: number;          // 0-1
-    /** "card" = over everything (default) · "bg" = only the background. */
-    scope?: "card" | "bg";
+    /** "card" = over everything (default) · "bg" = under the content ·
+     * "photo" = only the photo · "border" = only the border ring. */
+    scope?: "card" | "bg" | "photo" | "border";
     /** Slow drift when nobody moves the light (default on). */
     idle?: boolean;
   };
   glare?: { enabled: boolean; intensity?: number; size?: number }; // 0-1 each
+  /** Relieve en los textos: every text looks embossed; the light moves on it. */
+  emboss?: { enabled: boolean; depth?: number };        // 0-1
+  /** Fantasma: a pale, silvery card with a sheen only on its edges. */
+  ghost?: { enabled: boolean; intensity?: number };     // 0-1
+  /** Lenticular: the photo changes to these images as the card tilts
+   * (the card's own photo first). */
+  lenticular?: { enabled: boolean; images?: string[] };
+  /** Glitter: little sparkles twinkling over the texts. */
+  glitter?: { enabled: boolean; color?: "white" | "gold" | "pink" | "rainbow"; amount?: number; size?: number };
+  /** Strass: rhinestones around the border, lit where the light passes. */
+  strass?: { enabled: boolean; color?: "crystal" | "pink" | "gold" | "rainbow"; size?: number; gap?: number };
   entrance?: {
     enabled?: boolean;
     style?: "fade" | "rise" | "pop" | "flip" | "drop" | "spin";

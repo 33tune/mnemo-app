@@ -2,11 +2,14 @@
 import React from "react";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import type { CardEffects } from "@/types";
-import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs, FontSelect, SwitchRow, ActionButton } from "@/ui";
+import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs, FontSelect, SwitchRow, ActionButton, UploadField, GroupLabel } from "@/ui";
 import {
-  HOLO_STYLES, ENTRANCE_STYLES, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE,
-  ENTRANCE_DEFAULT_DURATION, ENTRANCE_DEFAULT_STYLE, ENTRANCE_PREVIEW_EVENT, holoOn, glareOn,
+  HOLO_STYLES, HOLO_SCOPES, ENTRANCE_STYLES, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE,
+  ENTRANCE_DEFAULT_DURATION, ENTRANCE_DEFAULT_STYLE, ENTRANCE_PREVIEW_EVENT, holoOn, glareOn, holoStyleOf, holoScopeOf,
+  EMBOSS_DEFAULT_DEPTH, GHOST_DEFAULT_INTENSITY, GLITTER_DEFAULT_AMOUNT, GLITTER_DEFAULT_SIZE, STRASS_DEFAULT_SIZE, STRASS_DEFAULT_GAP,
+  LENTICULAR_MAX_EXTRA, GLITTER_COLOR_LABEL, STRASS_COLOR_LABEL,
 } from "@/lib/cardFoil";
+import { uploadToStorage } from "@/lib/storage";
 import { effectActions, effectState, type EffectOwner } from "@/lib/effectBinding";
 import {
   CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_RADIUS_FALLBACK,
@@ -24,6 +27,7 @@ interface Props {
 }
 
 type Shadow = NonNullable<CardEffects["shadow"]>;
+
 
 // Stage FASE 2 (Personalization UI/UX): the EFFECTS tab. Replaces
 // PersonalizePanel's old internal Tabs (Fondo/Forma/Efectos) — Background
@@ -86,6 +90,10 @@ export function useCardEffectActions({ effective, raw, onChange }: Props) {
   function patchEntrance(patch: Partial<NonNullable<CardEffects["entrance"]>>) {
     onChange({ ...raw, entrance: { ...raw?.entrance, ...patch } });
   }
+  /** One writer for the 2026-11-04 evening set (turning one off keeps it). */
+  function patchFx<K extends "emboss" | "ghost" | "lenticular" | "glitter" | "strass">(key: K, patch: Partial<NonNullable<CardEffects[K]>>) {
+    onChange({ ...raw, [key]: { enabled: false, ...(raw?.[key] as object | undefined), ...patch } });
+  }
 
   // Bug fix (Block 1): off pauses the whole shadow config; on restores it
   // with a visible intensity (effectBinding.setEffectEnabled). Glow flags:
@@ -108,7 +116,7 @@ export function useCardEffectActions({ effective, raw, onChange }: Props) {
 
   return {
     bord, glow, inter, anim, sh, fx, patchBorder, patchGlow, patchGlowAnimation, patchShadow, patchInteractions,
-    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
+    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, patchFx, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
     shadowFx, glowInt, hoverScaleOn, retro,
   };
 }
@@ -145,15 +153,24 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
   const { raw } = props;
   const {
     bord, glow, inter, anim, sh, fx, patchBorder, patchGlow, patchGlowAnimation, patchShadow, patchInteractions,
-    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
+    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, patchFx, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
     shadowFx, glowInt, hoverScaleOn, retro,
   } = useCardEffectActions(props);
   const { effective } = props;
   const holo = effective.holo, glare = effective.glare, entrance = effective.entrance;
   const holoIsOn = holoOn(effective), glareIsOn = glareOn(effective), entranceOn = !!entrance?.enabled;
-  const holoName = HOLO_STYLES.find(s => s.id === (holo?.style ?? "rainbow"))?.label;
+  const holoName = HOLO_STYLES.find(s => s.id === holoStyleOf(effective))?.label;
+  const emboss = effective.emboss, ghost = effective.ghost, lent = effective.lenticular, glitter = effective.glitter, strass = effective.strass;
+  const lentImgs = lent?.images ?? [];
+  async function setLentImage(i: number, f: File) {
+    const { publicUrl } = await uploadToStorage(f);
+    const next = [...lentImgs]; next[i] = publicUrl;
+    patchFx("lenticular", { enabled: true, images: next.filter(Boolean) });
+  }
+  const removeLentImage = (i: number) => patchFx("lenticular", { enabled: true, images: lentImgs.filter((_, j) => j !== i) });
   const entranceName = ENTRANCE_STYLES.find(s => s.id === (entrance?.style ?? ENTRANCE_DEFAULT_STYLE))?.label;
-  const collect = [holoIsOn && "Holográfico", glareIsOn && "Reflejo", entranceOn && "Entrada"];
+  const collect = [holoIsOn && "Holo", glareIsOn && "Reflejo", !!emboss?.enabled && "Relieve", !!ghost?.enabled && "Fantasma",
+    !!lent?.enabled && "Lenticular", !!glitter?.enabled && "Glitter", !!strass?.enabled && "Strass", entranceOn && "Entrada"];
   // The Brillo tile: on = the outer glow (O3 neutral color and a visible
   // intensity for a new glow — effectBinding); off = both flags off in ONE
   // write (color/intensity stay, like the flags always did).
@@ -177,21 +194,23 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
           a foil that moves with the light, a glare, and how it enters. */}
       <MenuSection label="Colección" icon="sparkles" active={count(collect)} summary={names(collect)}>
         <EffectList label="Colección">
-          <EffectRow id="holo" label="Holográfico" icon="sparkles" preview="c-holo" on={holoIsOn}
+          <EffectRow id="holo" label="Holo" icon="sparkles" preview="c-holo" on={holoIsOn}
             onToggle={v => patchHolo({ enabled: v, intensity: v && !(holo?.intensity) ? HOLO_DEFAULT_INTENSITY : holo?.intensity })}
             state={holoIsOn ? holoName : undefined}>
             {holoIsOn ? (
               <>
                 <MenuRow label="Acabado">
-                  <FontSelect value={holo?.style ?? "rainbow"} onChange={v => patchHolo({ enabled: true, style: v as NonNullable<CardEffects["holo"]>["style"] })}
+                  <FontSelect value={holoStyleOf(effective)} onChange={v => patchHolo({ enabled: true, style: v as NonNullable<CardEffects["holo"]>["style"] })}
                     fonts={HOLO_STYLES.map(s => ({ key: s.id, label: s.label }))} />
                 </MenuRow>
                 <SliderRow label="Intensidad" icon="sparkles" min={0.05} max={1} step={0.01} value={holo?.intensity ?? HOLO_DEFAULT_INTENSITY}
                   onChange={v => patchHolo({ enabled: true, intensity: v })} fmt={pct} />
-                <MenuRow label="Dónde">
-                  <Tabs tabs={[{ id: "card", label: "Toda la card" }, { id: "bg", label: "Solo fondo" }]} active={holo?.scope ?? "card"}
-                    onChange={id => patchHolo({ enabled: true, scope: id === "bg" ? "bg" : undefined })} label="Dónde" />
-                </MenuRow>
+                {/* Four options: a row of their own (beside a label they were cramped). */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <GroupLabel>Dónde</GroupLabel>
+                  <Tabs tabs={HOLO_SCOPES} active={holoScopeOf(effective)}
+                    onChange={id => patchHolo({ enabled: true, scope: id === "card" ? undefined : id as NonNullable<CardEffects["holo"]>["scope"] })} label="Dónde" />
+                </div>
                 <SwitchRow label="Moverse solo" icon="play" value={holo?.idle !== false}
                   onChange={v => patchHolo({ enabled: true, idle: v ? undefined : false })} />
                 <MenuNote>Se mueve con el mouse, el dedo o el giroscopio del celular.</MenuNote>
@@ -207,6 +226,63 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
                   onChange={v => patchGlare({ enabled: true, intensity: v })} fmt={pct} />
                 <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={glare?.size ?? GLARE_DEFAULT_SIZE}
                   onChange={v => patchGlare({ enabled: true, size: v })} fmt={pct} />
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="emboss" label="Relieve" icon="case" preview="t-shadow" on={!!emboss?.enabled}
+            onToggle={v => patchFx("emboss", { enabled: v })} state={emboss?.enabled ? "En los textos" : undefined}>
+            {emboss?.enabled ? (
+              <SliderRow label="Profundidad" icon="case" min={0} max={1} step={0.01} value={emboss.depth ?? EMBOSS_DEFAULT_DEPTH}
+                onChange={v => patchFx("emboss", { enabled: true, depth: v })} fmt={pct} />
+            ) : null}
+          </EffectRow>
+          <EffectRow id="ghost" label="Fantasma" icon="blend" preview="c-glass" on={!!ghost?.enabled}
+            onToggle={v => patchFx("ghost", { enabled: v })} state={ghost?.enabled ? pct(ghost.intensity ?? GHOST_DEFAULT_INTENSITY) : undefined}>
+            {ghost?.enabled ? (
+              <SliderRow label="Intensidad" icon="blend" min={0.05} max={1} step={0.01} value={ghost.intensity ?? GHOST_DEFAULT_INTENSITY}
+                onChange={v => patchFx("ghost", { enabled: true, intensity: v })} fmt={pct} />
+            ) : null}
+          </EffectRow>
+          <EffectRow id="lenticular" label="Lenticular" icon="image" preview="c-tilt" on={!!lent?.enabled}
+            onToggle={v => patchFx("lenticular", { enabled: v })}
+            state={lent?.enabled ? `${1 + lentImgs.length} imágenes` : undefined}>
+            {lent?.enabled ? (
+              <>
+                <MenuNote>Al inclinar la card, tu foto cambia a estas imágenes.</MenuNote>
+                {Array.from({ length: Math.min(LENTICULAR_MAX_EXTRA, lentImgs.length + 1) }, (_, i) => (
+                  <UploadField key={i} kind="avatar" value={lentImgs[i] || null} label={`Imagen ${i + 2}`} caption={`Imagen ${i + 2}`} accept="image/*"
+                    onFile={f => { void setLentImage(i, f); }} onRemove={() => removeLentImage(i)} />
+                ))}
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="glitter" label="Glitter" icon="sparkles" preview="t-shim" on={!!glitter?.enabled}
+            onToggle={v => patchFx("glitter", { enabled: v })} state={glitter?.enabled ? GLITTER_COLOR_LABEL[glitter.color ?? "white"] : undefined}>
+            {glitter?.enabled ? (
+              <>
+                <MenuRow label="Color">
+                  <FontSelect value={glitter.color ?? "white"} onChange={v => patchFx("glitter", { enabled: true, color: v as NonNullable<CardEffects["glitter"]>["color"] })}
+                    fonts={Object.entries(GLITTER_COLOR_LABEL).map(([key, label]) => ({ key, label }))} />
+                </MenuRow>
+                <SliderRow label="Cantidad" icon="sparkles" min={0} max={1} step={0.01} value={glitter.amount ?? GLITTER_DEFAULT_AMOUNT}
+                  onChange={v => patchFx("glitter", { enabled: true, amount: v })} fmt={pct} />
+                <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={glitter.size ?? GLITTER_DEFAULT_SIZE}
+                  onChange={v => patchFx("glitter", { enabled: true, size: v })} fmt={pct} />
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="strass" label="Strass" icon="frame" preview="c-border" on={!!strass?.enabled}
+            onToggle={v => patchFx("strass", { enabled: v })} state={strass?.enabled ? STRASS_COLOR_LABEL[strass.color ?? "crystal"] : undefined}>
+            {strass?.enabled ? (
+              <>
+                <MenuRow label="Piedras">
+                  <FontSelect value={strass.color ?? "crystal"} onChange={v => patchFx("strass", { enabled: true, color: v as NonNullable<CardEffects["strass"]>["color"] })}
+                    fonts={Object.entries(STRASS_COLOR_LABEL).map(([key, label]) => ({ key, label }))} />
+                </MenuRow>
+                <SliderRow label="Tamaño" icon="maximize" min={5} max={16} step={1} value={strass.size ?? STRASS_DEFAULT_SIZE}
+                  onChange={v => patchFx("strass", { enabled: true, size: v })} fmt={px} />
+                <SliderRow label="Separación" icon="spacing" min={0} max={1} step={0.01} value={strass.gap ?? STRASS_DEFAULT_GAP}
+                  onChange={v => patchFx("strass", { enabled: true, gap: v })} fmt={pct} />
               </>
             ) : null}
           </EffectRow>

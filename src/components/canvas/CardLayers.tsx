@@ -4,7 +4,10 @@ import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
 import { useMotionKeyframes, resolveGlowPulseAnimation, resolveFlickerAnimation } from "@/lib/cardMotion";
-import { holoOn, glareOn, holoSheetStyle, glareStyle, useFoilKeyframes, entranceShineAnimation } from "@/lib/cardFoil";
+import {
+  holoOn, glareOn, holoSheetStyle, glareStyle, useFoilKeyframes, entranceShineAnimation, holoScopeOf, borderStrips, holoRingWidth,
+  ghostContentFilter, ghostVeilStyle, ghostEdgeStyle, strassPoints, STRASS_COLORS, STRASS_DEFAULT_SIZE, STRASS_DEFAULT_GAP, STRASS_GLINT_MASK,
+} from "@/lib/cardFoil";
 
 // "Product closeout" (Parte 8): static SVG feTurbulence grain texture, same
 // technique GuestbookWidget.tsx/MobilePublicCanvas.tsx already use for their
@@ -64,10 +67,13 @@ interface CardLayersProps {
   enterDelayMs?: number;
   /** The card's background is light (the foil tints instead of adding light). */
   lightCard?:   boolean;
+  /** The card's size in px (the foil pattern, the border ring, the stones). */
+  cardW?:       number;
+  cardH?:       number;
 }
 
 export default function CardLayers({
-  cardId, effects, isSel, children, borderRadius, style, back, front, over, entering, enterDelayMs = 0, lightCard = false,
+  cardId, effects, isSel, children, borderRadius, style, back, front, over, entering, enterDelayMs = 0, lightCard = false, cardW = 0, cardH = 0,
 }: CardLayersProps) {
   useCardAnimations(cardId, effects);
 
@@ -195,9 +201,12 @@ export default function CardLayers({
   const chroma = retro?.chromaticAberration;
   const chromaOffset = 0.5 + (chroma?.intensity ?? 0.4) * 2.5;
   const chromaOpacity = 0.35 + (chroma?.intensity ?? 0.4) * 0.35;
-  const contentFilter = chroma?.enabled
+  const chromaFilter = chroma?.enabled
     ? `drop-shadow(${chromaOffset.toFixed(2)}px 0 0 rgba(255,0,80,${chromaOpacity.toFixed(2)})) drop-shadow(-${chromaOffset.toFixed(2)}px 0 0 rgba(0,220,255,${chromaOpacity.toFixed(2)}))`
     : undefined;
+  // Fantasma (2026-11-04): the content turns pale and silvery.
+  const ghostFilter = ghostContentFilter(effects);
+  const contentFilter = [ghostFilter, chromaFilter].filter(Boolean).join(" ") || undefined;
 
   useMotionKeyframes(glowPulseOn || !!flicker?.enabled);
 
@@ -207,12 +216,25 @@ export default function CardLayers({
   const glare = effects && glareOn(effects) ? effects : undefined;
   const shine = entering ? entranceShineAnimation(effects, enterDelayMs) : undefined;
   useFoilKeyframes(!!holo || !!shine);
-  const holoLayer = holo ? (
+  // Where the foil goes: the whole card, under the content ("bg"), only the
+  // border ring (4 strips, the pattern lined up across them) — "photo" is
+  // drawn by ProfileCard inside the photo itself.
+  const scope = holoScopeOf(effects);
+  const box = cardW > 0 && cardH > 0 ? { w: cardW, h: cardH } : undefined;
+  const holoLayer = holo && scope !== "photo" ? (
     <div data-fx="holo" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
-      <div style={holoSheetStyle(holo, lightCard)} />
+      {scope === "border" && box
+        ? borderStrips(box.w, box.h, holoRingWidth(box.w, box.h)).map((s, i) => (
+            <div key={i} style={{ position: "absolute", left: s.x, top: s.y, width: s.w, height: s.h, overflow: "hidden" }}>
+              <div style={holoSheetStyle(holo, lightCard, { ...box, ox: s.x, oy: s.y })} />
+            </div>
+          ))
+        : <div style={holoSheetStyle(holo, lightCard, box)} />}
     </div>
   ) : null;
-  const holoOverAll = holo && holo.holo?.scope !== "bg";
+  const holoOverAll = holo && scope !== "bg";
+  const ghost = effects?.ghost?.enabled ? effects : undefined;
+  const strass = effects?.strass?.enabled && box ? effects.strass : undefined;
 
   return (
     // Stage FASE 1: floating (outer, owns `animation`) and tilt (inner, owns
@@ -367,6 +389,14 @@ export default function CardLayers({
           {/* Holográfico over the whole card, then the glare on top, then the
               entrance sweep — all under the "encima de todo" stickers. */}
           {holoOverAll ? holoLayer : null}
+          {/* Fantasma: a milky veil and an iridescent edge. */}
+          {ghost ? (
+            <div data-fx="ghost" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
+              <div style={ghostVeilStyle(ghost)} />
+              <div style={{ ...ghostEdgeStyle(ghost, box ? holoRingWidth(box.w, box.h) : 14), borderRadius: rad }} />
+            </div>
+          ) : null}
+          {strass && box ? <StrassRing w={box.w} h={box.h} radius={rad} cfg={strass} /> : null}
           {glare ? (
             <div data-fx="glare" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
               <div style={glareStyle(glare)} />
@@ -385,6 +415,51 @@ export default function CardLayers({
           {over ? <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none" }}>{over}</div> : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Strass (2026-11-04): rhinestones along the border. Each stone has a
+ * body, a facet and a glint; the glints show only near the light
+ * (STRASS_GLINT_MASK), so the stones flash as the light passes. */
+function StrassRing({ w, h, radius, cfg }: { w: number; h: number; radius: number; cfg: NonNullable<CardEffects["strass"]> }) {
+  const size = Math.max(4, Math.min(18, cfg.size ?? STRASS_DEFAULT_SIZE));
+  const pts = useMemo(() => strassPoints(w, h, radius, size, cfg.gap ?? STRASS_DEFAULT_GAP), [w, h, radius, size, cfg.gap]);
+  const color = cfg.color ?? "crystal";
+  const [hi, body, deep] = STRASS_COLORS[color] ?? STRASS_COLORS.crystal;
+  const rainbow = ["#ff9ad5", "#ffe08a", "#9affd0", "#9ad7ff", "#c8a6ff"];
+  const id = `strass-${color}`;
+  const r = size / 2;
+  return (
+    <div data-fx="strass" aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", inset: 0, overflow: "visible" }}>
+        <defs>
+          <radialGradient id={id} cx="35%" cy="30%" r="75%">
+            <stop offset="0%" stopColor={hi} />
+            <stop offset="45%" stopColor={body} />
+            <stop offset="100%" stopColor={deep} />
+          </radialGradient>
+        </defs>
+        {pts.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y + 0.8} r={r} fill="rgba(0,0,0,0.35)" />
+            <circle cx={p.x} cy={p.y} r={r} fill={color === "rainbow" ? rainbow[i % rainbow.length] : `url(#${id})`} stroke={deep} strokeWidth={0.6} />
+            <path d={`M${p.x - r * 0.55} ${p.y} L${p.x} ${p.y - r * 0.55} L${p.x + r * 0.55} ${p.y} L${p.x} ${p.y + r * 0.55} Z`} fill="rgba(255,255,255,0.28)" />
+            <circle cx={p.x - r * 0.32} cy={p.y - r * 0.34} r={r * 0.22} fill="rgba(255,255,255,0.9)" />
+          </g>
+        ))}
+      </svg>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", inset: 0, overflow: "visible", WebkitMaskImage: STRASS_GLINT_MASK, maskImage: STRASS_GLINT_MASK, mixBlendMode: "screen" }}>
+        {pts.map((p, i) => {
+          const g = r * 1.9;
+          return (
+            <g key={i} fill="white">
+              <circle cx={p.x} cy={p.y} r={r * 0.95} fill="rgba(255,255,255,0.55)" />
+              <path d={`M${p.x} ${p.y - g} Q${p.x + g * 0.12} ${p.y - g * 0.12} ${p.x + g} ${p.y} Q${p.x + g * 0.12} ${p.y + g * 0.12} ${p.x} ${p.y + g} Q${p.x - g * 0.12} ${p.y + g * 0.12} ${p.x - g} ${p.y} Q${p.x - g * 0.12} ${p.y - g * 0.12} ${p.x} ${p.y - g} Z`} />
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }

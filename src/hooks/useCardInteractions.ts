@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useCallback, useEffect } from "react";
 import type { CardEffects } from "@/types";
-import { lightEffectsOn, LIGHT_REST } from "@/lib/cardFoil";
+import { lightEffectsOn, lightIdleOn, LIGHT_REST } from "@/lib/cardFoil";
 
 // Stage FASE 3 (Text & Motion Effects): hoverGlow/hoverScale extend this
 // SAME hook (not a second mouse-event system) — same ref, same CSS-var
@@ -39,6 +39,9 @@ export function useCardInteractions(
   tiltOnRef.current = tiltOn;
   const lightOnRef = useRef(lightOn);
   lightOnRef.current = lightOn;
+  const idleOn = lightIdleOn(effects);
+  /** Someone holds the light (cursor over the card, finger, gyroscope). */
+  const heldRef = useRef(false);
 
   const startLerpLoop = useCallback(() => {
     if (isAnimating.current) return;
@@ -68,12 +71,15 @@ export function useCardInteractions(
       el.style.setProperty("--ly", cl.y.toFixed(4));
       const lightSettled = Math.abs(cl.x - tl.x) < 0.001 && Math.abs(cl.y - tl.y) < 0.001;
 
-      const settled = lightSettled && Math.abs(currentTilt.current.x - tx) < 0.01 && Math.abs(currentTilt.current.y - ty) < 0.01;
+      const tiltSettled = Math.abs(currentTilt.current.x - tx) < 0.01 && Math.abs(currentTilt.current.y - ty) < 0.01;
+      const settled = lightSettled && tiltSettled;
       // The 3D transform exists only while the card is really tilted
       // (CardLayers reads --tilt-tf): a card at rest is flat. iPhone Safari
       // composites a 3D layer apart and lost what's behind a see-through
       // card right after the entry animation ended (2026-10-28).
-      const atRest = settled && tx === 0 && ty === 0;
+      // Only the tilt decides: a moving light (holo / strass drift) must
+      // never keep the card in 3D.
+      const atRest = tiltSettled && tx === 0 && ty === 0;
       el.style.setProperty("--tilt-tf", atRest
         ? "none"
         : `perspective(1000px) rotateX(${currentTilt.current.x.toFixed(3)}deg) rotateY(${currentTilt.current.y.toFixed(3)}deg)`);
@@ -87,6 +93,28 @@ export function useCardInteractions(
 
     rafRef.current = requestAnimationFrame(animate);
   }, [cardRef]);
+
+  // "Moverse solo" (holo idle, Fantasma, Strass): while nobody holds the
+  // light it drifts slowly around its rest point, so the foil and the
+  // stones keep catching light. Stops with reduced motion and in hidden tabs.
+  useEffect(() => {
+    if (!idleOn || typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      if (heldRef.current || document.hidden) return;
+      const t = (now - t0) / 1000;
+      targetLight.current = {
+        x: 0.5 + Math.sin(t * 0.55) * 0.34,
+        y: 0.42 + Math.sin(t * 0.37 + 1.2) * 0.26,
+      };
+      startLerpLoop();
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [idleOn, startLerpLoop]);
 
   // Phones (2026-10-28): a tap fires mouseover/mousemove right after the
   // touch ends; ignoring mouse events shortly after a touch keeps a tapped
@@ -138,7 +166,7 @@ export function useCardInteractions(
     if (!el) return;
     if (hoverGlowOn) el.style.setProperty("--hover-glow", "1");
     if (hoverScaleOn) el.style.setProperty("--hover-scale", String(hoverScaleTarget));
-    if (lightOn) el.style.setProperty("--la", "1");
+    if (lightOn) { el.style.setProperty("--la", "1"); heldRef.current = true; }
   }, [cardRef, hoverGlowOn, hoverScaleOn, hoverScaleTarget, lightOn]);
 
   const release = useCallback(() => {
@@ -147,6 +175,7 @@ export function useCardInteractions(
 
     targetTilt.current = { x: 0, y: 0 };
     targetLight.current = { ...LIGHT_REST };
+    heldRef.current = false;
     startLerpLoop();
     el.style.setProperty("--la", "0");
 
@@ -184,7 +213,7 @@ export function useCardInteractions(
 
   return {
     onMouseMove, onMouseEnter, onMouseLeave, onTouchStart, onTouchMove, onTouchEnd, tiltOn, lightOn, maxTilt, targetTilt,
-    targetLight, tiltOnRef, lightOnRef, cardRef, touching, startLerpLoop,
+    targetLight, tiltOnRef, lightOnRef, heldRef, cardRef, touching, startLerpLoop,
   };
 }
 
@@ -200,9 +229,9 @@ type OrientationPermission = { requestPermission?: () => Promise<"granted" | "de
 export function useGyroTilt(
   enabled: boolean,
   ix: Pick<ReturnType<typeof useCardInteractions>,
-    "maxTilt" | "targetTilt" | "targetLight" | "tiltOnRef" | "lightOnRef" | "cardRef" | "touching" | "startLerpLoop">,
+    "maxTilt" | "targetTilt" | "targetLight" | "tiltOnRef" | "lightOnRef" | "heldRef" | "cardRef" | "touching" | "startLerpLoop">,
 ) {
-  const { maxTilt, targetTilt, targetLight, tiltOnRef, lightOnRef, cardRef, touching, startLerpLoop } = ix;
+  const { maxTilt, targetTilt, targetLight, tiltOnRef, lightOnRef, heldRef, cardRef, touching, startLerpLoop } = ix;
   const maxRef = useRef(maxTilt);
   maxRef.current = maxTilt;
   useEffectOnce(enabled, () => {
@@ -223,8 +252,9 @@ export function useGyroTilt(
         targetTilt.current.y = dx * maxRef.current * 0.5;
       }
       // Holográfico / Reflejo: the light slides across the card as it turns.
-      if (lightOnRef.current) {
+      if (lightOnRef.current && Math.abs(dx) + Math.abs(dy) > 0.04) {
         targetLight.current = { x: 0.5 + dx * 0.5, y: 0.5 + dy * 0.5 };
+        heldRef.current = true;
         cardRef.current?.style.setProperty("--la", "1");
       }
       startLerpLoop();
