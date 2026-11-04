@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   holoOn, glareOn, lightEffectsOn, holoSheetStyle, glareStyle, entranceAnimation, entranceShineAnimation,
   entranceDuration, holoGradient, HOLO_PALETTES, HOLO_STYLES, ENTRANCE_STYLES, lightIdleOn, holoStyleOf, holoScopeOf,
-  borderStrips, strassPoints, reliefLayers, reliefTransform, withGlitter, ghostContentFilter,
+  borderStrips, strassPoints, withGlitter, withEmboss, embossLight, embossFilterId,
 } from "./cardFoil";
 
 test("absent / disabled = off (no existing card changes)", () => {
@@ -77,10 +77,15 @@ test("strass: stones all around the border, inside the card", () => {
   assert.ok(strassPoints(300, 400, 24, 9, 1).length < pts.length, "more gap = fewer stones");
 });
 
-test("relief is real depth: more depth, more layers; it turns with the light", () => {
-  const a = reliefLayers({ emboss: { enabled: true, depth: 0 } }), b = reliefLayers({ emboss: { enabled: true, depth: 1 } });
-  assert.ok(b.count > a.count && b.count * b.step > a.count * a.step);
-  assert.match(reliefTransform(12), /rotateY\(calc\(\(var\(--lx/);
+test("relief: a lighting filter on the texts, lit from the light point", () => {
+  const st = withEmboss({ filter: "blur(1px)" }, { emboss: { enabled: true } }, "c 1");
+  assert.equal(st.filter, `blur(1px) url(#${embossFilterId("c 1")})`);
+  assert.equal(embossFilterId("c 1"), "mnemo-emboss-c1");
+  assert.deepEqual(withEmboss({}, {}, "c"), {});
+  const right = embossLight(1, 0.5), top = embossLight(0.5, 0);
+  assert.equal(Math.round(right.azimuth), 0);
+  assert.equal(Math.round(top.azimuth), -90);
+  assert.ok(embossLight(0.5, 0.5).elevation > right.elevation, "light overhead = higher");
 });
 
 test("glitter fills the letters (no extra elements); off = untouched; keeps a gradient", () => {
@@ -93,5 +98,4 @@ test("glitter fills the letters (no extra elements); off = untouched; keeps a gr
   const grad = withGlitter({ backgroundImage: "linear-gradient(red, blue)", animation: "flow 2s" }, { glitter: { enabled: true } }, "#fff");
   assert.match(String(grad.backgroundImage), /linear-gradient\(red, blue\)$/);
   assert.equal(grad.animation, "flow 2s", "a role's own animation stays");
-  assert.equal(ghostContentFilter({}), undefined);
 });

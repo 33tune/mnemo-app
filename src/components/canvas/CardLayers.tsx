@@ -7,7 +7,7 @@ import StrassGL from "./StrassGL";
 import { useMotionKeyframes, resolveGlowPulseAnimation, resolveFlickerAnimation } from "@/lib/cardMotion";
 import {
   holoOn, glareOn, holoSheetStyle, glareStyle, useFoilKeyframes, entranceShineAnimation, holoScopeOf, borderStrips, holoRingWidth,
-  ghostContentFilter, ghostVeilStyle, ghostEdgeStyle, strassPoints, STRASS_COLORS, STRASS_DEFAULT_SIZE, STRASS_DEFAULT_GAP, STRASS_GLINT_MASK,
+  strassPoints, STRASS_COLORS, STRASS_DEFAULT_SIZE, STRASS_DEFAULT_GAP, STRASS_GLINT_MASK,
 } from "@/lib/cardFoil";
 
 // "Product closeout" (Parte 8): static SVG feTurbulence grain texture, same
@@ -205,9 +205,7 @@ export default function CardLayers({
   const chromaFilter = chroma?.enabled
     ? `drop-shadow(${chromaOffset.toFixed(2)}px 0 0 rgba(255,0,80,${chromaOpacity.toFixed(2)})) drop-shadow(-${chromaOffset.toFixed(2)}px 0 0 rgba(0,220,255,${chromaOpacity.toFixed(2)}))`
     : undefined;
-  // Fantasma (2026-11-04): the content turns pale and silvery.
-  const ghostFilter = ghostContentFilter(effects);
-  const contentFilter = [ghostFilter, chromaFilter].filter(Boolean).join(" ") || undefined;
+  const contentFilter = chromaFilter;
 
   useMotionKeyframes(glowPulseOn || !!flicker?.enabled);
 
@@ -234,7 +232,6 @@ export default function CardLayers({
     </div>
   ) : null;
   const holoOverAll = holo && scope !== "bg";
-  const ghost = effects?.ghost?.enabled ? effects : undefined;
   const strass = effects?.strass?.enabled && box ? effects.strass : undefined;
 
   return (
@@ -390,13 +387,6 @@ export default function CardLayers({
           {/* Holográfico over the whole card, then the glare on top, then the
               entrance sweep — all under the "encima de todo" stickers. */}
           {holoOverAll ? holoLayer : null}
-          {/* Fantasma: a milky veil and an iridescent edge. */}
-          {ghost ? (
-            <div data-fx="ghost" data-light="" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
-              <div style={ghostVeilStyle(ghost)} />
-              <div style={{ ...ghostEdgeStyle(ghost, box ? holoRingWidth(box.w, box.h) : 14), borderRadius: rad }} />
-            </div>
-          ) : null}
           {strass && box ? <StrassRing w={box.w} h={box.h} radius={rad} cfg={strass} /> : null}
           {glare ? (
             <div data-fx="glare" data-light="" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>

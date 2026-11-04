@@ -205,11 +205,11 @@ export function glareOn(fx: CardEffects | undefined): boolean {
 }
 /** The card has something that follows the light. */
 export function lightEffectsOn(fx: CardEffects | undefined): boolean {
-  return holoOn(fx) || glareOn(fx) || !!fx?.emboss?.enabled || !!fx?.ghost?.enabled || !!fx?.strass?.enabled;
+  return holoOn(fx) || glareOn(fx) || !!fx?.emboss?.enabled || !!fx?.strass?.enabled;
 }
 /** The light drifts by itself (holo "Moverse solo"). */
 export function lightIdleOn(fx: CardEffects | undefined): boolean {
-  return (holoOn(fx) && fx?.holo?.idle !== false) || !!fx?.ghost?.enabled || !!fx?.strass?.enabled;
+  return (holoOn(fx) && fx?.holo?.idle !== false) || !!fx?.strass?.enabled;
 }
 
 /** Kept for the story export: the finish's colors as one angled gradient. */
@@ -328,52 +328,30 @@ export function entranceShineAnimation(fx: CardEffects | undefined, delayMs = 0)
 
 export const EMBOSS_DEFAULT_DEPTH = 0.6;
 /**
- * Relieve en los textos (2026-11-04, v2: real 3D, not a shadow): each text
- * is extruded — N copies stacked back in Z, darker the deeper — inside its
- * own 3D space, and turns a little toward the light, so its sides show.
+ * Relieve en los textos (2026-11-04, v3 — like an embossed card): the texts
+ * are raised from the card and LIT. An SVG lighting filter (EmbossFilter in
+ * ProfileCard) bump-maps each letter from its own shape and lights it with a
+ * light coming from the card's light point: the edges toward the light shine,
+ * the ones away from it fall into shadow, and a specular sheen runs over the
+ * letters as the light (cursor / finger / gyroscope / tilt) moves.
  */
-export function reliefLayers(fx: CardEffects | undefined, scale = 1): { count: number; step: number; maxDeg: number } {
+export const embossFilterId = (cardId: string) => `mnemo-emboss-${cardId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+export function withEmboss<T extends CSSProperties>(style: T, fx: CardEffects | undefined, cardId: string): T {
+  if (!fx?.emboss?.enabled) return style;
+  const f = `url(#${embossFilterId(cardId)})`;
+  return { ...style, filter: style.filter ? `${style.filter} ${f}` : f } as T;
+}
+/** Distant light from the light point: azimuth (deg) and elevation (deg). */
+export function embossLight(lx: number, ly: number): { azimuth: number; elevation: number } {
+  const dx = lx - 0.5, dy = ly - 0.5;
+  const az = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const dist = Math.min(1, Math.hypot(dx, dy) * 2);
+  return { azimuth: az, elevation: 62 - dist * 40 };
+}
+/** Filter strength from the depth slider. */
+export function embossParams(fx: CardEffects | undefined) {
   const d = clamp01(fx?.emboss?.depth ?? EMBOSS_DEFAULT_DEPTH);
-  const total = (3 + d * 9) * scale;   // px of depth
-  // Dense layers (≤ 0.7 px apart) read as one solid side, not as a blur.
-  const count = Math.min(14, Math.max(2, Math.round(total / 0.7)));
-  return { count, step: total / count, maxDeg: (12 + d * 14) * (0.4 + 0.6 * scale) };
-}
-/** The turn of the extruded text, from the light (its sides face away). */
-export function reliefTransform(maxDeg: number): string {
-  return `rotateY(calc((${LX} - 0.5) * ${(maxDeg * 2).toFixed(1)}deg)) rotateX(calc((0.5 - ${LY}) * ${(maxDeg * 2).toFixed(1)}deg))`;
-}
-/** Shade of the i-th copy back (1 = right under the face). */
-export const reliefShade = (i: number, n: number) => (0.3 - (i / n) * 0.16).toFixed(3);
-
-export const GHOST_DEFAULT_INTENSITY = 0.7;
-/** Fantasma on the content: pale and silvery (keeps it readable). */
-export function ghostContentFilter(fx: CardEffects | undefined): string | undefined {
-  if (!fx?.ghost?.enabled) return undefined;
-  const k = clamp01(fx.ghost.intensity ?? GHOST_DEFAULT_INTENSITY);
-  return `grayscale(${(0.6 + k * 0.4).toFixed(2)}) brightness(${(1 + k * 0.18).toFixed(2)}) contrast(${(1 - k * 0.12).toFixed(2)})`;
-}
-/** A milky veil over the card, clearer in the middle. */
-export function ghostVeilStyle(fx: CardEffects): CSSProperties {
-  const k = clamp01(fx.ghost?.intensity ?? GHOST_DEFAULT_INTENSITY);
-  return {
-    position: "absolute", inset: 0, pointerEvents: "none",
-    // A milky veil + a faint pastel sheen that follows the light.
-    backgroundImage: `linear-gradient(115deg, rgba(0,0,0,0) calc(${LX} * 100% - 30%), rgba(205,240,255,${(0.08 + k * 0.12).toFixed(3)}) calc(${LX} * 100% - 10%), rgba(240,215,255,${(0.08 + k * 0.12).toFixed(3)}) calc(${LX} * 100% + 10%), rgba(0,0,0,0) calc(${LX} * 100% + 30%)), radial-gradient(ellipse at 50% 45%, rgba(230,236,255,${(0.05 + k * 0.08).toFixed(3)}) 30%, rgba(225,232,255,${(0.2 + k * 0.25).toFixed(3)}) 100%)`,
-    mixBlendMode: "screen",
-  };
-}
-/** The edge shimmer: an iridescent sheen only on the border ring, strongest
- * where the light is. */
-export function ghostEdgeStyle(fx: CardEffects, ring: number): CSSProperties {
-  const k = clamp01(fx.ghost?.intensity ?? GHOST_DEFAULT_INTENSITY);
-  const mask = `linear-gradient(#000, #000) content-box, linear-gradient(#000, #000)`;
-  return {
-    position: "absolute", inset: 0, pointerEvents: "none", padding: Math.max(3, Math.round(ring * 0.35)), boxSizing: "border-box",
-    backgroundImage: `radial-gradient(circle at calc(${LX} * 100%) calc(${LY} * 100%), rgba(255,255,255,0.9) 0%, rgba(210,225,255,0.45) 16%, rgba(0,0,0,0) 38%), conic-gradient(from calc(${LX} * 360deg) at 50% 50%, rgba(201,243,255,0.14), rgba(233,209,255,0.14), rgba(255,246,214,0.14), rgba(209,255,233,0.14), rgba(201,243,255,0.14))`,
-    WebkitMask: mask, WebkitMaskComposite: "xor", mask, maskComposite: "exclude",
-    mixBlendMode: "screen", opacity: (0.35 + k * 0.45).toFixed(2) as unknown as number,
-  };
+  return { blur: 0.7 + d * 0.9, surface: 2 + d * 5, shadow: 0.6 + d * 1.6 };
 }
 
 export const GLITTER_COLORS: Record<NonNullable<NonNullable<CardEffects["glitter"]>["color"]>, string[]> = {

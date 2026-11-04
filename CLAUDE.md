@@ -401,15 +401,17 @@ planeado acá hasta confirmarlo.
 >       cuadro): solo en las capas `[data-light]` que las usan (holo, reflejo, fantasma, strass, nombre en relieve). La
 >       luz que se mueve sola va a ~30 fps. El glitter ya no crea elementos (antes cientos de SVG animados).
 >     - **Lenticular ELIMINADO** (no le gustó): sin tipo, menú ni render.
->     - **Relieve = 3D real** (`reliefLayers/reliefTransform`): el NOMBRE se extruye (copias apiladas en Z, más oscuras al
->       fondo, `preserve-3d` en su propia fila con `perspective`) y gira un poco hacia la luz. Solo el nombre: en textos
->       chicos la extrusión los volvía ilegibles.
+>     - **Relieve v3 = tarjeta grabada** (pedido del usuario: "como las tarjetas con relieve realistas"; la extrusión 3D
+>       de la v2 se descartó): filtro SVG de iluminación (`EmbossFilter.tsx`, `withEmboss` agrega `filter: url(#…)` a
+>       TODOS los textos): la forma de cada letra es el mapa de altura, una luz distante que viene del punto de luz da
+>       sombreado difuso (mismo material), brillo especular y una sombra hacia el lado opuesto. Se actualiza solo cuando
+>       la luz cambia (mouse, dedo, giroscopio, inclinación).
 >     - **Strass = 3D real** (`StrassGL.tsx`): gemas talla brillante en WebGL (three.js, `InstancedMesh`, entorno
 >       `RoomEnvironment`), giran con la luz y dibujan solo cuando la luz cambia; sin WebGL caen al SVG plano.
 >       `preserveDrawingBuffer` para que salgan en la historia.
 >     - **Glitter v2** (`withGlitter`): las letras se rellenan de glitter fino (escamas en tonos oscuro/medio/claro sobre el
 >       tono del glitter, `background-clip: text`) + brillos que se deslizan; un texto con degradé lo conserva debajo.
->     - **Fantasma:** el usuario no lo entiende ("solo pone la foto gris"); pendiente decidir rehacerlo o sacarlo.
+>     - **Fantasma ELIMINADO** (decisión del usuario): sin tipo, menú ni render.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

@@ -35,8 +35,9 @@ import { withOpacity, resolveCardColors, cardIsLight, cardBaseColor } from "@/li
 import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveTextEffectStyle, resolveLetterEffectStyle, roleFxOnly, anyTextGlowPulse } from "@/lib/textEffects";
 import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
+import EmbossFilter from "./EmbossFilter";
 import {
-  entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT, withGlitter, reliefLayers, reliefTransform, reliefShade, holoOn, holoScopeOf, holoSheetStyle,
+  entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT, withGlitter, withEmboss, holoOn, holoScopeOf, holoSheetStyle,
 } from "@/lib/cardFoil";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 import { PART_ATTR, PART_CLICK_SLOP, partFromTarget, movedBeyondSlop, type PartClick, type PartRole } from "@/lib/partNavigation";
@@ -368,8 +369,7 @@ function ProfileCard({
   // replays it once.
   const ENTER_DELAY_MS = 80;
   const glitterOn = !!effectiveEffects.glitter?.enabled;
-  // Only the name: small texts extruded turn unreadable (tested).
-  const reliefOn = !!effectiveEffects.emboss?.enabled;
+  const embossOn = !!effectiveEffects.emboss?.enabled;
   const [entrancePreview, setEntrancePreview] = useState(0);
   useEffect(() => {
     if (!canInteract) return;
@@ -532,16 +532,16 @@ function ProfileCard({
   // split. One resolveTextEffectStyle call per role, not one shared style
   // object, since each role's gradient/shimmer is independent.
   const textRoles = card.effects?.textRoles;
-  const nameEffectStyle       = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.name, resolvedColors.name), effectiveEffects, resolvedColors.name);
-  const handleEffectStyle     = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle, resolvedColors.handle), effectiveEffects, resolvedColors.handle);
-  const descriptorEffectStyle = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor, resolvedColors.descriptor), effectiveEffects, resolvedColors.descriptor);
+  const nameEffectStyle       = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.name, resolvedColors.name), effectiveEffects, resolvedColors.name), effectiveEffects, card.id);
+  const handleEffectStyle     = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle, resolvedColors.handle), effectiveEffects, resolvedColors.handle), effectiveEffects, card.id);
+  const descriptorEffectStyle = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor, resolvedColors.descriptor), effectiveEffects, resolvedColors.descriptor), effectiveEffects, card.id);
   // Block 1: the flat-shimmer surface uses the color Location/Views really
   // render with (block textColor override included, same expression as
   // LocationLine/ViewsLine below), not the bare role color.
-  const locationEffectStyle   = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location), effectiveEffects, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location);
-  const bioEffectStyle        = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio), effectiveEffects, resolvedColors.bio);
-  const viewsEffectStyle      = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views), effectiveEffects, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views);
-  const aboutEffectStyle      = withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.about, resolvedColors.about), effectiveEffects, resolvedColors.about);
+  const locationEffectStyle   = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location), effectiveEffects, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location), effectiveEffects, card.id);
+  const bioEffectStyle        = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio), effectiveEffects, resolvedColors.bio), effectiveEffects, card.id);
+  const viewsEffectStyle      = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views), effectiveEffects, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views), effectiveEffects, card.id);
+  const aboutEffectStyle      = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.about, resolvedColors.about), effectiveEffects, resolvedColors.about), effectiveEffects, card.id);
   // Product closeout — shimmer fix: shimmer no longer requires gradient to
   // be set (see textEffects.ts's header), so "is shimmer active anywhere"
   // is now just "is `shimmer` present", not "gradient AND shimmer".
@@ -1086,24 +1086,9 @@ function ProfileCard({
     const row = (role: "name" | "handle" | "descriptor" | "bio" | "location" | "views" | "about", content: React.ReactNode) => {
       const r = rows[role];
       if (!r) return null;
-      const relief = reliefOn && role === "name" ? reliefLayers(effectiveEffects) : null;
       return (
-        <div key={role} {...partProps(role)} {...(relief ? { "data-light": "" } : {})}
-          style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, overflow: relief ? "visible" : "hidden", transition: REFLOW_TRANSITION,
-            ...(relief ? { perspective: 420 } : {}), ...partOutline(role) }}>
-          {relief ? (
-            // Relieve 3D (2026-11-04): the text extruded in Z — copies stacked
-            // back, darker the deeper — turning toward the light.
-            <div style={{ position: "relative", transformStyle: "preserve-3d", transform: reliefTransform(relief.maxDeg) }}>
-              {Array.from({ length: relief.count }, (_, k) => relief.count - k).map(i => (
-                <div key={i} aria-hidden style={{ position: "absolute", inset: 0, transform: `translateZ(${(-i * relief.step).toFixed(2)}px)`,
-                  filter: `brightness(${reliefShade(i, relief.count)})`, pointerEvents: "none" }}>
-                  {content}
-                </div>
-              ))}
-              <div style={{ position: "relative", transform: "translateZ(0.1px)" }}>{content}</div>
-            </div>
-          ) : content}
+        <div key={role} {...partProps(role)} style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, overflow: "hidden", transition: REFLOW_TRANSITION, ...partOutline(role) }}>
+          {content}
         </div>
       );
     };
@@ -1268,6 +1253,7 @@ function ProfileCard({
           over={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="over" />}
         >
           <div style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden" }}>
+            {embossOn ? <EmbossFilter cardId={card.id} fx={effectiveEffects} /> : null}
             {/* bg overlay tint for image cards */}
             {effectiveEffects.bg?.image && (
               <div style={{
