@@ -283,12 +283,10 @@ const FOIL_KEYFRAMES_CSS = `
 @keyframes ${entranceName("drop")} { 0% { opacity: 0; translate: 0 -120px; } 45% { opacity: 1; translate: 0 0; } 62% { translate: 0 -18px; } 80% { translate: 0 0; } 90% { translate: 0 -5px; } 100% { opacity: 1; translate: 0 0; } }
 @keyframes ${entranceName("spin")} { 0% { opacity: 0; scale: 0.4; rotate: -200deg; } 70% { opacity: 1; scale: 1.04; rotate: 8deg; } 100% { opacity: 1; scale: 1; rotate: 0deg; } }
 @keyframes ${ENTRANCE_SHINE_ANIMATION} { from { translate: -130% 0; } to { translate: 130% 0; } }
-@keyframes mnemo-glitter-glint { from { background-position: 0 0, 0 0, 0 0; } to { background-position: 70px 35px, 0 0, 0 0; } }
 @media (prefers-reduced-motion: reduce) {
   @keyframes ${HOLO_IDLE_ANIMATION} { from { translate: 0 0; } to { translate: 0 0; } }
   ${(["rise", "pop", "flip", "drop", "spin"] as EntranceStyle[]).map(s => `@keyframes ${entranceName(s)} { from { opacity: 0; } to { opacity: 1; } }`).join("\n  ")}
   @keyframes ${ENTRANCE_SHINE_ANIMATION} { from { opacity: 0; } to { opacity: 0; } }
-  @keyframes mnemo-glitter-glint { from { background-position: 0 0, 0 0, 0 0; } to { background-position: 0 0, 0 0, 0 0; } }
 }
 `;
 const FOIL_STYLE_ID = "mnemo-foil-keyframes";
@@ -355,66 +353,34 @@ export function embossParams(fx: CardEffects | undefined) {
 }
 
 export const GLITTER_COLORS: Record<NonNullable<NonNullable<CardEffects["glitter"]>["color"]>, string[]> = {
-  white:   ["#ffffff", "#e8ecf4", "#c9d0dc", "#f6f6f6"],
-  gold:    ["#fff4c2", "#ffd76a", "#e8b23a", "#b8862a", "#fff9e0"],
-  pink:    ["#ffd1ec", "#ff7ac6", "#ff4fa3", "#ffe6f4"],
-  rainbow: ["#ff8ad8", "#ffe27a", "#8affd0", "#8ad1ff", "#c79aff", "#ffffff"],
+  white:   ["#ffffff", "#f1f4ff"],
+  gold:    ["#fff4c2", "#ffd76a", "#ffffff"],
+  pink:    ["#ffd1ec", "#ff7ac6", "#ffffff"],
+  rainbow: ["#ff8ad8", "#ffe27a", "#8affd0", "#8ad1ff", "#c79aff"],
 };
-const GLITTER_BASE: Record<string, string> = { white: "#c9ced8", gold: "#c99a35", pink: "#e0559a", rainbow: "#b69ae0" };
 export const GLITTER_DEFAULT_AMOUNT = 0.5;
-export const GLITTER_DEFAULT_SIZE = 0.5;
-
-/** A tile of fine glitter flakes (tiny dots in the palette's shades). */
-function shade(hex: string, k: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const f = (v: number) => Math.round(k < 1 ? v * k : v + (255 - v) * (k - 1)).toString(16).padStart(2, "0");
-  return `#${f((n >> 16) & 255)}${f((n >> 8) & 255)}${f(n & 255)}`;
-}
-function glitterTile(colors: string[], n: number, seed: number, tile: number, rMin: number, rMax: number): string {
-  const r = rand(seed);
-  // Each color in a dark, a mid and a light flake: the texture reads on any
-  // text color (white glitter on white text included).
-  const all = colors.flatMap(c => [shade(c, 0.45), shade(c, 0.75), c, shade(c, 1.35)]);
-  const dots = Array.from({ length: n }, () => {
-    const c = all[Math.floor(r() * all.length)];
-    return `<circle cx='${(r() * tile).toFixed(1)}' cy='${(r() * tile).toFixed(1)}' r='${(rMin + r() * (rMax - rMin)).toFixed(2)}' fill='${c}'/>`;
-  }).join("");
-  return svgUri(`<svg xmlns='http://www.w3.org/2000/svg' width='${tile}' height='${tile}'>${dots}</svg>`);
-}
-/** Bright glints that slide over the flakes (the glitter "catching light"). */
-const GLINT_TILE = svgUri(`<svg xmlns='http://www.w3.org/2000/svg' width='70' height='70'>${(() => { const r = rand(77); return Array.from({ length: 9 }, () => `<circle cx='${(r() * 70).toFixed(1)}' cy='${(r() * 70).toFixed(1)}' r='${(0.7 + r() * 0.8).toFixed(2)}' fill='white'/>`).join(""); })()}</svg>`);
-export const GLITTER_ANIMATION = "mnemo-glitter-glint";
-
+export const GLITTER_DEFAULT_SIZE = 0.4;
+export type GlitterSpark = { x: number; y: number; size: number; delay: number; dur: number; color: string; star: boolean };
 /**
- * Glitter v2 (2026-11-04): the letters themselves are filled with fine
- * glitter (like glitter text) — flakes over the text's own color or
- * gradient, and glints sliding over them. No extra elements.
+ * Glitter v3 (2026-11-04: the v1 sparkles, refined — the user liked them
+ * but not their big size; the "glitter inside the letters" v2 was dropped):
+ * small four-point stars and fine glints over the text, twinkling at their
+ * own pace. Deterministic per seed, so they don't jump between renders.
  */
-export function withGlitter<T extends CSSProperties>(style: T, fx: CardEffects | undefined, color: string): T {
-  const g = fx?.glitter;
-  if (!g?.enabled) return style;
-  const colors = GLITTER_COLORS[g.color ?? "white"] ?? GLITTER_COLORS.white;
+export function glitterSparkles(w: number, h: number, fx: CardEffects, seed: number): GlitterSpark[] {
+  const g = fx.glitter!;
   const amount = clamp01(g.amount ?? GLITTER_DEFAULT_AMOUNT);
-  const size = 0.6 + clamp01(g.size ?? GLITTER_DEFAULT_SIZE) * 0.9;   // flake scale
-  const tile = Math.round(36 * size);
-  const flakes = glitterTile(colors, Math.round(140 + amount * 260), 11 + (g.color ?? "white").length, 36, 0.55, 1.25);
-  // Glitter is the letters' color: they become the glitter (over its own
-  // mid tone); a gradient text keeps its gradient under the flakes.
-  const mid = GLITTER_BASE[g.color ?? "white"] ?? color;
-  const base = style.backgroundImage as string | undefined;
-  const baseSize = (style.backgroundSize as string | undefined) ?? "100% 100%";
-  const basePos = (style.backgroundPosition as string | undefined) ?? "0 0";
-  return {
-    ...style,
-    backgroundImage: [GLINT_TILE, flakes, base ?? `linear-gradient(${mid}, ${mid})`].join(", "),
-    backgroundSize: [`${Math.round(70 * size)}px ${Math.round(70 * size)}px`, `${tile}px ${tile}px`, baseSize].join(", "),
-    backgroundPosition: ["0 0", "0 0", basePos].join(", "),
-    backgroundBlendMode: "screen, normal, normal",
-    WebkitBackgroundClip: "text", backgroundClip: "text",
-    color: "transparent", WebkitTextFillColor: "transparent",
-    // A role with its own animation (gradient flow / shimmer) keeps it.
-    animation: style.animation ?? `${GLITTER_ANIMATION} 3.2s linear infinite`,
-  } as T;
+  const n = Math.max(4, Math.round((w * h) / 70 * (0.15 + amount * 0.85)));
+  const colors = GLITTER_COLORS[g.color ?? "white"] ?? GLITTER_COLORS.white;
+  const base = 3 + clamp01(g.size ?? GLITTER_DEFAULT_SIZE) * 6;   // 3–9 px
+  const r = rand(seed * 7919 + 13);
+  return Array.from({ length: Math.min(n, 30) }, () => {
+    const star = r() < 0.45;
+    return {
+      x: r(), y: r(), size: (star ? base : base * 0.45) * (0.6 + r() * 0.6),
+      delay: r() * 3, dur: 1.3 + r() * 1.8, color: colors[Math.floor(r() * colors.length)], star,
+    };
+  });
 }
 
 export const STRASS_COLORS: Record<NonNullable<NonNullable<CardEffects["strass"]>["color"]>, [string, string, string]> = {

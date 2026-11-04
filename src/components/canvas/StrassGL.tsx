@@ -2,10 +2,12 @@
 /**
  * Strass v2 (2026-11-04, user request: "3D real"): the rhinestones are real
  * 3D gems — faceted brilliant-cut meshes (three.js, already a dependency of
- * the landing) with environment reflections. They turn a little with the
- * card's light (--lx / --ly on this element), so their facets flash as it
- * moves. Draws only when the light changes. If WebGL is not available,
- * `fallback` (the flat SVG stones) is shown instead.
+ * the landing) with environment reflections, glued to the card: they lean
+ * exactly as the card leans (its --tilt-x / --tilt-y), so their relief —
+ * the crown and the sides — shows as it tilts, and the card's light
+ * (--lx / --ly on this element) moves the highlights over the facets. Draws
+ * only when the tilt or the light changes. Without WebGL, `fallback` (the
+ * flat SVG stones) is shown instead.
  */
 import React, { useEffect, useRef, useState } from "react";
 import type { CardEffects } from "@/types";
@@ -34,7 +36,7 @@ export default function StrassGL({ w, h, pts, size, color, fallback }: {
         renderer.setPixelRatio(dpr);
         renderer.setSize(w, h, false);
         renderer.toneMapping = T.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 0.85;
+        renderer.toneMappingExposure = 1;
         renderer.outputColorSpace = T.SRGBColorSpace;
         const scene = new T.Scene();
         const pmrem = new T.PMREMGenerator(renderer);
@@ -54,9 +56,12 @@ export default function StrassGL({ w, h, pts, size, color, fallback }: {
         const [hi, body] = STRASS_COLORS[color] ?? STRASS_COLORS.crystal;
         const gold = color === "gold";
         const mat = new T.MeshPhysicalMaterial({
-          color: new T.Color(color === "crystal" ? "#eef3ff" : body), flatShading: true,
-          metalness: gold ? 0.85 : 0.05, roughness: gold ? 0.18 : 0.02,
-          clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: gold ? 1.6 : 2.4,
+          // Mirror-like facets: each one reflects a different part of the
+          // room, so the stone reads as cut glass (dark and bright facets),
+          // not as a white dot.
+          color: new T.Color(color === "crystal" ? "#dfe6f5" : body), flatShading: true,
+          metalness: gold ? 0.9 : 0.5, roughness: gold ? 0.16 : 0.06,
+          clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: gold ? 1.5 : 1.9,
           iridescence: color === "rainbow" || color === "crystal" ? 1 : 0.3, iridescenceIOR: 1.6,
           sheen: 0.4, sheenColor: new T.Color(hi),
         });
@@ -69,32 +74,36 @@ export default function StrassGL({ w, h, pts, size, color, fallback }: {
           base.forEach((_, i) => { c.setHSL((i / base.length) % 1, 0.75, 0.68); mesh.setColorAt(i, c); });
         }
         scene.add(mesh);
-        const key = new T.DirectionalLight("#ffffff", 2.2);
+        const key = new T.DirectionalLight("#ffffff", 4);
         scene.add(key, new T.AmbientLight("#ffffff", 0.35));
 
-        let lastX = NaN, lastY = NaN;
-        const draw = (lx: number, ly: number) => {
-          // Each stone turns toward the light, with its own small offset, so
-          // they don't all flash at once.
+        let lastX = NaN, lastY = NaN, lastTx = NaN, lastTy = NaN;
+        const deg = Math.PI / 180;
+        const draw = (lx: number, ly: number, tx: number, ty: number) => {
+          // The canvas is inside the card's own 3D tilt: the stones get the
+          // same lean again inside the scene, which is what makes their
+          // crowns and sides show (a flat drawing would just tilt as a sticker).
           base.forEach((b, i) => {
-            e.set((0.5 - ly) * 0.9 + Math.sin(b.a) * 0.18, (lx - 0.5) * 0.9 + Math.cos(b.a) * 0.18, b.a);
+            e.set(-tx * deg, ty * deg, b.a);
             q.setFromEuler(e);
             m.compose(v.set(b.x, b.y, 0), q, s);
             mesh.setMatrixAt(i, m);
           });
           mesh.instanceMatrix.needsUpdate = true;
-          key.position.set((lx - 0.5) * 2, (0.5 - ly) * 2, 1.2);
+          key.position.set((lx - 0.5) * 2.4, (0.5 - ly) * 2.4, 1);
           renderer.render(scene, camera);
         };
         const host = canvas.parentElement!;
-        const read = (n: string, d: number) => { const v = parseFloat(host.style.getPropertyValue(n)); return isFinite(v) ? v : d; };
+        const card = canvas.closest<HTMLElement>("[data-profile-card]");
+        const read = (el: HTMLElement | null, n: string, d: number) => { const v = parseFloat(el?.style.getPropertyValue(n) ?? ""); return isFinite(v) ? v : d; };
         const tick = () => {
           raf = requestAnimationFrame(tick);
           if (document.hidden) return;
-          const lx = read("--lx", 0.38), ly = read("--ly", 0.28);
-          if (Math.abs(lx - lastX) < 0.002 && Math.abs(ly - lastY) < 0.002) return;
-          lastX = lx; lastY = ly;
-          draw(lx, ly);
+          const lx = read(host, "--lx", 0.38), ly = read(host, "--ly", 0.28);
+          const tx = read(card, "--tilt-x", 0), ty = read(card, "--tilt-y", 0);
+          if (Math.abs(lx - lastX) < 0.002 && Math.abs(ly - lastY) < 0.002 && Math.abs(tx - lastTx) < 0.02 && Math.abs(ty - lastTy) < 0.02) return;
+          lastX = lx; lastY = ly; lastTx = tx; lastTy = ty;
+          draw(lx, ly, tx, ty);
         };
         tick();
         cleanup = () => {
@@ -109,5 +118,5 @@ export default function StrassGL({ w, h, pts, size, color, fallback }: {
   }, [w, h, pts, size, color]);
 
   if (failed) return <>{fallback}</>;
-  return <canvas ref={ref} aria-hidden style={{ position: "absolute", inset: 0, width: w, height: h, pointerEvents: "none" }} />;
+  return <canvas ref={ref} aria-hidden style={{ position: "absolute", inset: 0, width: w, height: h, pointerEvents: "none", filter: "drop-shadow(0 1px 1.2px rgba(0,0,0,.55))" }} />;
 }

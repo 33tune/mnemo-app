@@ -407,10 +407,13 @@ planeado acá hasta confirmarlo.
 >       sombreado difuso (mismo material), brillo especular y una sombra hacia el lado opuesto. Se actualiza solo cuando
 >       la luz cambia (mouse, dedo, giroscopio, inclinación).
 >     - **Strass = 3D real** (`StrassGL.tsx`): gemas talla brillante en WebGL (three.js, `InstancedMesh`, entorno
->       `RoomEnvironment`), giran con la luz y dibujan solo cuando la luz cambia; sin WebGL caen al SVG plano.
+>       `RoomEnvironment`, facetas espejadas + sombra de contacto), **pegadas a la card**: se inclinan con su
+>       `--tilt-x/--tilt-y` (antes giraban con la luz y parecían moverse aparte); la luz solo mueve los brillos. Dibujan
+>       solo cuando cambia la inclinación o la luz; sin WebGL caen al SVG plano.
 >       `preserveDrawingBuffer` para que salgan en la historia.
->     - **Glitter v2** (`withGlitter`): las letras se rellenan de glitter fino (escamas en tonos oscuro/medio/claro sobre el
->       tono del glitter, `background-clip: text`) + brillos que se deslizan; un texto con degradé lo conserva debajo.
+>     - **Glitter v3** (vuelta atrás pedida por el usuario: el relleno dentro de las letras "ni se ve"): destellos
+>       chicos sobre cada texto (`glitterSparkles`: 3–9 px, máx. 30 por texto; estrellas con clip-path + puntitos),
+>       `CardGlitter.tsx` en una capa hermana de la fila, animados solo con transform/opacity (sin drop-shadow).
 >     - **Fantasma ELIMINADO** (decisión del usuario): sin tipo, menú ni render.
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK

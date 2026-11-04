@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   holoOn, glareOn, lightEffectsOn, holoSheetStyle, glareStyle, entranceAnimation, entranceShineAnimation,
   entranceDuration, holoGradient, HOLO_PALETTES, HOLO_STYLES, ENTRANCE_STYLES, lightIdleOn, holoStyleOf, holoScopeOf,
-  borderStrips, strassPoints, withGlitter, withEmboss, embossLight, embossFilterId,
+  borderStrips, strassPoints, glitterSparkles, withEmboss, embossLight, embossFilterId,
 } from "./cardFoil";
 
 test("absent / disabled = off (no existing card changes)", () => {
@@ -88,14 +88,10 @@ test("relief: a lighting filter on the texts, lit from the light point", () => {
   assert.ok(embossLight(0.5, 0.5).elevation > right.elevation, "light overhead = higher");
 });
 
-test("glitter fills the letters (no extra elements); off = untouched; keeps a gradient", () => {
-  const plain: React.CSSProperties = { color: "#fff" };
-  assert.equal(withGlitter(plain, {}, "#fff"), plain);
-  const g = withGlitter(plain, { glitter: { enabled: true } }, "#fff");
-  assert.equal(g.backgroundClip, "text");
-  assert.equal(g.color, "transparent");
-  assert.equal(String(g.backgroundImage).split("url(").length - 1, 2, "flakes + glints");
-  const grad = withGlitter({ backgroundImage: "linear-gradient(red, blue)", animation: "flow 2s" }, { glitter: { enabled: true } }, "#fff");
-  assert.match(String(grad.backgroundImage), /linear-gradient\(red, blue\)$/);
-  assert.equal(grad.animation, "flow 2s", "a role's own animation stays");
+test("glitter: small sparkles, same ones every render, never huge", () => {
+  const fx = { glitter: { enabled: true, size: 1 } };
+  const a = glitterSparkles(200, 30, fx, 3), b = glitterSparkles(200, 30, fx, 3);
+  assert.deepEqual(a, b);
+  assert.ok(a.length >= 4 && a.length <= 30);
+  assert.ok(a.every(s => s.size <= 11), "max size stays small");
 });

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, memo, type CSSProperties } from "react";
+import { Fragment, useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, memo, type CSSProperties } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects, ContactLink } from "@/types";
 import { getFontStyle as getCanvasFontStyle } from "@/lib/fontList";
@@ -36,8 +36,9 @@ import { resolveCardTypography } from "@/lib/cardTypography";
 import { resolveTextEffectStyle, resolveLetterEffectStyle, roleFxOnly, anyTextGlowPulse } from "@/lib/textEffects";
 import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
 import EmbossFilter from "./EmbossFilter";
+import CardGlitter from "./CardGlitter";
 import {
-  entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT, withGlitter, withEmboss, holoOn, holoScopeOf, holoSheetStyle,
+  entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT, withEmboss, holoOn, holoScopeOf, holoSheetStyle,
 } from "@/lib/cardFoil";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 import { PART_ATTR, PART_CLICK_SLOP, partFromTarget, movedBeyondSlop, type PartClick, type PartRole } from "@/lib/partNavigation";
@@ -243,6 +244,9 @@ function initFreePos(card: ProfileCardData): FreePos {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+/** One glitter pattern per text (they don't repeat across the card). */
+const GLITTER_SEED = { name: 1, handle: 2, descriptor: 3, bio: 4, location: 5, views: 6, about: 7 } as const;
+
 function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
@@ -387,7 +391,7 @@ function ProfileCard({
   }, [entrancePreview]);
   const entering = !canInteract || entrancePreview > 0;
   const ownEntrance = entering ? entranceAnimation(effectiveEffects, ENTER_DELAY_MS) : undefined;
-  useFoilKeyframes(!!ownEntrance || glitterOn);
+  useFoilKeyframes(!!ownEntrance);
   // Block 1 (panel <-> card pointer isolation): the config menu is portaled
   // to document.body from INSIDE this card's JSX, so React bubbles the
   // panel's mousemove/mouseover up to the handlers below (fiber tree, not
@@ -532,16 +536,16 @@ function ProfileCard({
   // split. One resolveTextEffectStyle call per role, not one shared style
   // object, since each role's gradient/shimmer is independent.
   const textRoles = card.effects?.textRoles;
-  const nameEffectStyle       = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.name, resolvedColors.name), effectiveEffects, resolvedColors.name), effectiveEffects, card.id);
-  const handleEffectStyle     = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle, resolvedColors.handle), effectiveEffects, resolvedColors.handle), effectiveEffects, card.id);
-  const descriptorEffectStyle = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor, resolvedColors.descriptor), effectiveEffects, resolvedColors.descriptor), effectiveEffects, card.id);
+  const nameEffectStyle       = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.name, resolvedColors.name), effectiveEffects, card.id);
+  const handleEffectStyle     = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.handle, resolvedColors.handle), effectiveEffects, card.id);
+  const descriptorEffectStyle = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.descriptor, resolvedColors.descriptor), effectiveEffects, card.id);
   // Block 1: the flat-shimmer surface uses the color Location/Views really
   // render with (block textColor override included, same expression as
   // LocationLine/ViewsLine below), not the bare role color.
-  const locationEffectStyle   = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location), effectiveEffects, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location), effectiveEffects, card.id);
-  const bioEffectStyle        = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio), effectiveEffects, resolvedColors.bio), effectiveEffects, card.id);
-  const viewsEffectStyle      = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views), effectiveEffects, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views), effectiveEffects, card.id);
-  const aboutEffectStyle      = withEmboss(withGlitter(resolveTextEffectStyle(effectiveEffects.text, textRoles?.about, resolvedColors.about), effectiveEffects, resolvedColors.about), effectiveEffects, card.id);
+  const locationEffectStyle   = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.location, resolveBlockStyle(card, "location").textColor ?? resolvedColors.location), effectiveEffects, card.id);
+  const bioEffectStyle        = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.bio, resolvedColors.bio), effectiveEffects, card.id);
+  const viewsEffectStyle      = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.views, resolveBlockStyle(card, "views").textColor ?? resolvedColors.views), effectiveEffects, card.id);
+  const aboutEffectStyle      = withEmboss(resolveTextEffectStyle(effectiveEffects.text, textRoles?.about, resolvedColors.about), effectiveEffects, card.id);
   // Product closeout — shimmer fix: shimmer no longer requires gradient to
   // be set (see textEffects.ts's header), so "is shimmer active anywhere"
   // is now just "is `shimmer` present", not "gradient AND shimmer".
@@ -1087,9 +1091,17 @@ function ProfileCard({
       const r = rows[role];
       if (!r) return null;
       return (
-        <div key={role} {...partProps(role)} style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, overflow: "hidden", transition: REFLOW_TRANSITION, ...partOutline(role) }}>
-          {content}
-        </div>
+        <Fragment key={role}>
+          <div {...partProps(role)} style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, overflow: "hidden", transition: REFLOW_TRANSITION, ...partOutline(role) }}>
+            {content}
+          </div>
+          {/* Glitter: a sibling over the row (not clipped by it), measuring it. */}
+          {glitterOn ? (
+            <div style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, pointerEvents: "none", zIndex: 4, transition: REFLOW_TRANSITION }}>
+              <CardGlitter fx={effectiveEffects} seed={GLITTER_SEED[role]} />
+            </div>
+          ) : null}
+        </Fragment>
       );
     };
     const box = (r: Rect): CSSProperties => ({ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h });
