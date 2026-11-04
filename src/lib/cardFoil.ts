@@ -205,7 +205,7 @@ export function glareOn(fx: CardEffects | undefined): boolean {
 }
 /** The card has something that follows the light. */
 export function lightEffectsOn(fx: CardEffects | undefined): boolean {
-  return holoOn(fx) || glareOn(fx) || !!fx?.emboss?.enabled || !!fx?.strass?.enabled;
+  return holoOn(fx) || glareOn(fx) || !!fx?.strass?.enabled;
 }
 /** The light drifts by itself (holo "Moverse solo"). */
 export function lightIdleOn(fx: CardEffects | undefined): boolean {
@@ -322,35 +322,7 @@ export function entranceShineAnimation(fx: CardEffects | undefined, delayMs = 0)
   return `${ENTRANCE_SHINE_ANIMATION} 1.1s cubic-bezier(0.4,0,0.2,1) ${after}ms both`;
 }
 
-// ── Relieve en los textos / Fantasma / Glitter / Strass ──────
-
-export const EMBOSS_DEFAULT_DEPTH = 0.6;
-/**
- * Relieve en los textos (2026-11-04, v3 — like an embossed card): the texts
- * are raised from the card and LIT. An SVG lighting filter (EmbossFilter in
- * ProfileCard) bump-maps each letter from its own shape and lights it with a
- * light coming from the card's light point: the edges toward the light shine,
- * the ones away from it fall into shadow, and a specular sheen runs over the
- * letters as the light (cursor / finger / gyroscope / tilt) moves.
- */
-export const embossFilterId = (cardId: string) => `mnemo-emboss-${cardId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-export function withEmboss<T extends CSSProperties>(style: T, fx: CardEffects | undefined, cardId: string): T {
-  if (!fx?.emboss?.enabled) return style;
-  const f = `url(#${embossFilterId(cardId)})`;
-  return { ...style, filter: style.filter ? `${style.filter} ${f}` : f } as T;
-}
-/** Distant light from the light point: azimuth (deg) and elevation (deg). */
-export function embossLight(lx: number, ly: number): { azimuth: number; elevation: number } {
-  const dx = lx - 0.5, dy = ly - 0.5;
-  const az = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const dist = Math.min(1, Math.hypot(dx, dy) * 2);
-  return { azimuth: az, elevation: 62 - dist * 40 };
-}
-/** Filter strength from the depth slider. */
-export function embossParams(fx: CardEffects | undefined) {
-  const d = clamp01(fx?.emboss?.depth ?? EMBOSS_DEFAULT_DEPTH);
-  return { blur: 0.7 + d * 0.9, surface: 2 + d * 5, shadow: 0.6 + d * 1.6 };
-}
+// ── Glitter / Strass ──────
 
 export const GLITTER_COLORS: Record<NonNullable<NonNullable<CardEffects["glitter"]>["color"]>, string[]> = {
   white:   ["#ffffff", "#f1f4ff"],

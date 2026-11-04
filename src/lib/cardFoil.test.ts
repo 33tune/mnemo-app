@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   holoOn, glareOn, lightEffectsOn, holoSheetStyle, glareStyle, entranceAnimation, entranceShineAnimation,
   entranceDuration, holoGradient, HOLO_PALETTES, HOLO_STYLES, ENTRANCE_STYLES, lightIdleOn, holoStyleOf, holoScopeOf,
-  borderStrips, strassPoints, glitterSparkles, withEmboss, embossLight, embossFilterId,
+  borderStrips, strassPoints, glitterSparkles,
 } from "./cardFoil";
 
 test("absent / disabled = off (no existing card changes)", () => {
@@ -75,17 +75,6 @@ test("strass: stones all around the border, inside the card", () => {
   for (const p of pts) assert.ok(p.x > 0 && p.x < 300 && p.y > 0 && p.y < 400, JSON.stringify(p));
   assert.ok(pts.some(p => p.y < 20) && pts.some(p => p.y > 380) && pts.some(p => p.x < 20) && pts.some(p => p.x > 280));
   assert.ok(strassPoints(300, 400, 24, 9, 1).length < pts.length, "more gap = fewer stones");
-});
-
-test("relief: a lighting filter on the texts, lit from the light point", () => {
-  const st = withEmboss({ filter: "blur(1px)" }, { emboss: { enabled: true } }, "c 1");
-  assert.equal(st.filter, `blur(1px) url(#${embossFilterId("c 1")})`);
-  assert.equal(embossFilterId("c 1"), "mnemo-emboss-c1");
-  assert.deepEqual(withEmboss({}, {}, "c"), {});
-  const right = embossLight(1, 0.5), top = embossLight(0.5, 0);
-  assert.equal(Math.round(right.azimuth), 0);
-  assert.equal(Math.round(top.azimuth), -90);
-  assert.ok(embossLight(0.5, 0.5).elevation > right.elevation, "light overhead = higher");
 });
 
 test("glitter: small sparkles, same ones every render, never huge", () => {

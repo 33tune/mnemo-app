@@ -423,6 +423,8 @@ planeado acá hasta confirmarlo.
 >       chicos sobre cada texto (`glitterSparkles`: 3–9 px, máx. 30 por texto; estrellas con clip-path + puntitos),
 >       `CardGlitter.tsx` en una capa hermana de la fila, animados solo con transform/opacity (sin drop-shadow).
 >     - **Fantasma ELIMINADO** (decisión del usuario): sin tipo, menú ni render.
+>     - **Relieve ELIMINADO** (2026-11-04, decisión del usuario: "no me gusta"): sin tipo, menú, filtro
+>       (`EmbossFilter.tsx` borrado) ni render. Una card que lo tenía guardado simplemente ya no lo muestra.
 >   - **Celular e historia (2026-11-04, feedback del usuario tras probar en el iPhone):**
 >     - **Glitter v4** (`CardGlitter.tsx`): UN canvas por texto (antes hasta 30 spans animados por texto: cientos de capas
 >       en el celular, lag, y Safari dibujaba mal las estrellas recortadas). Un reloj compartido a ~24 fps para todos, se

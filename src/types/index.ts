@@ -920,9 +920,6 @@ export type CardEffects = {
     idle?: boolean;
   };
   glare?: { enabled: boolean; intensity?: number; size?: number }; // 0-1 each
-  /** Relieve en los textos: the texts are embossed (raised from the card,
-   * lit by the light: highlight toward it, shadow away from it). */
-  emboss?: { enabled: boolean; depth?: number };        // 0-1
   /** Glitter: little sparkles twinkling over the texts. */
   glitter?: { enabled: boolean; color?: "white" | "gold" | "pink" | "rainbow"; amount?: number; size?: number };
   /** Strass: rhinestones around the border, lit where the light passes. */
