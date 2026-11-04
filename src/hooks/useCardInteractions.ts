@@ -240,19 +240,22 @@ export function useGyroTilt(
   useEffectOnce(enabled, () => {
     if (typeof window === "undefined" || !("DeviceOrientationEvent" in window)) return;
     let base: { b: number; g: number } | null = null;
-    const RANGE = 25; // degrees of phone tilt for the full card tilt
+    // Degrees of phone tilt for the full card tilt. 2026-11-04: was 25 with
+    // half the range and a fast re-center — on a phone the 3D barely showed.
+    const RANGE = 14;
     const clamp = (v: number) => Math.max(-1, Math.min(1, v));
     const onOrient = (ev: DeviceOrientationEvent) => {
       if (ev.beta == null || ev.gamma == null || touching.current) return;
       if (!base) base = { b: ev.beta, g: ev.gamma };
       // Slowly re-center, so a phone set down at a new angle settles flat.
-      base.b += (ev.beta - base.b) * 0.01;
-      base.g += (ev.gamma - base.g) * 0.01;
+      base.b += (ev.beta - base.b) * 0.004;
+      base.g += (ev.gamma - base.g) * 0.004;
       const dy = clamp((ev.beta - base.b) / RANGE), dx = clamp((ev.gamma - base.g) / RANGE);
-      // ±max/2, the same range the cursor reaches at the card's edges.
+      // ±0.8·max: a bit past what the cursor reaches at the card's edges
+      // (±max/2), since a phone is turned less than a cursor travels.
       if (tiltOnRef.current) {
-        targetTilt.current.x = dy * maxRef.current * -0.5;
-        targetTilt.current.y = dx * maxRef.current * 0.5;
+        targetTilt.current.x = dy * maxRef.current * -0.8;
+        targetTilt.current.y = dx * maxRef.current * 0.8;
       }
       // Holográfico / Reflejo: the light slides across the card as it turns.
       if (lightOnRef.current && Math.abs(dx) + Math.abs(dy) > 0.04) {

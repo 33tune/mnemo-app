@@ -308,6 +308,10 @@ planeado acá hasta confirmarlo.
 >   (`mnemo-text-gradient-flow-x|y|xy`). Con animación por letra + degradé + brillo, cada letra muestra su porción del
 >   degradé QUIETA (rebota igual). `-webkit-text-fill-color: transparent` en todo texto con degradé.
 >
+> **Giroscopio más notorio (2026-11-04):** `useGyroTilt` llega a ±0,8 de la inclinación máxima con 14° de giro del
+>   teléfono (antes ±0,5 con 25°) y se re-centra más lento (0,004 por evento): en el celular el 3D casi no se veía.
+>   Pendiente: confirmarlo en un iPhone real.
+>
 > **Celulares viejos (2026-10-28):** un iPhone X veía el perfil gris oscuro. Next 16 compila por defecto para
 >   Safari ≥ 16.4 (su runtime usa class static blocks); en un Safari más viejo el JS no arranca y la vista pública queda
 >   oculta (`visibility: hidden` hasta medir; el contenido se carga en un efecto, el servidor no lo dibuja). Arreglo:
@@ -360,7 +364,11 @@ planeado acá hasta confirmarlo.
 >     6 s, 1080×1920: el fondo de la sala (mosaico a la escala de la card), la card entrando, girando apenas y con el
 >     holo / reflejo moviéndose (`storyRender.ts`, cuadros deterministas). La card es UNA foto del DOM
 >     (`html-to-image`, sin sus capas holo/glare ni la chrome); las `<img>` pasan a fotos quietas solo durante la
->     foto (los GIF gigantes no se dibujaban). No incluye imágenes/textos sueltos de la sala. Video: WebCodecs H.264 +
+>     foto (los GIF gigantes no se dibujaban). **Desde 2026-11-04 incluye las imágenes y textos sueltos de la sala
+>     que TOCAN la card** (`data-room-el` en CanvasBoard; la foto se toma del lienzo corrido, solo con la card y eso),
+>     las animaciones se congelan en el cuadro actual durante la foto (`freezeAnimations`) y en Safari/iPhone la foto se
+>     toma dos veces (la primera sale sin imágenes ni el canvas del strass). Las historias se arman en el navegador y
+>     se descargan / comparten: no se sube ni se guarda nada en la base ni en el storage. Video: WebCodecs H.264 +
 >     `mp4-muxer`; si no hay, MediaRecorder en tiempo real (H.264 MP4 si el navegador puede, si no WebM). En el celular
 >     usa el menú de compartir (Instagram › Historia); en la compu descarga.
 >   - El aviso BETA del editor se oculta mientras el panel lateral está abierto (tapaba los botones de la barra).

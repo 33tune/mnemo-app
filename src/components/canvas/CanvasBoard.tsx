@@ -3735,7 +3735,7 @@ export default function CanvasBoard({
         const _fy=!canEdit?Math.round((_cy-(img.y+img.h/2))*0.40):0;
         const _fd=!canEdit?Math.min(i*22,200):0;
         return (
-          <div key={img.id} ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100+(isSel?SELECTION_Z_BOOST:0),cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",pointerEvents:shouldImageIgnorePointerEvents(!!canInteract,!!img.linkUrl)?"none":undefined,transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms backwards`}as object:{})}}
+          <div key={img.id} data-room-el="" ref={el=>{if(el)imgElRefs.current.set(img.id,el);else imgElRefs.current.delete(img.id);}} style={{position:"absolute",left:img.x,top:img.y,width:img.w,height:img.h,zIndex:img.zIndex+img.layer*100+(isSel?SELECTION_Z_BOOST:0),cursor:img.locked?"default":!canInteract&&img.linkUrl?"pointer":dragging?.id===img.id?"grabbing":"grab",userSelect:"none",pointerEvents:shouldImageIgnorePointerEvents(!!canInteract,!!img.linkUrl)?"none":undefined,transform:`${ps.transform} rotate(${img.rotation??0}deg)`,willChange:"transform",...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms backwards`}as object:{})}}
             onMouseDown={e=>{
               if(img.locked){e.stopPropagation();return;}
               // Mechanism B (Stage 3B.4-B): only worth peeking past this image
@@ -3787,7 +3787,7 @@ export default function CanvasBoard({
         const _fy=!canEdit?Math.round((_cy-(txt.y+20))*0.40):0;
         const _fd=!canEdit?Math.min(i*22,200):0;
         return (
-          <div key={txt.id} ref={el=>{textElRefs.current[txt.id]=el;}}
+          <div key={txt.id} ref={el=>{textElRefs.current[txt.id]=el;}} data-room-el=""
             data-mnemo-text-editing={isEdit ? "" : undefined}
             style={{position:"absolute",left:txt.x,top:txt.y,zIndex:txt.zIndex+txt.layer*100+(isSel?SELECTION_Z_BOOST:0),transform:`${ps.transform} rotate(${txt.rotation}deg)`,willChange:"transform",userSelect:isEdit?"text":"none",pointerEvents:!canInteract?"none":undefined,cursor:txt.locked?"default":dragging?.id===txt.id?"grabbing":isEdit?"text":"grab",display:"inline-block",maxWidth:Math.max(80,viewerW-txt.x-8),...(!canEdit?{'--from-x':`${_fx}px`,'--from-y':`${_fy}px`,animation:`el-reveal 0.45s cubic-bezier(0.16,1,0.3,1) ${_fd}ms backwards`}as object:{})}}
             onMouseDown={e=>{if(txt.locked){e.stopPropagation();return;}if(!isEdit)onElementMouseDown(txt.id,"text",txt.x,txt.y,e);}}
