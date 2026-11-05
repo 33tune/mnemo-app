@@ -5,7 +5,7 @@
  *
  * The story is the PUBLIC PROFILE AS A PHONE SHOWS IT (mobileFit.ts ›
  * mobileView): a 9:16 phone screen of STORY_VIEW_W CSS px, rendered at
- * 1080×1920 (≈ 2.77 device px per CSS px, a real phone's density). The room's
+ * STORY_W×STORY_H. The room's
  * wallpaper is laid out exactly like the public view lays it out (tied to the
  * room, at the view's scale, with the owner's blur / brightness / vignette),
  * and over it goes a capture of the real card — with the room's images and
@@ -16,11 +16,10 @@
  */
 import { mobileView } from "@/lib/mobileFit";
 
-export const STORY_W = 1080;
-export const STORY_H = 1920;
-export const STORY_FPS = 30;
-export const STORY_SECONDS = 5;
-export const STORY_FRAMES = STORY_FPS * STORY_SECONDS;
+/** 9:16 at 1440×2560 (2026-11-04: "detallada, buena calidad"; video dropped):
+ * ≈ 3.7 px per CSS px of the phone, sharper than a phone screenshot. */
+export const STORY_W = 1440;
+export const STORY_H = 2560;
 /** The phone screen the story is "taken" on (CSS px, 9:16). */
 export const STORY_VIEW_W = 390;
 export const STORY_VIEW_H = (STORY_VIEW_W * STORY_H) / STORY_W;

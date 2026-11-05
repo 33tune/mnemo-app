@@ -11,7 +11,7 @@
  * (exportClock.ts). Everything is restored at `done()`.
  */
 import { setExportFrame, endExport } from "./exportClock";
-import { STORY_SECONDS, type Rect } from "./storyRender";
+import type { Rect } from "./storyRender";
 import { stillMedia } from "./stillMedia";
 
 /** Safari (every browser on an iPhone) decodes the pictures inside the SVG
@@ -79,7 +79,8 @@ export async function startCapture(el: HTMLElement, region: Rect, ratio: number)
   try {
     // Every picture at the size it is shown in the story (animated ones frame
     // by frame), as small data URLs: stillMedia.ts.
-    const media = await stillMedia(subjects, ratio, STORY_SECONDS);
+    // A still: only the first frame of animated pictures is prepared.
+    const media = await stillMedia(subjects, ratio, 0);
     undo.push(() => media.undo());
     // Transitions still running (the editor's panel closing, a hover
     // ending) end now: the picture is the card at rest, not halfway.

@@ -463,6 +463,13 @@ planeado acá hasta confirmarlo.
 >       (`withoutParallax`): antes la card salía corrida.
 >     - Medido en la máquina de pruebas (4 núcleos, sin GPU, sin H.264 en WebCodecs → camino MediaRecorder): imagen ~5–6 s,
 >       video 5 s de `zaid` ~72 s y de `nico` ~90 s. En un celular / compu real debería ser menos; sin QA en iPhone real.
+>   - **Sin video, solo captura (2026-11-05, decisión del usuario: "tarda un montón, se descarga un archivo random").** Se
+>     sacaron el video, el botón y `mp4-muxer`. La captura es PNG de **1440×2560** (`STORY_W/H`, ≈3,7 px por px del
+>     celular). El PNG (`File`) se arma al abrir el diálogo, así el toque abre el menú de compartir del teléfono en el acto
+>     (Safari lo cancelaba tras la espera y caía en una descarga suelta): "Guardar imagen" la deja en la galería, o
+>     Instagram. En la compu se descarga. Botón **"Copiar link"** (`https://www.myland.lol/<handle>`) para el sticker Enlace:
+>     una web NO puede publicar una historia de Instagram con link (solo apps nativas mandan a Historias, y el sticker de
+>     link lo pone la persona). `exportClock` / animaciones pausadas siguen (la captura es la card en reposo).
 >
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.

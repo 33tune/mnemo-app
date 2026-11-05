@@ -11,8 +11,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { startCapture, loadImage, cardRoomRect } from "@/lib/export/cardSnapshot";
-import { storyView, storyBackground, drawStoryFrame, STORY_W, STORY_H, STORY_FPS, type StoryView } from "@/lib/export/storyRender";
-import { storyVideo, shareOrDownload, canvasToBlob } from "@/lib/export/encodeStory";
+import { storyView, storyBackground, drawStoryFrame, STORY_W, STORY_H } from "@/lib/export/storyRender";
+import { download, canvasToBlob } from "@/lib/export/encodeStory";
 import { cardViewRect } from "@/lib/mobileFit";
 import type { ProfileCardData } from "@/types";
 
@@ -29,8 +29,10 @@ export interface ShareCardDialogProps {
   returnFocusTo?: () => HTMLElement | null;
 }
 
-type Busy = null | { what: "image" | "video"; progress: number };
-type Ready = { el: HTMLElement; view: StoryView; background: HTMLCanvasElement; still: HTMLCanvasElement };
+/** The still and its file, made before any tap: the share sheet must open
+ * right in the tap (Safari drops it after a slow wait and the file was
+ * downloaded instead, as a loose file). */
+type Ready = { still: HTMLCanvasElement; file: File };
 
 const isPhone = () => typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -39,7 +41,7 @@ export default function ShareCardDialog({ onClose, getCard, card, handle, bg, re
   const firstBtn = useRef<HTMLButtonElement>(null);
   const [ready, setReady] = useState<Ready | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<Busy>(null);
+  const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const phone = isPhone();
 
@@ -62,7 +64,9 @@ export default function ShareCardDialog({ onClose, getCard, card, handle, bg, re
         const still = document.createElement("canvas");
         still.width = STORY_W; still.height = STORY_H;
         drawStoryFrame(still.getContext("2d")!, background, first.shot, first.glass);
-        if (alive) setReady({ el, view, background, still });
+        const blob = await canvasToBlob(still, "image/png");
+        const file = new File([blob], `myland-${handle || "card"}.png`, { type: "image/png" });
+        if (alive) setReady({ still, file });
       } catch {
         if (alive) setError("No pudimos armar la imagen de tu card. Probá de nuevo.");
       }
@@ -86,54 +90,47 @@ export default function ShareCardDialog({ onClose, getCard, card, handle, bg, re
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const busyRef = useRef(false);
-  busyRef.current = !!busy;
+  busyRef.current = busy;
   const close = () => {
     if (busyRef.current) return;
     onClose();
     requestAnimationFrame(() => returnFocusTo?.()?.focus({ preventScroll: true }));
   };
 
-  const fileBase = `myland-${handle || "card"}`;
-  async function doImage() {
+  const link = `https://www.myland.lol/${handle}`;
+  /** Phone: the share sheet (Guardar imagen → the gallery, or Instagram).
+   * Computer: the PNG is downloaded. */
+  function doSave() {
     if (!ready || busy) return;
-    setBusy({ what: "image", progress: 0 }); setNote(null);
-    try {
-      const blob = await canvasToBlob(ready.still, "image/png");
-      const r = await shareOrDownload(blob, `${fileBase}.png`, "Mi card de myLand");
-      if (r === "downloaded") setNote("Imagen guardada. Subila como historia desde tu celular.");
-    } catch { setNote("No se pudo crear la imagen."); }
-    setBusy(null);
+    setNote(null);
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    if (phone && nav.share && nav.canShare?.({ files: [ready.file] })) {
+      setBusy(true);
+      nav.share({ files: [ready.file] })
+        .then(() => setNote("Listo. Para el link: en la historia agregá el sticker Enlace y pegá tu link (Copiar link)."))
+        .catch(e => { if ((e as Error).name !== "AbortError") { download(ready.file, ready.file.name); setNote("Imagen descargada."); } })
+        .finally(() => setBusy(false));
+      return;
+    }
+    download(ready.file, ready.file.name);
+    setNote(phone ? "Imagen descargada." : "Imagen descargada. Pasala al celular y subila como historia.");
   }
-  async function doVideo() {
-    if (!ready || busy) return;
-    setBusy({ what: "video", progress: 0 }); setNote("Grabando tu card cuadro por cuadro. Puede tardar un minuto: no cierres esta ventana.");
-    let cap: Awaited<ReturnType<typeof startCapture>> | null = null;
-    try {
-      cap = await startCapture(ready.el, ready.view.region, ready.view.ratio);
-      const c = cap;
-      const preview = previewRef.current?.getContext("2d");
-      const v = await storyVideo(async (ctx, i) => {
-        const f = await c.frame(i / STORY_FPS);
-        drawStoryFrame(ctx, ready.background, f.shot, f.glass);
-        // The preview shows what is being recorded.
-        if (preview && i % 3 === 0) preview.drawImage(ctx.canvas, 0, 0);
-      }, p => setBusy({ what: "video", progress: p }));
-      c.done(); cap = null;
-      setNote(null);
-      previewRef.current?.getContext("2d")!.drawImage(ready.still, 0, 0);
-      const r = await shareOrDownload(v.blob, `${fileBase}.${v.ext}`, "Mi card de myLand");
-      if (r === "downloaded") setNote(v.ext === "mp4" ? "Video guardado. Subilo como historia desde tu celular." : "Video guardado (WebM). Si Instagram no lo acepta, probá desde Chrome o Safari.");
-    } catch { setNote("No se pudo crear el video en este navegador. Probá con la imagen."); }
-    cap?.done();
-    setBusy(null);
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(link); }
+    catch {
+      const t = document.createElement("textarea");
+      t.value = link; document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); } catch { /* nothing more to try */ }
+      t.remove();
+    }
+    setNote("Link copiado. En la historia de Instagram: sticker Enlace › pegar.");
   }
 
-  const verb = phone ? "Compartir" : "Descargar";
   const btn = (primary: boolean): React.CSSProperties => ({
     flex: 1, minHeight: 48, borderRadius: 999, border: primary ? "none" : "1px solid rgba(255,255,255,0.18)",
     background: primary ? "#ffffff" : "rgba(255,255,255,0.08)", color: primary ? "#0b0b0e" : "#ffffff",
-    font: "600 15px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", cursor: ready && !busy ? "pointer" : "default",
-    opacity: ready && !busy ? 1 : 0.55, padding: "0 16px",
+    font: "600 15px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", cursor: (ready && !busy) || !primary ? "pointer" : "default",
+    opacity: (ready && !busy) || !primary ? 1 : 0.55, padding: "0 16px",
   });
 
   if (typeof document === "undefined") return null;
@@ -162,14 +159,14 @@ export default function ShareCardDialog({ onClose, getCard, card, handle, bg, re
           )}
         </div>
         <p style={{ margin: 0, color: "rgba(255,255,255,0.7)", fontSize: 14, textAlign: "center" }}>
-          {phone ? "Elegí Instagram › Historia en el menú de compartir." : "Bajala y subila como historia desde tu celular."}
+          {phone ? "\u201CGuardar imagen\u201D la deja en tu galería; también podés elegir Instagram." : "Bajala y subila como historia desde tu celular."}
         </p>
         <div style={{ display: "flex", gap: 10 }}>
-          <button ref={firstBtn} type="button" style={btn(true)} aria-disabled={!ready || !!busy || undefined} onClick={doVideo}>
-            {busy?.what === "video" ? `Grabando… ${Math.round(busy.progress * 100)}%` : `${verb} video`}
+          <button ref={firstBtn} type="button" style={btn(true)} aria-disabled={!ready || busy || undefined} onClick={doSave}>
+            {phone ? "Guardar / compartir" : "Descargar imagen"}
           </button>
-          <button type="button" style={btn(false)} aria-disabled={!ready || !!busy || undefined} onClick={doImage}>
-            {busy?.what === "image" ? "Armando…" : "Imagen"}
+          <button type="button" style={btn(false)} onClick={copyLink}>
+            Copiar link
           </button>
         </div>
         <div role="status" aria-live="polite" style={{ minHeight: 18, fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center" }}>{note}</div>

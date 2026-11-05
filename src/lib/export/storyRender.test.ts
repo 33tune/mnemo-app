@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { storyView, STORY_VIEW_W, STORY_VIEW_H, STORY_DPR, STORY_W, STORY_H, STORY_FRAMES, STORY_FPS, STORY_SECONDS } from "./storyRender";
+import { storyView, STORY_VIEW_W, STORY_VIEW_H, STORY_DPR, STORY_W, STORY_H } from "./storyRender";
 import { mobileView, MOBILE_GUTTER } from "@/lib/mobileFit";
 
 test("the story is the phone view: same scale and place as mobileView", () => {
@@ -15,7 +15,6 @@ test("the story is the phone view: same scale and place as mobileView", () => {
   }
   assert.ok(Math.abs(STORY_VIEW_W / STORY_VIEW_H - 9 / 16) < 1e-9);
   assert.ok(Math.abs(STORY_DPR * STORY_VIEW_W - STORY_W) < 1e-9);
-  assert.equal(STORY_FRAMES, STORY_FPS * STORY_SECONDS);
 });
 
 import { splitShadowList, parseShadow } from "./cardSnapshot";
