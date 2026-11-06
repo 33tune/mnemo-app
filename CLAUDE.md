@@ -508,6 +508,10 @@ planeado acá hasta confirmarlo.
 >     conserva el id `mnemo-rail-search` para devolver el foco).
 >   - **Encuadre con nota (2026-11-06):** la card es el CENTRO en el perfil (celular y compu); el lugar de la nota se
 >     refleja abajo (`withNote` en CanvasBoard: +noteH arriba y abajo), así la nota entra arriba sin bajar la card.
+>   - **Celular = lo que entra en la pantalla (2026-11-06, decisión del usuario) — REEMPLAZA "solo lo que toca la card":**
+>     `fitRoomToCard` manda todas las imágenes / textos públicos y CanvasBoard dibuja los que caen dentro de lo que muestra
+>     la pantalla (`phoneScreenRect` + `onPhoneScreen`; antes de medir, lo que toca la card). Lo que queda afuera no se
+>     dibuja ni se descarga. El zoom sigue siendo la card + stickers, centrada (así aparece el marco de la nota).
 >   - **Acceso directo** (`ShortcutsBar.tsx`, `/api/shortcuts`, `useShortcuts.ts`, `lib/shortcuts.ts`): barra abajo,
 >     horizontal, en el editor y en perfiles ajenos con sesión (compu): foto de la card, globo de la nota con su color y
 >     fuente (tamaño fijo), anillo si no la viste. Orden: fijados → nota sin ver → visitas → favorito más nuevo; máx. 50,

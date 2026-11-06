@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { CanvasState } from "@/types";
-import { fitRoomToCard, cardViewRect, mobileView, rotatedBox, MOBILE_GUTTER, MOBILE_MAX_SCALE } from "./mobileFit";
+import { fitRoomToCard, cardViewRect, mobileView, rotatedBox, onPhoneScreen, phoneScreenRect, MOBILE_GUTTER, MOBILE_MAX_SCALE } from "./mobileFit";
 
 const base = (over: Partial<CanvasState>): CanvasState => ({
   cards: [], images: [], texts: [], galleries: [], profiles: [], medias: [], guestbooks: [], socialCards: [],
@@ -12,14 +12,14 @@ const card = { id: "p", x: 800, y: 300, w: 300, h: 400, isPublic: true } as neve
 const img = (id: string, x: number, y: number, w = 100, h = 100) =>
   ({ id, src: "https://x/y.png", x, y, w, h, rotation: 0, isPublic: true, zIndex: 1, layer: 1, depth: 0 }) as never;
 
-test("phones show the card, and of the room only the images / texts touching it", () => {
+test("phones get the card and every public image / text (no widgets); the screen decides what is drawn", () => {
   const t = { id: "t", x: 820, y: 400, content: "hola", size: 20, rotation: 0, isPublic: true } as never;
   const farText = { id: "far", x: 100, y: 100, content: "lejos", size: 20, rotation: 0, isPublic: true } as never;
   const m = { id: "m", x: 820, y: 720, w: 200, h: 64, isPublic: true } as never;
   const fit = fitRoomToCard(base({ profiles: [card], images: [img("frame", 780, 280, 340, 440)], texts: [t, farText], musicCards: [m] }))!;
   assert.equal(fit.state.profiles.length, 1);
   assert.deepEqual(fit.state.images.map(i => i.id), ["frame"]);
-  assert.deepEqual(fit.state.texts.map(x => x.id), ["t"]);
+  assert.deepEqual(fit.state.texts.map(x => x.id), ["t", "far"]);
   assert.equal(fit.state.musicCards.length, 0);
   assert.deepEqual(fit.card, { x: 800, y: 300, w: 300, h: 400 });
   assert.equal(fitRoomToCard(base({ profiles: [{ ...(card as object), isPublic: false } as never] })), null);
@@ -33,7 +33,12 @@ test("in front or behind, any size: kept whole; the view is still the card alone
   const away = { ...(img("away", 1500, 900) as object), zIndex: 9, layer: 1 } as never;
   const hidden = { ...(img("hidden", 820, 320) as object), isPublic: false } as never;
   const fit = fitRoomToCard(base({ profiles: [c], images: [behind, huge, corner, away, hidden] }))!;
-  assert.deepEqual(fit.state.images.map(i => i.id), ["behind", "huge", "corner"]);
+  assert.deepEqual(fit.state.images.map(i => i.id), ["behind", "huge", "corner", "away"]);
+  // A phone of 390×700 on that card: what its screen shows is drawn.
+  const area = phoneScreenRect(390, 700, mobileView(390, 700, fit.card));
+  assert.deepEqual(fit.state.images.filter(i => onPhoneScreen(i, area)).map(i => i.id), ["behind", "huge", "corner"]);
+  // Before the view is measured, only what touches the card.
+  assert.deepEqual(fit.state.images.filter(i => onPhoneScreen(i, fit.card)).map(i => i.id), ["behind", "huge", "corner"]);
   assert.deepEqual(fit.state.images.find(i => i.id === "huge"), huge, "drawn as stored");
   assert.deepEqual(fit.card, { x: 800, y: 300, w: 300, h: 400 });
 });

@@ -35,7 +35,7 @@ import { trackRender } from "@/lib/perfDebug";
 import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
 import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { mobileView, cardViewRect, type MobileFit } from "@/lib/mobileFit";
+import { mobileView, cardViewRect, phoneScreenRect, onPhoneScreen, type MobileFit } from "@/lib/mobileFit";
 import { desktopViewFit, dropOutsideRoomElements } from "@/lib/roomBounds";
 import { imageSlots, withinImageLimit, IMAGE_LIMIT_MESSAGE } from "@/lib/canvasLimits";
 import { safeTextHtml, storedTextToPlain } from "@/lib/safeText";
@@ -1136,8 +1136,20 @@ export default function CanvasBoard({
   // ── Elementos visibles (en space/space_mobile, solo isPublic:true) ──────────
   const inSpace      = isSpaceCanvas(canvasMode);
   const visCards     = useMemo(() => inSpace ? cards.filter(c => c.isPublic)              : cards,        [inSpace, cards]);
-  const visImages    = useMemo(() => (inSpace ? images.filter(i => i.isPublic) : images).filter(img => img.src && (img.src.startsWith("http") || img.src.startsWith("blob:"))), [inSpace, images]);
-  const visTexts     = useMemo(() => inSpace ? texts.filter(t => t.isPublic)              : texts,        [inSpace, texts]);
+  // Phones (2026-11-06): every image / text that is inside what the screen
+  // shows (before the view is measured, only what touches the card) — the
+  // rest is not drawn, so never downloaded.
+  const phoneArea = mobileFit
+    ? (viewFit?.ready ? phoneScreenRect(viewFit.vw, viewFit.vh, viewFit) : mobileFit.card)
+    : null;
+  const phoneAreaKey = phoneArea ? `${Math.round(phoneArea.x)},${Math.round(phoneArea.y)},${Math.round(phoneArea.w)},${Math.round(phoneArea.h)}` : "";
+  const visImages    = useMemo(() => (inSpace ? images.filter(i => i.isPublic) : images).filter(img => img.src && (img.src.startsWith("http") || img.src.startsWith("blob:")))
+    .filter(img => !phoneArea || onPhoneScreen(img, phoneArea)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inSpace, images, phoneAreaKey]);
+  const visTexts     = useMemo(() => (inSpace ? texts.filter(t => t.isPublic) : texts).filter(t => !phoneArea || onPhoneScreen(t as never, phoneArea, true)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inSpace, texts, phoneAreaKey]);
   const visGalleries = useMemo(() => inSpace ? galleries.filter(g => g.isPublic)          : galleries,    [inSpace, galleries]);
   const visProfiles  = useMemo(() => inSpace ? profiles.filter(p => p.isPublic)           : profiles,     [inSpace, profiles]);
   const visMedias      = useMemo(() => inSpace ? medias.filter(m => m.isPublic)             : medias,       [inSpace, medias]);

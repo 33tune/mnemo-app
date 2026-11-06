@@ -1,4 +1,11 @@
 /**
+ * 2026-11-06 (decisión del usuario): the phone draws EVERY public image /
+ * free text that falls inside what its screen shows (`onPhoneScreen`), like
+ * the computer but zoomed on the card — not only what touches the card (a
+ * frame around the note box was lost). What is wholly off screen is not
+ * drawn, so it is never downloaded. The text below describes the earlier
+ * rule; the zoom (card + stickers, centered) is unchanged.
+ *
  * Mobile public view: phones show ONLY the profile card and its stickers
  * (decision of 2026-10-27) — no Music or old widgets of the room, and of its
  * images and free texts only the ones touching the card, in front or behind,
@@ -41,24 +48,34 @@ export function cardViewRect(card: CardLike, h = card.h): Rect {
 
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
-/** The phone's state: the public card, plus the images and free texts that
- * touch it — any size, in front or behind (see the file comment). `card` (the
- * view) is still the card and its stickers alone. */
+/** The phone's state: the public card plus every public image and free text
+ * (the client draws only those on screen, `onPhoneScreen`); no widgets.
+ * `card` (the view) is still the card and its stickers alone. */
 export function fitRoomToCard(state: CanvasState): MobileFit | null {
   const card = (state.profiles ?? []).find(p => p.isPublic);
   if (!card) return null;
-  const cardBox = rotatedBox({ x: card.x, y: card.y, w: card.w, h: card.h }, card.rotation);
-  const touches = (box: Rect) => overlaps(box, cardBox);
   return {
     state: {
       ...state, profiles: [card],
-      images: (state.images ?? []).filter(i => i.isPublic && touches(rotatedBox(i, i.rotation))),
-      texts: (state.texts ?? []).filter(t => t.isPublic && touches(textBox(t))),
+      images: (state.images ?? []).filter(i => i.isPublic),
+      texts: (state.texts ?? []).filter(t => t.isPublic),
       cards: [], galleries: [], medias: [], guestbooks: [],
       socialCards: [], musicCards: [], linksCards: [], statsCards: [],
     },
     card: cardViewRect(card),
   };
+}
+
+/** The room area a phone screen shows for a view (s, tx, ty). */
+export function phoneScreenRect(vw: number, vh: number, v: { s: number; tx: number; ty: number }): Rect {
+  return { x: -v.tx / v.s, y: -v.ty / v.s, w: vw / v.s, h: vh / v.s };
+}
+
+/** An image / free text is drawn on the phone when any part of it is inside
+ * `area` (the screen; before the view is measured, the card). */
+export function onPhoneScreen(el: { x: number; y: number; w?: number; h?: number; rotation?: number; content?: unknown; size?: number }, area: Rect, isText = false): boolean {
+  const box = isText ? textBox(el as Parameters<typeof textBox>[0]) : rotatedBox({ x: el.x, y: el.y, w: el.w ?? 200, h: el.h ?? 200 }, el.rotation ?? 0);
+  return overlaps(box, area);
 }
 
 /** Phone side gutter (px on screen). */
