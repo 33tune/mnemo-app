@@ -7,6 +7,7 @@
  *    name is claimed: "it's yours, now build the card on a computer".
  */
 import "./site.css";
+import { ShortcutsRow } from "@/components/canvas/ShortcutsBar";
 
 const VARS = {
   "--ml-bg": "#0E0C12", "--ml-ink": "#F6F3F8", "--ml-ink-2": "rgba(238,232,244,.72)",
@@ -53,6 +54,7 @@ export function MobileClaimed({ handle }: { handle: string }) {
       </p>
       <a href={`/${handle}`} style={{ ...primary, marginTop: 6 }}>Ver mi perfil</a>
       <a href="/" style={secondary}>Volver al inicio</a>
+      <ShortcutsRow />
     </Shell>
   );
 }

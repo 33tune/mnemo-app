@@ -146,3 +146,16 @@ exception when others then null; end $$;
 do $$ begin
   perform cron.schedule('notes-gc', '41 6 * * *', $c$delete from public.notes where expires_at < now() - interval '1 hour'; delete from public.note_alerts where created_at < now() - interval '7 days'$c$);
 exception when others then null; end $$;
+
+-- ── Acceso directo: cuántas veces entré a cada perfil (60 días) ────────────
+create or replace function public.my_visit_counts(targets uuid[])
+returns table (profile_user_id uuid, n bigint)
+language sql stable security definer set search_path = public as $$
+  select v.profile_user_id, count(*) from public.profile_views v
+  where v.viewer_user_id = auth.uid() and v.profile_user_id = any(targets)
+    and v.viewed_at > now() - interval '60 days'
+  group by v.profile_user_id;
+$$;
+revoke all on function public.my_visit_counts(uuid[]) from public;
+grant execute on function public.my_visit_counts(uuid[]) to authenticated;
+create index if not exists profile_views_viewer on public.profile_views (viewer_user_id, profile_user_id, viewed_at desc);

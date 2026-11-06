@@ -471,6 +471,34 @@ planeado acá hasta confirmarlo.
 >     una web NO puede publicar una historia de Instagram con link (solo apps nativas mandan a Historias, y el sticker de
 >     link lo pone la persona). `exportClock` / animaciones pausadas siguen (la captura es la card en reposo).
 >
+> **Favoritos, notas y acceso directo (2026-11-06, pedido del usuario — REEMPLAZA "No Favorites" y vuelve a abrir, en
+>   versión anónima y sin red social, lo que se sacó el 2026-10-26):**
+>   - **Base** (`supabase/migrations/20261106000000_favorites_notes.sql`, APLICADA por el conector): `favorites` (la tabla
+>     vieja, con `pinned` / `hidden`): RLS = cada uno lee solo los favoritos que DIO; el dueño nunca ve quién le dio
+>     (`favorite_counts()` solo cuenta). `notes`: una por usuario, 60 caracteres, 24 h (`post_note` reemplaza), cualquiera lee
+>     las activas. `note_views` (una por persona: cuenta o clave del dispositivo; el dueño no cuenta) con `view_note`,
+>     `note_view_count`, `my_seen_notes`. `note_alerts`: trigger al publicar → un aviso a cada persona que le dio favorito,
+>     máx. uno por autor cada 24 h (borrar y volver a publicar no re-avisa: `note_id` se pone en null), Realtime.
+>     `my_visit_counts` (visitas que hice, 60 días). Cron `notes-gc` diario. Probado con dos cuentas en una transacción.
+>   - **Card:** el bloque Visitas = **ojo + visitas y corazón + favoritos**, juntos (un solo switch "Mostrar visitas y
+>     favoritos", `StatsRow.tsx`; el motor reserva su ancho con `statsRowWidth`). El corazón se toca en el perfil público
+>     (con sesión; sin sesión ofrece "Iniciá sesión", y el login vuelve con `?next=`). Bloque apagado → corazón al lado de
+>     "Compartir" (`HeartPill`). Todas las cards que mostraban "N VIEWS" ahora muestran los íconos.
+>   - **Nota:** cuadro fijo arriba de la card (`NoteBox.tsx`, `lib/noteBox.ts`): en el editor siempre (vacío = "Escribí una
+>     nota…"; un toque abre la parte **Nota** en Contenido), en el perfil solo con nota activa; fuera de la historia de
+>     Compartir; el encuadre público le deja lugar. Parte Nota (`ProfileNoteMenu.tsx`): publicar / reemplazar / borrar (al
+>     instante, sin "Publicar"), vistas; estilo en `card.noteBox` (sale con "Publicar"): tamaño 90–115 %, color, redondez,
+>     opacidad 20–100 % (debajo de 100 % = vidrio esmerilado; el texto nunca pierde opacidad), fuente / tamaño / color
+>     (tamaño parejo entre fuentes con `font-size-adjust`), "Mostrar vistas a los visitantes". Sin respuestas; sin canción
+>     (para después). El lápiz "Editar" de la card pasó a la izquierda (arriba está la nota).
+>   - **Acceso directo** (`ShortcutsBar.tsx`, `/api/shortcuts`, `useShortcuts.ts`, `lib/shortcuts.ts`): barra abajo,
+>     horizontal, en el editor y en perfiles ajenos con sesión (compu): foto de la card, globo de la nota con su color y
+>     fuente (tamaño fijo), anillo si no la viste. Orden: fijados → nota sin ver → visitas → favorito más nuevo; máx. 50,
+>     scroll. Clic derecho / mantener = Fijar / Ocultar / otra pestaña; "Editar" lista todos; campana = silenciar; chevron =
+>     esconder. Aviso en vivo: Realtime de `note_alerts` → recarga la barra y suena un acorde (WebAudio; el navegador lo
+>     deja sonar recién después de un toque en la página). Celular: fila "Tus favoritos" en la pantalla de inicio.
+>   - Sin QA en iPhone real (sonido, Realtime en Safari).
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

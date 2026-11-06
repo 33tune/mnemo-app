@@ -66,6 +66,7 @@ import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from 
 import type { RoomOp } from "./RoomInspector";
 import ShareCardDialog from "@/components/share/ShareCardDialog";
 import { HeartPill } from "./StatsRow";
+import ShortcutsBar, { SHORTCUTS_BAR_H } from "./ShortcutsBar";
 import { useNote } from "@/hooks/useNote";
 import { NOTE_BOX_RESERVE, NOTE_BOX_GAP, resolveNoteBox } from "@/lib/noteBox";
 import {
@@ -3579,7 +3580,7 @@ export default function CanvasBoard({
           its keyboard help in aria-describedby); never in a public render. */}
       {railShown && !tourStep && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && (
         <div data-mnemo-ui="" aria-hidden="true" className="mn-hint"
-          style={{ left: railW + (viewportW - railW) / 2 }}>
+          style={{ left: railW + (viewportW - railW) / 2, bottom: 24 + SHORTCUTS_BAR_H }}>
           <span className="mn-hint__well"><Icon name="pointer" size={14} /></span>
           Tocá algo para editarlo<kbd>A</kbd>agregar
         </div>
@@ -4223,7 +4224,7 @@ export default function CanvasBoard({
         <div data-mnemo-ui="" aria-hidden="true" className="mn-partpill"
           style={{
             left: sheetMode ? viewportW / 2 : railW + (viewportW - railW - (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin)) / 2,
-            bottom: sheetMode ? INSPECTOR_SHEET_COLLAPSED_H + 16 : 40,
+            bottom: sheetMode ? INSPECTOR_SHEET_COLLAPSED_H + 16 : 40 + (railShown ? SHORTCUTS_BAR_H : 0),
           }}>
           <span className="mn-partpill__dot" />
           <span className="mn-partpill__what">Editando {chipLabel(inspectorObject(editorSel.target.objectId))}</span>
@@ -4231,6 +4232,13 @@ export default function CanvasBoard({
           <span className="mn-partpill__key"><span className="mn-partpill__kbd">esc</span> volver</span>
         </div>
       )}
+      {/* Acceso directo (2026-11-06): the bar of profiles I gave a favorite —
+          in the editor (beside the rail, clear of the dock) and on other
+          people's profiles while signed in (computer). */}
+      {railShown && !tourStep && (
+        <ShortcutsBar left={railW} right={inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0} />
+      )}
+      {!canEdit && viewerLoggedIn && !mobileFit && <ShortcutsBar right={170} currentHandle={userHandle} />}
       {/* Compartir tu card (2026-11-04): on the public profile, a small
           button; in the editor, the top bar's share button. */}
       {!canEdit && visProfiles.length > 0 && !shareOpen && (

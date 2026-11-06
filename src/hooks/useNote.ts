@@ -72,7 +72,11 @@ export function useNote(userId?: string, opts: { countView?: boolean } = {}): No
     let alive = true;
     const sb = createClient();
     const count = () => sb.rpc("note_view_count", { p_note: note.id }).then(({ data }) => { if (alive) setViews(Number(data ?? 0)); });
-    if (opts.countView && viewer !== userId) sb.rpc("view_note", { p_note: note.id, p_key: deviceKey() }).then(count);
+    if (opts.countView && viewer !== userId) sb.rpc("view_note", { p_note: note.id, p_key: deviceKey() }).then(() => {
+      count();
+      // The shortcuts bar drops this note's "unseen" ring.
+      window.dispatchEvent(new CustomEvent("mnemo:note-seen", { detail: note.id }));
+    });
     else count();
     return () => { alive = false; };
   }, [note, viewer, userId, opts.countView, setViews]);
