@@ -516,6 +516,9 @@ planeado acá hasta confirmarlo.
 >     los stickers alrededor del centro de la card: con stickers solo a un lado la card quedaba corrida). El "Destello al
 >     entrar" terminaba a 130 % de su ancho, todavía adentro del borde derecho, y su relleno dejaba una franja clara para
 >     siempre: ahora sale entero de la card y se desvanece (`mnemo-entrance-shine` en `cardFoil.ts`).
+>   - **Anuncio de novedades (2026-11-06):** `NewsDialog.tsx`, una vez por navegador (`mnemo_news_2026_11_06`) al entrar
+>     al editor; quien entra por primera vez recibe el tutorial y no el anuncio. Mail "Novedades en myLand" mandado por
+>     Resend a todas las cuentas registradas (sin las 2 de prueba). Para un anuncio nuevo: otra clave y otro texto.
 >   - **Acceso directo** (`ShortcutsBar.tsx`, `/api/shortcuts`, `useShortcuts.ts`, `lib/shortcuts.ts`): barra abajo,
 >     horizontal, en el editor y en perfiles ajenos con sesión (compu): foto de la card, globo de la nota con su color y
 >     fuente (tamaño fijo), anillo si no la viste. Orden: fijados → nota sin ver → visitas → favorito más nuevo; máx. 50,

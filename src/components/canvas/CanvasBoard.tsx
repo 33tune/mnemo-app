@@ -33,6 +33,7 @@ import { splitPlacementPatch, mergeMobileState, filterHiddenDesktop, SHARED_WIDG
 import { WidgetBoundary } from "@/components/error/WidgetBoundary";
 import { trackRender } from "@/lib/perfDebug";
 import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
+import NewsDialog, { NEWS_KEY } from "./NewsDialog";
 import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { mobileView, cardViewRect, phoneScreenRect, onPhoneScreen, type MobileFit } from "@/lib/mobileFit";
@@ -933,6 +934,7 @@ export default function CanvasBoard({
   const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen) && canInteract) || roomShown;
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
+  const [newsOpen, setNewsOpen] = useState(false);
   const cardSelected = elements.some(el => el.elementType === "profile" && selectedIds.has(el.id));
   useEffect(() => {
     if (tourStep === "card" && (cardSelected || inspectorProfile)) setTourStep("part");
@@ -1129,8 +1131,15 @@ export default function CanvasBoard({
 
   useEffect(() => {
     if (!authResolved || !canEdit) return;
-    try { if (!localStorage.getItem(TOUR_KEY)) setTourStep("card"); } catch { /* storage blocked: no tour */ }
+    try {
+      if (!localStorage.getItem(TOUR_KEY)) {
+        setTourStep("card");
+        // A first visit gets the tour, not the news about what changed.
+        localStorage.setItem(NEWS_KEY, "1");
+      } else if (!localStorage.getItem(NEWS_KEY)) setNewsOpen(true);
+    } catch { /* storage blocked: no tour, no news */ }
   }, [authResolved, canEdit]);
+  const closeNews = useCallback(() => { try { localStorage.setItem(NEWS_KEY, "1"); } catch { /* ignore */ } setNewsOpen(false); }, []);
   const endTour = () => { try { localStorage.setItem(TOUR_KEY, "1"); } catch { /* ignore */ } setTourStep(null); };
 
   // ── Elementos visibles (en space/space_mobile, solo isPublic:true) ──────────
@@ -4525,6 +4534,9 @@ export default function CanvasBoard({
         <EditorTour step={tourStep} onSkip={endTour}
           onNext={() => (tourStep === "add" ? setTourStep("publish") : endTour())} />
       )}
+
+      {/* ── Novedades (once per browser, NewsDialog.tsx) ── */}
+      {newsOpen && railShown && !tourStep && <NewsDialog onClose={closeNews} />}
 
       {/* ── SpaceMusic global player ── */}
       {spaceMusic?.url && (
