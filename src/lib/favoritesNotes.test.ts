@@ -43,3 +43,17 @@ test("visitas y favoritos: the row reserves both icons and gaps", () => {
   const w = statsRowWidth("12", "3", 10, t => t.length * 6);
   assert.ok(w > 3 * 6 + 2 * 10, "text plus two icons");
 });
+
+test("note box v2: one fixed size per style, shown empty only when styled, input clipped to one line of 60", async () => {
+  const { noteBoxHeight, noteReserve, noteBoxVisible, clipNote, resolveNoteBox: r, NOTE_BOX_GAP } = await import("./noteBox");
+  const st = r(undefined);
+  assert.equal(noteBoxHeight(st), noteBoxHeight(r({})), "the note's text never changes the size");
+  assert.ok(noteBoxHeight(r({ fontSize: 19 })) > noteBoxHeight(st));
+  assert.ok(Math.abs(noteReserve(r({ scale: 1.1 })) - (noteBoxHeight(st) * 1.1 + NOTE_BOX_GAP)) < 1e-9);
+  assert.equal(noteBoxVisible(false, undefined), false);
+  assert.equal(noteBoxVisible(false, {}), false);
+  assert.equal(noteBoxVisible(false, { bg: "#000000" }), true);
+  assert.equal(noteBoxVisible(true, undefined), true);
+  assert.equal(clipNote("a\nb"), "a b");
+  assert.equal(Array.from(clipNote("😀".repeat(70))).length, 60);
+});

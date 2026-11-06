@@ -1,62 +1,191 @@
 "use client";
 /**
- * Notas (2026-11-06): the box above the card. Always there in the editor
- * (a "Escribí una nota…" invitation when empty — a tap opens the card's Nota
- * part); on the profile only while a note is active. Fixed place: centered
- * over the card's top edge, moving with it. Not in the story capture
- * (data-export-skip).
+ * Notas (2026-11-06, v2 — feedback del usuario): the note box is a WIDGET of
+ * its own, always above the card (not a part of it: the card's motion —
+ * floating, hover scale, entrance — never moves it under the card's texts).
+ *
+ * - One fixed size for a given style (with or without a note), so a
+ *   decoration placed around it always fits.
+ * - Editor: always there, drawn with the owner's style even when empty (no
+ *   placeholder text). A tap writes right there (a blinking caret); Enter or
+ *   the arrow publishes, Esc / clicking away cancels. The gear stuck to the
+ *   box opens its own panel (NoteInspector).
+ * - Profile: with an active note, or empty when the owner styled it.
+ * - Not in the story capture (data-export-skip).
  */
-import React from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ProfileCardData } from "@/types";
 import { useNote } from "@/hooks/useNote";
-import { NOTE_BOX_W, NOTE_BOX_GAP, resolveNoteBox, noteSurface, noteText, hoursAgo, hoursLeft } from "@/lib/noteBox";
+import {
+  NOTE_BOX_W, NOTE_MAX, noteGap, NOTE_PAD_Y, NOTE_META_H, resolveNoteBox, noteSurface, noteText, noteBoxHeight,
+  noteBoxVisible, hoursAgo, hoursLeft, noteLength, clipNote,
+} from "@/lib/noteBox";
+import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
+import { Icon } from "@/ui";
 import { EyeIcon } from "./StatsRow";
+import { CanvasChromeButton } from "./CanvasChromeButton";
 
-export default function NoteBox({ card, ownerUserId, editor, onOpen }: {
+export const NOTE_PANEL_ID = "mnemo-note-panel";
+export const NOTE_GEAR_ID = "mnemo-note-gear";
+
+const META_FONT = "500 10.5px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+
+export default function NoteBox({ card, ownerUserId, editor, panelOpen, onSelect, onSettings, parallaxTransform, entryDelayMs }: {
   card: ProfileCardData;
   ownerUserId?: string;
-  /** The owner's editor: always shown, a tap opens the Nota part. */
+  /** The owner's editor (write in place, the gear). */
   editor: boolean;
-  onOpen?: () => void;
+  /** The gear's panel is open. */
+  panelOpen?: boolean;
+  /** A tap on the box (the canvas selection clears). */
+  onSelect?: () => void;
+  onSettings?: () => void;
+  /** The card's parallax, so the box stays put above it. */
+  parallaxTransform?: string;
+  /** Profile: appear a little after the card. */
+  entryDelayMs?: number;
 }) {
   const n = useNote(ownerUserId, { countView: !editor });
   const st = resolveNoteBox(card.noteBox);
-  if (!n.note && (!editor || !n.loaded)) return null;
-  const empty = !n.note;
-  const meta = n.note
-    ? editor
-      ? `${hoursLeft(n.note.expires_at)} · ${n.views}`
-      : st.showViews ? `${hoursAgo(n.note.created_at)} · ${n.views}` : hoursAgo(n.note.created_at)
-    : null;
-  const showEye = !!n.note && (editor || st.showViews);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [hover, setHoverNow] = useState(false);
+  // Leaving the box for the gear crosses a small gap: hide a moment later.
+  const hoverT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setHover = (v: boolean) => {
+    if (hoverT.current) clearTimeout(hoverT.current);
+    if (v) setHoverNow(true); else hoverT.current = setTimeout(() => setHoverNow(false), 400);
+  };
+  useEffect(() => () => { if (hoverT.current) clearTimeout(hoverT.current); }, []);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const boxH = noteBoxHeight(st);
+
+  // The textarea grows with its lines (the box itself never does).
+  useLayoutEffect(() => {
+    const ta = taRef.current;
+    if (!ta) return;
+    ta.style.height = "0px";
+    ta.style.height = `${ta.scrollHeight}px`;
+  }, [draft, editing, st.fontSize, st.font]);
+  useEffect(() => { if (!err) return; const t = setTimeout(() => setErr(null), 3500); return () => clearTimeout(t); }, [err]);
+
+  if (!editor && !noteBoxVisible(!!n.note, card.noteBox)) return null;
+  if (editor && !n.loaded) return null;
+
+  const body = n.note?.body ?? "";
+  function startEditing() {
+    if (!editor || editing) return;
+    setDraft(body);
+    setEditing(true);
+    setErr(null);
+    requestAnimationFrame(() => {
+      const ta = taRef.current;
+      if (!ta) return;
+      ta.focus({ preventScroll: true });
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    });
+  }
+  const clean = draft.trim();
+  const canSend = !!clean && clean !== body && noteLength(clean) <= NOTE_MAX && !busy;
+  async function send() {
+    if (!clean || clean === body) { setEditing(false); return; }
+    if (!canSend) return;
+    setBusy(true);
+    const e = await n.post(clean);
+    setBusy(false);
+    if (e) { setErr(e); return; }
+    setEditing(false);
+  }
+
+  const meta = editing
+    ? (err ?? (busy ? "Publicando…" : `${noteLength(draft)}/${NOTE_MAX} · Enter publica`))
+    : n.note
+      ? editor ? hoursLeft(n.note.expires_at) : hoursAgo(n.note.created_at)
+      : null;
+  const showEye = !editing && !!n.note && (editor || st.showViews);
+  const gearShown = editor && (hover || editing || !!panelOpen);
+  const text = noteText(st);
+
   return (
-    <div data-export-skip="" data-role="note"
-      onMouseDown={editor ? e => e.stopPropagation() : undefined}
-      onClick={editor ? e => { e.stopPropagation(); onOpen?.(); } : undefined}
-      role={editor ? "button" : undefined}
-      tabIndex={editor ? 0 : undefined}
-      aria-label={editor ? (empty ? "Escribir una nota" : "Editar la nota") : undefined}
-      onKeyDown={editor ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onOpen?.(); } } : undefined}
+    // Anchor: a zero-size point at the middle of the card's top edge.
+    <div data-export-skip="" data-note-box="" aria-hidden={!editor && !n.note ? true : undefined}
       style={{
-        position: "absolute", left: "50%", bottom: `calc(100% + ${NOTE_BOX_GAP}px)`,
-        width: NOTE_BOX_W, transform: `translateX(-50%) scale(${st.scale})`, transformOrigin: "50% 100%",
-        zIndex: 60, cursor: editor ? "pointer" : "default", userSelect: "none",
-        pointerEvents: editor ? "auto" : "none",
+        position: "absolute", left: card.x + card.w / 2, top: card.y - noteGap(card), width: 0, height: 0,
+        transform: parallaxTransform || undefined, zIndex: 4000, pointerEvents: "none",
+        ...(entryDelayMs != null ? { animation: `mnemo-note-in 0.5s cubic-bezier(0.16,1,0.3,1) ${entryDelayMs}ms backwards` } : {}),
       }}>
-      <div style={{
-        ...noteSurface(st),
-        ...(empty ? { background: "transparent", backdropFilter: "none", WebkitBackdropFilter: "none", boxShadow: "none", outline: "1.5px dashed rgba(255,255,255,0.55)", outlineOffset: -1.5 } : {}),
-        padding: "10px 14px", boxSizing: "border-box", textAlign: "center",
-      }}>
-        <div style={{ ...noteText(st), ...(empty ? { color: "rgba(255,255,255,0.75)", fontStyle: "italic" } : {}) }}>
-          {empty ? "Escribí una nota…" : n.note!.body}
-        </div>
-        {meta && (
-          <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-            font: "500 10.5px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", color: st.color, opacity: 0.6 }}>
-            <span>{meta.split(" · ").slice(0, showEye ? -1 : undefined).join(" · ")}</span>
+      {entryDelayMs != null && <style>{"@keyframes mnemo-note-in{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}"}</style>}
+      <div
+        {...(editor ? { [EDITOR_UI_ATTR]: "" } : {})}
+        onMouseEnter={editor ? () => setHover(true) : undefined}
+        onMouseLeave={editor ? () => setHover(false) : undefined}
+        style={{
+          position: "absolute", left: 0, bottom: 0, width: NOTE_BOX_W,
+          transform: `translateX(-50%) scale(${st.scale})`, transformOrigin: "50% 100%",
+          pointerEvents: editor ? "auto" : "none",
+        }}>
+        <div
+          onMouseDown={editor ? e => { e.stopPropagation(); } : undefined}
+          onClick={editor ? e => { e.stopPropagation(); onSelect?.(); startEditing(); } : undefined}
+          role={editor && !editing ? "button" : undefined}
+          tabIndex={editor && !editing ? 0 : undefined}
+          aria-label={editor && !editing ? (n.note ? `Nota: ${body}. Escribir otra` : "Escribir una nota") : undefined}
+          onKeyDown={editor && !editing ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onSelect?.(); startEditing(); } } : undefined}
+          style={{
+            ...noteSurface(st),
+            position: "relative", height: boxH, boxSizing: "border-box", padding: `${NOTE_PAD_Y}px 14px`,
+            display: "flex", flexDirection: "column", textAlign: "center",
+            cursor: editor ? "text" : "default", userSelect: editing ? "text" : "none",
+            ...(editing ? { outline: "2px solid rgba(120,160,255,0.9)", outlineOffset: 3 } : {}),
+          }}>
+          <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            {editing ? (
+              <textarea ref={taRef} value={draft} rows={1} aria-label="Tu nota (Enter publica)" spellCheck={false}
+                onChange={e => setDraft(clipNote(e.target.value))}
+                onMouseDown={e => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
+                onKeyDown={e => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") { e.preventDefault(); send(); }
+                  else if (e.key === "Escape") { e.preventDefault(); setEditing(false); }
+                }}
+                onBlur={e => {
+                  // Moving to the arrow keeps the draft (it publishes it).
+                  if (e.relatedTarget instanceof HTMLElement && e.relatedTarget.dataset.noteSend != null) return;
+                  if (!busy) setEditing(false);
+                }}
+                style={{
+                  ...text, width: "100%", display: "block", resize: "none", border: 0, outline: 0, padding: 0, margin: 0,
+                  background: "transparent", textAlign: "center", overflow: "hidden", caretColor: st.color,
+                }} />
+            ) : (
+              <div style={{ ...text, width: "100%" }}>{body}</div>
+            )}
+          </div>
+          <div style={{ height: NOTE_META_H, flex: "none", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 4,
+            font: META_FONT, color: st.color, opacity: err ? 0.9 : 0.6, whiteSpace: "nowrap", overflow: "hidden" }}>
+            {meta && <span>{meta}</span>}
             {showEye && <><span>·</span><EyeIcon size={11} /><span>{n.views}</span></>}
           </div>
+          {editing && (
+            <button type="button" data-note-send="" aria-label="Publicar nota" title="Publicar (Enter)" disabled={!canSend}
+              onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
+              onClick={e => { e.stopPropagation(); send(); }}
+              style={{
+                position: "absolute", right: 6, bottom: 6, width: 24, height: 24, borderRadius: 12, border: 0, padding: 0,
+                display: "grid", placeItems: "center", cursor: canSend ? "pointer" : "default",
+                background: st.color, color: st.bg, opacity: canSend ? 1 : 0.3,
+              }}>
+              <Icon name="arrow-up" size={14} />
+            </button>
+          )}
+        </div>
+        {gearShown && (
+          <CanvasChromeButton id={NOTE_GEAR_ID} icon="gear" label="Configurar la nota" expanded={!!panelOpen} controls={NOTE_PANEL_ID}
+            style={{ top: 0, left: `calc(100% + 8px)` }}
+            onActivate={() => { setEditing(false); onSettings?.(); }} />
         )}
       </div>
     </div>

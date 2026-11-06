@@ -74,7 +74,8 @@ const meta     = at("ProfileMetadataMenu.tsx");
 const links    = at("ProfileContactLinksMenu.tsx");
 const logo     = at("ProfileLogoMenu.tsx");
 const stk      = at("ProfileStickersMenu.tsx");
-const noteM    = at("ProfileNoteMenu.tsx");
+// Notas (2026-11-06): the note box is a widget of its own (its gear panel).
+const noteM    = at("NoteInspector.tsx");
 const btns     = at("ProfileLinkButtonsMenu.tsx");
 const config   = at("ProfileConfigMenu.tsx");
 const type     = at("ProfileTypographyMenu.tsx");
@@ -99,7 +100,9 @@ const NOMBRE = obj("Nombre"), USUARIO = obj("@usuario"), FRASE = obj("Frase"), U
 const BIO = obj("Bio"), SOBRE_MI = obj("Sobre mí"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS = obj("Links"), LOGO = obj("Logo");
 const FONDO = obj("Fondo de la card");
 const STICKERS = obj("Stickers");
-const NOTA = obj("Nota");
+/** Notas: the note box is its own widget (its gear panel), not a card part. */
+export const NOTA_UI = "Nota (cuadro sobre la card)";
+const NOTA = `${NOTA_UI} › engranaje`;
 const BOTONES = obj("Botones");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");

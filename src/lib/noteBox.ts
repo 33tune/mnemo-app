@@ -11,10 +11,14 @@ import { getFontStyle } from "./fontList";
 
 export const NOTE_MAX = 60;
 export const NOTE_BOX_W = 232;
-/** Gap between the box and the card's top edge. */
-export const NOTE_BOX_GAP = 12;
-/** Height the views fit reserves for the box (3 lines at the largest size). */
-export const NOTE_BOX_RESERVE = 96;
+/** Gap between the box and the card's top edge (room for the card's own
+ * motion — floating, hover scale — without touching the box). */
+export const NOTE_BOX_GAP = 28;
+/** The box keeps ONE size whatever it says (or when it says nothing), so a
+ * decoration placed around it always fits: room for 3 lines + the meta row. */
+export const NOTE_LINES = 3;
+export const NOTE_PAD_Y = 10;
+export const NOTE_META_H = 18;
 export const NOTE_SCALE = { min: 0.9, max: 1.15 } as const;
 export const NOTE_OPACITY = { min: 0.2, max: 1 } as const;
 export const NOTE_RADIUS = { min: 0, max: 28 } as const;
@@ -49,6 +53,34 @@ function hexToRgb(hex: string): [number, number, number] | null {
   if (!/^[0-9a-f]{6}$/i.test(full)) return null;
   const n = parseInt(full, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** The gap for this card: more when it floats (its motion never reaches the box). */
+export function noteGap(card: { effects?: { animations?: { floating?: boolean; floatHeight?: number } } }): number {
+  const a = card.effects?.animations;
+  return NOTE_BOX_GAP + (a?.floating ? Math.max(0, a.floatHeight ?? 8) : 0);
+}
+
+/** The box's height (unscaled): fixed for a given style. */
+export function noteBoxHeight(st: Required<NoteBoxStyle>): number {
+  return Math.round(NOTE_PAD_Y * 2 + NOTE_LINES * st.fontSize * 1.3 + NOTE_META_H);
+}
+
+/** Room the box takes above the card (scaled box + gap) — the views fit
+ * keeps it on screen. */
+export function noteReserve(st: Required<NoteBoxStyle>, gap = NOTE_BOX_GAP): number {
+  return noteBoxHeight(st) * st.scale + gap;
+}
+
+/** The profile shows the box with an active note, or (empty) when the owner
+ * styled it — a decoration around it must not lose what it frames. */
+export function noteBoxVisible(hasNote: boolean, style: NoteBoxStyle | undefined): boolean {
+  return hasNote || (!!style && Object.keys(style).length > 0);
+}
+
+/** Keeps at most NOTE_MAX characters as a person counts them, on one line. */
+export function clipNote(s: string): string {
+  return Array.from(s.replace(/[\r\n]+/g, " ")).slice(0, NOTE_MAX).join("");
 }
 
 /** The box's surface: solid at full opacity; below it, the color thins

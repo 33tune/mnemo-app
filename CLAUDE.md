@@ -491,6 +491,14 @@ planeado acá hasta confirmarlo.
 >     opacidad 20–100 % (debajo de 100 % = vidrio esmerilado; el texto nunca pierde opacidad), fuente / tamaño / color
 >     (tamaño parejo entre fuentes con `font-size-adjust`), "Mostrar vistas a los visitantes". Sin respuestas; sin canción
 >     (para después). El lápiz "Editar" de la card pasó a la izquierda (arriba está la nota).
+>   - **Nota v2 (2026-11-06, feedback del usuario) — REEMPLAZA lo de arriba sobre el toque y la parte Nota:** el cuadro es
+>     un WIDGET propio (`NoteBox.tsx`, dibujado por CanvasBoard fuera de la card, z 4000): ni el rebote / flotación / entrada
+>     de la card lo mueven ni lo tapan los textos. Separación 28 px (+ la amplitud si la card flota, `noteGap`). Tamaño FIJO
+>     por estilo (3 líneas + fila de datos, `noteBoxHeight`), con o sin nota, para que una decoración alrededor siempre
+>     coincida. Editor: siempre con el estilo del dueño, vacío = sin texto; un toque escribe ahí mismo (barrita), Enter o
+>     la flecha publican, Esc / clic afuera cancela; el engranaje pegado al cuadro abre SU panel (`NoteInspector.tsx`,
+>     target `"note"` de `editorSelection`, vive con la selección vacía). La parte Nota de la card se borró
+>     (`ProfileNoteMenu.tsx`). Perfil: con nota activa, o vacío si el dueño tocó el estilo (`noteBoxVisible`).
 >   - **Acceso directo** (`ShortcutsBar.tsx`, `/api/shortcuts`, `useShortcuts.ts`, `lib/shortcuts.ts`): barra abajo,
 >     horizontal, en el editor y en perfiles ajenos con sesión (compu): foto de la card, globo de la nota con su color y
 >     fuente (tamaño fijo), anillo si no la viste. Orden: fijados → nota sin ver → visitas → favorito más nuevo; máx. 50,

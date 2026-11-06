@@ -11,7 +11,6 @@ import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions, useGyroTilt } from "@/hooks/useCardInteractions";
 import { useFavorite } from "@/hooks/useFavorite";
 import StatsRow from "./StatsRow";
-import NoteBox from "./NoteBox";
 import { StickerLayer, StickerEditor, withPreview, type StickerPreview } from "./CardStickers";
 import { useStickerEditing } from "@/lib/stickerEditing";
 import { isEventFromNode } from "@/lib/editorGuards";
@@ -218,8 +217,6 @@ interface Props {
   /** "Editar" activated: CanvasBoard opens the inspector, or focuses /
    * expands the open one (it never closes it). */
   onEditActivate?:   (cardId: string) => void;
-  /** Notas (2026-11-06): the note box was tapped in the editor. */
-  onNoteOpen?:       (cardId: string) => void;
   /** Render-time facts the inspector needs (Links fit verdict, views),
    * reported while the inspector is open — the host never recomputes the
    * composition. */
@@ -255,7 +252,7 @@ function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
-  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, onNoteOpen,
+  inspectorOpen = false, onEditActivate, onEditorFacts, activePart,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
@@ -1322,10 +1319,6 @@ function ProfileCard({
             onPreview={setStickerPreview}
             onCommit={stickers => updateProfile(card.id, { stickers })} />
         )}
-
-        {/* Notas (2026-11-06): the box above the card (editor: always; profile:
-            only with an active note). */}
-        <NoteBox card={card} ownerUserId={profileOwner} editor={!!canInteract} onOpen={() => onNoteOpen?.(card.id)} />
 
         {/* ── Resize handles ── */}
         {/* Position and rotation are fixed by design (singleton presentation card) —
