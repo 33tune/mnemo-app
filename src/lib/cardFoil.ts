@@ -277,7 +277,10 @@ export const ENTRANCE_SHINE_ANIMATION = "mnemo-entrance-shine";
 const entranceName = (s: EntranceStyle) => `mnemo-enter-${s}`;
 
 /** Uses the individual transform properties (translate / scale / rotate) so
- * it never fights the card's own `transform` (parallax + rotation). */
+ * it never fights the card's own `transform` (parallax + rotation).
+ * The shine ends fully past the card and faded out: it used to stop at 130 %
+ * of its own width, still inside the card's right edge, and its fill kept a
+ * bright strip there forever (2026-11-06, `nico`). */
 const FOIL_KEYFRAMES_CSS = `
 @keyframes ${HOLO_IDLE_ANIMATION} { from { translate: -6% -4%; } to { translate: 6% 4%; } }
 @keyframes ${entranceName("fade")} { from { opacity: 0; } to { opacity: 1; } }
@@ -286,7 +289,7 @@ const FOIL_KEYFRAMES_CSS = `
 @keyframes ${entranceName("flip")} { 0% { opacity: 0; scale: 0 1; } 30% { opacity: 1; } 55% { scale: 1.04 1; } 100% { opacity: 1; scale: 1 1; } }
 @keyframes ${entranceName("drop")} { 0% { opacity: 0; translate: 0 -120px; } 45% { opacity: 1; translate: 0 0; } 62% { translate: 0 -18px; } 80% { translate: 0 0; } 90% { translate: 0 -5px; } 100% { opacity: 1; translate: 0 0; } }
 @keyframes ${entranceName("spin")} { 0% { opacity: 0; scale: 0.4; rotate: -200deg; } 70% { opacity: 1; scale: 1.04; rotate: 8deg; } 100% { opacity: 1; scale: 1; rotate: 0deg; } }
-@keyframes ${ENTRANCE_SHINE_ANIMATION} { from { translate: -130% 0; } to { translate: 130% 0; } }
+@keyframes ${ENTRANCE_SHINE_ANIMATION} { from { translate: -130% 0; opacity: 1; } 85% { opacity: 1; } to { translate: 230% 0; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   @keyframes ${HOLO_IDLE_ANIMATION} { from { translate: 0 0; } to { translate: 0 0; } }
   ${(["rise", "pop", "flip", "drop", "spin"] as EntranceStyle[]).map(s => `@keyframes ${entranceName(s)} { from { opacity: 0; } to { opacity: 1; } }`).join("\n  ")}

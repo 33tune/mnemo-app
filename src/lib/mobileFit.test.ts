@@ -72,6 +72,10 @@ test("stickers and the rendered height are part of what fits", () => {
   const left = 800 - 0.24 * 300, top = 300 - 0.24 * 400, right = left + 1.48 * 300, bottom = top + 1.48 * 300 * 1.2;
   assert.ok(fit.card.x <= left + 1e-9 && fit.card.y <= top + 1e-9, JSON.stringify(fit.card));
   assert.ok(fit.card.x + fit.card.w >= right - 1e-9 && fit.card.y + fit.card.h >= bottom - 1e-9, JSON.stringify(fit.card));
+  // the card stays the center even when the stickers stick out on one side only
+  const oneSide = { ...(card as object), stickers: [{ id: "l", src: "https://x/l.png", x: -0.2, y: 0.3, w: 0.3, aspect: 1, front: true }] } as never;
+  const v = fitRoomToCard(base({ profiles: [oneSide] }))!.card;
+  assert.ok(Math.abs(v.x + v.w / 2 - (800 + 150)) < 1e-9 && Math.abs(v.y + v.h / 2 - (300 + 200)) < 1e-9, JSON.stringify(v));
   // a card drawn taller than stored (content floor): the whole drawn card fits
   const tall = cardViewRect({ x: 0, y: 0, w: 300, h: 400 }, 560);
   assert.equal(tall.h, 560);

@@ -39,11 +39,18 @@ function union(a: Rect, b: Rect): Rect {
 }
 
 type CardLike = Pick<ProfileCardData, "x" | "y" | "w" | "h" | "stickers">;
-/** The card ∪ its visible stickers, for a card drawn `h` tall. */
+/** What the phone fits: the card and its visible stickers, for a card drawn
+ * `h` tall — mirrored around the CARD's center (2026-11-06): the card is the
+ * core and always sits in the middle of the screen; stickers that stick out
+ * more on one side only make the room on both sides bigger. */
 export function cardViewRect(card: CardLike, h = card.h): Rect {
   const rect: Rect = { x: card.x, y: card.y, w: card.w, h };
   const stuck = stickersBounds({ ...card, h });
-  return stuck ? union(rect, stuck) : rect;
+  if (!stuck) return rect;
+  const u = union(rect, stuck);
+  const ox = Math.max(rect.x - u.x, u.x + u.w - (rect.x + rect.w));
+  const oy = Math.max(rect.y - u.y, u.y + u.h - (rect.y + rect.h));
+  return { x: rect.x - ox, y: rect.y - oy, w: rect.w + 2 * ox, h: rect.h + 2 * oy };
 }
 
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;

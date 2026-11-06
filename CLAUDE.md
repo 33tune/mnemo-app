@@ -512,6 +512,10 @@ planeado acá hasta confirmarlo.
 >     `fitRoomToCard` manda todas las imágenes / textos públicos y CanvasBoard dibuja los que caen dentro de lo que muestra
 >     la pantalla (`phoneScreenRect` + `onPhoneScreen`; antes de medir, lo que toca la card). Lo que queda afuera no se
 >     dibuja ni se descarga. El zoom sigue siendo la card + stickers, centrada (así aparece el marco de la nota).
+>   - **Arreglos (2026-11-06):** el celular centra la CARD, no la card + stickers (`cardViewRect` refleja lo que salen
+>     los stickers alrededor del centro de la card: con stickers solo a un lado la card quedaba corrida). El "Destello al
+>     entrar" terminaba a 130 % de su ancho, todavía adentro del borde derecho, y su relleno dejaba una franja clara para
+>     siempre: ahora sale entero de la card y se desvanece (`mnemo-entrance-shine` en `cardFoil.ts`).
 >   - **Acceso directo** (`ShortcutsBar.tsx`, `/api/shortcuts`, `useShortcuts.ts`, `lib/shortcuts.ts`): barra abajo,
 >     horizontal, en el editor y en perfiles ajenos con sesión (compu): foto de la card, globo de la nota con su color y
 >     fuente (tamaño fijo), anillo si no la viste. Orden: fijados → nota sin ver → visitas → favorito más nuevo; máx. 50,
