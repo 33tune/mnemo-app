@@ -46,7 +46,8 @@ export function useShortcuts(enabled: boolean) {
   const [muted, setMutedState] = useState(false);
   const mutedRef = useRef(false);
   useEffect(() => {
-    try { const m = localStorage.getItem(MUTE_KEY) === "1"; setMutedState(m); mutedRef.current = m; } catch { /* no storage */ }
+    // The bar's mute button was removed (2026-11-06): the chime always plays.
+    try { localStorage.removeItem(MUTE_KEY); } catch { /* no storage */ }
   }, []);
   const setMuted = useCallback((m: boolean) => {
     setMutedState(m); mutedRef.current = m;

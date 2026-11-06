@@ -5,18 +5,20 @@
  * photo; a note shows as a small bubble above it in the note's own color /
  * font (fixed size, the font normalized), with a ring while I have not seen
  * it. Tap = go to that profile. Right-click / long press = pin or hide.
- * "Editar" lists them all (hidden ones too); the bell mutes the notice
- * sound; the chevron folds the bar. In the editor and on other people's
- * profiles while signed in.
+ * "Editar" lists them all (hidden ones too). The lupa is always there (the
+ * editor's opens the dock panel; on a profile it opens a small search here).
+ * A pink dot marks a profile that published changes since I last saw it.
+ * (2026-11-06: no mute bell, no fold chevron.) In the editor and on other
+ * people's profiles while signed in.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useShortcuts } from "@/hooks/useShortcuts";
-import { barShortcuts, type Shortcut } from "@/lib/shortcuts";
+import { barShortcuts, changedSince, readSeenSigs, writeSeenSigs, type Shortcut } from "@/lib/shortcuts";
+import { cleanSearchQuery, type SearchHit } from "@/lib/userSearch";
 import { resolveNoteBox, noteSurface, noteText } from "@/lib/noteBox";
 import { HeartIcon } from "./StatsRow";
 
 export const SHORTCUTS_BAR_H = 76;
-const FOLD_KEY = "mnemo_shortcuts_folded";
 const AVATAR = 46;
 /** An item with a note is as wide as its bubble (so the row never cuts it). */
 const NOTE_ITEM_W = 84;
@@ -46,12 +48,13 @@ function Bubble({ s }: { s: Shortcut }) {
   );
 }
 
-function Avatar({ s, current, onMenu }: { s: Shortcut; current: boolean; onMenu: (s: Shortcut, x: number, y: number) => void }) {
+function Avatar({ s, current, onMenu, changed, onOpen }: { s: Shortcut; current: boolean; onMenu: (s: Shortcut, x: number, y: number) => void; changed?: boolean; onOpen?: (s: Shortcut) => void }) {
   const unseen = !!s.note && !s.noteSeen;
   const press = useRef<number | null>(null);
   return (
     <a href={`/${s.handle}`} title={s.note ? `@${s.handle}: ${s.note.body}` : `@${s.handle}`}
-      aria-label={`${s.name} (@${s.handle})${s.note ? `, nota: ${s.note.body}` : ""}${s.pinned ? ", fijado" : ""}`}
+      aria-label={`${s.name} (@${s.handle})${s.note ? `, nota: ${s.note.body}` : ""}${changed ? ", tiene cambios nuevos" : ""}${s.pinned ? ", fijado" : ""}`}
+      onClick={() => onOpen?.(s)}
       aria-current={current ? "page" : undefined}
       draggable={false}
       onContextMenu={e => { e.preventDefault(); onMenu(s, e.clientX, e.clientY); }}
@@ -75,6 +78,10 @@ function Avatar({ s, current, onMenu }: { s: Shortcut; current: boolean; onMenu:
             : (s.name || s.handle).slice(0, 1).toUpperCase()}
         </span>
       </span>
+      {changed && (
+        <span aria-hidden style={{ position: "absolute", right: s.note ? (NOTE_ITEM_W - AVATAR) / 2 - 1 : 1, top: 2, width: 12, height: 12, borderRadius: 99,
+          background: "#ff4fa3", boxShadow: "0 0 0 2px rgba(14,12,18,.92)" }} />
+      )}
       {s.pinned && (
         <span aria-hidden style={{ position: "absolute", right: 0, bottom: 2, width: 14, height: 14, borderRadius: 99, background: "#fff", color: "#111", display: "grid", placeItems: "center" }}>
           <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M16 3l5 5-4 1-4 4 1 5-2 2-4-6-6 6v-2l5-5-5-4 2-2 5 1 4-4z" /></svg>
@@ -96,6 +103,61 @@ function SearchButton({ search }: { search: BarSearch }) {
   );
 }
 
+/** On a profile (no dock): a small search above the bar; results open that
+ * profile here. Same search as the editor's panel (/api/search). */
+function SearchPopover({ onClose, center }: { onClose: () => void; center: string }) {
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState<SearchHit[] | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const query = cleanSearchQuery(q);
+  useEffect(() => { input.current?.focus(); }, []);
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
+  useEffect(() => {
+    if (!query) { setHits(null); return; }
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: ctrl.signal }).then(r => r.json())
+        .then((d: { results?: SearchHit[] }) => setHits(d.results ?? [])).catch(() => {});
+    }, 250);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [query]);
+  return (
+    <div data-mnemo-ui="" data-export-skip="" role="dialog" aria-label="Buscar cards"
+      style={{ ...glass, position: "fixed", left: center, transform: "translateX(-50%)", bottom: SHORTCUTS_BAR_H + 18, zIndex: 2147481000,
+        width: "min(360px, calc(100vw - 32px))", maxHeight: "min(440px, 60vh)", overflowY: "auto", borderRadius: 18, padding: 10, boxSizing: "border-box",
+        font: "500 14px system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
+      <input ref={input} value={q} onChange={e => setQ(e.target.value)} maxLength={40} placeholder="Nombre o @usuario" aria-label="Buscar cards"
+        style={{ width: "100%", boxSizing: "border-box", height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.06)",
+          color: "inherit", padding: "0 12px", font: "inherit", outline: "none" }} />
+      {query && hits && hits.length === 0 && <p style={{ margin: "10px 4px 2px", opacity: 0.65 }}>No hay cards con “{q.trim()}”.</p>}
+      {!query && <p style={{ margin: "10px 4px 2px", opacity: 0.65, fontSize: 13 }}>Escribí un nombre o un @usuario.</p>}
+      {hits && hits.length > 0 && (
+        <ul role="list" style={{ listStyle: "none", margin: "8px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+          {hits.map(h => (
+            <li key={h.handle}>
+              <a href={`/${h.handle}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px", borderRadius: 12, color: "inherit", textDecoration: "none" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,.08)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                <span aria-hidden style={{ width: 36, height: 36, borderRadius: 10, background: h.bg, flex: "none", display: "grid", placeItems: "center", overflow: "hidden" }}>
+                  {h.photo && <img src={h.photo} alt="" style={{ width: 28, height: 28, objectFit: "cover", borderRadius: h.pfpRadius }} />}
+                </span>
+                <span style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</span>
+                  <span style={{ fontSize: 12, opacity: 0.6 }}>@{h.handle}</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function ShortcutsBar({ left = 0, right = 0, currentHandle, search }: {
   /** Space taken on each side (the editor's rail, the profile's buttons). */
   left?: number;
@@ -104,11 +166,26 @@ export default function ShortcutsBar({ left = 0, right = 0, currentHandle, searc
   search?: BarSearch;
 }) {
   const sc = useShortcuts(true);
-  const [folded, setFolded] = useState(false);
   const [menu, setMenu] = useState<{ s: Shortcut; x: number; y: number } | null>(null);
   const [editing, setEditing] = useState(false);
-  useEffect(() => { try { setFolded(localStorage.getItem(FOLD_KEY) === "1"); } catch { /* no storage */ } }, []);
-  const fold = (v: boolean) => { setFolded(v); try { localStorage.setItem(FOLD_KEY, v ? "1" : "0"); } catch { /* no storage */ } };
+  const [localSearch, setLocalSearch] = useState(false);
+  // Pink dots: profiles that published since I last saw them. Being on a
+  // profile (or opening it from the bar) marks it seen.
+  const [changed, setChanged] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!sc.list) return;
+    const r = changedSince(sc.list, readSeenSigs());
+    const here = sc.list.find(s => s.handle === currentHandle);
+    if (here?.sig && r.seen[here.userId] !== here.sig) { r.seen[here.userId] = here.sig; r.changed.delete(here.userId); r.dirty = true; }
+    if (r.dirty) writeSeenSigs(r.seen);
+    setChanged(r.changed);
+  }, [sc.list, currentHandle]);
+  const markSeen = (s: Shortcut) => {
+    if (!s.sig) return;
+    writeSeenSigs({ ...readSeenSigs(), [s.userId]: s.sig });
+    setChanged(c => { const n = new Set(c); n.delete(s.userId); return n; });
+  };
+  const barSearch: BarSearch = search ?? { open: localSearch, onToggle: () => setLocalSearch(v => !v), panelId: "mnemo-bar-search", buttonId: "mnemo-bar-search-btn" };
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
@@ -120,21 +197,6 @@ export default function ShortcutsBar({ left = 0, right = 0, currentHandle, searc
   const items = barShortcuts(sc.list);
   const center = `calc(${left}px + (100vw - ${left + right}px) / 2)`;
 
-  if (folded) {
-    return (
-      <div data-mnemo-ui="" data-export-skip="" style={{ position: "fixed", left: center, transform: "translateX(-50%)", bottom: 16, zIndex: 2147480900,
-        display: "flex", alignItems: "center", gap: 6 }}>
-        {search && <div style={{ ...glass, borderRadius: 999, padding: 0, display: "flex" }}><SearchButton search={{ ...search }} /></div>}
-        <button type="button" onClick={() => fold(false)} aria-label="Mostrar favoritos"
-          style={{ ...glass, height: 36, padding: "0 14px",
-            borderRadius: 999, display: "flex", alignItems: "center", gap: 8, font: "600 13px system-ui, -apple-system, 'Segoe UI', sans-serif", cursor: "pointer" }}>
-          <HeartIcon size={15} filled={items.some(s => s.note && !s.noteSeen)} /> Favoritos
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="m6 15 6-6 6 6" /></svg>
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
       <nav data-mnemo-ui="" data-export-skip="" aria-label="Favoritos"
@@ -142,39 +204,31 @@ export default function ShortcutsBar({ left = 0, right = 0, currentHandle, searc
           maxWidth: `calc(100vw - ${left + right + 48}px)`, display: "flex", alignItems: "flex-end", pointerEvents: "none" }}>
         <div style={{ ...glass, position: "absolute", left: 0, right: 0, bottom: 0, height: 64, borderRadius: 22, pointerEvents: "none" }} />
         <div style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: 6, padding: "0 10px 5px", minWidth: 0 }}>
-          {search && <>
-            <div style={{ paddingBottom: 7, flex: "none", pointerEvents: "auto" }}><SearchButton search={search} /></div>
-            <span aria-hidden style={{ width: 1, height: 30, background: "rgba(255,255,255,.14)", margin: "0 4px 12px", flex: "none" }} />
-          </>}
+          <div style={{ paddingBottom: 7, flex: "none", pointerEvents: "auto" }}><SearchButton search={barSearch} /></div>
+          <span aria-hidden style={{ width: 1, height: 30, background: "rgba(255,255,255,.14)", margin: "0 4px 12px", flex: "none" }} />
           {items.length ? (
             <div style={{ display: "flex", alignItems: "flex-end", gap: 6, overflowX: "auto", overflowY: "hidden", paddingTop: 44, marginTop: -44,
               scrollbarWidth: "none", minWidth: 0, maxWidth: "100%", pointerEvents: "auto" }}>
-              {items.map(s => <Avatar key={s.userId} s={s} current={s.handle === currentHandle} onMenu={(x, cx, cy) => setMenu({ s: x, x: cx, y: cy })} />)}
+              {items.map(s => <Avatar key={s.userId} s={s} current={s.handle === currentHandle} changed={changed.has(s.userId)} onOpen={markSeen}
+                onMenu={(x, cx, cy) => setMenu({ s: x, x: cx, y: cy })} />)}
             </div>
           ) : (
             <span style={{ position: "relative", height: 54, display: "flex", alignItems: "center", gap: 8, padding: "0 6px", font: "500 13px system-ui, -apple-system, 'Segoe UI', sans-serif", opacity: 0.75, whiteSpace: "nowrap" }}>
               <HeartIcon size={15} /> Dale favorito a una card y aparece acá
             </span>
           )}
-          <span aria-hidden style={{ width: 1, height: 30, background: "rgba(255,255,255,.14)", margin: "0 4px 12px", flex: "none" }} />
+          {sc.list.length > 0 && <span aria-hidden style={{ width: 1, height: 30, background: "rgba(255,255,255,.14)", margin: "0 4px 12px", flex: "none" }} />}
           <div style={{ display: "flex", gap: 6, paddingBottom: 10, flex: "none", pointerEvents: "auto", position: "relative" }}>
             {sc.list.length > 0 && (
               <button type="button" style={iconBtn} onClick={() => setEditing(e => !e)} aria-label="Editar favoritos" aria-expanded={editing} title="Editar">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 6h16M4 12h10M4 18h6" /></svg>
               </button>
             )}
-            <button type="button" style={iconBtn} onClick={() => sc.setMuted(!sc.muted)} aria-pressed={!sc.muted}
-              aria-label={sc.muted ? "Activar el sonido de las notas" : "Silenciar el sonido de las notas"} title={sc.muted ? "Sonido apagado" : "Sonido encendido"}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />{sc.muted && <path d="M2 2l20 20" />}
-              </svg>
-            </button>
-            <button type="button" style={iconBtn} onClick={() => fold(true)} aria-label="Esconder la barra de favoritos" title="Esconder">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
-            </button>
           </div>
         </div>
       </nav>
+
+      {!search && localSearch && <SearchPopover center={center} onClose={() => setLocalSearch(false)} />}
 
       {menu && (
         <div data-mnemo-ui="" data-export-skip="" role="menu" onPointerDown={e => e.stopPropagation()}

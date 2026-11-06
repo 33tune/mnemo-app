@@ -523,6 +523,15 @@ planeado acá hasta confirmarlo.
 >     defecto; la flotación se suma arriba). La card no se mueve. El encuadre (`withNoteRoom` en `noteBox.ts`) mantiene la
 >     card en el CENTRO y achica lo mínimo para que la nota entre entera (nunca cortada); el lugar de la nota se mide desde
 >     el borde de la card, así los stickers que ya salen por arriba no achican la card de más.
+>   - **Perfil público y barra (2026-11-06, pedido del usuario):** sin la barra vieja de arriba en el perfil de compu
+>     (`Topbar` solo en el editor); en su lugar `PublicBrandPill.tsx` (volver · logo · myLand · @usuario; volver = página
+>     anterior si vino de myLand, si no `/`). La vista pública usa toda la altura (`desktopViewFit` con barra 0). Las
+>     imágenes / textos se pueden llevar hasta el borde de arriba (límites de elementos con `topOffset: 0`; la card sigue
+>     centrada con 44). Separación de la nota hasta 80 px. **Barra de abajo:** la lupa siempre (en un perfil abre una
+>     búsqueda propia sobre la barra, `SearchPopover`); punto rosa cuando un favorito publicó cambios desde la última vez
+>     que lo vi (`sig` = hash del estado publicado en `/api/shortcuts`; lo visto en `localStorage` `mnemo_seen_sigs`, la
+>     primera vez no marca; abrirlo o estar en su perfil lo marca visto); sin campana (el sonido suena siempre) ni flecha
+>     de esconder.
 >   - **Acceso directo** (`ShortcutsBar.tsx`, `/api/shortcuts`, `useShortcuts.ts`, `lib/shortcuts.ts`): barra abajo,
 >     horizontal, en el editor y en perfiles ajenos con sesión (compu): foto de la card, globo de la nota con su color y
 >     fuente (tamaño fijo), anillo si no la viste. Orden: fijados → nota sin ver → visitas → favorito más nuevo; máx. 50,

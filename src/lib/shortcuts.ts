@@ -21,6 +21,29 @@ export interface Shortcut {
   note: { id: string; body: string; created_at: string; expires_at: string } | null;
   noteSeen: boolean;
   noteStyle?: NoteBoxStyle;
+  /** A short signature of their PUBLISHED card / room: when it changes, they
+   * published changes (the bar's pink dot, compared with what I last saw). */
+  sig?: string;
+}
+
+/** Signatures I already saw, per profile (this browser). */
+const SEEN_KEY = "mnemo_seen_sigs";
+export function readSeenSigs(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}") as Record<string, string>; } catch { return {}; }
+}
+export function writeSeenSigs(m: Record<string, string>) {
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify(m)); } catch { /* no storage */ }
+}
+/** Which profiles published something since I last saw them. A profile never
+ * seen before starts as seen (no dot for everyone the first time). */
+export function changedSince(list: Shortcut[], seen: Record<string, string>): { changed: Set<string>; seen: Record<string, string>; dirty: boolean } {
+  const changed = new Set<string>(); const next = { ...seen }; let dirty = false;
+  for (const s of list) {
+    if (!s.sig) continue;
+    if (!(s.userId in next)) { next[s.userId] = s.sig; dirty = true; }
+    else if (next[s.userId] !== s.sig) changed.add(s.userId);
+  }
+  return { changed, seen: next, dirty };
 }
 
 /** Most of the bar's space (more scroll). */

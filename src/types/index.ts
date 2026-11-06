@@ -1053,7 +1053,7 @@ export interface NoteBoxStyle {
   /** Width / height factors, 0.85–1.15: the size changes only a little. */
   w?: number;
   h?: number;
-  /** Separación: px between the box and the card's top edge, 8–48. */
+  /** Separación: px between the box and the card's top edge, 8–80. */
   gap?: number;
   bg?: string;
   /** 0.2–1: below 1 the box turns to frosted glass. */

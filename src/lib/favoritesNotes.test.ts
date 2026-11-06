@@ -72,3 +72,14 @@ test("note box: Separación 8–48 (floating adds on top); the card stays center
   const s = withNoteRoom({ x: 0, y: -50, w: 300, h: 700 }, 400, 120);
   assert.deepEqual([s.y, s.h], [-50, 700]);
 });
+
+test("bar pink dot: a published change since I last saw it; first sight is silent", async () => {
+  const { changedSince } = await import("./shortcuts");
+  const s = (userId: string, sig?: string) => ({ userId, sig }) as never;
+  const first = changedSince([s("a", "1"), s("b", "x")], {});
+  assert.equal(first.changed.size, 0);
+  assert.ok(first.dirty);
+  const later = changedSince([s("a", "2"), s("b", "x"), s("c")], first.seen);
+  assert.deepEqual([...later.changed], ["a"]);
+  assert.equal(later.dirty, false);
+});

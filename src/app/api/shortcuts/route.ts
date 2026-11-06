@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { publicStateOf } from "@/lib/publishedState";
 import { ogCardOf } from "@/lib/ogCard";
@@ -54,6 +55,7 @@ export async function GET() {
       note: n ? { id: n.id as string, body: n.body as string, created_at: n.created_at as string, expires_at: n.expires_at as string } : null,
       noteSeen: n ? seenSet.has(n.id as string) : false,
       noteStyle: card?.noteBox,
+      sig: state ? createHash("sha1").update(JSON.stringify(state)).digest("base64url").slice(0, 16) : undefined,
     });
   }
   return NextResponse.json({ shortcuts: sortShortcuts(out) }, { headers: { "Cache-Control": "private, no-store" } });

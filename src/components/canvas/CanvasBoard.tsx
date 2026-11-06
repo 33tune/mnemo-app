@@ -34,6 +34,7 @@ import { WidgetBoundary } from "@/components/error/WidgetBoundary";
 import { trackRender } from "@/lib/perfDebug";
 import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
 import NewsDialog, { NEWS_KEY } from "./NewsDialog";
+import PublicBrandPill from "./PublicBrandPill";
 import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { mobileView, cardViewRect, phoneScreenRect, onPhoneScreen, type MobileFit } from "@/lib/mobileFit";
@@ -639,7 +640,8 @@ export default function CanvasBoard({
     const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => withNoteRoom(r, cardH, noteH);
     const fit = mobileFit
       ? mobileView(vw, vh, withNote(card && mobileCardH && mobileCardH > 0 ? cardViewRect(card, mobileCardH) : mobileFit.card))
-      : desktopViewFit(vw, vh, card ? withNote({ x: card.x, y: card.y, w: card.w, h: card.h }) : null);
+      // No top bar on the public profile any more (the pill floats): the whole height is the room's.
+      : desktopViewFit(vw, vh, card ? withNote({ x: card.x, y: card.y, w: card.w, h: card.h }) : null, 0);
     // The wrapper holds every element (it is never scrolled, only moved).
     let roomW = vw, roomH = vh;
     for (const e of elements) {
@@ -691,7 +693,7 @@ export default function CanvasBoard({
   }
 
   function clampToViewport(x: number, y: number, w: number, h: number) {
-    return clampPositionToBounds({ x, y, w, h }, { w: effectiveW, h: effectiveH, topOffset: 44 });
+    return clampPositionToBounds({ x, y, w, h }, { w: effectiveW, h: effectiveH, topOffset: 0 });
   }
 
   // ── Inspector (menu redesign Phase 2 → Editor v3 Phase B) ─────────────────
@@ -999,7 +1001,7 @@ export default function CanvasBoard({
   } = useDragDrop({
     elements, setElements,
     trashRef,
-    canvasBounds: { w: effectiveW, h: effectiveH, topOffset: 44 },
+    canvasBounds: { w: effectiveW, h: effectiveH, topOffset: 0 },
     snapStep,
   });
 
@@ -1439,7 +1441,7 @@ export default function CanvasBoard({
     const ids = selIdsRef.current;
     // No selection: let the arrow scroll the canvas container as usual.
     if (!ids.size) return false;
-    const bounds = { w: effectiveW, h: effectiveH, topOffset: 44 };
+    const bounds = { w: effectiveW, h: effectiveH, topOffset: 0 };
     const els = elementsRef.current;
 
     if (action.kind === "move") {
@@ -1527,7 +1529,7 @@ export default function CanvasBoard({
     const el = elementsRef.current.find(e => e.id === id);
     if (!el || !canInteract) return;
     if ((el as { locked?: boolean }).locked) return;
-    const bounds = { w: effectiveW, h: effectiveH, topOffset: 44 };
+    const bounds = { w: effectiveW, h: effectiveH, topOffset: 0 };
     if (target.rotation !== undefined && (el.elementType === "music" || el.elementType === "image" || el.elementType === "text")) {
       // Phase G: Medidas of images and free texts write rotation like Music.
       enqueueOpRef.current(elementOps.update(el.elementType, id, { rotation: target.rotation }));
@@ -2632,7 +2634,7 @@ export default function CanvasBoard({
         // Music players are out of the app (2026-10-27): the room's own
         // music (Tu sala › Ambiente) is the only music. Saved without them.
         newElements = newElements.filter(e => e.elementType !== "music");
-        newElements = normalizeElementsToBounds(newElements, { w: viewportW, h: viewportH, topOffset: 44 });
+        newElements = normalizeElementsToBounds(newElements, { w: viewportW, h: viewportH, topOffset: 0 });
       }
 
       setPlacementsMap(placementsMap);
@@ -3551,7 +3553,9 @@ export default function CanvasBoard({
           }} />
         )}
       </div>
-      {!mobileFit && <Topbar
+      {/* Perfil público en compu: la pastilla (volver, logo, myLand, @usuario), sin la barra vieja. */}
+      {!canEdit && !mobileFit && <PublicBrandPill handle={userHandle} />}
+      {canEdit && !mobileFit && <Topbar
         wallpaper={wallpaper}
         handle={userHandle}
         onLogout={canEdit ? handleLogout : undefined}

@@ -15,7 +15,7 @@ export const NOTE_BOX_W = 232;
  * motion — floating, hover scale — without touching the box). */
 export const NOTE_BOX_GAP = 28;
 /** Separación the owner can choose (not too far: the phone view keeps the card big). */
-export const NOTE_GAP = { min: 8, max: 48 } as const;
+export const NOTE_GAP = { min: 8, max: 80 } as const;
 /** The box keeps ONE size whatever it says (or when it says nothing), so a
  * decoration placed around it always fits: room for 3 lines + the meta row. */
 export const NOTE_LINES = 3;
