@@ -632,7 +632,9 @@ export default function CanvasBoard({
     const vw = viewerScreen?.w ?? 1440, vh = viewerScreen?.h ?? 900;
     const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
     const noteH = card && noteBoxVisible(!!publicNote.note, card.noteBox) ? noteReserve(resolveNoteBox(card.noteBox), noteGap(card)) : 0;
-    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => noteH ? { ...r, y: r.y - noteH, h: r.h + noteH } : r;
+    // The card stays the CENTER (the core); the note's room is mirrored below
+    // it, so the box fits above without pushing the card down.
+    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => noteH ? { ...r, y: r.y - noteH, h: r.h + 2 * noteH } : r;
     const fit = mobileFit
       ? mobileView(vw, vh, withNote(card && mobileCardH && mobileCardH > 0 ? cardViewRect(card, mobileCardH) : mobileFit.card))
       : desktopViewFit(vw, vh, card ? withNote({ x: card.x, y: card.y, w: card.w, h: card.h }) : null);
