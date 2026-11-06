@@ -499,6 +499,13 @@ planeado acá hasta confirmarlo.
 >     la flecha publican, Esc / clic afuera cancela; el engranaje pegado al cuadro abre SU panel (`NoteInspector.tsx`,
 >     target `"note"` de `editorSelection`, vive con la selección vacía). La parte Nota de la card se borró
 >     (`ProfileNoteMenu.tsx`). Perfil: con nota activa, o vacío si el dueño tocó el estilo (`noteBoxVisible`).
+>   - **Ajustes (2026-11-06, pedido del usuario):** sin "Enter publica" (queda el contador `n/60`). Cuadro › **Ancho** y
+>     **Alto** (`noteBox.w/h`, 85–115 %; el `scale` del primer día ya no se dibuja). **Capas:** el FONDO del cuadro va
+>     debajo de todo lo de la sala (`[data-note-bg]`, z 0, dibujado antes que las imágenes: imágenes, card y stickers lo
+>     tapan) y el TEXTO + el área para tocar + el engranaje arriba de todo (`[data-note-box]`, z 4000). **Corazón:** en la
+>     card el corazón + número es solo un dato (sin tocar); el que da favorito está SIEMPRE al lado de "Compartir".
+>     **Buscar:** la lupa salió de la barra izquierda y está al principio de la barra de abajo (`ShortcutsBar` › `search`;
+>     conserva el id `mnemo-rail-search` para devolver el foco).
 >   - **Acceso directo** (`ShortcutsBar.tsx`, `/api/shortcuts`, `useShortcuts.ts`, `lib/shortcuts.ts`): barra abajo,
 >     horizontal, en el editor y en perfiles ajenos con sesión (compu): foto de la card, globo de la nota con su color y
 >     fuente (tamaño fijo), anillo si no la viste. Orden: fijados → nota sin ver → visitas → favorito más nuevo; máx. 50,

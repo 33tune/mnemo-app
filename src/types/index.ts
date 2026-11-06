@@ -1048,8 +1048,11 @@ export type PresenceState = "ACTIVE NOW" | "EDITING SPACE" | "AWAY" | "OFFLINE";
 
 /** The note box's look (lib/noteBox.ts has the defaults and ranges). */
 export interface NoteBoxStyle {
-  /** 0.9–1.15: the size changes only a little. */
+  /** Legacy (first day): one size factor; replaced by w / h, no longer drawn. */
   scale?: number;
+  /** Width / height factors, 0.85–1.15: the size changes only a little. */
+  w?: number;
+  h?: number;
   bg?: string;
   /** 0.2–1: below 1 the box turns to frosted glass. */
   opacity?: number;

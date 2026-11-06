@@ -14,7 +14,7 @@ import { InspectorShell, MenuSection, SliderRow, ColorRow, FontField, SwitchRow,
 import { CANVAS_FONTS } from "@/lib/fontList";
 import { useNote } from "@/hooks/useNote";
 import { useViewerId } from "@/lib/viewer";
-import { NOTE_SCALE, NOTE_OPACITY, NOTE_RADIUS, NOTE_FONT_SIZE, NOTE_DEFAULTS, resolveNoteBox, hoursAgo, hoursLeft } from "@/lib/noteBox";
+import { NOTE_SIZE, NOTE_OPACITY, NOTE_RADIUS, NOTE_FONT_SIZE, NOTE_DEFAULTS, resolveNoteBox, noteBoxWidth, noteBoxHeight, hoursAgo, hoursLeft } from "@/lib/noteBox";
 
 export interface NoteInspectorProps {
   card: ProfileCardData;
@@ -59,12 +59,14 @@ export default function NoteInspector(p: NoteInspectorProps) {
               <ActionButton variant="danger" onClick={e => { e.stopPropagation(); n.remove(); }}>Borrar nota</ActionButton>
             </div>
           ) : null}
-          <MenuNote>Tocá el cuadro para escribir; Enter o la flecha la publican. Dura 24 horas y les avisa a quienes te dieron favorito. Nadie puede responderla.</MenuNote>
+          <MenuNote>Tocá el cuadro para escribir. Dura 24 horas y les avisa a quienes te dieron favorito. Nadie puede responderla.</MenuNote>
         </MenuSection>
 
-        <MenuSection label="Cuadro" icon="frame" summary={`${pct(st.scale)} · ${pct(st.opacity)}`}>
-          <SliderRow label="Tamaño" icon="maximize" min={NOTE_SCALE.min} max={NOTE_SCALE.max} step={0.01} value={st.scale} fmt={pct}
-            defaultValue={NOTE_DEFAULTS.scale} onChange={v => setStyle({ scale: v })} />
+        <MenuSection label="Cuadro" icon="frame" summary={`${noteBoxWidth(st)} × ${noteBoxHeight(st)} px · ${pct(st.opacity)}`}>
+          <SliderRow label="Ancho" icon="maximize" min={NOTE_SIZE.min} max={NOTE_SIZE.max} step={0.01} value={st.w} fmt={pct}
+            defaultValue={NOTE_DEFAULTS.w} onChange={v => setStyle({ w: v })} />
+          <SliderRow label="Alto" icon="height" min={NOTE_SIZE.min} max={NOTE_SIZE.max} step={0.01} value={st.h} fmt={pct}
+            defaultValue={NOTE_DEFAULTS.h} onChange={v => setStyle({ h: v })} />
           <ColorRow label="Color" value={st.bg} onChange={v => setStyle({ bg: v })}
             state={raw?.bg ? "modified" : undefined} onReset={() => setStyle({ bg: undefined })} />
           <SliderRow label="Redondez" icon="corner" min={NOTE_RADIUS.min} max={NOTE_RADIUS.max} step={1} value={st.radius} fmt={px}

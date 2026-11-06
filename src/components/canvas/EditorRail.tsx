@@ -2,7 +2,7 @@
 import React from "react";
 import { T, Icon, type IconName } from "@/ui";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
-import { RAIL_ROOM_BUTTON_ID, RAIL_LAYERS_BUTTON_ID, RAIL_SEARCH_BUTTON_ID } from "./EditorHost";
+import { RAIL_ROOM_BUTTON_ID, RAIL_LAYERS_BUTTON_ID } from "./EditorHost";
 
 /** id of the rail's "Agregar" button (the "+" menu returns focus here). */
 export const RAIL_ADD_BUTTON_ID = "mnemo-rail-add";
@@ -70,7 +70,9 @@ function RailButton({ icon, label, tip, keys, pressed, expanded, controls, disab
 // buttons (spring), tooltips to the right. The logo moved to the brand
 // capsule (Topbar).
 export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpen, onRoom, layersOpen, onLayers, layersPanelId, searchOpen, onSearch, searchPanelId, addMenuId, roomInspectorId }: EditorRailProps) {
-  const active = addOpen ? 1 : layersOpen ? 2 : searchOpen ? 3 : roomOpen ? 4 : selectActive ? 0 : -1;
+  // Buscar moved to the bottom bar (ShortcutsBar, 2026-11-06).
+  void searchOpen; void onSearch; void searchPanelId;
+  const active = addOpen ? 1 : layersOpen ? 2 : roomOpen ? 3 : selectActive ? 0 : -1;
   return (
     <nav
       aria-label="Herramientas"
@@ -82,7 +84,6 @@ export function EditorRail({ addOpen, onAdd, onSelectTool, selectActive, roomOpe
       <RailButton icon="pointer" label="Seleccionar" keys="V" pressed={selectActive} onClick={onSelectTool} />
       <RailButton icon="plus" label="Agregar" keys="A" id={RAIL_ADD_BUTTON_ID} expanded={addOpen} controls={addMenuId} onClick={onAdd} />
       <RailButton icon="layers" label="Capas" keys="L" id={RAIL_LAYERS_BUTTON_ID} expanded={layersOpen} controls={layersPanelId} onClick={onLayers} />
-      <RailButton icon="search" label="Buscar" tip="Buscar cards" id={RAIL_SEARCH_BUTTON_ID} expanded={searchOpen} controls={searchPanelId} onClick={onSearch} />
       <RailButton icon="gear" label="Tu sala" tip="Ajustes de tu sala" id={RAIL_ROOM_BUTTON_ID} expanded={roomOpen} controls={roomInspectorId} onClick={onRoom} />
     </nav>
   );

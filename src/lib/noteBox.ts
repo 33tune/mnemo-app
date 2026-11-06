@@ -20,6 +20,8 @@ export const NOTE_LINES = 3;
 export const NOTE_PAD_Y = 10;
 export const NOTE_META_H = 18;
 export const NOTE_SCALE = { min: 0.9, max: 1.15 } as const;
+/** Ancho / Alto of the box: small changes only. */
+export const NOTE_SIZE = { min: 0.85, max: 1.15 } as const;
 export const NOTE_OPACITY = { min: 0.2, max: 1 } as const;
 export const NOTE_RADIUS = { min: 0, max: 28 } as const;
 export const NOTE_FONT_SIZE = { min: 12, max: 19 } as const;
@@ -28,7 +30,7 @@ export const NOTE_FONT_SIZE = { min: 12, max: 19 } as const;
 export const NOTE_FONT_ADJUST = 0.52;
 
 export const NOTE_DEFAULTS: Required<NoteBoxStyle> = {
-  scale: 1, bg: "#ffffff", opacity: 1, radius: 16, font: "DM Sans", fontSize: 15, color: "#141418", showViews: false,
+  scale: 1, w: 1, h: 1, bg: "#ffffff", opacity: 1, radius: 16, font: "DM Sans", fontSize: 15, color: "#141418", showViews: false,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -37,6 +39,8 @@ export function resolveNoteBox(s?: NoteBoxStyle): Required<NoteBoxStyle> {
   const d = NOTE_DEFAULTS;
   return {
     scale: clamp(s?.scale ?? d.scale, NOTE_SCALE.min, NOTE_SCALE.max),
+    w: clamp(s?.w ?? d.w, NOTE_SIZE.min, NOTE_SIZE.max),
+    h: clamp(s?.h ?? d.h, NOTE_SIZE.min, NOTE_SIZE.max),
     bg: s?.bg || d.bg,
     opacity: clamp(s?.opacity ?? d.opacity, NOTE_OPACITY.min, NOTE_OPACITY.max),
     radius: clamp(s?.radius ?? d.radius, NOTE_RADIUS.min, NOTE_RADIUS.max),
@@ -63,13 +67,18 @@ export function noteGap(card: { effects?: { animations?: { floating?: boolean; f
 
 /** The box's height (unscaled): fixed for a given style. */
 export function noteBoxHeight(st: Required<NoteBoxStyle>): number {
-  return Math.round(NOTE_PAD_Y * 2 + NOTE_LINES * st.fontSize * 1.3 + NOTE_META_H);
+  return Math.round((NOTE_PAD_Y * 2 + NOTE_LINES * st.fontSize * 1.3 + NOTE_META_H) * st.h);
 }
 
-/** Room the box takes above the card (scaled box + gap) — the views fit
+/** The box's width. */
+export function noteBoxWidth(st: Required<NoteBoxStyle>): number {
+  return Math.round(NOTE_BOX_W * st.w);
+}
+
+/** Room the box takes above the card (box + gap) — the views fit
  * keeps it on screen. */
 export function noteReserve(st: Required<NoteBoxStyle>, gap = NOTE_BOX_GAP): number {
-  return noteBoxHeight(st) * st.scale + gap;
+  return noteBoxHeight(st) + gap;
 }
 
 /** The profile shows the box with an active note, or (empty) when the owner

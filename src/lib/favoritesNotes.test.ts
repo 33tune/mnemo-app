@@ -49,7 +49,8 @@ test("note box v2: one fixed size per style, shown empty only when styled, input
   const st = r(undefined);
   assert.equal(noteBoxHeight(st), noteBoxHeight(r({})), "the note's text never changes the size");
   assert.ok(noteBoxHeight(r({ fontSize: 19 })) > noteBoxHeight(st));
-  assert.ok(Math.abs(noteReserve(r({ scale: 1.1 })) - (noteBoxHeight(st) * 1.1 + NOTE_BOX_GAP)) < 1e-9);
+  assert.equal(noteReserve(r({ h: 1.1 })), noteBoxHeight(r({ h: 1.1 })) + NOTE_BOX_GAP);
+  assert.ok(noteBoxHeight(r({ h: 1.15 })) > noteBoxHeight(st) && noteBoxHeight(r({ h: 9 })) === noteBoxHeight(r({ h: 1.15 })));
   assert.equal(noteBoxVisible(false, undefined), false);
   assert.equal(noteBoxVisible(false, {}), false);
   assert.equal(noteBoxVisible(false, { bg: "#000000" }), true);

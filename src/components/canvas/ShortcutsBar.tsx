@@ -84,11 +84,24 @@ function Avatar({ s, current, onMenu }: { s: Shortcut; current: boolean; onMenu:
   );
 }
 
-export default function ShortcutsBar({ left = 0, right = 0, currentHandle }: {
+/** Buscar (moved here from the rail, 2026-11-06): the editor's lupa. */
+export interface BarSearch { open: boolean; onToggle: () => void; panelId: string; buttonId: string }
+
+function SearchButton({ search }: { search: BarSearch }) {
+  return (
+    <button type="button" id={search.buttonId} style={{ ...iconBtn, width: 40, height: 40, ...(search.open ? { background: "rgba(255,255,255,.22)" } : {}) }}
+      onClick={search.onToggle} aria-label="Buscar cards" title="Buscar cards" aria-expanded={search.open} aria-controls={search.open ? search.panelId : undefined}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+    </button>
+  );
+}
+
+export default function ShortcutsBar({ left = 0, right = 0, currentHandle, search }: {
   /** Space taken on each side (the editor's rail, the profile's buttons). */
   left?: number;
   right?: number;
   currentHandle?: string;
+  search?: BarSearch;
 }) {
   const sc = useShortcuts(true);
   const [folded, setFolded] = useState(false);
@@ -109,12 +122,16 @@ export default function ShortcutsBar({ left = 0, right = 0, currentHandle }: {
 
   if (folded) {
     return (
-      <button type="button" data-mnemo-ui="" data-export-skip="" onClick={() => fold(false)} aria-label="Mostrar favoritos"
-        style={{ ...glass, position: "fixed", left: center, transform: "translateX(-50%)", bottom: 16, zIndex: 2147480900, height: 36, padding: "0 14px",
-          borderRadius: 999, display: "flex", alignItems: "center", gap: 8, font: "600 13px system-ui, -apple-system, 'Segoe UI', sans-serif", cursor: "pointer" }}>
-        <HeartIcon size={15} filled={items.some(s => s.note && !s.noteSeen)} /> Favoritos
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="m6 15 6-6 6 6" /></svg>
-      </button>
+      <div data-mnemo-ui="" data-export-skip="" style={{ position: "fixed", left: center, transform: "translateX(-50%)", bottom: 16, zIndex: 2147480900,
+        display: "flex", alignItems: "center", gap: 6 }}>
+        {search && <div style={{ ...glass, borderRadius: 999, padding: 0, display: "flex" }}><SearchButton search={{ ...search }} /></div>}
+        <button type="button" onClick={() => fold(false)} aria-label="Mostrar favoritos"
+          style={{ ...glass, height: 36, padding: "0 14px",
+            borderRadius: 999, display: "flex", alignItems: "center", gap: 8, font: "600 13px system-ui, -apple-system, 'Segoe UI', sans-serif", cursor: "pointer" }}>
+          <HeartIcon size={15} filled={items.some(s => s.note && !s.noteSeen)} /> Favoritos
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="m6 15 6-6 6 6" /></svg>
+        </button>
+      </div>
     );
   }
 
@@ -125,6 +142,10 @@ export default function ShortcutsBar({ left = 0, right = 0, currentHandle }: {
           maxWidth: `calc(100vw - ${left + right + 48}px)`, display: "flex", alignItems: "flex-end", pointerEvents: "none" }}>
         <div style={{ ...glass, position: "absolute", left: 0, right: 0, bottom: 0, height: 64, borderRadius: 22, pointerEvents: "none" }} />
         <div style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: 6, padding: "0 10px 5px", minWidth: 0 }}>
+          {search && <>
+            <div style={{ paddingBottom: 7, flex: "none", pointerEvents: "auto" }}><SearchButton search={search} /></div>
+            <span aria-hidden style={{ width: 1, height: 30, background: "rgba(255,255,255,.14)", margin: "0 4px 12px", flex: "none" }} />
+          </>}
           {items.length ? (
             <div style={{ display: "flex", alignItems: "flex-end", gap: 6, overflowX: "auto", overflowY: "hidden", paddingTop: 44, marginTop: -44,
               scrollbarWidth: "none", minWidth: 0, maxWidth: "100%", pointerEvents: "auto" }}>

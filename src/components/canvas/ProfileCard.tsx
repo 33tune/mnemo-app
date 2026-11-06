@@ -867,9 +867,11 @@ function ProfileCard({
 
   function ViewsLine({ style }: { style?: CSSProperties }) {
     const color = viewsBlockStyle.textColor ?? resolvedColors.views;
-    // Visitas y favoritos (2026-11-06): eye + views, heart + favorites.
+    // Visitas y favoritos (2026-11-06): eye + views, heart + favorites —
+    // only a count here; the heart to give one is by "Compartir" (a small
+    // block on the card was hard to hit).
     return (
-      <StatsRow views={viewCount} fav={fav} interactive={!canInteract}
+      <StatsRow views={viewCount} fav={fav} interactive={false}
         style={{
           fontFamily: fontStyle(card.viewsFont, MONO), fontSize: typography.views.fontSize, color,
           letterSpacing: typography.views.letterSpacing,

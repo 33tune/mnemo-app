@@ -58,7 +58,7 @@ import { resolvePartClick, isPartRole, type PartClick, type PartRole } from "@/l
 import { snapNudgeDelta } from "@/lib/gridSnap";
 import { inspectorObject, chipLabel } from "@/lib/inspectorObjects";
 import type { MeasureSpec } from "./ElementInspectorParts";
-import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANEL_ID, SEARCH_PANEL_ID } from "./EditorHost";
+import { EditorHost, type ProfileEditorFacts, RAIL_LAYERS_BUTTON_ID, LAYERS_PANEL_ID, SEARCH_PANEL_ID, RAIL_SEARCH_BUTTON_ID } from "./EditorHost";
 import { toLayerItems, visualOrder, reorder as reorderLayers, moveWithinLayer, setLayer as setElementLayer, bringToFront, layerLabels, positionAfter, LAYER_NAMES as LAYER_TITLES, type LayerPatch } from "@/lib/layerOrder";
 import type { LayerRow } from "./LayersPanel";
 import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail";
@@ -3736,6 +3736,22 @@ export default function CanvasBoard({
       {drawRectVis&&drawRectVis.w>0&&(<div style={{position:"absolute",left:drawRectVis.x,top:drawRectVis.y,width:drawRectVis.w,height:drawRectVis.h,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.02)",borderRadius:4,pointerEvents:"none",zIndex:600}} />)}
       {selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
+      {/* ── NOTE BOX ── (Notas v2: a widget of its own above the card; its surface under
+          everything in the room, its text / tap area over everything — NoteBox.tsx) */}
+      {(() => {
+        const prof = visProfiles.find(p => p.isPublic) ?? visProfiles[0];
+        if (!prof || canvasMode === "space_mobile") return null;
+        const ps = getParallaxStyle(prof.layer, prof.depth);
+        return (
+          <NoteBox key={`note-${prof.id}`} card={prof} ownerUserId={ownerUserId ?? currentUserId ?? undefined} editor={canEdit && canInteract}
+            panelOpen={editorSel.target?.kind === "note" && editorSel.target.cardId === prof.id}
+            onSelect={() => { if (editorSel.target?.kind !== "note") setSelectedIds(new Set()); }}
+            onSettings={() => { if (editorSel.target?.kind === "note") closeInspector(); else { setMenuOpen(false); openNote(prof.id); } }}
+            parallaxTransform={ps.transform as string}
+            entryDelayMs={!canEdit ? 320 : undefined} />
+        );
+      })()}
+
       {/* ── IMAGES ── */}
       {visImages.map((img,i)=>{
         const isSel=selectedIds.has(img.id);
@@ -3884,21 +3900,6 @@ export default function CanvasBoard({
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined} />);
       })}
 
-      {/* ── NOTE BOX ── (Notas v2: a widget of its own, above the card and
-          over everything in the room; writes in place, its gear opens its panel) */}
-      {(() => {
-        const prof = visProfiles.find(p => p.isPublic) ?? visProfiles[0];
-        if (!prof || canvasMode === "space_mobile") return null;
-        const ps = getParallaxStyle(prof.layer, prof.depth);
-        return (
-          <NoteBox key={`note-${prof.id}`} card={prof} ownerUserId={ownerUserId ?? currentUserId ?? undefined} editor={canEdit && canInteract}
-            panelOpen={editorSel.target?.kind === "note" && editorSel.target.cardId === prof.id}
-            onSelect={() => { if (editorSel.target?.kind !== "note") setSelectedIds(new Set()); }}
-            onSettings={() => { if (editorSel.target?.kind === "note") closeInspector(); else { setMenuOpen(false); openNote(prof.id); } }}
-            parallaxTransform={ps.transform as string}
-            entryDelayMs={!canEdit ? 320 : undefined} />
-        );
-      })()}
 
 
       {/* ── GUESTBOOK ── */}
@@ -4247,7 +4248,9 @@ export default function CanvasBoard({
           in the editor (beside the rail, clear of the dock) and on other
           people's profiles while signed in (computer). */}
       {railShown && !tourStep && (
-        <ShortcutsBar left={railW} right={inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0} />
+        <ShortcutsBar left={railW} right={inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
+          search={{ open: searchOpen, panelId: SEARCH_PANEL_ID, buttonId: RAIL_SEARCH_BUTTON_ID,
+            onToggle: () => { if (searchOpen) closeInspector(); else { setMenuOpen(false); openSearch(); } } }} />
       )}
       {!canEdit && viewerLoggedIn && !mobileFit && <ShortcutsBar right={170} currentHandle={userHandle} />}
       {/* Compartir tu card (2026-11-04): on the public profile, a small
@@ -4255,9 +4258,9 @@ export default function CanvasBoard({
       {!canEdit && visProfiles.length > 0 && !shareOpen && (
         <div data-export-skip="" style={{ position: "fixed", right: 16, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", zIndex: 2147481000,
           display: "flex", alignItems: "center", gap: 8 }}>
-        {/* Favoritos (2026-11-06): with the card's Visitas block off, the
-            heart lives here (anyone can still give a favorite). */}
-        {!visProfiles[0].showViews && <HeartPill ownerUserId={ownerUserId} />}
+        {/* Favoritos (2026-11-06): the heart to give one always lives here
+            (the card only shows the count). */}
+        <HeartPill ownerUserId={ownerUserId} />
         <button type="button" onClick={openShare} aria-label="Compartir esta card como historia"
           style={{
             display: "flex", alignItems: "center", gap: 8, height: 44, padding: "0 16px", borderRadius: 999,

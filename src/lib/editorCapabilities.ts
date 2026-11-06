@@ -177,7 +177,9 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   // menu; moved, scaled and rotated on the card in its edit mode.
   stickers: stk(`${STICKERS} › Agregar sticker · Capas · Editar`, "onChange({ stickers: next })"),
   // Notas (2026-11-06): the note box's look (the note itself is not card data).
-  "noteBox.scale": noteM(`${NOTA} › Cuadro › Tamaño`, "setStyle({ scale: v })"),
+  "noteBox.scale": retired("first-day single size factor, replaced by Ancho / Alto (noteBox.w / h); no longer drawn"),
+  "noteBox.w": noteM(`${NOTA} › Cuadro › Ancho`, "setStyle({ w: v })"),
+  "noteBox.h": noteM(`${NOTA} › Cuadro › Alto`, "setStyle({ h: v })"),
   "noteBox.bg": noteM(`${NOTA} › Cuadro › Color`, "setStyle({ bg: v })"),
   "noteBox.radius": noteM(`${NOTA} › Cuadro › Redondez`, "setStyle({ radius: v })"),
   "noteBox.opacity": noteM(`${NOTA} › Cuadro › Opacidad`, "setStyle({ opacity: v })"),
