@@ -69,7 +69,7 @@ import ShareCardDialog from "@/components/share/ShareCardDialog";
 import { HeartPill } from "./StatsRow";
 import ShortcutsBar, { SHORTCUTS_BAR_H } from "./ShortcutsBar";
 import { useNote } from "@/hooks/useNote";
-import { noteReserve, noteBoxVisible, resolveNoteBox, noteGap } from "@/lib/noteBox";
+import { noteReserve, noteBoxVisible, resolveNoteBox, noteGap, withNoteRoom } from "@/lib/noteBox";
 import NoteBox from "./NoteBox";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
@@ -635,7 +635,8 @@ export default function CanvasBoard({
     const noteH = card && noteBoxVisible(!!publicNote.note, card.noteBox) ? noteReserve(resolveNoteBox(card.noteBox), noteGap(card)) : 0;
     // The card stays the CENTER (the core); the note's room is mirrored below
     // it, so the box fits above without pushing the card down.
-    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => noteH ? { ...r, y: r.y - noteH, h: r.h + 2 * noteH } : r;
+    const cardH = card ? (mobileFit && mobileCardH && mobileCardH > 0 ? mobileCardH : card.h) : 0;
+    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => withNoteRoom(r, cardH, noteH);
     const fit = mobileFit
       ? mobileView(vw, vh, withNote(card && mobileCardH && mobileCardH > 0 ? cardViewRect(card, mobileCardH) : mobileFit.card))
       : desktopViewFit(vw, vh, card ? withNote({ x: card.x, y: card.y, w: card.w, h: card.h }) : null);

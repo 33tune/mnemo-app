@@ -14,7 +14,7 @@ import { InspectorShell, MenuSection, SliderRow, ColorRow, FontField, SwitchRow,
 import { CANVAS_FONTS } from "@/lib/fontList";
 import { useNote } from "@/hooks/useNote";
 import { useViewerId } from "@/lib/viewer";
-import { NOTE_SIZE, NOTE_OPACITY, NOTE_RADIUS, NOTE_FONT_SIZE, NOTE_DEFAULTS, resolveNoteBox, noteBoxWidth, noteBoxHeight, hoursAgo, hoursLeft } from "@/lib/noteBox";
+import { NOTE_SIZE, NOTE_GAP, NOTE_OPACITY, NOTE_RADIUS, NOTE_FONT_SIZE, NOTE_DEFAULTS, resolveNoteBox, noteBoxWidth, noteBoxHeight, hoursAgo, hoursLeft } from "@/lib/noteBox";
 
 export interface NoteInspectorProps {
   card: ProfileCardData;
@@ -67,6 +67,8 @@ export default function NoteInspector(p: NoteInspectorProps) {
             defaultValue={NOTE_DEFAULTS.w} onChange={v => setStyle({ w: v })} />
           <SliderRow label="Alto" icon="height" min={NOTE_SIZE.min} max={NOTE_SIZE.max} step={0.01} value={st.h} fmt={pct}
             defaultValue={NOTE_DEFAULTS.h} onChange={v => setStyle({ h: v })} />
+          <SliderRow label="Separación" icon="spacing" min={NOTE_GAP.min} max={NOTE_GAP.max} step={1} value={st.gap} fmt={px}
+            defaultValue={NOTE_DEFAULTS.gap} onChange={v => setStyle({ gap: v })} />
           <ColorRow label="Color" value={st.bg} onChange={v => setStyle({ bg: v })}
             state={raw?.bg ? "modified" : undefined} onReset={() => setStyle({ bg: undefined })} />
           <SliderRow label="Redondez" icon="corner" min={NOTE_RADIUS.min} max={NOTE_RADIUS.max} step={1} value={st.radius} fmt={px}

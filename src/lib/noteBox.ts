@@ -14,6 +14,8 @@ export const NOTE_BOX_W = 232;
 /** Gap between the box and the card's top edge (room for the card's own
  * motion — floating, hover scale — without touching the box). */
 export const NOTE_BOX_GAP = 28;
+/** Separación the owner can choose (not too far: the phone view keeps the card big). */
+export const NOTE_GAP = { min: 8, max: 48 } as const;
 /** The box keeps ONE size whatever it says (or when it says nothing), so a
  * decoration placed around it always fits: room for 3 lines + the meta row. */
 export const NOTE_LINES = 3;
@@ -30,7 +32,7 @@ export const NOTE_FONT_SIZE = { min: 12, max: 19 } as const;
 export const NOTE_FONT_ADJUST = 0.52;
 
 export const NOTE_DEFAULTS: Required<NoteBoxStyle> = {
-  scale: 1, w: 1, h: 1, bg: "#ffffff", opacity: 1, radius: 16, font: "DM Sans", fontSize: 15, color: "#141418", showViews: false,
+  scale: 1, w: 1, h: 1, gap: 28, bg: "#ffffff", opacity: 1, radius: 16, font: "DM Sans", fontSize: 15, color: "#141418", showViews: false,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -40,6 +42,7 @@ export function resolveNoteBox(s?: NoteBoxStyle): Required<NoteBoxStyle> {
   return {
     scale: clamp(s?.scale ?? d.scale, NOTE_SCALE.min, NOTE_SCALE.max),
     w: clamp(s?.w ?? d.w, NOTE_SIZE.min, NOTE_SIZE.max),
+    gap: clamp(s?.gap ?? d.gap, NOTE_GAP.min, NOTE_GAP.max),
     h: clamp(s?.h ?? d.h, NOTE_SIZE.min, NOTE_SIZE.max),
     bg: s?.bg || d.bg,
     opacity: clamp(s?.opacity ?? d.opacity, NOTE_OPACITY.min, NOTE_OPACITY.max),
@@ -59,10 +62,23 @@ function hexToRgb(hex: string): [number, number, number] | null {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-/** The gap for this card: more when it floats (its motion never reaches the box). */
-export function noteGap(card: { effects?: { animations?: { floating?: boolean; floatHeight?: number } } }): number {
+/** The gap for this card: the owner's Separación, plus the floating height
+ * when it floats (its motion never reaches the box). */
+export function noteGap(card: { noteBox?: NoteBoxStyle; effects?: { animations?: { floating?: boolean; floatHeight?: number } } }): number {
   const a = card.effects?.animations;
-  return NOTE_BOX_GAP + (a?.floating ? Math.max(0, a.floatHeight ?? 8) : 0);
+  const gap = clamp(card.noteBox?.gap ?? NOTE_BOX_GAP, NOTE_GAP.min, NOTE_GAP.max);
+  return gap + (a?.floating ? Math.max(0, a.floatHeight ?? 8) : 0);
+}
+
+/** What the view fits with the note: the card stays the CENTER, and the
+ * room it needs above the card's top edge (the note) is mirrored below.
+ * `view` is the card's view rect (already centered on the card, stickers
+ * included); a sticker reaching up past the note needs no extra room. */
+export function withNoteRoom<R extends { x: number; y: number; w: number; h: number }>(view: R, cardH: number, reserve: number): R {
+  if (!reserve) return view;
+  const cy = view.y + view.h / 2;
+  const half = Math.max(view.h / 2, cardH / 2 + reserve);
+  return { ...view, y: cy - half, h: 2 * half };
 }
 
 /** The box's height (unscaled): fixed for a given style. */

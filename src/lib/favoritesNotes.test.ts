@@ -58,3 +58,17 @@ test("note box v2: one fixed size per style, shown empty only when styled, input
   assert.equal(clipNote("a\nb"), "a b");
   assert.equal(Array.from(clipNote("😀".repeat(70))).length, 60);
 });
+
+test("note box: Separación 8–48 (floating adds on top); the card stays centered and is not shrunk by stickers above", async () => {
+  const { noteGap, withNoteRoom, NOTE_GAP } = await import("./noteBox");
+  assert.equal(noteGap({}), 28);
+  assert.equal(noteGap({ noteBox: { gap: 4 } }), NOTE_GAP.min);
+  assert.equal(noteGap({ noteBox: { gap: 99 } }), NOTE_GAP.max);
+  assert.equal(noteGap({ noteBox: { gap: 20 }, effects: { animations: { floating: true, floatHeight: 10 } } }), 30);
+  // a 400 tall card: the note's 120 px of room are mirrored below, centered on the card
+  const r = withNoteRoom({ x: 0, y: 100, w: 300, h: 400 }, 400, 120);
+  assert.deepEqual([r.y, r.h], [-20, 640]);
+  // stickers already reaching 150 px above and below: no extra room needed
+  const s = withNoteRoom({ x: 0, y: -50, w: 300, h: 700 }, 400, 120);
+  assert.deepEqual([s.y, s.h], [-50, 700]);
+});

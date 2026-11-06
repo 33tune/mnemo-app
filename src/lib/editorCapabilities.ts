@@ -180,6 +180,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "noteBox.scale": retired("first-day single size factor, replaced by Ancho / Alto (noteBox.w / h); no longer drawn"),
   "noteBox.w": noteM(`${NOTA} › Cuadro › Ancho`, "setStyle({ w: v })"),
   "noteBox.h": noteM(`${NOTA} › Cuadro › Alto`, "setStyle({ h: v })"),
+  "noteBox.gap": noteM(`${NOTA} › Cuadro › Separación`, "setStyle({ gap: v })"),
   "noteBox.bg": noteM(`${NOTA} › Cuadro › Color`, "setStyle({ bg: v })"),
   "noteBox.radius": noteM(`${NOTA} › Cuadro › Redondez`, "setStyle({ radius: v })"),
   "noteBox.opacity": noteM(`${NOTA} › Cuadro › Opacidad`, "setStyle({ opacity: v })"),

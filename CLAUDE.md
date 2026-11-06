@@ -519,6 +519,10 @@ planeado acá hasta confirmarlo.
 >   - **Anuncio de novedades (2026-11-06):** `NewsDialog.tsx`, una vez por navegador (`mnemo_news_2026_11_06`) al entrar
 >     al editor; quien entra por primera vez recibe el tutorial y no el anuncio. Mail "Novedades en myLand" mandado por
 >     Resend a todas las cuentas registradas (sin las 2 de prueba). Para un anuncio nuevo: otra clave y otro texto.
+>   - **Separación de la nota (2026-11-06, pedido del usuario):** Cuadro › Separación (`noteBox.gap`, 8–48 px, 28 por
+>     defecto; la flotación se suma arriba). La card no se mueve. El encuadre (`withNoteRoom` en `noteBox.ts`) mantiene la
+>     card en el CENTRO y achica lo mínimo para que la nota entre entera (nunca cortada); el lugar de la nota se mide desde
+>     el borde de la card, así los stickers que ya salen por arriba no achican la card de más.
 >   - **Acceso directo** (`ShortcutsBar.tsx`, `/api/shortcuts`, `useShortcuts.ts`, `lib/shortcuts.ts`): barra abajo,
 >     horizontal, en el editor y en perfiles ajenos con sesión (compu): foto de la card, globo de la nota con su color y
 >     fuente (tamaño fijo), anillo si no la viste. Orden: fijados → nota sin ver → visitas → favorito más nuevo; máx. 50,
