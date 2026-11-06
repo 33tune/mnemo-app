@@ -65,6 +65,7 @@ import { EditorRail, RAIL_ADD_BUTTON_ID, RAIL_ADD_MENU_POS } from "./EditorRail"
 import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from "./CanvasGrid";
 import type { RoomOp } from "./RoomInspector";
 import ShareCardDialog from "@/components/share/ShareCardDialog";
+import { HeartPill } from "./StatsRow";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
   HISTORY_TEXT_IDLE_MS, ownHistoryStep, inOwnHistoryStep, undoShortcutOwner, historyShortcut, type EditorHistory, type HistoryEntry, type Snap,
@@ -4218,8 +4219,13 @@ export default function CanvasBoard({
       {/* Compartir tu card (2026-11-04): on the public profile, a small
           button; in the editor, the top bar's share button. */}
       {!canEdit && visProfiles.length > 0 && !shareOpen && (
-        <button type="button" data-export-skip="" onClick={openShare} aria-label="Compartir esta card como historia"
-          style={{ position: "fixed", right: 16, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", zIndex: 2147481000,
+        <div data-export-skip="" style={{ position: "fixed", right: 16, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", zIndex: 2147481000,
+          display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Favoritos (2026-11-06): with the card's Visitas block off, the
+            heart lives here (anyone can still give a favorite). */}
+        {!visProfiles[0].showViews && <HeartPill ownerUserId={ownerUserId} />}
+        <button type="button" onClick={openShare} aria-label="Compartir esta card como historia"
+          style={{
             display: "flex", alignItems: "center", gap: 8, height: 44, padding: "0 16px", borderRadius: 999,
             border: "1px solid rgba(255,255,255,0.18)", background: "rgba(14,14,18,0.6)", color: "#fff",
             backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
@@ -4229,6 +4235,7 @@ export default function CanvasBoard({
           </svg>
           Compartir
         </button>
+        </div>
       )}
       {shareOpen && visProfiles[0] && (() => {
         const prof = visProfiles[0];

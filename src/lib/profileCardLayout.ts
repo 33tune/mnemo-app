@@ -64,6 +64,16 @@ export type TextRole = "name" | "handle" | "descriptor" | "bio" | "location" | "
 export const ABOUT_MAX = 240;
 export const IDENTITY_ROWS = ["name", "handle", "descriptor", "bio"] as const;
 
+/** Visitas y favoritos (2026-11-06): an eye with the views, a heart with the
+ * favorites, side by side on one line. Icon size and gaps in em of the
+ * block's font size (ProfileCard › ViewsLine draws the same). */
+export const STATS_ICON_EM = 1.15;
+export const STATS_ICON_GAP_EM = 0.35;
+export const STATS_GROUP_GAP_EM = 0.9;
+export function statsRowWidth(views: string, favs: string, fontSize: number, textW: (s: string) => number): number {
+  return textW(views) + textW(favs) + fontSize * (2 * STATS_ICON_EM + 2 * STATS_ICON_GAP_EM + STATS_GROUP_GAP_EM);
+}
+
 /** "12.3K" — the views counter, as rendered. */
 export function formatViewCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -172,7 +182,7 @@ export interface ProfileTextRows {
 }
 
 /** Every present text role as a row spec (real widths with `measure`). */
-export function profileTextRows(card: ProfileCardData, o: { measure?: TextMeasurer; viewCount?: number } = {}): ProfileTextRows {
+export function profileTextRows(card: ProfileCardData, o: { measure?: TextMeasurer; viewCount?: number; favCount?: number } = {}): ProfileTextRows {
   const nameFontSize = profileNameFontSize(card);
   const typo = resolveCardTypography(card, nameFontSize);
   const metrics = resolveTypographyMetrics({
@@ -216,13 +226,20 @@ export function profileTextRows(card: ProfileCardData, o: { measure?: TextMeasur
     descriptor: card.status || undefined,
     location: card.location ? `● ${card.location}` : undefined,
     bio: card.bio || undefined,
-    views: card.showViews ? `${formatViewCount(o.viewCount ?? 0)} views` : undefined,
+    views: card.showViews ? `${formatViewCount(o.viewCount ?? 0)} ${formatViewCount(o.favCount ?? 0)}` : undefined,
     about: card.aboutText?.trim() ? card.aboutText : undefined,
   };
   const rows: ProfileTextRows["rows"] = {};
   for (const role of Object.keys(texts) as TextRole[]) {
     const t = texts[role];
-    if (t) rows[role] = makeRow(t, lineH[role], widthOf(role), role === "bio" || role === "about");
+    if (!t) continue;
+    if (role === "views") {
+      // One line, never wrapped: eye + views, heart + favorites.
+      const wv = statsRowWidth(formatViewCount(o.viewCount ?? 0), formatViewCount(o.favCount ?? 0), fonts.views.size, widthOf("views")) + SAFETY;
+      rows.views = { text: t, lineH: lineH.views, natW: wv, minW: wv, minLines: 1, linesAt: () => 1 };
+      continue;
+    }
+    rows[role] = makeRow(t, lineH[role], widthOf(role), role === "bio" || role === "about");
   }
   return { rows, fonts };
 }
@@ -272,6 +289,7 @@ export interface ProfileLayoutOptions {
   h?: number;
   measure?: TextMeasurer;
   viewCount?: number;
+  favCount?: number;
 }
 
 /** Every present block's size model at card width `w`. */
@@ -502,7 +520,7 @@ export function profileLayout(card: ProfileCardData, o: ProfileLayoutOptions & {
  */
 export function profileCardMinSize(
   card: ProfileCardData, w: number,
-  o: Pick<ProfileLayoutOptions, "measure" | "viewCount"> & { drag?: DragState } = {},
+  o: Pick<ProfileLayoutOptions, "measure" | "viewCount" | "favCount"> & { drag?: DragState } = {},
 ): { w: number; h: number } {
   const bounds = getFreeformCardBounds();
   // The floor keeps the user's composition: packed in its own order, never
@@ -520,7 +538,7 @@ export function profileCardMinSize(
   return { w: minW, h: minHAt(Math.max(w, minW)) };
 }
 
-function fitsAt(card: ProfileCardData, W: number, H: number, o: Pick<ProfileLayoutOptions, "measure" | "viewCount"> & { drag?: DragState }): boolean {
+function fitsAt(card: ProfileCardData, W: number, H: number, o: Pick<ProfileLayoutOptions, "measure" | "viewCount" | "favCount"> & { drag?: DragState }): boolean {
   const b = profileBlocks(card, { ...o, w: W, h: H });
   return solveLayout({ ...solveInput(card, b, W, H, o.drag), keepComposition: !o.drag }).fits;
 }
@@ -532,7 +550,7 @@ function fitsAt(card: ProfileCardData, W: number, H: number, o: Pick<ProfileLayo
  */
 export function clampProfileCardSize(
   card: ProfileCardData, w: number, h: number,
-  o: Pick<ProfileLayoutOptions, "measure" | "viewCount"> & { startW?: number } = {},
+  o: Pick<ProfileLayoutOptions, "measure" | "viewCount" | "favCount"> & { startW?: number } = {},
 ): { w: number; h: number } {
   const bounds = getFreeformCardBounds();
   const floor = profileCardMinSize(card, Math.round(w), o);

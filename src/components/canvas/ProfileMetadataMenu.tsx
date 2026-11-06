@@ -62,7 +62,9 @@ export default function ProfileMetadataMenu({ card, onChange, only }: ProfileMet
       {only === "aboutBlock" && <BlockStyleFields card={card} blockKey="about" onChange={onChange} scope="Sobre mí" />}
 
       {only === "views" && <MenuSection label="Contador" pinned>
-        <SwitchRow label="Mostrar cantidad" icon="eye" value={!!showViews} onChange={v => meta.setShowViews(v)} />
+        {/* Visitas y favoritos (2026-11-06): the eye and the heart, on / off
+            together. Off, the heart moves next to "Compartir" on the profile. */}
+        <SwitchRow label="Mostrar visitas y favoritos" icon="eye" value={!!showViews} onChange={v => meta.setShowViews(v)} />
       </MenuSection>}
       {only === "viewsBlock" && <BlockStyleFields card={card} blockKey="views" onChange={onChange} scope="Visitas" />}
     </div>

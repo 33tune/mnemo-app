@@ -9,6 +9,8 @@ import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions, useGyroTilt } from "@/hooks/useCardInteractions";
+import { useFavorite } from "@/hooks/useFavorite";
+import StatsRow from "./StatsRow";
 import { StickerLayer, StickerEditor, withPreview, type StickerPreview } from "./CardStickers";
 import { useStickerEditing } from "@/lib/stickerEditing";
 import { isEventFromNode } from "@/lib/editorGuards";
@@ -287,6 +289,9 @@ function ProfileCard({
 
   // Views counter — fetched once per mount, same hook used by StatsCardWidget
   const { total: viewCount } = useProfileViews(ownerUserId);
+  // Favoritos (2026-11-06): the heart next to the views.
+  const fav = useFavorite(ownerUserId);
+  const favCount = fav.count;
 
   // ── Real text measurement + the content floor (engine rewrite 2026-10-15)
   // The measurer exists only after mount (the server render and the first
@@ -299,9 +304,9 @@ function ProfileCard({
   // — nothing is dropped, also on the public page — and the growth effect
   // below persists it in the editor. space_mobile keeps its stored size.
   const minSize = useMemo(
-    () => (layout === "free" ? undefined : profileCardMinSize(card, card.w, { measure, viewCount })),
+    () => (layout === "free" ? undefined : profileCardMinSize(card, card.w, { measure, viewCount, favCount })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout, card, measure, viewCount, fontsVersion],
+    [layout, card, measure, viewCount, favCount, fontsVersion],
   );
   const cardH = minSize && viewportW != null ? Math.max(card.h, minSize.h) : card.h;
 
@@ -860,17 +865,17 @@ function ProfileCard({
 
   function ViewsLine({ style }: { style?: CSSProperties }) {
     const color = viewsBlockStyle.textColor ?? resolvedColors.views;
+    // Visitas y favoritos (2026-11-06): eye + views, heart + favorites.
     return (
-      <div style={{
-        fontFamily: fontStyle(card.viewsFont, MONO), fontSize: typography.views.fontSize, color,
-        letterSpacing: typography.views.letterSpacing, textTransform: "uppercase" as CSSProperties["textTransform"],
-        textAlign,
-        ...(typography.views.lineHeight != null ? { lineHeight: typography.views.lineHeight } : {}),
-        ...(typography.views.fontWeight != null ? { fontWeight: typography.views.fontWeight } : {}),
-        ...viewsEffectStyle, ...style,
-      }}>
-        {formatViewCount(viewCount)} views
-      </div>
+      <StatsRow views={viewCount} fav={fav} interactive={!canInteract}
+        style={{
+          fontFamily: fontStyle(card.viewsFont, MONO), fontSize: typography.views.fontSize, color,
+          letterSpacing: typography.views.letterSpacing,
+          justifyContent: textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start",
+          ...(typography.views.lineHeight != null ? { lineHeight: typography.views.lineHeight } : {}),
+          ...(typography.views.fontWeight != null ? { fontWeight: typography.views.fontWeight } : {}),
+          ...viewsEffectStyle, ...style,
+        }} />
     );
   }
 
@@ -990,7 +995,7 @@ function ProfileCard({
   const buttonStyle = resolveLinkButtonStyle(card.linkButtonStyle, baseColor);
   const composed = layout === "free" ? undefined
     : profileLayout(card, {
-      w: card.w, h: cardH, measure, viewCount,
+      w: card.w, h: cardH, measure, viewCount, favCount,
       drag: drag ?? undefined,
       // Continuity while the shape of things changes under the pointer.
       prev: drag || isResizing ? lastLayoutRef.current?.rects : undefined,

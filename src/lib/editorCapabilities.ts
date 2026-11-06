@@ -200,7 +200,7 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   statusX: retired(LEGACY_POS), statusY: retired(LEGACY_POS), statusScale: retired(LEGACY_POS),
   locationX: retired(LEGACY_POS), locationY: retired(LEGACY_POS), locationScale: retired(LEGACY_POS),
   bioX: retired(LEGACY_POS), bioY: retired(LEGACY_POS), bioScale: retired(LEGACY_POS),
-  showViews: meta(`${VISITAS} › Contador › Mostrar cantidad`, "meta.setShowViews(v)"),
+  showViews: meta(`${VISITAS} › Contador › Mostrar visitas y favoritos`, "meta.setShowViews(v)"),
   viewsX: retired(LEGACY_POS), viewsY: retired(LEGACY_POS), viewsScale: retired(LEGACY_POS),
   font: by("nameFont", "card.font only ever reached the Name — Block 1 removed \"Fuente general\"; shown as the Name font fallback"),
   nameFont: type(`${NOMBRE} › ${TIPO} › Fuente`, "onChange({ nameFont: v })"),

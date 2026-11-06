@@ -1,4 +1,5 @@
 "use client";
+import { safeNextPath } from "@/lib/handles";
 /**
  * The landing's and the auth page's connection to Supabase (Claude Design
  * "Landing v9" / "Auth v4"): the real name check and every auth action, in
@@ -33,6 +34,14 @@ export async function checkHandle(h: string): Promise<HandleStatus> {
     }
   })();
   return within(read, 4000, "ok");
+}
+
+/** Where to go after signing in: ?next= (e.g. the profile whose heart was
+ * tapped, 2026-11-06), only a path on this site; else the editor. */
+function returnPath(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const raw = new URLSearchParams(window.location.search).get("next");
+  return raw ? safeNextPath(raw) : "/dashboard";
 }
 
 const callback = (next?: string) =>
@@ -78,7 +87,7 @@ const actions = {
   async login({ email, pass }: { email: string; pass: string }): Promise<Result> {
     const { error } = await createClient().auth.signInWithPassword({ email, password: pass });
     if (error) return friendly(error.message);
-    return { next: "/dashboard" };
+    return { next: returnPath() };
   },
 
   /** "¿Te la olvidaste?": the email's link signs in and opens /reset-password. */
@@ -90,7 +99,7 @@ const actions = {
 
   /** Resolves with an error message, or never (the browser leaves for Google). */
   async google(): Promise<string | null> {
-    const { error } = await createClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: callback() } });
+    const { error } = await createClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: callback(returnPath() === "/dashboard" ? undefined : returnPath()) } });
     return error ? friendly(error.message).error ?? error.message : null;
   },
 

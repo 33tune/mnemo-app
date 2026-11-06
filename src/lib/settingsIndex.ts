@@ -66,7 +66,7 @@ export const SETTINGS_INDEX: Readonly<Record<SearchObject, readonly SettingsCard
     ["Estilo del bloque", "frame", []],
   ],
   views: [
-    ["Contador", null, ["Mostrar cantidad"]],
+    ["Contador", null, ["Mostrar visitas y favoritos"]],
     ["Tipografía", "case", ["Tamaño", "Peso", "Interletrado"]],
     ["Color", "palette", ["Color"]],
     ["Efectos del texto", "sparkles", ["Gradiente", "Shimmer", "Sombra", "Brillo", "Pulso", "Contorno", "Desenfoque"]],
