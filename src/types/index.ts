@@ -460,6 +460,9 @@ export type ProfileCardData = {
   // its size: x / y = top-left as a fraction of the card's width / height,
   // w = width as a fraction of the card's width, aspect = height / width.
   stickers?: CardSticker[];
+  // Notas (2026-11-06): the look of the note box above the card (the note
+  // itself lives in the `notes` table, 24 h). Absent = the default look.
+  noteBox?: NoteBoxStyle;
   // Identity
   photo:           string;
   name:            string;
@@ -1042,3 +1045,18 @@ export type CanvasElement =
 export type PublishState = "idle" | "pending" | "publishing" | "success";
 
 export type PresenceState = "ACTIVE NOW" | "EDITING SPACE" | "AWAY" | "OFFLINE";
+
+/** The note box's look (lib/noteBox.ts has the defaults and ranges). */
+export interface NoteBoxStyle {
+  /** 0.9–1.15: the size changes only a little. */
+  scale?: number;
+  bg?: string;
+  /** 0.2–1: below 1 the box turns to frosted glass. */
+  opacity?: number;
+  radius?: number;
+  font?: string;
+  fontSize?: number;
+  color?: string;
+  /** Visitors see how many people saw the note. */
+  showViews?: boolean;
+}

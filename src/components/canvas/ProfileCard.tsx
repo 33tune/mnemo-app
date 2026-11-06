@@ -11,6 +11,7 @@ import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions, useGyroTilt } from "@/hooks/useCardInteractions";
 import { useFavorite } from "@/hooks/useFavorite";
 import StatsRow from "./StatsRow";
+import NoteBox from "./NoteBox";
 import { StickerLayer, StickerEditor, withPreview, type StickerPreview } from "./CardStickers";
 import { useStickerEditing } from "@/lib/stickerEditing";
 import { isEventFromNode } from "@/lib/editorGuards";
@@ -217,6 +218,8 @@ interface Props {
   /** "Editar" activated: CanvasBoard opens the inspector, or focuses /
    * expands the open one (it never closes it). */
   onEditActivate?:   (cardId: string) => void;
+  /** Notas (2026-11-06): the note box was tapped in the editor. */
+  onNoteOpen?:       (cardId: string) => void;
   /** Render-time facts the inspector needs (Links fit verdict, views),
    * reported while the inspector is open — the host never recomputes the
    * composition. */
@@ -252,7 +255,7 @@ function ProfileCard({
   card, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
-  inspectorOpen = false, onEditActivate, onEditorFacts, activePart,
+  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, onNoteOpen,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
 
@@ -277,7 +280,7 @@ function ProfileCard({
   const panelId = profileInspectorId(card.id);
   // Review r2: same resolver as every canvas chrome control (on-canvas, not
   // under the topbar, clear of the resize handles; below-left before inside).
-  const openerPos = resolveOpenerSpot(card, { w: viewportW ?? Number.POSITIVE_INFINITY, h: viewportH ?? Number.POSITIVE_INFINITY, topOffset: EDITOR_CHROME_TOP });
+  const openerPos = resolveOpenerSpot(card, { w: viewportW ?? Number.POSITIVE_INFINITY, h: viewportH ?? Number.POSITIVE_INFINITY, topOffset: EDITOR_CHROME_TOP }, { aboveTaken: true });
 
   // Layout mode
   const layout = (card.layout ?? "vertical") as "vertical" | "horizontal" | "free";
@@ -288,9 +291,11 @@ function ProfileCard({
   const isAnchorDraggable = isPfpAnchorDraggable(canInteract, layout, isSel);
 
   // Views counter — fetched once per mount, same hook used by StatsCardWidget
-  const { total: viewCount } = useProfileViews(ownerUserId);
+  // The card's owner: the visited profile, or (editor) the signed-in user.
+  const profileOwner = ownerUserId ?? currentUserId;
+  const { total: viewCount } = useProfileViews(profileOwner);
   // Favoritos (2026-11-06): the heart next to the views.
-  const fav = useFavorite(ownerUserId);
+  const fav = useFavorite(profileOwner);
   const favCount = fav.count;
 
   // ── Real text measurement + the content floor (engine rewrite 2026-10-15)
@@ -1317,6 +1322,10 @@ function ProfileCard({
             onPreview={setStickerPreview}
             onCommit={stickers => updateProfile(card.id, { stickers })} />
         )}
+
+        {/* Notas (2026-11-06): the box above the card (editor: always; profile:
+            only with an active note). */}
+        <NoteBox card={card} ownerUserId={profileOwner} editor={!!canInteract} onOpen={() => onNoteOpen?.(card.id)} />
 
         {/* ── Resize handles ── */}
         {/* Position and rotation are fixed by design (singleton presentation card) —

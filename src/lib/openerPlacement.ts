@@ -61,10 +61,12 @@ function pick(cands: ChromeSpot[], size: { w: number; h: number }, el: ChromeBox
 
 /** "Editar": above the top-left corner → left of it → below-left → inside
  * the corner (last resort; it may cover content such as Music's play). */
-export function resolveOpenerSpot(el: ChromeBox, canvas: ChromeCanvas): ChromeSpot {
+export function resolveOpenerSpot(el: ChromeBox, canvas: ChromeCanvas, opts: { aboveTaken?: boolean } = {}): ChromeSpot {
+  const above = { top: -38, left: 0, where: "above" };
+  const left = { top: 0, left: -40, where: "left" };
   return pick([
-    { top: -38, left: 0, where: "above" },
-    { top: 0, left: -40, where: "left" },
+    // The ProfileCard's note box sits above it (2026-11-06): left first.
+    ...(opts.aboveTaken ? [left, above] : [above, left]),
     { top: el.h + 14, left: 0, where: "below" },
     { top: 14, left: 14, where: "inside" },
   ], { w: OPENER_SIZE, h: OPENER_SIZE }, el, canvas);

@@ -129,7 +129,7 @@ test("Phase G: the image link moved to the image inspector (no canvas dialog / c
 test("Phase D: chrome and the sheet keep clear of the 60px editor topbar (view / chrome only, never geometry)", () => {
   assert.ok(CARD.includes("export const EDITOR_CHROME_TOP = 60;"));
   assert.equal(T.ui.size.editorTopbarH, 60, "parity with ProfileCard's EDITOR_CHROME_TOP");
-  assert.ok(CARD.includes("topOffset: EDITOR_CHROME_TOP });"), "only the Editar opener uses it");
+  assert.ok(CARD.includes("topOffset: EDITOR_CHROME_TOP }, { aboveTaken: true });"), "only the Editar opener uses it");
   assert.ok(CARD.includes("centerCardPosition(viewportW, viewportH, card.w, cardH, CANVAS_TOP_OFFSET)"), "geometry keeps 44 (R1)");
   assert.ok(BOARD.includes("inspectorSheetOffset({ viewportH, topOffset: UIT.ui.size.editorTopbarH, sheetH, box })"));
 });

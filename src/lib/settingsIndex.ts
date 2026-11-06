@@ -87,6 +87,12 @@ export const SETTINGS_INDEX: Readonly<Record<SearchObject, readonly SettingsCard
     ["Stickers", null, ["Agregar sticker", "Editar", "Aplicar"]],
     ["Capas", "layers", ["Tarjeta"]],
   ],
+  note: [
+    ["Nota", null, ["Publicar nota", "Borrar nota"]],
+    ["Cuadro", "frame", ["Tamaño", "Color", "Redondez", "Opacidad"]],
+    ["Texto", "case", ["Fuente de la nota", "Tamaño", "Color"]],
+    ["Vistas", "eye", ["Mostrar vistas a los visitantes"]],
+  ],
   logo: [
     ["Imagen", null, []],
     ["Tamaño y giro", "maximize", ["Ancho", "Alto", "Rotación", "Opacidad"]],

@@ -66,6 +66,8 @@ import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from 
 import type { RoomOp } from "./RoomInspector";
 import ShareCardDialog from "@/components/share/ShareCardDialog";
 import { HeartPill } from "./StatsRow";
+import { useNote } from "@/hooks/useNote";
+import { NOTE_BOX_RESERVE, NOTE_BOX_GAP, resolveNoteBox } from "@/lib/noteBox";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
   HISTORY_TEXT_IDLE_MS, ownHistoryStep, inOwnHistoryStep, undoShortcutOwner, historyShortcut, type EditorHistory, type HistoryEntry, type Snap,
@@ -621,12 +623,17 @@ export default function CanvasBoard({
     ro.observe(el);
     return () => ro.disconnect();
   }, [mobileFit, viewerScreen]);
+  // Notas (2026-11-06): with an active note, the view keeps room for its
+  // box above the card (on a phone and on a computer).
+  const publicNote = useNote(!canEdit ? ownerUserId : undefined);
   const viewFit = !canEdit ? (() => {
     const vw = viewerScreen?.w ?? 1440, vh = viewerScreen?.h ?? 900;
     const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
+    const noteH = card && publicNote.note ? (NOTE_BOX_RESERVE + NOTE_BOX_GAP) * resolveNoteBox(card.noteBox).scale : 0;
+    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => noteH ? { ...r, y: r.y - noteH, h: r.h + noteH } : r;
     const fit = mobileFit
-      ? mobileView(vw, vh, card && mobileCardH && mobileCardH > 0 ? cardViewRect(card, mobileCardH) : mobileFit.card)
-      : desktopViewFit(vw, vh, card ? { x: card.x, y: card.y, w: card.w, h: card.h } : null);
+      ? mobileView(vw, vh, withNote(card && mobileCardH && mobileCardH > 0 ? cardViewRect(card, mobileCardH) : mobileFit.card))
+      : desktopViewFit(vw, vh, card ? withNote({ x: card.x, y: card.y, w: card.w, h: card.h }) : null);
     // The wrapper holds every element (it is never scrolled, only moved).
     let roomW = vw, roomH = vh;
     for (const e of elements) {
@@ -719,6 +726,12 @@ export default function CanvasBoard({
   // "Editar": opens the inspector, or — already open — expands it / moves
   // focus to its h2. Never closes it. Stable (ProfileCard's memo comparator
   // does not look at callbacks).
+  // Notas (2026-11-06): a tap on the note box opens the card's Nota part.
+  const openProfilePartRef = useRef<(id: string, role: PartRole) => void>(() => {});
+  const handleNoteOpen = useCallback((cardId: string) => {
+    setSelectedIds(new Set([cardId]));
+    openProfilePartRef.current(cardId, "note");
+  }, [setSelectedIds]);
   const handleEditActivate = useCallback((cardId: string) => {
     if (inspectorCardIdRef.current !== cardId) {
       setInspectorCollapseReq(false);
@@ -3146,6 +3159,7 @@ export default function CanvasBoard({
    * keeps focus on the canvas, so the change is said by role=status.
    * Either way the "Editando …" pill shows (partNav) until the part changes
    * or the inspector closes. */
+  openProfilePartRef.current = (id, role) => openProfilePart(id, role);
   function openProfilePart(cardId: string, role: PartRole) {
     setInspectorCollapseReq(false);
     setPartNav({ cardId, role });
@@ -3869,6 +3883,7 @@ export default function CanvasBoard({
           inspectorOpen={inspectorEnabled && inspectorCardId===prof.id}
           onEditActivate={handleEditActivate}
           onEditorFacts={handleEditorFacts}
+          onNoteOpen={handleNoteOpen}
           // Phase H (D5): the open object's part gets the editor-only outline.
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined} />);
       })}

@@ -18,7 +18,7 @@ import { effectState } from "./effectBinding";
 import { isCardGlowFlagVisible } from "./effectEditorDefaults";
 import { getProfileCardEffects } from "./profileCardEffects";
 
-export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers";
+export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers" | "note";
 
 export type ObjectKind = "role" | "block" | "card" | "all";
 /** Review r2: the list is a MAP of the card in three fixed clusters —
@@ -159,6 +159,10 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
     } },
   { id: "logo", caption: "Logo", placeholder: "Logo", kind: "block", group: "block",
     chip: ({ card }) => card.logo?.url ? { text: "Logo", thumb: card.logo.url, spoken: "imagen" } : { text: "Logo", placeholder: true, emptyThumb: true } },
+  // Notas (2026-11-06): the note box above the card (its text lives in
+  // the notes table; the look in card.noteBox).
+  { id: "note", caption: "Nota", placeholder: "Nota", kind: "block", group: "block",
+    chip: () => ({ text: "Nota" }) },
   { id: "cardBg", caption: "Fondo de la card", shortCaption: "Fondo", placeholder: "Fondo", kind: "card", group: "card",
     chip: ({ effective }) => ({
       text: "Fondo",
@@ -293,7 +297,7 @@ export interface PartGroup { id: PartGroupId; label: string; parts: readonly Obj
 export const PART_GROUPS: readonly PartGroup[] = [
   { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText", "stickers"] },
   { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio", "about"] },
-  { id: "content", label: "Contenido", parts: ["links", "buttons", "logo", "views"] },
+  { id: "content", label: "Contenido", parts: ["links", "buttons", "logo", "views", "note"] },
 ];
 export function partGroupOf(id: ObjectId): PartGroup {
   return PART_GROUPS.find(g => g.parts.includes(id)) ?? PART_GROUPS[0];
@@ -342,6 +346,7 @@ export const OBJECT_FILES: Record<ObjectId, readonly string[]> = {
   cardFx:     [EFFECTS],
   allText:    [TYPOGRAPHY],
   stickers:   [`${C}ProfileStickersMenu.tsx`],
+  note:       [`${C}ProfileNoteMenu.tsx`],
 };
 export const CHILD_FILES: Record<string, readonly string[]> = {
   [TYPOGRAPHY]: [`${C}RoleTypographyFields.tsx`],

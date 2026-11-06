@@ -13,6 +13,7 @@ import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
 import ProfileLinkButtonsMenu from "./ProfileLinkButtonsMenu";
 import ProfileLogoMenu from "./ProfileLogoMenu";
 import ProfileStickersMenu from "./ProfileStickersMenu";
+import ProfileNoteMenu from "./ProfileNoteMenu";
 import { RoleTextSection, GlobalTextSection } from "./ProfileTypographyMenu";
 import ProfileBackgroundMenu from "./ProfileBackgroundMenu";
 import { CardCornersSection, CardEffectsSection } from "./ProfileEffectsMenu";
@@ -149,6 +150,9 @@ export const OBJECT_SECTIONS: Record<ObjectId, readonly Section[]> = {
   ],
   stickers: [
     { key: "stickers", num: N1, render: c => <ProfileStickersMenu card={c.card} onChange={c.onChange} /> },
+  ],
+  note: [
+    { key: "note", num: N1, render: c => <ProfileNoteMenu card={c.card} onChange={c.onChange} /> },
   ],
   cardBg: [
     { key: "bg", render: c => <ProfileBackgroundMenu effective={c.effective} raw={c.card.effects} onChange={patchEffects(c)} /> },

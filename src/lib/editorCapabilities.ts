@@ -74,6 +74,7 @@ const meta     = at("ProfileMetadataMenu.tsx");
 const links    = at("ProfileContactLinksMenu.tsx");
 const logo     = at("ProfileLogoMenu.tsx");
 const stk      = at("ProfileStickersMenu.tsx");
+const noteM    = at("ProfileNoteMenu.tsx");
 const btns     = at("ProfileLinkButtonsMenu.tsx");
 const config   = at("ProfileConfigMenu.tsx");
 const type     = at("ProfileTypographyMenu.tsx");
@@ -98,6 +99,7 @@ const NOMBRE = obj("Nombre"), USUARIO = obj("@usuario"), FRASE = obj("Frase"), U
 const BIO = obj("Bio"), SOBRE_MI = obj("Sobre mí"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS = obj("Links"), LOGO = obj("Logo");
 const FONDO = obj("Fondo de la card");
 const STICKERS = obj("Stickers");
+const NOTA = obj("Nota");
 const BOTONES = obj("Botones");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");
@@ -171,6 +173,15 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   // Card stickers (2026-10-27): added / ordered / hidden / removed in the
   // menu; moved, scaled and rotated on the card in its edit mode.
   stickers: stk(`${STICKERS} › Agregar sticker · Capas · Editar`, "onChange({ stickers: next })"),
+  // Notas (2026-11-06): the note box's look (the note itself is not card data).
+  "noteBox.scale": noteM(`${NOTA} › Cuadro › Tamaño`, "setStyle({ scale: v })"),
+  "noteBox.bg": noteM(`${NOTA} › Cuadro › Color`, "setStyle({ bg: v })"),
+  "noteBox.radius": noteM(`${NOTA} › Cuadro › Redondez`, "setStyle({ radius: v })"),
+  "noteBox.opacity": noteM(`${NOTA} › Cuadro › Opacidad`, "setStyle({ opacity: v })"),
+  "noteBox.font": noteM(`${NOTA} › Texto › Fuente`, "setStyle({ font: v })"),
+  "noteBox.fontSize": noteM(`${NOTA} › Texto › Tamaño`, "setStyle({ fontSize: v })"),
+  "noteBox.color": noteM(`${NOTA} › Texto › Color`, "setStyle({ color: v })"),
+  "noteBox.showViews": noteM(`${NOTA} › Vistas › Mostrar vistas a los visitantes`, "setStyle({ showViews: v || undefined })"),
   "logo.url": logo(`${LOGO} › Subir`, "logoCtl.setImage(publicUrl)"),
   "logo.anchorX": card(`${LIENZO} › logo`, "anchorX: latest.x"),
   "logo.anchorY": card(`${LIENZO} › logo`, "anchorY: latest.y"),
