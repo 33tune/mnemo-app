@@ -4,6 +4,7 @@
  * signed-in visitor, whether they gave it and a toggle. Anonymous: the owner
  * never learns who (favorites RLS: each one reads only the rows they made).
  */
+import { track } from "@/lib/track";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useViewerId } from "@/lib/viewer";
@@ -52,6 +53,7 @@ export function useFavorite(ownerUserId?: string): FavoriteState {
     const next = !liked;
     const n = Math.max(0, count + (next ? 1 : -1));
     listeners.get(ownerUserId)?.forEach(f => f(n, next));
+    track(next ? "favorite_add" : "favorite_remove");
     const sb = createClient();
     const q = next
       ? sb.from("favorites").insert({ user_id: viewer, target_user_id: ownerUserId })

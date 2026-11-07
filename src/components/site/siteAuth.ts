@@ -7,6 +7,7 @@ import { safeNextPath } from "@/lib/handles";
  */
 import { createClient } from "@/lib/supabase/client";
 import { HANDLE_RE, RESERVED_HANDLES } from "@/lib/handles";
+import { track } from "@/lib/track";
 
 export { RESERVED_HANDLES };
 
@@ -27,8 +28,9 @@ export async function checkHandle(h: string): Promise<HandleStatus> {
   // Never block a sign-up on a failed or slow read; the insert is the real guard.
   const read = (async (): Promise<HandleStatus> => {
     try {
-      const { data, error } = await createClient().from("profiles").select("id").eq("handle", h).maybeSingle();
-      return error ? "ok" : data ? "taken" : "ok";
+      // handle_available also sees banned accounts, which RLS hides.
+      const { data, error } = await createClient().rpc("handle_available", { h });
+      return error ? "ok" : data === false ? "taken" : "ok";
     } catch {
       return "ok";
     }
@@ -64,6 +66,7 @@ const actions = {
    * metadata; without it, right here. */
   async register({ email, pass, handle }: { email: string; pass: string; handle: string }): Promise<Result> {
     const supabase = createClient();
+    track("signup_submit");
     const { data, error } = await supabase.auth.signUp({
       email, password: pass,
       options: { data: { handle }, emailRedirectTo: callback() },
@@ -87,6 +90,7 @@ const actions = {
   async login({ email, pass }: { email: string; pass: string }): Promise<Result> {
     const { error } = await createClient().auth.signInWithPassword({ email, password: pass });
     if (error) return friendly(error.message);
+    track("login_done");
     return { next: returnPath() };
   },
 
@@ -99,6 +103,7 @@ const actions = {
 
   /** Resolves with an error message, or never (the browser leaves for Google). */
   async google(): Promise<string | null> {
+    track("signup_google");
     const { error } = await createClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: callback(returnPath() === "/dashboard" ? undefined : returnPath()) } });
     return error ? friendly(error.message).error ?? error.message : null;
   },

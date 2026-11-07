@@ -72,6 +72,7 @@ import ShortcutsBar, { SHORTCUTS_BAR_H } from "./ShortcutsBar";
 import { useNote } from "@/hooks/useNote";
 import { noteReserve, noteBoxVisible, resolveNoteBox, noteGap, withNoteRoom } from "@/lib/noteBox";
 import NoteBox from "./NoteBox";
+import { track, trackOnce, markVisit } from "@/lib/track";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
   HISTORY_TEXT_IDLE_MS, ownHistoryStep, inOwnHistoryStep, undoShortcutOwner, historyShortcut, type EditorHistory, type HistoryEntry, type Snap,
@@ -1132,8 +1133,12 @@ export default function CanvasBoard({
   const lastProfileWriteRef  = useRef(0);
   useEffect(() => { currentUserIdRef.current = currentUserId; }, [currentUserId]);
 
+  // A visitor on someone's profile counts as active today (own analytics).
+  useEffect(() => { if (!canEdit) markVisit(); }, [canEdit]);
   useEffect(() => {
     if (!authResolved || !canEdit) return;
+    markVisit(true);
+    trackOnce("editor_open");
     try {
       if (!localStorage.getItem(TOUR_KEY)) {
         setTourStep("card");
@@ -2322,6 +2327,7 @@ export default function CanvasBoard({
 
       if (!error) {
         publishedRef.current = state;
+        track("publish");
         setPublishState("success");
         setTimeout(() => {
           setPublishState(s => (s === "success" ? "idle" : s));
@@ -4536,8 +4542,8 @@ export default function CanvasBoard({
 
       {/* ── First-visit tour (only where the editor's rail is: computers) ── */}
       {tourStep && railShown && (
-        <EditorTour step={tourStep} onSkip={endTour}
-          onNext={() => (tourStep === "add" ? setTourStep("publish") : endTour())} />
+        <EditorTour step={tourStep} onSkip={() => { track("tour_skip", { step: tourStep }); endTour(); }}
+          onNext={() => (tourStep === "add" ? setTourStep("publish") : (track("tour_done"), endTour()))} />
       )}
 
       {/* ── Novedades (once per browser, NewsDialog.tsx) ── */}

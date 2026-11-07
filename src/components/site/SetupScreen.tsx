@@ -6,6 +6,7 @@
  * old three-step setup. On a phone the name is claimed too, and the screen
  * then says to open myLand on a computer to build the card.
  */
+import { track } from "@/lib/track";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -74,6 +75,7 @@ export default function SetupScreen({ userId, suggestedName, phone }: { userId: 
       else setError("No pudimos guardarlo. Probá de nuevo.");
       return;
     }
+    track("setup_done");
     if (phone) { setClaimed(handle); return; }
     router.push("/dashboard");
     router.refresh();

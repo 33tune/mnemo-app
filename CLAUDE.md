@@ -540,6 +540,19 @@ planeado acá hasta confirmarlo.
 >     deja sonar recién después de un toque en la página). Celular: fila "Tus favoritos" en la pantalla de inicio.
 >   - Sin QA en iPhone real (sonido, Realtime en Safari).
 >
+> **Panel de admin y métricas propias (2026-11-07, pedido del usuario):** `/admin` (`src/app/admin/page.tsx` +
+>   `src/components/admin/AdminPanel.tsx`), solo para quien está en la tabla `admins` (el dueño, `nico`, por user id);
+>   cualquier otro ve el 404. Base: `supabase/migrations/20261107000000_admin_and_metrics.sql` (APLICADA). Funciones
+>   `admin_*` (security definer, cada una verifica `is_admin()`): listar usuarios, **banear** (`banned_users` + RLS: el
+>   perfil, la sala y la nota dejan de existir para todos; no puede entrar; el nombre sigue ocupado), desbanear,
+>   **eliminar cuenta** (cascada; los archivos los borra la limpieza diaria), **renombrar** (el nombre viejo queda libre),
+>   borrar la nota, reportes de errores e historial (`admin_actions`). `handle_available()` reemplaza la consulta a
+>   `profiles` al reclamar (ve los baneados). **Métricas propias, sin grabaciones ni terceros** (`src/lib/track.ts` →
+>   `track()`): eventos con nombres fijos en `events` (90 días) y "activo hoy" por dispositivo en `activity_days`
+>   (400 días), cron `metrics-gc`. Pestaña Resumen: activos día/semana/mes, por día, embudo (landing → Reclamar →
+>   registro → nombre → editor → tutorial → Publicar), retención por semana de registro, eventos, perfiles más vistos y
+>   espacio usado en Supabase. Claude lee los mismos datos por el conector para resumirle al usuario.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >

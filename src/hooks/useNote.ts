@@ -4,6 +4,7 @@
  * people saw it. The owner publishes / deletes it; a visitor's look counts
  * once (view_note: per account, or per device without a session).
  */
+import { track } from "@/lib/track";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { deviceKey, useViewerId } from "@/lib/viewer";
@@ -86,6 +87,7 @@ export function useNote(userId?: string, opts: { countView?: boolean } = {}): No
     if (error) return error.message.includes("check") ? "La nota tiene que tener entre 1 y 60 caracteres." : "No se pudo publicar la nota.";
     const n = (Array.isArray(data) ? data[0] : data) as Note | null;
     setNote(n); setViews(0);
+    track("note_post");
     return null;
   }, [setNote, setViews]);
 

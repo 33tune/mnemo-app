@@ -8,6 +8,7 @@
  * profile's "Compartir" button. Self-styled (it also lives on the public
  * profile, outside the editor).
  */
+import { track } from "@/lib/track";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { startCapture, loadImage, cardRoomRect } from "@/lib/export/cardSnapshot";
@@ -47,6 +48,7 @@ export default function ShareCardDialog({ onClose, getCard, card, handle, bg, re
 
   // The story's phone view of the card, its background and the still (a
   // screenshot of that view), once.
+  useEffect(() => { track("share_open"); }, []);
   useEffect(() => {
     let alive = true;
     const t = setTimeout(async () => {
@@ -103,6 +105,7 @@ export default function ShareCardDialog({ onClose, getCard, card, handle, bg, re
   function doSave() {
     if (!ready || busy) return;
     setNote(null);
+    track("share_save", { phone });
     const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
     if (phone && nav.share && nav.canShare?.({ files: [ready.file] })) {
       setBusy(true);
@@ -116,6 +119,7 @@ export default function ShareCardDialog({ onClose, getCard, card, handle, bg, re
     setNote(phone ? "Imagen descargada." : "Imagen descargada. Pasala al celular y subila como historia.");
   }
   async function copyLink() {
+    track("share_copy_link");
     try { await navigator.clipboard.writeText(link); }
     catch {
       const t = document.createElement("textarea");

@@ -8,6 +8,7 @@
  *    emails it to the owner (migration 20261027020000).
  *  - EditorBeta: both, wired so the banner's "Avisanos" opens the form.
  */
+import { track } from "@/lib/track";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -77,6 +78,7 @@ export function BugReport({ open, onOpenChange }: { open: boolean; onOpenChange:
       page: location.href.slice(0, 500), user_agent: navigator.userAgent.slice(0, 500),
     });
     if (error) { setStatus("error"); return; }
+    track("bug_report");
     setStatus("sent");
     setText("");
     setTimeout(() => onOpenChange(false), 1800);

@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { checkHandle, siteAuth } from "./siteAuth";
 import "./site.css";
 import { BetaBanner } from "@/components/beta/BetaBits";
+import { track, trackOnce } from "@/lib/track";
 
 const LandingPage = dynamic(() => import("./LandingPage"), { ssr: false });
 const AuthPage = dynamic(() => import("./AuthPage"), { ssr: false });
@@ -42,10 +43,14 @@ function Fonts() {
 export function LandingClient() {
   const router = useRouter();
   usePageChrome("#0E0C12");
+  useEffect(() => { trackOnce("landing_view"); }, []);
   return (
     <>
       <Fonts />
-      <LandingPage checkHandle={checkHandle} navigate={(url: string) => router.push(url)} />
+      <LandingPage checkHandle={checkHandle} navigate={(url: string) => {
+        if (url.includes("from=claim")) track("claim_click");
+        router.push(url);
+      }} />
       <BetaBanner />
     </>
   );
@@ -54,6 +59,7 @@ export function LandingClient() {
 export function AuthClient({ initialError }: { initialError?: string }) {
   const router = useRouter();
   usePageChrome("#0E0C12");
+  useEffect(() => { trackOnce("login_view"); }, []);
   return (
     <>
       <Fonts />
