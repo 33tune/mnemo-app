@@ -225,7 +225,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             {holoIsOn ? (
               <>
                 <FinishGrid value={holoStyle} fx={effective} onChange={v => patchHolo({ enabled: true, style: v })} />
-                <PaletteField value={holo} auto={HOLO_PALETTES[holoStyle]} autoLabel="Del acabado"
+                <PaletteField value={holo} auto={HOLO_PALETTES[holoStyle]} autoLabel="Original"
                   onChange={v => patchHolo({ enabled: true, palette: v.palette, colors: v.colors })} />
                 <SliderRow label="Intensidad" icon="sparkles" min={0.05} max={1} step={0.01} value={holo?.intensity ?? HOLO_DEFAULT_INTENSITY}
                   onChange={v => patchHolo({ enabled: true, intensity: v })} fmt={pct} />
@@ -368,7 +368,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
                       onChange={id => patchFx("dust", { enabled: true, layer: id === "front" ? undefined : "back" })} label="Dónde" />
                   </div>
                 </MenuRow>
-                <PaletteField value={dust} auto={DUST_AUTO} autoLabel="Blanco cálido"
+                <PaletteField value={dust} auto={DUST_AUTO} autoLabel="Blanco"
                   onChange={v => patchFx("dust", { enabled: true, palette: v.palette, colors: v.colors })} />
                 <SliderRow label="Cantidad" icon="sparkles" min={0} max={1} step={0.01} value={dust.amount ?? DUST_DEFAULTS.amount}
                   onChange={v => patchFx("dust", { enabled: true, amount: v })} fmt={pct} />

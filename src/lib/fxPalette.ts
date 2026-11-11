@@ -27,7 +27,7 @@ export const FX_PALETTE_OPTIONS: { id: FxPaletteId; label: string }[] = [
   { id: "ice",     label: "Hielo" },
   { id: "neon",    label: "Neón" },
   { id: "card",    label: "Mi card" },
-  { id: "custom",  label: "Mis colores" },
+  { id: "custom",  label: "Míos" },
 ];
 
 export const FX_CUSTOM_DEFAULT = ["#ff7ab8", "#7ad7ff"];

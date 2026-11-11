@@ -7,7 +7,7 @@ import StrassRing, { useStrassColors } from "./StrassRing";
 import { HoloSheet, GlareSheet, EdgeRim, AuraHalo, DustField, SparkleField, SealBadge, BorderRun, Sweep } from "./CardFx";
 import { useMotionKeyframes, resolveGlowPulseAnimation, resolveFlickerAnimation } from "@/lib/cardMotion";
 import { holoOn, glareOn, useFoilKeyframes, entranceShineAnimation, holoScopeOf } from "@/lib/cardFoil";
-import { useFxKeyframes, fxKeyframesOn, motionAnimations, sweepKeyframes, sweepColor } from "@/lib/cardFx";
+import { useFxKeyframes, motionAnimations, sweepKeyframes, sweepColor } from "@/lib/cardFx";
 
 // "Product closeout" (Parte 8): static SVG feTurbulence grain texture, same
 // technique GuestbookWidget.tsx/MobilePublicCanvas.tsx already use for their
@@ -226,7 +226,8 @@ export default function CardLayers({
   const shine = entering ? entranceShineAnimation(effects, enterDelayMs) : undefined;
   const sweep = sweepKeyframes(cardId, effects);
   useFoilKeyframes(!!holo || !!shine);
-  useFxKeyframes(fxKeyframesOn(effects) || !!holo);
+  // Always: it also carries the "off screen = paused" rule for every card.
+  useFxKeyframes(true);
   // Where the foil goes: the whole card, under the content ("bg"), only the
   // border ring — "photo" is drawn by ProfileCard inside the photo itself.
   const scope = holoScopeOf(effects);
@@ -274,7 +275,7 @@ export default function CardLayers({
           transform: "var(--tilt-tf, none)",
         }}>
           {/* Aura: the halo behind everything, stickers included. */}
-          {fx?.aura?.enabled && box ? <AuraHalo fx={fx} box={box} cardColors={cardColors} /> : null}
+          {fx?.aura?.enabled && box ? <AuraHalo fx={fx} box={box} radius={rad} cardColors={cardColors} /> : null}
           {/* Card stickers behind the card (2026-10-27): inside the tilt /
               hover-scale / floating wrappers, so they move with the card. */}
           {back}

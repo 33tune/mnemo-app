@@ -106,7 +106,7 @@ export function EdgeRim({ fx, box, radius }: { fx: CardEffects; box: FoilBox; ra
 }
 
 /** Aura: the halo behind the card. */
-export function AuraHalo({ fx, box, cardColors }: { fx: CardEffects; box: FoilBox; cardColors?: readonly string[] }) {
+export function AuraHalo({ fx, box, radius, cardColors }: { fx: CardEffects; box: FoilBox; radius: number; cardColors?: readonly string[] }) {
   const a = fx.aura;
   const spec = useMemo(
     () => auraSpec(fx, box, cardColors),
@@ -114,8 +114,13 @@ export function AuraHalo({ fx, box, cardColors }: { fx: CardEffects; box: FoilBo
     [box.w, box.h, a?.enabled, a?.palette, keyOf(a?.colors), a?.intensity, a?.size, a?.pulse, a?.spin, keyOf(cardColors)],
   );
   if (!spec || box.w <= 0) return null;
+  // A halo AROUND the card: a hole the card's size (a little smaller, so its
+  // square corners stay under the card's rounded ones) keeps the colors
+  // from tinting a see-through card.
+  const side = Number(spec.wrap.width), inset = Math.ceil(radius * 0.3) + 1;
+  const hole = `${(side - box.h) / 2 + inset}px ${(side - box.w) / 2 + inset}px`;
   return (
-    <div data-fx="aura" aria-hidden style={spec.wrap}>
+    <div data-fx="aura" aria-hidden style={{ ...spec.wrap, ...ringMask(0), padding: hole }}>
       <div style={spec.pulse}><div style={spec.blobs} /></div>
     </div>
   );

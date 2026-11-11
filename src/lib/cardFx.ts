@@ -150,10 +150,13 @@ export function auraSpec(fx: CardEffects | undefined, box: FoilBox, cardColors?:
   const colors = fxColors(a, FX_PALETTES.neon, cardColors);
   const out = Math.round((0.12 + clamp01(a.size ?? AURA_DEFAULTS.size) * 0.5) * Math.min(box.w, box.h));
   const side = Math.max(box.w, box.h) + out * 2;
+  // Each blob sits on the card's edge and fades out exactly at the halo's
+  // own edge (a blob cut by the element's box showed as a square).
   const blobs = colors.map((c, i) => {
     const t = (i / colors.length) * Math.PI * 2 - Math.PI / 2;
-    const x = 50 + Math.cos(t) * (50 * box.w / side) * 0.9, y = 50 + Math.sin(t) * (50 * box.h / side) * 0.9;
-    return `radial-gradient(ellipse 44% 44% at ${f1(x)}% ${f1(y)}%, ${rgba(c, 0.95)} 0%, ${rgba(c, 0.45)} 40%, ${rgba(c, 0)} 100%)`;
+    const x = 50 + Math.cos(t) * (50 * box.w / side) * 0.92, y = 50 + Math.sin(t) * (50 * box.h / side) * 0.92;
+    const rx = Math.max(8, 50 - Math.abs(x - 50)), ry = Math.max(8, 50 - Math.abs(y - 50));
+    return `radial-gradient(ellipse ${f1(Math.min(rx, 46))}% ${f1(Math.min(ry, 46))}% at ${f1(x)}% ${f1(y)}%, ${rgba(c, 0.95)} 0%, ${rgba(c, 0.5)} 45%, ${rgba(c, 0)} 100%)`;
   });
   return {
     wrap: {
