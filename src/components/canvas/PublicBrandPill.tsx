@@ -28,7 +28,7 @@ export default function PublicBrandPill({ handle }: { handle?: string }) {
           <path d="m15 18-6-6 6-6" />
         </svg>
       </button>
-      <img src="/logo.png" alt="" width={34} height={27} draggable={false} className="mn-capsule__logo" />
+      <img src="/logo.png" alt="" width={34} height={34} draggable={false} className="mn-capsule__logo" />
       <span className="mn-capsule__name">myLand</span>
       {handle && <span className="mn-capsule__path">@{handle}</span>}
     </div>

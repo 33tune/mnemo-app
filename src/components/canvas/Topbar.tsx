@@ -390,7 +390,7 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, onLogout }: {
   return (
     <header {...{ [EDITOR_UI_ATTR]: "" }} className="mn-shellbar" style={{ fontFamily: T.uiFont.sans }}>
       <div className="mn-capsule mn-capsule--brand" style={{ left: T.ui.size.dockMargin }}>
-        <img src="/logo.png" alt="" width={34} height={27} draggable={false} className="mn-capsule__logo" />
+        <img src="/logo.png" alt="" width={34} height={34} draggable={false} className="mn-capsule__logo" />
         <span className="mn-capsule__name">myLand</span>
         <span className="mn-capsule__path">{editor.path}</span>
         {publishState !== undefined && (

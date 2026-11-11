@@ -73,7 +73,7 @@ export default function AdminPanel() {
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 16px 64px" }}>
         <header style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
           <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 10, color: C.text, textDecoration: "none" }}>
-            <img src="/logo.png" alt="" width={34} height={27} />
+            <img src="/logo.png" alt="" width={34} height={34} />
             <b style={{ fontSize: 18 }}>myLand</b>
           </a>
           <span style={{ padding: "4px 10px", borderRadius: 999, background: C.pink, color: "#fff", fontWeight: 700, fontSize: 11, letterSpacing: ".08em" }}>ADMIN</span>
