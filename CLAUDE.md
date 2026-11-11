@@ -553,6 +553,18 @@ planeado acá hasta confirmarlo.
 >   registro → nombre → editor → tutorial → Publicar), retención por semana de registro, eventos, perfiles más vistos y
 >   espacio usado en Supabase. Claude lee los mismos datos por el conector para resumirle al usuario.
 >
+> **BUG PENDIENTE (encontrado 2026-11-10, el usuario pidió NO arreglarlo todavía, solo anotarlo): ediciones no publicadas
+>   se pierden al volver a abrir el editor.** La carga del editor (`CanvasBoard.tsx`, carga desde `canvas_ops`) lee solo
+>   los ops con `created_at > canvases.updated_at`. Pero el auto-guardado de ajustes de la sala (el `useEffect` de
+>   `spaceCursor/spaceMusic/spaceFont`, ~línea 1020, y `saveGlobalSettingsToSpace`, ~línea 3020) hace
+>   `update({ data: merged, updated_at: now })` SIN volcar los ops en `data` — y corre al abrir el editor. Resultado: todo
+>   lo que no se publicó (Publicar sí escribe la foto completa) deja de leerse. Quien nunca publicó pierde la card entera y
+>   el editor le crea una en blanco cada vez (`@raincandy_u`: sala `{}`, 5 `add_profile` desde el 28/10; también `@mymo`,
+>   `@tor`, `@ghostcitygroup559` con sala vacía). Existe desde septiembre (`538e714`).
+>   **Arreglo propuesto:** esos dos escritores no deben tocar `updated_at` (ni correr al cargar). **Recuperación:** para
+>   cada afectado, volver a leer sus ops viejos (siguen en `canvas_ops`), quedarse con la card más editada (raincandy: la
+>   del 7/11, `3750b76b…`) y descartar las en blanco. Hacerlo solo con el OK del usuario.
+>
 > **El plan v3 está completo (0, A–I).** **Siguiente acción:** QA en navegador de las Fases A–I; nada nuevo sin el OK
 > del usuario.
 >
