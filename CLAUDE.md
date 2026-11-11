@@ -553,6 +553,38 @@ planeado acá hasta confirmarlo.
 >   registro → nombre → editor → tutorial → Publicar), retención por semana de registro, eventos, perfiles más vistos y
 >   espacio usado en Supabase. Claude lee los mismos datos por el conector para resumirle al usuario.
 >
+> **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
+>   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
+>     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por
+>     cuadro). Ya no hay variables CSS que cambien por cuadro (`--lx/--ly` no existen más; `--la` solo al entrar/salir) y la
+>     inclinación se escribe directo en `[data-tilt-layer]` (antes re-estilaba toda la card). La caída de brillo del holo es
+>     una imagen de 64 px estirada (`foilFalloff.ts`). **Strass sin WebGL:** `StrassRing.tsx` dibuja las piedras talladas
+>     una vez en un canvas 2D (`StrassGL.tsx` se borró); una "ventana" que sigue la luz (`CardFx` › `LightWindow`) muestra
+>     la versión brillante. Flicker y Scanlines sin `mix-blend-mode` (con negro es idéntico). Fuera de pantalla: la luz no
+>     se mueve y las animaciones CSS esperan (`[data-fx-paused]`). Calidad automática: si no llega a ~33 fps sostenidos,
+>     `data-fxq="low"` oculta las capas `[data-fx-heavy]`. Medido sin placa de video (Playwright, drakovin + un efecto):
+>     holo 19/12 → 51/35 fps (quieta/moviendo), strass 17/12 → 60/60, reflejo 60/37 → 60/60, glitter 60/43 → 60/60;
+>     nico con todo prendido 13/12 → 40/20 (iPhone emulado 6/11 → 40/22). zaid sin efectos nuevos no cambia: lo suyo es el
+>     GIF de fondo con vidrio (no se tocó).
+>   - **Menú Tarjeta › Efectos** (ya no existe "Colección"): Holo y reflejo · Partículas · Borde, sombra y brillo ·
+>     Animaciones · Al tocar o pasar el cursor · Entrada · Retro. Holo con grilla de acabados con miniatura real
+>     (`FxMenuParts.tsx` › `FinishGrid`) y selector de paleta compartido (`PaletteField`).
+>   - **Paletas** (`src/lib/fxPalette.ts`, `FxPaletteId`): Arcoíris, Pastel, Oro, Plata, Fuego, Hielo, Neón, "Mi card"
+>     (`cardPalette.ts` › `fxCardColors`) y "Míos" (2–4 colores). Sin paleta = el aspecto propio del efecto (las cards
+>     guardadas no cambian de color). Solo hex llega al CSS (`cleanColors`).
+>   - **Holo:** 10 acabados (nuevos: Estrellitas, Mosaico, Lisa), hechos con bandas de color que se deslizan + textura
+>     quieta + barras de brillo cruzadas (técnica de pokemon-cards-css); Tamaño del dibujo y Ángulo. **Reflejo:** forma
+>     (punto / franja / ambos) y color. **Glitter:** Dónde (Textos / Toda / Borde), destella donde pasa la luz. **Strass:**
+>     forma (redonda / corazón / estrella) y paleta.
+>   - **Nuevos** (`src/lib/cardFx.ts`, `CardFx.tsx`): Canto metálico (`effects.edge`), Aura (`aura`, alrededor de la card,
+>     no la tiñe), Polvo de estrellas (`dust`), Sello (`seal`), Foto con profundidad (`depth`, sigue al puntero / giroscopio,
+>     nunca a la luz que se mueve sola). **Animaciones** (`effects.motion`): Respirar, Balanceo, Latido, Destello que cruza,
+>     Luz en el borde; al tocar: Onda, Rebote, Giro (Web Animations; en el editor, botón "Probar"). Respirar / Balanceo usan
+>     `scale` / `rotate` sueltos (se suman a Flotar). Todo apagado si falta el campo; nada con "reduce motion".
+>   - **Cambia de aspecto (avisado):** `nico` (holo Rayos en la foto + reflejo): más marcado que antes. El resto, igual.
+>   - Sin QA en iPhone / Safari real (no hay WebKit en el entorno): confirmar transparencia de la card con capas
+>     `will-change: transform`, giroscopio y las máscaras del borde (`mask-composite`).
+>
 > **BUG PENDIENTE (encontrado 2026-11-10, el usuario pidió NO arreglarlo todavía, solo anotarlo): ediciones no publicadas
 >   se pierden al volver a abrir el editor.** La carga del editor (`CanvasBoard.tsx`, carga desde `canvas_ops`) lee solo
 >   los ops con `created_at > canvases.updated_at`. Pero el auto-guardado de ajustes de la sala (el `useEffect` de

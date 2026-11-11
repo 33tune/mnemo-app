@@ -111,7 +111,7 @@ export async function startCapture(el: HTMLElement, region: Rect, ratio: number)
     let firstShot = true;
     // A frame with nothing moving is the previous frame (no CSS animation, no
     // canvas, the same light): it is not pictured again.
-    const lightOf = () => [...el.querySelectorAll<HTMLElement>("[data-light]")].map(n => n.style.getPropertyValue("--lx") + n.style.getPropertyValue("--ly")).join();
+    const lightOf = () => [...el.querySelectorAll<HTMLElement>("[data-lm]")].map(n => n.style.transform).join();
     const still = anims.length === 0 && !media.animated && !subjects.some(sub => sub.querySelector("canvas"));
     let last: { light: string; pic: Frame } | null = null;
 

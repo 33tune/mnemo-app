@@ -1,7 +1,9 @@
 "use client";
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import type { CardEffects } from "@/types";
-import { lightEffectsOn, lightIdleOn, LIGHT_REST, idleLight } from "@/lib/cardFoil";
+import { lightEffectsOn, lightIdleOn, lightGyroOn, LIGHT_REST, idleLight } from "@/lib/cardFoil";
+import { applyLight } from "@/lib/lightLayers";
+import { jellyFrames, SPIN_FRAMES, FX_PRESS_EVENT, rippleColor } from "@/lib/cardFx";
 import { exportActive, onExportFrame } from "@/lib/export/exportClock";
 
 // Stage FASE 3 (Text & Motion Effects): hoverGlow/hoverScale extend this
@@ -25,6 +27,12 @@ export function useCardInteractions(
   // card (0–1), eased in the same loop as the tilt; --lx / --ly / --la.
   const targetLight  = useRef<{ x: number; y: number }>({ ...LIGHT_REST });
   const currentLight = useRef<{ x: number; y: number }>({ ...LIGHT_REST });
+  // Where the pointer / the phone's tilt is, from the card's center (-1…1;
+  // 0 = nobody): the photo's depth follows this, never the idle drift.
+  const targetPtr  = useRef({ x: 0, y: 0 });
+  const currentPtr = useRef({ x: 0, y: 0 });
+  /** The card is on screen (IntersectionObserver below). */
+  const onScreen = useRef(true);
 
   const tiltOn      = effects?.interactions?.tilt3d    ?? false;
   const spotlightOn = effects?.interactions?.spotlight ?? false;
@@ -62,30 +70,31 @@ export function useCardInteractions(
       currentTilt.current.x = cx + (tx - cx) * LERP;
       currentTilt.current.y = cy + (ty - cy) * LERP;
 
-      el.style.setProperty("--tilt-x", `${currentTilt.current.x.toFixed(3)}deg`);
-      el.style.setProperty("--tilt-y", `${currentTilt.current.y.toFixed(3)}deg`);
-
       const cl = currentLight.current, tl = targetLight.current;
       cl.x += (tl.x - cl.x) * LERP * 1.4;
       cl.y += (tl.y - cl.y) * LERP * 1.4;
-      // FPS (2026-11-04): only the layers that use the light get the vars
-      // ([data-light]); set on the card itself they restyled every element
-      // of the card on every frame.
-      setLightVars(el, cl.x.toFixed(4), cl.y.toFixed(4));
-      const lightSettled = Math.abs(cl.x - tl.x) < 0.001 && Math.abs(cl.y - tl.y) < 0.001;
+      const cp = currentPtr.current, tp = targetPtr.current;
+      cp.x += (tp.x - cp.x) * LERP;
+      cp.y += (tp.y - cp.y) * LERP;
+      // FPS (2026-11-11): nothing here changes a CSS variable. The light
+      // layers get a transform each (lightLayers.ts) and the tilt goes
+      // straight to its layer: no restyle of the card, no repaint.
+      if (lightOnRef.current) applyLight(el, { x: cl.x, y: cl.y, px: cp.x, py: cp.y }, heldRef.current);
+      const lightSettled = Math.abs(cl.x - tl.x) < 0.001 && Math.abs(cl.y - tl.y) < 0.001
+        && Math.abs(cp.x - tp.x) < 0.002 && Math.abs(cp.y - tp.y) < 0.002;
 
       const tiltSettled = Math.abs(currentTilt.current.x - tx) < 0.01 && Math.abs(currentTilt.current.y - ty) < 0.01;
       const settled = lightSettled && tiltSettled;
-      // The 3D transform exists only while the card is really tilted
-      // (CardLayers reads --tilt-tf): a card at rest is flat. iPhone Safari
-      // composites a 3D layer apart and lost what's behind a see-through
-      // card right after the entry animation ended (2026-10-28).
-      // Only the tilt decides: a moving light (holo / strass drift) must
-      // never keep the card in 3D.
+      // The 3D transform exists only while the card is really tilted: a card
+      // at rest is flat. iPhone Safari composites a 3D layer apart and lost
+      // what's behind a see-through card right after the entry animation
+      // ended (2026-10-28). Only the tilt decides: a moving light (holo /
+      // strass drift) must never keep the card in 3D.
       const atRest = tiltSettled && tx === 0 && ty === 0;
-      el.style.setProperty("--tilt-tf", atRest
+      setTilt(el, atRest
         ? "none"
         : `perspective(1000px) rotateX(${currentTilt.current.x.toFixed(3)}deg) rotateY(${currentTilt.current.y.toFixed(3)}deg)`);
+      watchFrameRate(el);
       if (!settled) {
         rafRef.current = requestAnimationFrame(animate);
       } else {
@@ -97,9 +106,32 @@ export function useCardInteractions(
     rafRef.current = requestAnimationFrame(animate);
   }, [cardRef]);
 
-  // "Moverse solo" (holo idle, Fantasma, Strass): while nobody holds the
-  // light it drifts slowly around its rest point, so the foil and the
-  // stones keep catching light. Stops with reduced motion and in hidden tabs.
+  // The layers must sit where the light is right after every render (React
+  // may have just created them: a new finish, a resized card).
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el || !lightOnRef.current) return;
+    const cl = currentLight.current, cp = currentPtr.current;
+    applyLight(el, { x: cl.x, y: cl.y, px: cp.x, py: cp.y }, heldRef.current);
+  });
+
+  // Off screen: the light stops drifting and the card's CSS animations wait
+  // ([data-fx-paused], cardFx.ts). A hidden tab already stops both.
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => {
+      onScreen.current = !!e?.isIntersecting;
+      if (onScreen.current) el.removeAttribute("data-fx-paused"); else el.setAttribute("data-fx-paused", "");
+    });
+    io.observe(el);
+    return () => { io.disconnect(); el.removeAttribute("data-fx-paused"); };
+  }, [cardRef]);
+
+  // "Moverse solo" (holo idle, Strass, the rim, the seal): while nobody
+  // holds the light it drifts slowly around its rest point, so the foil and
+  // the stones keep catching light. Stops with reduced motion, in hidden
+  // tabs and off screen.
   useEffect(() => {
     if (!idleOn || typeof window === "undefined") return;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
@@ -107,7 +139,7 @@ export function useCardInteractions(
     const t0 = performance.now();
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
-      if (heldRef.current || document.hidden || now - last < 33) return; // ~30 fps is plenty for a drift
+      if (heldRef.current || document.hidden || !onScreen.current || now - last < 33) return; // the target moves at ~30 fps; the easing loop smooths it
       last = now;
       const t = (now - t0) / 1000;
       if (exportActive()) return; // the capture drives it (below)
@@ -132,11 +164,11 @@ export function useCardInteractions(
     currentTilt.current = { x: 0, y: 0 };
     targetLight.current = { ...light };
     currentLight.current = { ...light };
+    targetPtr.current = { x: 0, y: 0 };
+    currentPtr.current = { x: 0, y: 0 };
     heldRef.current = false;
-    el.style.setProperty("--tilt-x", "0deg");
-    el.style.setProperty("--tilt-y", "0deg");
-    el.style.setProperty("--tilt-tf", "none");
-    setLightVars(el, light.x.toFixed(4), light.y.toFixed(4));
+    setTilt(el, "none");
+    applyLight(el, { x: light.x, y: light.y, px: 0, py: 0 }, false);
     setLightHeld(el, "0");
   }, "light"), [cardRef]);
 
@@ -167,6 +199,7 @@ export function useCardInteractions(
     }
     if (lightOn) {
       targetLight.current = { x: nx, y: ny };
+      targetPtr.current = { x: (nx - 0.5) * 2, y: (ny - 0.5) * 2 };
       startLerpLoop();
     }
     if (spotlightOn) {
@@ -199,6 +232,7 @@ export function useCardInteractions(
 
     targetTilt.current = { x: 0, y: 0 };
     targetLight.current = { ...LIGHT_REST };
+    targetPtr.current = { x: 0, y: 0 };
     heldRef.current = false;
     startLerpLoop();
     setLightHeld(el, "0");
@@ -235,9 +269,50 @@ export function useCardInteractions(
     release();
   }, [release]);
 
+  // ── Animations on a tap (cardFx.ts): Onda, Rebote, Giro ─────────────────
+  // Run once with the Web Animations API on the card's own layers; a new tap
+  // restarts them. Nothing with "reduce motion".
+  const fxRef = useRef(effects);
+  fxRef.current = effects;
+  const press = useCallback((clientX?: number, clientY?: number, only?: string) => {
+    const el = cardRef.current, m = fxRef.current?.motion;
+    if (!el || !m || exportActive() || typeof el.animate !== "function") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const want = (k: "ripple" | "jelly" | "spin") => !!m[k]?.enabled && (!only || only === k);
+    const layer = el.querySelector<HTMLElement>("[data-press-layer]");
+    if (layer && (want("jelly") || want("spin"))) {
+      layer.getAnimations().forEach(a => { if (a.id === "mnemo-press") a.cancel(); });
+      if (want("spin")) layer.animate(SPIN_FRAMES, { duration: 900, easing: "cubic-bezier(0.3, 0, 0.2, 1)", id: "mnemo-press" });
+      else layer.animate(jellyFrames(fxRef.current), { duration: 620, easing: "ease-out", id: "mnemo-press" });
+    }
+    const host = el.querySelector<HTMLElement>("[data-ripple-host]");
+    if (host && want("ripple")) {
+      const r = host.getBoundingClientRect();
+      if (r.width <= 0) return;
+      const k = host.offsetWidth / r.width; // the card may be scaled (phone fit)
+      const x = clientX == null ? host.offsetWidth / 2 : (clientX - r.left) * k, y = clientY == null ? host.offsetHeight / 2 : (clientY - r.top) * k;
+      const d = Math.hypot(Math.max(x, host.offsetWidth - x), Math.max(y, host.offsetHeight - y)) * 2;
+      const c = rippleColor(fxRef.current);
+      const ring = document.createElement("div");
+      ring.style.cssText = `position:absolute;left:${x - d / 2}px;top:${y - d / 2}px;width:${d}px;height:${d}px;border-radius:50%;pointer-events:none;will-change:transform,opacity;`
+        + `background:radial-gradient(circle closest-side, transparent 0%, transparent 62%, ${c}55 78%, ${c}cc 88%, transparent 100%);`;
+      host.appendChild(ring);
+      const a = ring.animate([{ transform: "scale(0.05)", opacity: 0.9 }, { transform: "scale(1)", opacity: 0 }], { duration: 750, easing: "cubic-bezier(0.2, 0.6, 0.3, 1)" });
+      a.onfinish = a.oncancel = () => ring.remove();
+    }
+  }, [cardRef]);
+  // The editor's "Probar" buttons (the card itself is dragged there, not tapped).
+  useEffect(() => {
+    const on = (e: Event) => press(undefined, undefined, (e as CustomEvent<string>).detail);
+    window.addEventListener(FX_PRESS_EVENT, on);
+    return () => window.removeEventListener(FX_PRESS_EVENT, on);
+  }, [press]);
+  const pressOn = !!(effects?.motion?.ripple?.enabled || effects?.motion?.jelly?.enabled || effects?.motion?.spin?.enabled);
+
   return {
     onMouseMove, onMouseEnter, onMouseLeave, onTouchStart, onTouchMove, onTouchEnd, tiltOn, lightOn, maxTilt, targetTilt,
-    targetLight, tiltOnRef, lightOnRef, heldRef, cardRef, touching, startLerpLoop,
+    targetLight, targetPtr, tiltOnRef, lightOnRef, heldRef, cardRef, touching, startLerpLoop, press, pressOn,
+    gyroLight: lightGyroOn(effects),
   };
 }
 
@@ -253,9 +328,9 @@ type OrientationPermission = { requestPermission?: () => Promise<"granted" | "de
 export function useGyroTilt(
   enabled: boolean,
   ix: Pick<ReturnType<typeof useCardInteractions>,
-    "maxTilt" | "targetTilt" | "targetLight" | "tiltOnRef" | "lightOnRef" | "heldRef" | "cardRef" | "touching" | "startLerpLoop">,
+    "maxTilt" | "targetTilt" | "targetLight" | "targetPtr" | "tiltOnRef" | "lightOnRef" | "heldRef" | "cardRef" | "touching" | "startLerpLoop">,
 ) {
-  const { maxTilt, targetTilt, targetLight, tiltOnRef, lightOnRef, heldRef, cardRef, touching, startLerpLoop } = ix;
+  const { maxTilt, targetTilt, targetLight, targetPtr, tiltOnRef, lightOnRef, heldRef, cardRef, touching, startLerpLoop } = ix;
   const maxRef = useRef(maxTilt);
   maxRef.current = maxTilt;
   useEffectOnce(enabled, () => {
@@ -281,6 +356,7 @@ export function useGyroTilt(
       // Holográfico / Reflejo: the light slides across the card as it turns.
       if (lightOnRef.current && Math.abs(dx) + Math.abs(dy) > 0.04) {
         targetLight.current = { x: 0.5 + dx * 0.5, y: 0.5 + dy * 0.5 };
+        targetPtr.current = { x: dx, y: dy };
         heldRef.current = true;
         if (cardRef.current) setLightHeld(cardRef.current, "1");
       }
@@ -310,13 +386,42 @@ function useEffectOnce(enabled: boolean, run: () => void | (() => void)) {
   useEffect(() => (enabled ? run() : undefined), [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-/** The light vars go only on the layers that read them (see the loop). */
+/** --la (the light is "held": brighter foil / glare) goes only on the
+ * layers that read it; it changes on enter / leave, never per frame. */
 const LIGHT_SEL = "[data-light]";
-function setLightVars(card: HTMLElement, x: string, y: string) {
-  const els = card.querySelectorAll<HTMLElement>(LIGHT_SEL);
-  for (let i = 0; i < els.length; i++) { els[i].style.setProperty("--lx", x); els[i].style.setProperty("--ly", y); }
-}
 function setLightHeld(card: HTMLElement, v: string) {
   const els = card.querySelectorAll<HTMLElement>(LIGHT_SEL);
   for (let i = 0; i < els.length; i++) els[i].style.setProperty("--la", v);
+}
+
+/** The tilt goes straight to its layer (CardLayers › data-tilt-layer). As a
+ * CSS variable on the card it restyled every element inside on each frame. */
+function setTilt(card: HTMLElement, tf: string) {
+  const layer = card.querySelector<HTMLElement>("[data-tilt-layer]");
+  if (layer) { if (layer.style.transform !== tf) layer.style.transform = tf; }
+  else card.style.setProperty("--tilt-tf", tf);
+}
+
+/**
+ * Calidad automática: while the loop runs, if the device can't keep up
+ * (three windows in a row averaging under ~33 fps) the card drops its
+ * heaviest layers ([data-fxq="low"] hides [data-fx-heavy]: grain textures,
+ * extra twinkle sheets). It never comes back up during the visit, so the
+ * look doesn't flicker between two qualities.
+ */
+const fpsWatch = new WeakMap<HTMLElement, { last: number; sum: number; n: number; bad: number; since: number }>();
+function watchFrameRate(card: HTMLElement) {
+  if (card.dataset.fxq === "low" || document.hidden) return;
+  const now = performance.now();
+  let w = fpsWatch.get(card);
+  if (!w) { fpsWatch.set(card, (w = { last: now, sum: 0, n: 0, bad: 0, since: now })); return; }
+  const dt = now - w.last;
+  w.last = now;
+  // A gap means the loop had stopped (or the tab was away): not a slow frame.
+  if (dt > 250 || now - w.since < 3000) return;
+  w.sum += dt; w.n++;
+  if (w.n < 45) return;
+  w.bad = w.sum / w.n > 30 ? w.bad + 1 : 0;
+  w.sum = 0; w.n = 0;
+  if (w.bad >= 3) card.dataset.fxq = "low";
 }

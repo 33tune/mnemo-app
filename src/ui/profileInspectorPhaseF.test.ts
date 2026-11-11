@@ -145,5 +145,5 @@ test("Liquid glass: every switch keeps an edge ring at rest (1.4.11, A3) and the
   const css = readFileSync(join(process.cwd(), "src/ui/editor.css"), "utf8");
   assert.match(css, /\.mn-switch \{[^}]*box-shadow:\s*inset 0 0 0 1px var\(--ui-line-field\)/);
   assert.match(css, /\.mn-switch:focus-visible\s*\{\s*box-shadow:\s*var\(--ui-shadow-ring\)/, "focus ring (2.4.7)");
-  for (const card of ["Luz", "Movimiento", "Al pasar el cursor", "Retro"]) assert.ok(FX.includes(`<MenuSection label="${card}"`), card);
+  for (const card of ["Holo y reflejo", "Partículas", "Borde, sombra y brillo", "Animaciones", "Al tocar o pasar el cursor", "Entrada", "Retro"]) assert.ok(FX.includes(`<MenuSection label="${card}"`), card);
 });

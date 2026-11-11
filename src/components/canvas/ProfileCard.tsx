@@ -39,8 +39,11 @@ import { resolveTextEffectStyle, resolveLetterEffectStyle, roleFxOnly, anyTextGl
 import { useMotionKeyframes, resolveGlowPulseAnimation } from "@/lib/cardMotion";
 import CardGlitter from "./CardGlitter";
 import {
-  entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT, holoOn, holoScopeOf, holoSheetStyle,
+  entranceAnimation, entranceDuration, useFoilKeyframes, ENTRANCE_PREVIEW_EVENT, holoOn, holoScopeOf,
 } from "@/lib/cardFoil";
+import { depthLm } from "@/lib/cardFx";
+import { fxCardColors } from "@/lib/cardPalette";
+import { HoloSheet } from "./CardFx";
 import { resolveBlockStyle } from "@/lib/blockStyle";
 import { PART_ATTR, PART_CLICK_SLOP, partFromTarget, movedBeyondSlop, type PartClick, type PartRole } from "@/lib/partNavigation";
 import type { ObjectId } from "@/lib/inspectorObjects";
@@ -372,13 +375,17 @@ function ProfileCard({
   const touchFx = !canInteract && (interactions.tiltOn || interactions.lightOn
     || !!effectiveEffects.interactions?.spotlight || !!effectiveEffects.interactions?.hoverGlow
     || (effectiveEffects.interactions?.hoverScale ?? 1) !== 1);
-  useGyroTilt(!canInteract && (interactions.tiltOn || interactions.lightOn), interactions);
+  useGyroTilt(!canInteract && (interactions.tiltOn || interactions.gyroLight), interactions);
 
   // Entrada (2026-11-04, cardFoil.ts): the card's own entrance on the public
   // profile (replaces the default reveal); in the editor, "Ver entrada"
   // replays it once.
   const ENTER_DELAY_MS = 80;
-  const glitterOn = !!effectiveEffects.glitter?.enabled;
+  // Glitter over each text (its "card" / "border" scopes are CardLayers').
+  const glitterOn = !!effectiveEffects.glitter?.enabled && (effectiveEffects.glitter.scope ?? "text") === "text";
+  // The card's own colors, for the effects set to the "Mi card" palette.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fxColorsOfCard = useMemo(() => fxCardColors(card, effectiveEffects), [JSON.stringify(fxCardColors(card, effectiveEffects))]);
   const [entrancePreview, setEntrancePreview] = useState(0);
   useEffect(() => {
     if (!canInteract) return;
@@ -722,6 +729,7 @@ function ProfileCard({
   // ── Element renderers ─────────────────────────────────────────────────────
 
   const photoHolo = holoOn(effectiveEffects) && holoScopeOf(effectiveEffects) === "photo";
+  const photoDepth = depthLm(effectiveEffects, avatarSize);
   function AvatarEl({ size = avatarSize, style }: { size?: number; style?: CSSProperties }) {
     // Stage FASE 3: outer wrapper owns size/positioning (what `style`
     // overrides, e.g. renderComposed()'s `width/height:100%` for a
@@ -744,7 +752,7 @@ function ProfileCard({
           boxShadow: avatarPlainShadow,
         }}>
           {card.photo ? (
-            <img src={card.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} draggable={false} />
+            <img src={card.photo} data-lm={photoDepth} style={{ width: "100%", height: "100%", objectFit: "cover", ...(photoDepth ? { willChange: "transform" as const } : {}) }} draggable={false} />
           ) : (
             <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width={size * 0.34} height={size * 0.34} viewBox="0 0 24 24" fill="none" stroke={faintColor} strokeWidth="1.5" strokeLinecap="round">
@@ -753,7 +761,7 @@ function ProfileCard({
             </div>
           )}
           {/* Holo de verdad on the photo only. */}
-          {photoHolo ? <div data-fx="holo" data-light="" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}><div style={holoSheetStyle(effectiveEffects, false, { w: size, h: size })} /></div> : null}
+          {photoHolo ? <HoloSheet fx={effectiveEffects} box={{ w: size, h: size }} radius={`${avatarRadiusPct}%`} cardColors={fxColorsOfCard} /> : null}
         </div>
       </div>
     );
@@ -1105,7 +1113,7 @@ function ProfileCard({
           {/* Glitter: a sibling over the row (not clipped by it), measuring it. */}
           {glitterOn ? (
             <div style={{ position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h, pointerEvents: "none", zIndex: 4, transition: REFLOW_TRANSITION }}>
-              <CardGlitter fx={effectiveEffects} seed={GLITTER_SEED[role]} />
+              <CardGlitter fx={effectiveEffects} seed={GLITTER_SEED[role]} cardColors={fxColorsOfCard} />
             </div>
           ) : null}
         </Fragment>
@@ -1247,6 +1255,7 @@ function ProfileCard({
         onMouseMove={handleInteractMove}
         onMouseOver={handleInteractOver}
         onMouseLeave={handleInteractLeave}
+        onPointerDown={!canInteract && interactions.pressOn ? e => interactions.press(e.clientX, e.clientY) : undefined}
         onTouchStart={touchFx ? interactions.onTouchStart : undefined}
         onTouchMove={touchFx ? interactions.onTouchMove : undefined}
         onTouchEnd={touchFx ? interactions.onTouchEnd : undefined}
@@ -1265,7 +1274,7 @@ function ProfileCard({
       >
         <CardLayers
           cardId={card.id} effects={layerEffects} isSel={isSel}
-          entering={entering} enterDelayMs={ENTER_DELAY_MS} lightCard={isLight} cardW={card.w} cardH={renderH}
+          entering={entering} enterDelayMs={ENTER_DELAY_MS} lightCard={isLight} cardW={card.w} cardH={renderH} cardColors={fxColorsOfCard}
           borderRadius={rad}
           back={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="back" />}
           front={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="front" />}

@@ -56,3 +56,11 @@ export function cardPalette(card: ProfileCardData, effective: CardEffects = getP
     card.linksIconColor,
   ]);
 }
+
+/** The card's colors for its effects ("Mi card" palette, fxPalette.ts): the
+ * same list without the near-black ones (a foil of black adds no light). */
+export function fxCardColors(card: ProfileCardData, effective: CardEffects = getProfileCardEffects(card)): string[] {
+  const all = cardPalette(card, effective);
+  const lit = all.filter(c => { const r = parseRgb(c); return !!r && r[0] + r[1] + r[2] > 120; });
+  return lit.length >= 2 ? lit : all;
+}
