@@ -3,12 +3,11 @@ import React, { useEffect, useMemo, type CSSProperties } from "react";
 import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
-import StrassGL from "./StrassGL";
+import StrassRing, { useStrassColors } from "./StrassRing";
+import { HoloSheet, GlareSheet, EdgeRim, AuraHalo, DustField, SparkleField, SealBadge, BorderRun, Sweep } from "./CardFx";
 import { useMotionKeyframes, resolveGlowPulseAnimation, resolveFlickerAnimation } from "@/lib/cardMotion";
-import {
-  holoOn, glareOn, holoSheetStyle, glareStyle, useFoilKeyframes, entranceShineAnimation, holoScopeOf, borderStrips, holoRingWidth,
-  strassPoints, STRASS_COLORS, STRASS_DEFAULT_SIZE, STRASS_DEFAULT_GAP, STRASS_GLINT_MASK,
-} from "@/lib/cardFoil";
+import { holoOn, glareOn, useFoilKeyframes, entranceShineAnimation, holoScopeOf } from "@/lib/cardFoil";
+import { useFxKeyframes, fxKeyframesOn, motionAnimations, sweepKeyframes, sweepColor } from "@/lib/cardFx";
 
 // "Product closeout" (Parte 8): static SVG feTurbulence grain texture, same
 // technique GuestbookWidget.tsx/MobilePublicCanvas.tsx already use for their
@@ -34,8 +33,10 @@ function useCardAnimations(cardId: string, effects: CardEffects | undefined) {
   // toggle or height genuinely changes.
   const floatOn = effects?.animations?.floating ?? false;
   const floatH  = effects?.animations?.floatHeight ?? 8;
+  // "Destello que cruza" (2026-11-11) bakes its interval the same way.
+  const sweepCss = sweepKeyframes(cardId, effects)?.css ?? "";
   useEffect(() => {
-    if (!floatOn) return;
+    if (!floatOn && !sweepCss) return;
     const id = `mnemo-anim-${cardId}`;
     let el = document.getElementById(id) as HTMLStyleElement | null;
     if (!el) {
@@ -43,9 +44,9 @@ function useCardAnimations(cardId: string, effects: CardEffects | undefined) {
       el.id = id;
       document.head.appendChild(el);
     }
-    el.textContent = `@keyframes mnemo-float-${cardId}{0%,100%{transform:translateY(0)}50%{transform:translateY(-${floatH}px)}}`;
+    el.textContent = (floatOn ? `@keyframes mnemo-float-${cardId}{0%,100%{transform:translateY(0)}50%{transform:translateY(-${floatH}px)}}` : "") + sweepCss;
     return () => { el?.remove(); };
-  }, [cardId, floatOn, floatH]);
+  }, [cardId, floatOn, floatH, sweepCss]);
 }
 
 interface CardLayersProps {
@@ -71,10 +72,12 @@ interface CardLayersProps {
   /** The card's size in px (the foil pattern, the border ring, the stones). */
   cardW?:       number;
   cardH?:       number;
+  /** The card's own colors (the "Mi card" palette of the effects). */
+  cardColors?:  readonly string[];
 }
 
 export default function CardLayers({
-  cardId, effects, isSel, children, borderRadius, style, back, front, over, entering, enterDelayMs = 0, lightCard = false, cardW = 0, cardH = 0,
+  cardId, effects, isSel, children, borderRadius, style, back, front, over, entering, enterDelayMs = 0, lightCard = false, cardW = 0, cardH = 0, cardColors,
 }: CardLayersProps) {
   useCardAnimations(cardId, effects);
 
@@ -173,9 +176,15 @@ export default function CardLayers({
     [cardId, floatSpeed],
   );
   const wrapperAnimStyle: CSSProperties = {};
-  if (anim?.floating) {
-    wrapperAnimStyle.animation = `mnemo-float-${cardId} ${floatSpeed}s ease-in-out -${floatPhase}ms infinite`;
-  }
+  // Card animations (2026-11-11, cardFx.ts): Respirar / Balanceo use the
+  // separate `scale` / `rotate` properties, so they add up with Flotar's
+  // `transform` on this same element; Latido goes on the hover-scale wrapper.
+  const motion = motionAnimations(effects);
+  const outerAnims = [
+    ...(anim?.floating ? [`mnemo-float-${cardId} ${floatSpeed}s ease-in-out -${floatPhase}ms infinite`] : []),
+    ...motion.outer,
+  ];
+  if (outerAnims.length) wrapperAnimStyle.animation = outerAnims.join(", ");
 
   // Stage FASE 3: hoverGlow (own opacity layer below, driven by the
   // `--hover-glow` CSS var useCardInteractions.ts sets on mouseenter/leave)
@@ -209,30 +218,28 @@ export default function CardLayers({
 
   useMotionKeyframes(glowPulseOn || !!flicker?.enabled);
 
-  // Holográfico / Reflejo (2026-11-04, cardFoil.ts): follow the light vars
-  // (--lx / --ly / --la) that useCardInteractions sets on the card.
+  // Holo / Reflejo and the rest of the light effects (cardFoil.ts,
+  // cardFx.ts): layers painted once, moved with the light by transforms
+  // (useCardInteractions › applyLight).
   const holo = effects && holoOn(effects) ? effects : undefined;
   const glare = effects && glareOn(effects) ? effects : undefined;
   const shine = entering ? entranceShineAnimation(effects, enterDelayMs) : undefined;
+  const sweep = sweepKeyframes(cardId, effects);
   useFoilKeyframes(!!holo || !!shine);
+  useFxKeyframes(fxKeyframesOn(effects) || !!holo);
   // Where the foil goes: the whole card, under the content ("bg"), only the
-  // border ring (4 strips, the pattern lined up across them) — "photo" is
-  // drawn by ProfileCard inside the photo itself.
+  // border ring — "photo" is drawn by ProfileCard inside the photo itself.
   const scope = holoScopeOf(effects);
   const box = cardW > 0 && cardH > 0 ? { w: cardW, h: cardH } : undefined;
-  const holoLayer = holo && scope !== "photo" ? (
-    <div data-fx="holo" data-light="" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
-      {scope === "border" && box
-        ? borderStrips(box.w, box.h, holoRingWidth(box.w, box.h)).map((s, i) => (
-            <div key={i} style={{ position: "absolute", left: s.x, top: s.y, width: s.w, height: s.h, overflow: "hidden" }}>
-              <div style={holoSheetStyle(holo, lightCard, { ...box, ox: s.x, oy: s.y })} />
-            </div>
-          ))
-        : <div style={holoSheetStyle(holo, lightCard, box)} />}
-    </div>
-  ) : null;
+  const holoLayer = holo && box && scope !== "photo"
+    ? <HoloSheet fx={holo} box={box} radius={rad} lightCard={lightCard} cardColors={cardColors} ring={scope === "border"} />
+    : null;
   const holoOverAll = holo && scope !== "bg";
   const strass = effects?.strass?.enabled && box ? effects.strass : undefined;
+  const strassPalette = useStrassColors(effects, cardColors);
+  const fx = box ? effects : undefined;
+  const glitterScope = fx?.glitter?.enabled ? fx.glitter.scope : undefined;
+  const dustBack = fx?.dust?.enabled && fx.dust.layer === "back";
 
   return (
     // Stage FASE 1: floating (outer, owns `animation`) and tilt (inner, owns
@@ -244,27 +251,30 @@ export default function CardLayers({
     // each own a DIFFERENT element's `transform`/`animation`, so both
     // genuinely compose (floating's translateY, tilt's rotateX/rotateY) —
     // still one animation system, just no longer forced onto one element.
-    <div style={{ ...wrapperAnimStyle, position: "absolute", inset: 0 }}>
+    <div style={{ ...wrapperAnimStyle, ...(motion.vars as CSSProperties), position: "absolute", inset: 0 }}>
       {/* Stage FASE 3: hover-scale — its own nested wrapper, owns `transform:
           scale(...)` via a CSS var + CSS `transition` (not a @keyframes
           animation, so it can't fight floating's `animation` even though
           both are on ancestors of the tilt div below). Absent/1 -> scale(1),
           a no-op, byte-identical to before this stage. */}
-      <div style={{
+      <div data-press-layer="" style={{
         position: "absolute", inset: 0,
         transform: "scale(var(--hover-scale,1))",
         transition: "transform 0.2s ease",
+        ...(motion.inner.length ? { animation: motion.inner.join(", ") } : {}),
       }}>
-        <div style={{
+        <div data-tilt-layer="" style={{
           ...style,
           position: "absolute",
           inset: 0,
           borderRadius: rad,
-          // Flat unless tilted right now (useCardInteractions sets --tilt-tf
-          // while tilting): no permanent 3D layer — iPhone Safari dropped the
-          // see-through background of a card under one.
+          // Flat unless tilted right now (useCardInteractions writes this
+          // layer's transform while tilting): no permanent 3D layer — iPhone
+          // Safari dropped the see-through background of a card under one.
           transform: "var(--tilt-tf, none)",
         }}>
+          {/* Aura: the halo behind everything, stickers included. */}
+          {fx?.aura?.enabled && box ? <AuraHalo fx={fx} box={box} cardColors={cardColors} /> : null}
           {/* Card stickers behind the card (2026-10-27): inside the tilt /
               hover-scale / floating wrappers, so they move with the card. */}
           {back}
@@ -316,6 +326,7 @@ export default function CardLayers({
 
           {/* Holográfico on the background only (scope "bg"). */}
           {holo && !holoOverAll ? holoLayer : null}
+          {dustBack && fx && box ? <DustField fx={fx} box={box} radius={rad} cardColors={cardColors} /> : null}
 
           {/* ── Layer 1: Gradient Overlay ── */}
           {grad && (
@@ -362,7 +373,9 @@ export default function CardLayers({
               position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
               backgroundImage: "repeating-linear-gradient(to bottom, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0.9) 1px, transparent 1px, transparent 3px)",
               opacity: (scanlines.intensity ?? 0.5) * 0.35,
-              mixBlendMode: "multiply",
+              // No blend mode (2026-11-11): black multiplied = black painted,
+              // pixel for pixel, and a blend made the browser re-mix the
+              // whole card under it.
             }} />
           )}
           {noise?.enabled && (
@@ -377,81 +390,33 @@ export default function CardLayers({
             <div style={{ position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none", opacity: flicker.intensity ?? 0.5 }}>
               <div style={{
                 position: "absolute", inset: 0, borderRadius: rad,
-                background: "#000", mixBlendMode: "multiply",
+                background: "#000",
                 animation: resolveFlickerAnimation(flicker.speed ?? 1),
               }} />
             </div>
           )}
           {/* Card stickers in front of the card's background. */}
           {front}
-          {/* Holográfico over the whole card, then the glare on top, then the
-              entrance sweep — all under the "encima de todo" stickers. */}
+          {/* Over the card, bottom to top: the foil, the particles, what
+              lives on the border, the seal, the glare and the sweeps — all
+              under the "encima de todo" stickers. */}
           {holoOverAll ? holoLayer : null}
-          {strass && box ? <StrassRing w={box.w} h={box.h} radius={rad} cfg={strass} /> : null}
-          {glare ? (
-            <div data-fx="glare" data-light="" style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
-              <div style={glareStyle(glare)} />
-            </div>
-          ) : null}
-          {shine ? (
-            <div aria-hidden style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }}>
-              <div style={{
-                position: "absolute", top: "-20%", bottom: "-20%", left: 0, width: "70%",
-                background: "linear-gradient(105deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 80%)",
-                mixBlendMode: "overlay", animation: shine,
-              }} />
-            </div>
-          ) : null}
+          {fx?.dust?.enabled && !dustBack && box ? <DustField fx={fx} box={box} radius={rad} cardColors={cardColors} /> : null}
+          {fx && box && (glitterScope === "card" || glitterScope === "border")
+            ? <SparkleField fx={fx} box={box} radius={rad} scope={glitterScope} cardColors={cardColors} /> : null}
+          {fx?.edge?.enabled && box ? <EdgeRim fx={fx} box={box} radius={rad} /> : null}
+          {strass && box ? <StrassRing w={box.w} h={box.h} radius={rad} cfg={strass} colors={strassPalette} /> : null}
+          {fx?.motion?.borderRun?.enabled && box ? <BorderRun fx={fx} box={box} radius={rad} cardColors={cardColors} /> : null}
+          {fx?.seal?.enabled && box ? <SealBadge fx={fx} box={box} cardColors={cardColors} /> : null}
+          {glare && box ? <GlareSheet fx={glare} box={box} radius={rad} /> : null}
+          {shine ? <Sweep animation={shine} radius={rad} /> : null}
+          {sweep && !shine ? <Sweep animation={sweep.animation} radius={rad} color={sweepColor(effects)} /> : null}
+          {/* Onda: the ripples of a tap are added here (useCardInteractions › press). */}
+          {effects?.motion?.ripple?.enabled ? <div data-ripple-host="" aria-hidden style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden", pointerEvents: "none" }} /> : null}
           {/* "Encima de todo" stickers: their own layer above every block. */}
           {over ? <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none" }}>{over}</div> : null}
         </div>
       </div>
-    </div>
-  );
-}
-
-/** Strass (2026-11-04): rhinestones along the border. Each stone has a
- * body, a facet and a glint; the glints show only near the light
- * (STRASS_GLINT_MASK), so the stones flash as the light passes. */
-function StrassRing({ w, h, radius, cfg }: { w: number; h: number; radius: number; cfg: NonNullable<CardEffects["strass"]> }) {
-  const size = Math.max(4, Math.min(18, cfg.size ?? STRASS_DEFAULT_SIZE));
-  const pts = useMemo(() => strassPoints(w, h, radius, size, cfg.gap ?? STRASS_DEFAULT_GAP), [w, h, radius, size, cfg.gap]);
-  const color = cfg.color ?? "crystal";
-  const [hi, body, deep] = STRASS_COLORS[color] ?? STRASS_COLORS.crystal;
-  const rainbow = ["#ff9ad5", "#ffe08a", "#9affd0", "#9ad7ff", "#c8a6ff"];
-  const id = `strass-${color}`;
-  const r = size / 2;
-  return (
-    <div data-fx="strass" data-light="" aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-      {/* Real 3D gems (WebGL); the flat stones only if WebGL is missing. */}
-      <StrassGL w={w} h={h} pts={pts} size={size} color={color} fallback={
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", inset: 0, overflow: "visible" }}>
-        <defs>
-          <radialGradient id={id} cx="35%" cy="30%" r="75%">
-            <stop offset="0%" stopColor={hi} />
-            <stop offset="45%" stopColor={body} />
-            <stop offset="100%" stopColor={deep} />
-          </radialGradient>
-        </defs>
-        {pts.map((p, i) => (
-          <g key={i}>
-            <circle cx={p.x} cy={p.y + 0.8} r={r} fill="rgba(0,0,0,0.35)" />
-            <circle cx={p.x} cy={p.y} r={r} fill={color === "rainbow" ? rainbow[i % rainbow.length] : `url(#${id})`} stroke={deep} strokeWidth={0.6} />
-            <path d={`M${p.x - r * 0.55} ${p.y} L${p.x} ${p.y - r * 0.55} L${p.x + r * 0.55} ${p.y} L${p.x} ${p.y + r * 0.55} Z`} fill="rgba(255,255,255,0.28)" />
-            <circle cx={p.x - r * 0.32} cy={p.y - r * 0.34} r={r * 0.22} fill="rgba(255,255,255,0.9)" />
-          </g>
-        ))}
-      </svg>} />
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", inset: 0, overflow: "visible", WebkitMaskImage: STRASS_GLINT_MASK, maskImage: STRASS_GLINT_MASK, mixBlendMode: "screen" }}>
-        {pts.map((p, i) => {
-          const g = r * 1.9;
-          return (
-            <g key={i} fill="white">
-              <path d={`M${p.x} ${p.y - g} Q${p.x + g * 0.12} ${p.y - g * 0.12} ${p.x + g} ${p.y} Q${p.x + g * 0.12} ${p.y + g * 0.12} ${p.x} ${p.y + g} Q${p.x - g * 0.12} ${p.y + g * 0.12} ${p.x - g} ${p.y} Q${p.x - g * 0.12} ${p.y - g * 0.12} ${p.x} ${p.y - g} Z`} />
-            </g>
-          );
-        })}
-      </svg>
     </div>
   );
 }

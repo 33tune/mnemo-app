@@ -799,6 +799,9 @@ export type GuestbookCardData = {
 
 // ── Card Effects System ───────────────────────────────────────────────────────
 
+/** Color sets shared by the card effects (fxPalette.ts). "card" = the card's own colors. */
+export type FxPaletteId = "rainbow" | "pastel" | "gold" | "silver" | "fire" | "ice" | "neon" | "card" | "custom";
+
 export type CardEffects = {
   bg?: {
     color?: string;
@@ -914,19 +917,63 @@ export type CardEffects = {
     enabled: boolean;
     /** Real finishes (2026-11-04 evening). Older saved values ("glitter",
      * "metal", "galaxy") map to the closest one (cardFoil › holoStyleOf). */
-    style?: "rays" | "rainbow" | "etched" | "gold" | "cracked" | "refractor" | "mojo" | "glitter" | "metal" | "galaxy";
+    style?: "rays" | "rainbow" | "etched" | "gold" | "cracked" | "refractor" | "mojo" | "stars" | "mosaic" | "plain" | "glitter" | "metal" | "galaxy";
     intensity?: number;          // 0-1
     /** "card" = over everything (default) · "bg" = under the content ·
      * "photo" = only the photo · "border" = only the border ring. */
     scope?: "card" | "bg" | "photo" | "border";
     /** Slow drift when nobody moves the light (default on). */
     idle?: boolean;
+    /** Colors (2026-11-11, fxPalette.ts). Absent = the finish's own. */
+    palette?: FxPaletteId;
+    colors?: string[];           // "custom": 2–4 colors
+    /** Pattern size, 0.5–2 (default 1). */
+    scale?: number;
+    /** Degrees added to the finish's own direction. */
+    angle?: number;
   };
-  glare?: { enabled: boolean; intensity?: number; size?: number }; // 0-1 each
-  /** Glitter: little sparkles twinkling over the texts. */
-  glitter?: { enabled: boolean; color?: "white" | "gold" | "pink" | "rainbow"; amount?: number; size?: number };
+  glare?: {
+    enabled: boolean; intensity?: number; size?: number; // 0-1 each
+    /** Absent = both (as before 2026-11-11). */
+    shape?: "spot" | "streak";
+    color?: string;
+  };
+  /** Glitter: little sparkles twinkling over the texts (or the whole card /
+   * its border — `scope`). `color` is the pre-palette setting. */
+  glitter?: {
+    enabled: boolean; color?: "white" | "gold" | "pink" | "rainbow"; amount?: number; size?: number;
+    palette?: FxPaletteId; colors?: string[];
+    scope?: "text" | "card" | "border";
+  };
   /** Strass: rhinestones around the border, lit where the light passes. */
-  strass?: { enabled: boolean; color?: "crystal" | "pink" | "gold" | "rainbow"; size?: number; gap?: number };
+  strass?: {
+    enabled: boolean; color?: "crystal" | "pink" | "gold" | "rainbow"; size?: number; gap?: number;
+    palette?: FxPaletteId; colors?: string[];
+    shape?: "round" | "heart" | "star";
+  };
+  // 2026-11-11 (user-approved set): new card effects. Absent = off.
+  /** Canto metálico: a beveled metal rim that catches the light. */
+  edge?: { enabled: boolean; metal?: "gold" | "silver" | "chrome" | "rose" | "custom"; color?: string; width?: number };
+  /** Aura: a soft halo of color behind the card. */
+  aura?: { enabled: boolean; palette?: FxPaletteId; colors?: string[]; intensity?: number; size?: number; pulse?: boolean; spin?: boolean };
+  /** Polvo de estrellas: fine particles drifting over (or behind) the card. */
+  dust?: { enabled: boolean; palette?: FxPaletteId; colors?: string[]; amount?: number; size?: number; speed?: number; layer?: "front" | "back" };
+  /** Foto con profundidad: the photo shifts a little against the card. */
+  depth?: { enabled: boolean; amount?: number };
+  /** Sello holográfico: a small round foil seal on a corner. */
+  seal?: { enabled: boolean; text?: string; corner?: "tl" | "tr" | "bl" | "br"; size?: number; palette?: FxPaletteId; colors?: string[] };
+  /** Card animations (not the entrance): what the card does while it is on
+   * screen (`breathe` … `borderRun`) or when it is tapped (`ripple` … `spin`). */
+  motion?: {
+    breathe?:   { enabled: boolean; amount?: number; speed?: number };
+    sway?:      { enabled: boolean; amount?: number; speed?: number };
+    heartbeat?: { enabled: boolean; amount?: number; speed?: number };
+    sweep?:     { enabled: boolean; interval?: number; color?: string };
+    borderRun?: { enabled: boolean; speed?: number; width?: number; palette?: FxPaletteId; colors?: string[] };
+    ripple?:    { enabled: boolean; color?: string };
+    jelly?:     { enabled: boolean; amount?: number };
+    spin?:      { enabled: boolean };
+  };
   entrance?: {
     enabled?: boolean;
     style?: "fade" | "rise" | "pop" | "flip" | "drop" | "spin";

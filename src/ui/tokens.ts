@@ -313,6 +313,9 @@ export const T = {
       knobOn: th("knobOn"),
       /** Range thumb (white in every theme, with a shadow ring). */
       thumb:  "#FFFFFF",
+      /** Holo finish thumbnails (FxMenuParts): the mid grey a foil shows on,
+       * the same in every theme (it stands for the card, not the editor). */
+      fxThumb: "#5B5F70",
       /** "Modified" dot and "N cambios". */
       edit:   th("edit"),
       danger: th("danger"),

@@ -1,21 +1,24 @@
 /**
- * Collectible-card effects (2026-11-04, user request): Holográfico (a foil
- * sheen that moves with the light), Reflejo (a glare that follows it) and
- * the card's entrance animation on the public profile.
+ * Collectible-card effects: Holo (a foil that moves with the light), Reflejo
+ * (a glare that follows it), the card's entrance on the public profile, and
+ * the data of Glitter and Strass.
  *
  * The "light" is a point on the card (0–1 on each axis) that
  * useCardInteractions moves with the cursor, the finger or the phone's
- * gyroscope, and writes as the CSS vars --lx / --ly on the card (--la = 1
- * while the light is "held", 0 at rest). Everything here is plain CSS read
- * from those vars, so the export (cardExport.ts) can draw the same thing on a
- * canvas from the same palettes.
+ * gyroscope. 2026-11-11 (performance): the layers here are painted once and
+ * only MOVED with the light (lightLayers.ts: `data-lm` + a transform per
+ * frame) — nothing repaints while the light moves. The falloff around the
+ * light is a tiny picture stretched over the card and slid by the compositor.
  *
  * Every field is optional and absent = off: no existing card changes.
  */
 import { useEffect, type CSSProperties } from "react";
 import type { CardEffects } from "@/types";
+import { lm } from "./lightLayers";
+import { fxColors, loopColors, rgba, cleanColors } from "./fxPalette";
+import { FALLOFF_DARK, FALLOFF_LIGHT } from "./foilFalloff";
 
-export type HoloStyle = "rays" | "rainbow" | "etched" | "gold" | "cracked" | "refractor" | "mojo";
+export type HoloStyle = "rays" | "rainbow" | "etched" | "gold" | "cracked" | "refractor" | "mojo" | "stars" | "mosaic" | "plain";
 /** Where the foil goes. "bg" = under the content (the photo, texts and
  * icons stay clean, like a "reverse holo"). */
 export type HoloScope = "card" | "bg" | "photo" | "border";
@@ -26,11 +29,14 @@ export type EntranceStyle = "fade" | "rise" | "pop" | "flip" | "drop" | "spin";
 export const HOLO_STYLES: { id: HoloStyle; label: string }[] = [
   { id: "rays",      label: "Rayos" },
   { id: "rainbow",   label: "Arcoíris secreto" },
-  { id: "etched",    label: "Relieve" },
-  { id: "gold",      label: "Oro" },
+  { id: "stars",     label: "Estrellitas" },
+  { id: "plain",     label: "Lisa" },
+  { id: "mosaic",    label: "Mosaico" },
   { id: "cracked",   label: "Hielo quebrado" },
   { id: "refractor", label: "Refractor" },
+  { id: "etched",    label: "Relieve" },
   { id: "mojo",      label: "Mojo" },
+  { id: "gold",      label: "Oro" },
 ];
 export const HOLO_SCOPES: { id: HoloScope; label: string }[] = [
   { id: "card",   label: "Toda" },
@@ -73,7 +79,7 @@ export function idleLight(t: number): { x: number; y: number } {
   return { x: 0.5 + Math.sin(t * 0.55) * 0.34, y: 0.42 + Math.sin(t * 0.37 + 1.2) * 0.26 };
 }
 
-/** Main colors of each finish (also what the story export draws). */
+/** Each finish's own colors (what it shows with no palette chosen). */
 export const HOLO_PALETTES: Record<HoloStyle, string[]> = {
   rays:      ["#ff7ab8", "#ffe27a", "#7affc1", "#7ad7ff", "#b47aff", "#ff7ab8"],
   rainbow:   ["#ff6b8b", "#ffd36b", "#9bff7a", "#6bf3ff", "#7d8bff", "#e07bff", "#ff6b8b"],
@@ -82,21 +88,24 @@ export const HOLO_PALETTES: Record<HoloStyle, string[]> = {
   cracked:   ["#9fe8ff", "#e3b8ff", "#fff6c2", "#b8ffd8", "#9fe8ff"],
   refractor: ["#ff5f6d", "#ffc371", "#fff27a", "#61ffb0", "#5fb8ff", "#b26bff", "#ff5f6d"],
   mojo:      ["#ff4fa3", "#ffb34f", "#4fffd2", "#4f8cff", "#c84fff", "#ff4fa3"],
+  stars:     ["#ff8ad1", "#ffd98a", "#8affc4", "#8ad6ff", "#b99aff", "#ff8ad1"],
+  mosaic:    ["#5fe1ff", "#b58cff", "#ff8ac2", "#ffe08a", "#8affb5", "#5fe1ff"],
+  plain:     ["#ffb3d9", "#fff0b3", "#b3ffe0", "#b3d9ff", "#d9b3ff", "#ffb3d9"],
 };
 /** How each finish mixes with a dark card (a light card always tints:
  * multiply — light added to white vanishes). */
 export const HOLO_BLEND: Record<HoloStyle, CSSProperties["mixBlendMode"]> = {
   rays: "color-dodge", rainbow: "color-dodge", etched: "color-dodge", gold: "screen",
-  cracked: "color-dodge", refractor: "color-dodge", mojo: "color-dodge",
+  cracked: "color-dodge", refractor: "color-dodge", mojo: "color-dodge", stars: "color-dodge", mosaic: "color-dodge", plain: "color-dodge",
 };
 /** Opacity at intensity 1 (dark card / light card). */
-export const HOLO_STRENGTH: Record<HoloStyle, number> = { rays: 0.8, rainbow: 0.7, etched: 0.9, gold: 0.7, cracked: 0.65, refractor: 0.5, mojo: 0.45 };
-export const HOLO_STRENGTH_LIGHT: Record<HoloStyle, number> = { rays: 0.5, rainbow: 0.42, etched: 0.6, gold: 0.6, cracked: 0.5, refractor: 0.45, mojo: 0.45 };
+export const HOLO_STRENGTH: Record<HoloStyle, number> = { rays: 0.85, rainbow: 0.8, etched: 0.9, gold: 0.75, cracked: 0.8, refractor: 0.7, mojo: 0.6, stars: 0.9, mosaic: 0.75, plain: 0.6 };
+export const HOLO_STRENGTH_LIGHT: Record<HoloStyle, number> = { rays: 0.5, rainbow: 0.42, etched: 0.6, gold: 0.6, cracked: 0.5, refractor: 0.45, mojo: 0.45, stars: 0.5, mosaic: 0.5, plain: 0.4 };
 
 const svgUri = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 
 /** Deterministic pseudo-random (the textures look the same on every visit). */
-function rand(seed: number) {
+export function rand(seed: number) {
   // Park–Miller, with the seed spread out and a few values thrown away:
   // small seeds otherwise start with small values (sparkles bunched left).
   let s = Math.abs(Math.floor(seed * 2654435761)) % 2147483647 || 1;
@@ -124,12 +133,12 @@ const CRACKED_SVG = (() => {
     }
   }
   const polys: string[] = [];
-  const g = () => { const v = Math.round(70 + r() * 130); return `rgb(${v},${v},${v})`; };
+  const g = () => { const v = Math.round(40 + r() * 190); return `rgb(${v},${v},${v})`; };
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
     const a = pt[i][j], b = pt[i][j + 1], c = pt[i + 1][j + 1], d = pt[i + 1][j];
     const flip = r() > 0.5;
     const t1 = flip ? [a, b, c] : [a, b, d], t2 = flip ? [a, c, d] : [b, c, d];
-    for (const t of [t1, t2]) polys.push(`<polygon points='${t.map(p => p.map(v => v.toFixed(1)).join(",")).join(" ")}' fill='${g()}' stroke='rgba(255,255,255,0.35)' stroke-width='0.6'/>`);
+    for (const t of [t1, t2]) polys.push(`<polygon points='${t.map(p => p.map(v => v.toFixed(1)).join(",")).join(" ")}' fill='${g()}' stroke='rgba(255,255,255,0.5)' stroke-width='0.7'/>`);
   }
   return svgUri(`<svg xmlns='http://www.w3.org/2000/svg' width='${CRACKED_TILE}' height='${CRACKED_TILE}'>${polys.join("")}</svg>`);
 })();
@@ -138,66 +147,50 @@ const CRACKED_SVG = (() => {
  * the rainbow, only the lines light up — Ultimate-Rare-like texture). */
 const ETCHED_SVG = svgUri(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><rect width='16' height='16' fill='rgb(25,25,25)'/><path d='M0 8 L8 0 L16 8 L8 16 Z' fill='none' stroke='white' stroke-width='1.1'/><circle cx='8' cy='8' r='1.3' fill='white'/></svg>`);
 
-/** Fine glitter noise (gold), static on the card. */
+/** Fine glitter noise (gold, secret rare), static on the card. */
 const SPARK_SVG = svgUri(`<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='1' seed='9'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 10 -7.5'/></filter><rect width='140' height='140' filter='url(%23s)'/></svg>`);
 
-const LX = "var(--lx, 0.38)", LY = "var(--ly, 0.28)";
-/** A moving layer: big, and slid against the light. */
-const MOVE_POS = `calc(${LX} * 100%) calc(${LY} * 100%)`;
-
-function stops(colors: string[], spanPct: number): string {
-  return colors.map((c, i) => `${c} ${((i / (colors.length - 1)) * spanPct).toFixed(1)}%`).join(", ");
-}
-
-/** The layers of each finish: background-image / -size / -position /
- * -blend-mode, top layer first. Textures stay put; colors follow the light. */
-export function holoLayers(style: HoloStyle): { image: string; size: string; position: string; blend: string } {
-  const pal = HOLO_PALETTES[style];
-  const L: { image: string; size: string; position: string; blend: string }[] = [];
-  switch (style) {
-    case "rays":
-      // Regular holo: narrow vertical beams that sweep sideways.
-      L.push({ image: `repeating-linear-gradient(90deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 14px, rgba(255,255,255,0.9) 18px, rgba(0,0,0,0) 22px, rgba(0,0,0,0) 34px)`, size: "100% 100%", position: `calc(${LX} * 60px) 0`, blend: "overlay" });
-      L.push({ image: `repeating-linear-gradient(90deg, ${stops(pal, 30)})`, size: "300% 100%", position: MOVE_POS, blend: "normal" });
-      break;
-    case "rainbow":
-      // Secret Rare: wide rainbow + fine diagonal lines.
-      L.push({ image: `repeating-linear-gradient(-45deg, rgba(255,255,255,0.45) 0px, rgba(255,255,255,0.45) 1px, rgba(0,0,0,0.35) 1px, rgba(0,0,0,0.35) 3px)`, size: "100% 100%", position: "0 0", blend: "overlay" });
-      L.push({ image: `repeating-linear-gradient(115deg, ${stops(pal, 40)})`, size: "300% 300%", position: MOVE_POS, blend: "normal" });
-      break;
-    case "etched":
-      L.push({ image: ETCHED_SVG, size: "16px 16px", position: "0 0", blend: "multiply" });
-      L.push({ image: `repeating-linear-gradient(125deg, ${stops(pal, 35)})`, size: "300% 300%", position: MOVE_POS, blend: "normal" });
-      break;
-    case "gold":
-      L.push({ image: SPARK_SVG, size: "140px 140px", position: "0 0", blend: "screen" });
-      L.push({ image: `repeating-linear-gradient(110deg, ${stops(pal, 45)})`, size: "300% 300%", position: MOVE_POS, blend: "normal" });
-      break;
-    case "cracked":
-      L.push({ image: CRACKED_SVG, size: `${CRACKED_TILE}px ${CRACKED_TILE}px`, position: "0 0", blend: "overlay" });
-      L.push({ image: `repeating-linear-gradient(140deg, ${stops(pal, 30)})`, size: "300% 300%", position: MOVE_POS, blend: "normal" });
-      break;
-    case "refractor":
-      // Rays of split light radiating from where the light is.
-      L.push({ image: `repeating-conic-gradient(from 0deg at calc(${LX} * 100%) calc(${LY} * 100%), rgba(0,0,0,0) 0deg, ${pal[0]} 4deg, ${pal[2]} 7deg, rgba(0,0,0,0) 11deg, rgba(0,0,0,0) 18deg, ${pal[4]} 22deg, ${pal[5]} 25deg, rgba(0,0,0,0) 29deg, rgba(0,0,0,0) 36deg)`, size: "100% 100%", position: "0 0", blend: "normal" });
-      break;
-    case "mojo":
-      // A multicolor swirl of rings around a point opposite the light.
-      L.push({ image: `repeating-radial-gradient(circle at calc((1 - ${LX}) * 100%) calc((1 - ${LY}) * 100%), ${stops(pal, 14)})`, size: "100% 100%", position: "0 0", blend: "normal" });
-      L.push({ image: `repeating-conic-gradient(from 45deg at 50% 50%, rgba(255,255,255,0.25) 0deg, rgba(0,0,0,0.25) 12deg, rgba(255,255,255,0.25) 24deg)`, size: "100% 100%", position: "0 0", blend: "overlay" });
-      return {
-        image: [L[1].image, L[0].image].join(", "), size: [L[1].size, L[0].size].join(", "),
-        position: [L[1].position, L[0].position].join(", "), blend: [L[1].blend, L[0].blend].join(", "),
-      };
+/** Estrellitas: the classic "cosmos" foil — stars, dots and rings of
+ * different sizes, bright on a dim sheet (only they catch the full color). */
+const STARS_TILE = 260;
+const STARS_SVG = (() => {
+  const r = rand(77);
+  const out: string[] = [`<rect width='${STARS_TILE}' height='${STARS_TILE}' fill='rgb(62,62,62)'/>`];
+  const T = STARS_TILE;
+  for (let i = 0; i < 46; i++) {
+    const x = r() * T, y = r() * T, kind = r(), v = Math.round(170 + r() * 85), c = `rgb(${v},${v},${v})`;
+    // Shapes near an edge are drawn again on the other side: no seams.
+    const copies = [[0, 0], [x < 20 ? T : x > T - 20 ? -T : 0, 0], [0, y < 20 ? T : y > T - 20 ? -T : 0]].filter((o, k) => k === 0 || o[0] !== 0 || o[1] !== 0);
+    for (const [ox, oy] of copies) {
+      const cx = (x + ox).toFixed(1), cy = (y + oy).toFixed(1);
+      if (kind < 0.34) {
+        const R = 4 + r() * 9, q = R * 0.2;
+        out.push(`<path transform='translate(${cx} ${cy})' d='M0 ${-R} Q${q} ${-q} ${R} 0 Q${q} ${q} 0 ${R} Q${-q} ${q} ${-R} 0 Q${-q} ${-q} 0 ${-R} Z' fill='${c}'/>`);
+      } else if (kind < 0.5) {
+        const R = 5 + r() * 8;
+        out.push(`<circle cx='${cx}' cy='${cy}' r='${R.toFixed(1)}' fill='none' stroke='${c}' stroke-width='1.6'/>`);
+      } else {
+        out.push(`<circle cx='${cx}' cy='${cy}' r='${(0.9 + r() * 2.6).toFixed(1)}' fill='${c}'/>`);
+      }
+    }
   }
-  return {
-    image: L.map(l => l.image).join(", "), size: L.map(l => l.size).join(", "),
-    position: L.map(l => l.position).join(", "), blend: L.map(l => l.blend).join(", "),
-  };
-}
+  return svgUri(`<svg xmlns='http://www.w3.org/2000/svg' width='${T}' height='${T}'>${out.join("")}</svg>`);
+})();
 
-/** Strongest around the light — the sheen of a real foil, not a print. */
-const HOLO_MASK = `radial-gradient(circle at calc(${LX} * 100%) calc(${LY} * 100%), #000 0%, rgba(0,0,0,0.75) 25%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.18) 100%)`;
+/** Mosaico: a grid of squares, each a different grey with a bevel (Panini
+ * "Mosaic"): every tile catches the color a little differently. */
+const MOSAIC_TILE = 240;
+const MOSAIC_SVG = (() => {
+  const r = rand(1313), n = 10, c = MOSAIC_TILE / n;
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const v = Math.round(50 + r() * 170), x = j * c, y = i * c;
+    out.push(`<rect x='${x}' y='${y}' width='${c}' height='${c}' fill='rgb(${v},${v},${v})'/>`);
+    out.push(`<path d='M${x} ${y + c} L${x} ${y} L${x + c} ${y}' fill='none' stroke='rgba(255,255,255,0.55)' stroke-width='1'/>`);
+    out.push(`<path d='M${x + c} ${y} L${x + c} ${y + c} L${x} ${y + c}' fill='none' stroke='rgba(0,0,0,0.45)' stroke-width='1'/>`);
+  }
+  return svgUri(`<svg xmlns='http://www.w3.org/2000/svg' width='${MOSAIC_TILE}' height='${MOSAIC_TILE}'>${out.join("")}</svg>`);
+})();
 
 export const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
@@ -207,64 +200,231 @@ export function holoOn(fx: CardEffects | undefined): boolean {
 export function glareOn(fx: CardEffects | undefined): boolean {
   return !!fx?.glare?.enabled && (fx.glare.intensity ?? GLARE_DEFAULT_INTENSITY) > 0;
 }
-/** The card has something that follows the light. */
+/** The card has something that follows the light (or the pointer). */
 export function lightEffectsOn(fx: CardEffects | undefined): boolean {
-  return holoOn(fx) || glareOn(fx) || !!fx?.strass?.enabled;
+  return holoOn(fx) || glareOn(fx) || !!fx?.strass?.enabled || !!fx?.edge?.enabled || !!fx?.seal?.enabled
+    || !!fx?.depth?.enabled || !!fx?.glitter?.enabled;
 }
-/** The light drifts by itself (holo "Moverse solo"). */
+/** Worth asking an iPhone for its motion sensor (glitter alone is not: it
+ * only sparkles a bit more near the cursor). */
+export function lightGyroOn(fx: CardEffects | undefined): boolean {
+  return holoOn(fx) || glareOn(fx) || !!fx?.strass?.enabled || !!fx?.edge?.enabled || !!fx?.seal?.enabled || !!fx?.depth?.enabled;
+}
+/** The light drifts by itself (holo "Moverse solo"; the stones, the rim and
+ * the seal need a moving light to sparkle). */
 export function lightIdleOn(fx: CardEffects | undefined): boolean {
-  return (holoOn(fx) && fx?.holo?.idle !== false) || !!fx?.strass?.enabled;
+  return (holoOn(fx) && fx?.holo?.idle !== false) || !!fx?.strass?.enabled || !!fx?.edge?.enabled || !!fx?.seal?.enabled;
 }
 
-/** Kept for the story export: the finish's colors as one angled gradient. */
-export function holoGradient(style: HoloStyle): string {
-  return `repeating-linear-gradient(115deg, ${stops(HOLO_PALETTES[style], 50)})`;
+/** One painted-once layer of a light effect. `lm` = how it moves
+ * (lightLayers.ts); `img` = a picture instead of a CSS background; `heavy`
+ * = dropped first when the device can't keep up (data-fx-heavy). */
+export type FoilLayer = { key: string; style: CSSProperties; lm?: string; img?: string; heavy?: boolean };
+export type FoilBox = { w: number; h: number };
+
+function pxStops(colors: string[], period: number): string {
+  return colors.map((c, i) => `${c} ${((i / (colors.length - 1)) * period).toFixed(1)}px`).join(", ");
+}
+
+/** A band of colors that slides along its own direction with the light. */
+function band(key: string, colors: string[], angle: number, period: number, cx: number, cy: number, box: FoilBox, blend?: string, opacity?: number): FoilLayer {
+  const m = Math.ceil(period / 2) + 2;
+  return {
+    key, lm: lm.shift(angle, cx, cy, period),
+    style: {
+      position: "absolute", left: -m, top: -m, width: box.w + 2 * m, height: box.h + 2 * m, willChange: "transform",
+      backgroundImage: `repeating-linear-gradient(${angle}deg, ${pxStops(colors, period)})`,
+      ...(blend ? { mixBlendMode: blend as CSSProperties["mixBlendMode"] } : {}),
+      ...(opacity != null ? { opacity } : {}),
+    },
+  };
+}
+/** A texture that stays on the card (or slides a little against the light). */
+function tex(key: string, image: string, tile: number | null, blend: string, opts: { slide?: number; opacity?: number; heavy?: boolean; box?: FoilBox } = {}): FoilLayer {
+  const slide = opts.slide && tile && opts.box ? opts.slide : 0;
+  const m = slide ? Math.ceil(tile! / 2) + 2 : 0;
+  return {
+    key, heavy: opts.heavy, lm: slide ? lm.tile(slide, slide, tile!, tile!) : undefined,
+    style: {
+      position: "absolute", ...(slide ? { left: -m, top: -m, width: opts.box!.w + 2 * m, height: opts.box!.h + 2 * m, willChange: "transform" } : { inset: 0 }),
+      backgroundImage: image, ...(tile ? { backgroundSize: `${tile.toFixed(1)}px ${tile.toFixed(1)}px` } : {}),
+      mixBlendMode: blend as CSSProperties["mixBlendMode"],
+      ...(opts.opacity != null ? { opacity: opts.opacity } : {}),
+    },
+  };
+}
+/** The sheen bars of a real foil: a light / dark diagonal that crosses the
+ * colors the other way (pokemon-cards-css) — the color shows inside them. */
+function bars(period: number, cx: number, cy: number, box: FoilBox, soft = false): FoilLayer {
+  const hi = soft ? "rgb(255,255,255)" : "rgb(255,255,255)", lo = soft ? "rgb(120,124,136)" : "rgb(46,50,66)";
+  return band("bars", [lo, hi, lo], 133, period, cx, cy, box, "multiply");
+}
+/** Something centered on the card that turns with the light. */
+function spinner(key: string, image: string, box: FoilBox, kx: number, ky: number, blend: string, opacity?: number): FoilLayer {
+  const d = Math.ceil(Math.hypot(box.w, box.h)) + 4;
+  return {
+    key, lm: lm.rot(0, kx, ky),
+    style: {
+      position: "absolute", left: (box.w - d) / 2, top: (box.h - d) / 2, width: d, height: d, willChange: "transform",
+      backgroundImage: image, mixBlendMode: blend as CSSProperties["mixBlendMode"],
+      ...(opacity != null ? { opacity } : {}),
+    },
+  };
+}
+
+/** Pattern unit: the finishes are drawn for a ~320 px card and scale with
+ * the box (a photo gets a finer pattern) and with the user's "Tamaño". */
+function unitOf(fx: CardEffects, box: FoilBox): number {
+  const user = Math.max(0.5, Math.min(2, fx.holo?.scale ?? 1));
+  return Math.max(0.4, Math.min(1.6, Math.min(box.w, box.h) / 320)) * user;
+}
+
+/** The finish's colors: its own, or the chosen palette. */
+export function holoColors(fx: CardEffects | undefined, cardColors?: readonly string[]): string[] {
+  return loopColors(fxColors(fx?.holo, HOLO_PALETTES[holoStyleOf(fx)], cardColors));
 }
 
 /**
- * The foil sheet, sized to the card (`w`×`h`) and placed at (-ox, -oy)
- * inside its clip (the whole card, the photo, or a strip of the border), so
- * the pattern lines up across the pieces.
+ * The layers of the foil for a box of `w`×`h` px, bottom layer first.
+ * Colors slide with the light, textures stay (the crossing of the two is
+ * what reads as foil), and the last layer dims everything away from the light.
  */
-export function holoSheetStyle(fx: CardEffects, lightCard = false, box?: { w: number; h: number; ox?: number; oy?: number }): CSSProperties {
+export function holoLayers(fx: CardEffects, box: FoilBox, lightCard = false, cardColors?: readonly string[]): FoilLayer[] {
+  const style = holoStyleOf(fx);
+  const pal = holoColors(fx, cardColors);
+  const u = unitOf(fx, box);
+  const A = fx.holo?.angle ?? 0;
+  const L: FoilLayer[] = [];
+  switch (style) {
+    case "rays":
+      // Regular holo: vertical bands of color, narrow beams over them.
+      L.push(band("color", pal, 90 + A, 150 * u, 1.6, 0.35, box));
+      L.push(bars(120 * u, -0.9, -1.3, box, true));
+      L.push(tex("beams", `repeating-linear-gradient(${90 + A}deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) ${(14 * u).toFixed(1)}px, rgba(255,255,255,0.9) ${(18 * u).toFixed(1)}px, rgba(0,0,0,0) ${(22 * u).toFixed(1)}px, rgba(0,0,0,0) ${(34 * u).toFixed(1)}px)`, null, "overlay"));
+      break;
+    case "rainbow":
+      // Secret Rare: a wide rainbow, fine diagonal lines and a glitter grain.
+      L.push(band("color", pal, 115 + A, 260 * u, 1.3, 1.0, box));
+      L.push(bars(170 * u, -1.0, -1.0, box, true));
+      L.push(tex("lines", `repeating-linear-gradient(-45deg, rgba(255,255,255,0.45) 0px, rgba(255,255,255,0.45) 1px, rgba(0,0,0,0.35) 1px, rgba(0,0,0,0.35) 3px)`, null, "overlay"));
+      L.push(tex("grain", SPARK_SVG, 140 * u, "screen", { opacity: 0.5, heavy: true }));
+      break;
+    case "stars":
+      L.push(band("color", pal, 100 + A, 230 * u, 1.5, 0.8, box));
+      L.push(band("color2", pal, 20 + A, 310 * u, -0.7, 1.1, box, "overlay", 0.7));
+      L.push(tex("stars", STARS_SVG, STARS_TILE * u, "multiply", { slide: -26, box }));
+      break;
+    case "plain":
+      // No texture: two soft sheets of color crossing each other.
+      L.push(band("color", pal, 120 + A, 340 * u, 1.0, 1.0, box));
+      L.push(band("color2", pal, 30 + A, 270 * u, -1.2, 0.7, box, "overlay"));
+      break;
+    case "mosaic":
+      L.push(band("color", pal, 135 + A, 210 * u, 1.3, 1.1, box));
+      L.push(band("color2", pal, 45 + A, 280 * u, -1.0, 0.8, box, "overlay", 0.6));
+      L.push(tex("tiles", MOSAIC_SVG, MOSAIC_TILE * u, "overlay"));
+      break;
+    case "cracked":
+      L.push(band("color", pal, 140 + A, 170 * u, 1.4, 1.1, box));
+      L.push(band("color2", pal, 50 + A, 250 * u, -0.9, 1.2, box, "overlay", 0.55));
+      L.push(tex("shards", CRACKED_SVG, CRACKED_TILE * u, "overlay"));
+      break;
+    case "refractor":
+      // Chrome refractor: a rainbow sheen and rays of light that pivot.
+      L.push(band("color", pal, 100 + A, 300 * u, 1.4, 0.6, box));
+      L.push(spinner("rays", "repeating-conic-gradient(from 0deg, rgb(40,42,52) 0deg, rgb(255,255,255) 5deg, rgb(40,42,52) 10deg, rgb(40,42,52) 14deg, rgb(200,204,214) 17deg, rgb(40,42,52) 20deg)", box, 70, 46, "multiply"));
+      break;
+    case "etched":
+      L.push(band("color", pal, 125 + A, 220 * u, 1.3, 1.0, box));
+      L.push(bars(150 * u, -1.0, -1.2, box, true));
+      L.push(tex("lattice", ETCHED_SVG, 16 * u, "multiply"));
+      break;
+    case "mojo":
+      // Rings of color with a sheen turning over them.
+      L.push(band("color", pal, 60 + A, 200 * u, 1.2, 1.2, box));
+      L.push(tex("rings", `repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.55) 0px, rgba(0,0,0,0.5) ${(7 * u).toFixed(1)}px, rgba(255,255,255,0.55) ${(14 * u).toFixed(1)}px)`, null, "overlay"));
+      L.push(spinner("sheen", "repeating-conic-gradient(from 45deg, rgb(255,255,255) 0deg, rgb(70,72,84) 12deg, rgb(255,255,255) 24deg)", box, 60, 40, "multiply"));
+      break;
+    case "gold":
+      L.push(band("color", pal, 110 + A, 240 * u, 1.2, 0.9, box));
+      L.push(bars(160 * u, -0.8, -1.1, box, true));
+      L.push(tex("grain", SPARK_SVG, 140 * u, "screen", { heavy: true }));
+      break;
+  }
+  // Strongest around the light — the sheen of a real foil, not a print.
+  const d = Math.ceil(Math.hypot(box.w, box.h) * 2) + 8;
+  L.push({
+    key: "falloff", img: lightCard ? FALLOFF_LIGHT : FALLOFF_DARK, lm: lm.follow(box.w, box.h),
+    style: { position: "absolute", left: -d / 2, top: -d / 2, width: d, height: d, maxWidth: "none", display: "block", willChange: "transform", pointerEvents: "none" },
+  });
+  return L;
+}
+
+/** The foil's group: how the finished sheet mixes with the card. */
+export function holoGroupStyle(fx: CardEffects, lightCard = false): CSSProperties {
   const style = holoStyleOf(fx);
   const k = clamp01(fx.holo?.intensity ?? HOLO_DEFAULT_INTENSITY) * (lightCard ? HOLO_STRENGTH_LIGHT : HOLO_STRENGTH)[style];
-  const l = holoLayers(style);
   return {
-    position: "absolute", pointerEvents: "none",
-    ...(box ? { left: -(box.ox ?? 0), top: -(box.oy ?? 0), width: box.w, height: box.h } : { inset: 0 }),
-    backgroundImage: l.image, backgroundSize: l.size, backgroundPosition: l.position,
-    backgroundBlendMode: l.blend as CSSProperties["backgroundBlendMode"],
+    position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", isolation: "isolate",
     mixBlendMode: lightCard ? "multiply" : HOLO_BLEND[style],
-    WebkitMaskImage: HOLO_MASK, maskImage: HOLO_MASK,
     // Stronger while the light is held (--la), never gone at rest.
     opacity: `calc(${k.toFixed(3)} * (0.75 + 0.25 * var(--la, 0)))` as unknown as number,
     transition: "opacity 0.3s ease",
   };
 }
 
-/** The border ring as 4 strips (inner corners square), in card px. */
-export function borderStrips(w: number, h: number, ring: number): { x: number; y: number; w: number; h: number }[] {
-  const t = Math.max(4, Math.min(ring, w / 3, h / 3));
-  return [
-    { x: 0, y: 0, w, h: t }, { x: 0, y: h - t, w, h: t },
-    { x: 0, y: t, w: t, h: h - 2 * t }, { x: w - t, y: t, w: t, h: h - 2 * t },
-  ];
+/** A ring `width` px wide along the element's own (rounded) edge: the mask
+ * of everything that lives on the border. Static — never repainted. */
+export function ringMask(width: number): CSSProperties {
+  const m = "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)";
+  return {
+    padding: width, boxSizing: "border-box",
+    WebkitMask: m, WebkitMaskComposite: "xor",
+    mask: m, maskComposite: "exclude",
+  } as CSSProperties;
 }
 export const holoRingWidth = (w: number, h: number) => Math.round(Math.max(10, Math.min(26, Math.min(w, h) * 0.07)));
 
-/** The glare: a bright spot at the light and a soft streak through it. */
-export function glareStyle(fx: CardEffects): CSSProperties {
+/** For the menu's thumbnails: the finish as one still gradient. */
+export function holoSwatch(style: HoloStyle, colors?: string[]): string {
+  const pal = loopColors(colors && colors.length ? colors : HOLO_PALETTES[style]);
+  return `linear-gradient(115deg, ${pal.map((c, i) => `${c} ${((i / (pal.length - 1)) * 100).toFixed(0)}%`).join(", ")})`;
+}
+
+/** The glare: a bright spot at the light and a streak through it. */
+export function glareLayers(fx: CardEffects, box: FoilBox): FoilLayer[] {
+  const g = fx.glare ?? { enabled: true };
+  const c = cleanColors(g.color ? [g.color] : [])[0] ?? "#ffffff";
+  const size = 0.2 + clamp01(g.size ?? GLARE_DEFAULT_SIZE) * 0.6;
+  const L: FoilLayer[] = [];
+  if (g.shape !== "streak") {
+    const r = Math.round(size * Math.hypot(box.w, box.h) * 0.9);
+    L.push({
+      key: "spot", lm: lm.follow(box.w, box.h),
+      style: {
+        position: "absolute", left: -r, top: -r, width: 2 * r, height: 2 * r, willChange: "transform",
+        backgroundImage: `radial-gradient(circle closest-side, ${rgba(c, 0.62)} 0%, ${rgba(c, 0.3)} 22%, ${rgba(c, 0.12)} 55%, ${rgba(c, 0)} 100%)`,
+      },
+    });
+  }
+  if (g.shape !== "spot") {
+    // A band of light with a thin bright core, leaning like a real reflection.
+    const bw = Math.round(box.w * (g.shape === "streak" ? 0.2 + size * 0.5 : 0.36)), bh = Math.ceil(Math.hypot(box.w, box.h) * 1.5);
+    const a = g.shape === "streak" ? 0.34 : 0.16;
+    L.push({
+      key: "streak", lm: lm.band(box.w, 25),
+      style: {
+        position: "absolute", left: -bw / 2, top: (box.h - bh) / 2, width: bw, height: bh, willChange: "transform",
+        backgroundImage: `linear-gradient(90deg, ${rgba(c, 0)} 0%, ${rgba(c, a)} 46%, ${rgba(c, a * 1.7)} 50%, ${rgba(c, a)} 54%, ${rgba(c, 0)} 100%)`,
+      },
+    });
+  }
+  return L;
+}
+export function glareGroupStyle(fx: CardEffects): CSSProperties {
   const k = clamp01(fx.glare?.intensity ?? GLARE_DEFAULT_INTENSITY);
-  const size = Math.round(20 + clamp01(fx.glare?.size ?? GLARE_DEFAULT_SIZE) * 60);
-  const at = "calc(var(--lx, 0.38) * 100%) calc(var(--ly, 0.28) * 100%)";
   return {
-    position: "absolute", inset: 0, pointerEvents: "none",
-    backgroundImage: [
-      `radial-gradient(circle at ${at}, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.2) ${Math.round(size * 0.4)}%, rgba(255,255,255,0) ${size}%)`,
-      `linear-gradient(115deg, rgba(255,255,255,0) calc(var(--lx, 0.38) * 100% - 16%), rgba(255,255,255,0.16) calc(var(--lx, 0.38) * 100%), rgba(255,255,255,0) calc(var(--lx, 0.38) * 100% + 16%))`,
-    ].join(", "),
-    mixBlendMode: "screen",
+    position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", mixBlendMode: "screen",
     opacity: `calc(${k.toFixed(3)} * (0.45 + 0.55 * var(--la, 0)))` as unknown as number,
     transition: "opacity 0.3s ease",
   };
@@ -346,11 +506,19 @@ export type GlitterSpark = { x: number; y: number; size: number; delay: number; 
  * small four-point stars and fine glints over the text, twinkling at their
  * own pace. Deterministic per seed, so they don't jump between renders.
  */
-export function glitterSparkles(w: number, h: number, fx: CardEffects, seed: number): GlitterSpark[] {
+/** The sparkles' colors: the chosen palette, or the old "Color" setting. */
+export function glitterColors(fx: CardEffects | undefined, cardColors?: readonly string[]): string[] {
+  const g = fx?.glitter;
+  const own = GLITTER_COLORS[g?.color ?? "white"] ?? GLITTER_COLORS.white;
+  const c = fxColors(g, own, cardColors);
+  // A palette alone reads flat: a white glint among the colors keeps the sparkle.
+  return g?.palette ? [...c, "#ffffff"] : c;
+}
+export function glitterSparkles(w: number, h: number, fx: CardEffects, seed: number, cardColors?: readonly string[]): GlitterSpark[] {
   const g = fx.glitter!;
   const amount = clamp01(g.amount ?? GLITTER_DEFAULT_AMOUNT);
   const n = Math.max(4, Math.round((w * h) / 70 * (0.15 + amount * 0.85)));
-  const colors = GLITTER_COLORS[g.color ?? "white"] ?? GLITTER_COLORS.white;
+  const colors = glitterColors(fx, cardColors);
   const base = 3 + clamp01(g.size ?? GLITTER_DEFAULT_SIZE) * 6;   // 3–9 px
   const r = rand(seed * 7919 + 13);
   return Array.from({ length: Math.min(n, 30) }, () => {
@@ -398,8 +566,13 @@ export function strassPoints(w: number, h: number, radius: number, size: number,
   }
   return pts;
 }
-/** The glints on the stones show where the light is. */
-export const STRASS_GLINT_MASK = `radial-gradient(circle at calc(${LX} * 100%) calc(${LY} * 100%), #000 0%, rgba(0,0,0,0.85) 18%, rgba(0,0,0,0.05) 42%)`;
+/** The stones' body colors: the chosen palette, or the old "Piedras" setting. */
+export function strassColors(fx: CardEffects | undefined, cardColors?: readonly string[]): string[] {
+  const st = fx?.strass;
+  const id = st?.color ?? "crystal";
+  const own = id === "rainbow" ? ["#ff9ad5", "#ffe08a", "#9affd0", "#9ad7ff", "#c8a6ff"] : [STRASS_COLORS[id]?.[1] ?? STRASS_COLORS.crystal[1]];
+  return fxColors(st, own, cardColors);
+}
 
 /** Menu names of the glitter and stone colors. */
 export const GLITTER_COLOR_LABEL: Record<string, string> = { white: "Blanco", gold: "Dorado", pink: "Rosa", rainbow: "Arcoíris" };

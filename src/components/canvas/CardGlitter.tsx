@@ -17,6 +17,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CardEffects } from "@/types";
 import { glitterSparkles, type GlitterSpark } from "@/lib/cardFoil";
 import { exportActive, onExportFrame } from "@/lib/export/exportClock";
+import { cardLight } from "@/lib/lightLayers";
 
 type Box = { x: number; y: number; w: number; h: number };
 /** Room around the text box so the sparkles on its edge are not cut. */
@@ -92,13 +93,25 @@ function twinkle(p: number): number {
   return 0.85 * (1 - (p - 0.6) / 0.4);
 }
 
-function paint(ctx: CanvasRenderingContext2D, dpr: number, box: Box, sparks: GlitterSpark[], t: number, still: boolean) {
+/** Where the canvas sits on the card (0–1 of the card), to know which
+ * sparkles are under the light. */
+type OnCard = { card: Element; x: number; y: number; w: number; h: number } | null;
+
+function paint(ctx: CanvasRenderingContext2D, dpr: number, box: Box, sparks: GlitterSpark[], t: number, still: boolean, on: OnCard = null) {
+  // 2026-11-11: the sparkles under the light flash (only while someone
+  // holds it: cursor, finger, gyroscope).
+  const light = on && !still ? cardLight(on.card) : undefined;
+  const lit = light?.held ? light : undefined;
   const W = box.w + BLEED * 2, H = box.h + BLEED * 2;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
   for (const s of sparks) {
     const p = still ? 0.4 : (((t - s.delay) / s.dur) % 1 + 1) % 1;
-    const k = still ? 0.8 : twinkle(p);
+    let k = still ? 0.8 : twinkle(p);
+    if (lit && on) {
+      const nx = on.x + ((BLEED + s.x * box.w) / W) * on.w, ny = on.y + ((BLEED + s.y * box.h) / H) * on.h;
+      k = Math.max(k, 1 - Math.hypot(nx - lit.x, ny - lit.y) / 0.26);
+    }
     if (k <= 0.02) continue;
     const scale = 0.3 + 0.7 * k;
     // The sprite's core is ~0.64 of its side: stamp it so the core = size.
@@ -118,7 +131,7 @@ function paint(ctx: CanvasRenderingContext2D, dpr: number, box: Box, sparks: Gli
   ctx.globalAlpha = 1;
 }
 
-export default function CardGlitter({ fx, seed }: { fx: CardEffects; seed: number }) {
+export default function CardGlitter({ fx, seed, cardColors }: { fx: CardEffects; seed: number; cardColors?: readonly string[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [box, setBox] = useState<Box | null>(null);
@@ -159,7 +172,7 @@ export default function CardGlitter({ fx, seed }: { fx: CardEffects; seed: numbe
     if (!canvas || !box || !g) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const sparks = glitterSparkles(box.w, box.h, fx, seed);
+    const sparks = glitterSparkles(box.w, box.h, fx, seed, cardColors);
     // A phone gets the canvas at up to 2× (3× buys nothing at 3–9 px sparkles).
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     canvas.width = Math.ceil((box.w + BLEED * 2) * dpr);
@@ -168,7 +181,11 @@ export default function CardGlitter({ fx, seed }: { fx: CardEffects; seed: numbe
     if (reduce) { paint(ctx, dpr, box, sparks, 0, true); return; }
     const offExport = onExportFrame(t => paint(ctx, dpr, box, sparks, t, false));
     let visible = true;
-    const painter: Painter = t => { if (visible) paint(ctx, dpr, box, sparks, t, false); };
+    const card = canvas.closest("[data-profile-card]");
+    const cr = card?.getBoundingClientRect(), r = canvas.getBoundingClientRect();
+    const on: OnCard = card && cr && cr.width > 0 && cr.height > 0
+      ? { card, x: (r.left - cr.left) / cr.width, y: (r.top - cr.top) / cr.height, w: r.width / cr.width, h: r.height / cr.height } : null;
+    const painter: Painter = t => { if (visible) paint(ctx, dpr, box, sparks, t, false, on); };
     paint(ctx, dpr, box, sparks, performance.now() / 1000, false);
     addPainter(painter);
     const io = typeof IntersectionObserver !== "undefined"
@@ -178,7 +195,7 @@ export default function CardGlitter({ fx, seed }: { fx: CardEffects; seed: numbe
     return () => { removePainter(painter); io?.disconnect(); offExport(); };
     // fx is read only through the glitter settings below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [box, seed, g?.amount, g?.size, g?.color, g?.enabled]);
+  }, [box, seed, g?.amount, g?.size, g?.color, g?.enabled, g?.palette, (g?.colors ?? []).join(), (cardColors ?? []).join()]);
 
   return (
     <div ref={ref} data-fx="glitter" aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 2 }}>

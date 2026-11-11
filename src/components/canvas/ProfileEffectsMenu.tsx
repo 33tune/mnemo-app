@@ -2,13 +2,19 @@
 import React from "react";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import type { CardEffects } from "@/types";
-import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs, FontSelect, SwitchRow, ActionButton, GroupLabel } from "@/ui";
+import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs, FontSelect, SwitchRow, ActionButton, GroupLabel, TextInput } from "@/ui";
 import {
-  HOLO_STYLES, HOLO_SCOPES, ENTRANCE_STYLES, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE,
+  HOLO_STYLES, HOLO_SCOPES, HOLO_PALETTES, ENTRANCE_STYLES, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE,
   ENTRANCE_DEFAULT_DURATION, ENTRANCE_DEFAULT_STYLE, ENTRANCE_PREVIEW_EVENT, holoOn, glareOn, holoStyleOf, holoScopeOf,
   GLITTER_DEFAULT_AMOUNT, GLITTER_DEFAULT_SIZE, STRASS_DEFAULT_SIZE, STRASS_DEFAULT_GAP,
-  GLITTER_COLOR_LABEL, STRASS_COLOR_LABEL,
+  GLITTER_COLOR_LABEL, STRASS_COLOR_LABEL, GLITTER_COLORS, strassColors,
 } from "@/lib/cardFoil";
+import {
+  EDGE_METALS, EDGE_DEFAULT_WIDTH, SEAL_DEFAULTS, SEAL_CORNERS, sealText, AURA_DEFAULTS, DUST_DEFAULTS, DEPTH_DEFAULT, MOTION_DEFAULTS,
+  FX_PRESS_EVENT, FX_WHITE, EDGE_CUSTOM_DEFAULT, DUST_AUTO, BORDER_RUN_AUTO,
+} from "@/lib/cardFx";
+import { FX_PALETTES, FX_PALETTE_OPTIONS } from "@/lib/fxPalette";
+import { FinishGrid, PaletteField } from "./FxMenuParts";
 import { effectActions, effectState, type EffectOwner } from "@/lib/effectBinding";
 import {
   CARD_GLOW_DEFAULT_COLOR, CARD_BORDER_DEFAULT_WIDTH, CARD_BORDER_DEFAULT_COLOR, CARD_RADIUS_FALLBACK,
@@ -89,9 +95,15 @@ export function useCardEffectActions({ effective, raw, onChange }: Props) {
   function patchEntrance(patch: Partial<NonNullable<CardEffects["entrance"]>>) {
     onChange({ ...raw, entrance: { ...raw?.entrance, ...patch } });
   }
-  /** One writer for the 2026-11-04 evening set (turning one off keeps it). */
-  function patchFx<K extends "glitter" | "strass">(key: K, patch: Partial<NonNullable<CardEffects[K]>>) {
+  /** One writer for the effects that are a single group with a switch
+   * (turning one off keeps its settings). */
+  function patchFx<K extends "glitter" | "strass" | "edge" | "aura" | "dust" | "depth" | "seal">(key: K, patch: Partial<NonNullable<CardEffects[K]>>) {
     onChange({ ...raw, [key]: { enabled: false, ...(raw?.[key] as object | undefined), ...patch } });
+  }
+  /** The card animations (effects.motion.*), same contract. */
+  type Motion = NonNullable<CardEffects["motion"]>;
+  function patchMotion<K extends keyof Motion>(key: K, patch: Partial<NonNullable<Motion[K]>>) {
+    onChange({ ...raw, motion: { ...raw?.motion, [key]: { enabled: false, ...(raw?.motion?.[key] as object | undefined), ...patch } } });
   }
 
   // Bug fix (Block 1): off pauses the whole shadow config; on restores it
@@ -115,7 +127,7 @@ export function useCardEffectActions({ effective, raw, onChange }: Props) {
 
   return {
     bord, glow, inter, anim, sh, fx, patchBorder, patchGlow, patchGlowAnimation, patchShadow, patchInteractions,
-    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, patchFx, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
+    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, patchFx, patchMotion, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
     shadowFx, glowInt, hoverScaleOn, retro,
   };
 }
@@ -138,30 +150,44 @@ export function CardCornersSection({ children, summaryExtra, ...props }: Props &
   );
 }
 
+const GLARE_SHAPES = [
+  { id: "both", label: "Punto y franja", withText: true }, { id: "spot", label: "Punto", withText: true }, { id: "streak", label: "Franja", withText: true },
+];
+const GLITTER_SCOPES = [
+  { id: "text", label: "Textos", withText: true }, { id: "card", label: "Toda", withText: true }, { id: "border", label: "Borde", withText: true },
+];
+const STRASS_SHAPES = [
+  { id: "round", label: "Redonda", withText: true }, { id: "heart", label: "Corazón", withText: true }, { id: "star", label: "Estrella", withText: true },
+];
+const DUST_LAYERS = [{ id: "front", label: "Delante", withText: true }, { id: "back", label: "Detrás", withText: true }];
+
 const GLOW_WHERE = [
   { id: "outer", label: "Exterior", withText: true }, { id: "inner", label: "Interior", withText: true }, { id: "both", label: "Ambos", withText: true },
 ];
 
 /** Every card-level effect — mounted by "Efectos de la card".
- * Liquid glass (design menu-schema.js "cardFx"): four cards of tiles — Luz
- * (Borde, Sombra, Brillo, Pulso), Movimiento (Flotar, Inclinar 3D), Al pasar
- * el cursor (Brillo, Escala, Spotlight) and Retro (Scanlines, Ruido VHS,
- * Flicker, Aberración). Same controls, ranges and writes as before.
+ * 2026-11-11 (user request: "Colección no se entiende"): grouped by what
+ * each effect DOES — Holo y reflejo · Partículas · Borde, sombra y brillo ·
+ * Animaciones · Al tocar o pasar el cursor · Entrada · Retro. Tiles with a
+ * preview, a few controls each and the rest under "Más ajustes"; the colored
+ * effects share one palette picker (FxMenuParts › PaletteField).
  * `borderFooter`: the "Esquinas · Fondo" jump inside Borde. */
 export function CardEffectsSection({ borderFooter, ...props }: Props & { borderFooter?: React.ReactNode }) {
   const { raw } = props;
   const {
     bord, glow, inter, anim, sh, fx, patchBorder, patchGlow, patchGlowAnimation, patchShadow, patchInteractions,
-    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, patchFx, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
+    patchAnimations, patchRetro, patchHolo, patchGlare, patchEntrance, patchFx, patchMotion, setShadowOn, setGlowFlag, setHoverGlow, outerOn, innerOn, anyGlow, shadowOn,
     shadowFx, glowInt, hoverScaleOn, retro,
   } = useCardEffectActions(props);
   const { effective } = props;
   const holo = effective.holo, glare = effective.glare, entrance = effective.entrance;
   const holoIsOn = holoOn(effective), glareIsOn = glareOn(effective), entranceOn = !!entrance?.enabled;
-  const holoName = HOLO_STYLES.find(s => s.id === holoStyleOf(effective))?.label;
+  const holoStyle = holoStyleOf(effective);
+  const holoName = HOLO_STYLES.find(s => s.id === holoStyle)?.label;
   const glitter = effective.glitter, strass = effective.strass;
+  const edge = effective.edge, aura = effective.aura, dust = effective.dust, depth = effective.depth, seal = effective.seal;
+  const mo = effective.motion;
   const entranceName = ENTRANCE_STYLES.find(s => s.id === (entrance?.style ?? ENTRANCE_DEFAULT_STYLE))?.label;
-  const collect = [holoIsOn && "Holo", glareIsOn && "Reflejo", !!glitter?.enabled && "Glitter", !!strass?.enabled && "Strass", entranceOn && "Entrada"];
   // The Brillo tile: on = the outer glow (O3 neutral color and a visible
   // intensity for a new glow — effectBinding); off = both flags off in ONE
   // write (color/intensity stay, like the flags always did).
@@ -172,28 +198,35 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   const px = (v: number) => `${String(Math.round(v * 10) / 10).replace(".", ",")} px`;
   const x = (v: number) => `${v.toFixed(1).replace(".", ",")}x`;
+  const secs = (v: number) => `${String(Math.round(v * 10) / 10).replace(".", ",")} s`;
   const pulseOn = !!glow?.animation?.enabled;
   const names = (l: Array<string | false | undefined>) => { const n = l.filter(Boolean) as string[]; return n.length ? n.join(", ") : "Ninguno activo"; };
-  const light = [borderW > 0 && "Borde", shadowOn && "Sombra", anyGlow && "Brillo", pulseOn && anyGlow && "Pulso"];
-  const motion = [!!anim?.floating && "Flotar", !!inter?.tilt3d && "Inclinar 3D"];
-  const cursor = [!!inter?.hoverGlow && "Brillo", hoverScaleOn && "Escala", !!inter?.spotlight && "Spotlight"];
-  const retroOn = [!!retro?.scanlines?.enabled && "Scanlines", !!retro?.noise?.enabled && "Ruido VHS", !!retro?.flicker?.enabled && "Flicker", !!retro?.chromaticAberration?.enabled && "Aberración"];
   const count = (l: unknown[]) => l.filter(Boolean).length;
+  const paletteName = (v: { palette?: string } | undefined, auto: string) => FX_PALETTE_OPTIONS.find(o => o.id === v?.palette)?.label ?? auto;
+  const tryPress = (kind: string) => (e: React.MouseEvent) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent(FX_PRESS_EVENT, { detail: kind })); };
+
+  const foil = [holoIsOn && "Holo", glareIsOn && "Reflejo", !!edge?.enabled && "Canto metálico", !!seal?.enabled && "Sello"];
+  const particles = [!!glitter?.enabled && "Glitter", !!strass?.enabled && "Strass", !!dust?.enabled && "Polvo"];
+  const light = [borderW > 0 && "Borde", shadowOn && "Sombra", anyGlow && "Brillo", pulseOn && anyGlow && "Pulso", !!aura?.enabled && "Aura"];
+  const motion = [!!anim?.floating && "Flotar", !!mo?.breathe?.enabled && "Respirar", !!mo?.sway?.enabled && "Balanceo", !!mo?.heartbeat?.enabled && "Latido",
+    !!mo?.sweep?.enabled && "Destello", !!mo?.borderRun?.enabled && "Luz en el borde"];
+  const cursor = [!!inter?.tilt3d && "Inclinar 3D", !!depth?.enabled && "Foto con profundidad", !!inter?.hoverGlow && "Brillo", hoverScaleOn && "Escala", !!inter?.spotlight && "Spotlight",
+    !!mo?.ripple?.enabled && "Onda", !!mo?.jelly?.enabled && "Rebote", !!mo?.spin?.enabled && "Giro"];
+  const retroOn = [!!retro?.scanlines?.enabled && "Scanlines", !!retro?.noise?.enabled && "Ruido VHS", !!retro?.flicker?.enabled && "Flicker", !!retro?.chromaticAberration?.enabled && "Aberración"];
   return (
     <>
-      {/* Colección (2026-11-04): what makes the card feel like a collectible —
-          a foil that moves with the light, a glare, and how it enters. */}
-      <MenuSection label="Colección" icon="sparkles" active={count(collect)} summary={names(collect)}>
-        <EffectList label="Colección">
+      {/* What makes the card feel like a collectible: a foil that moves
+          with the light, the glare over it, a metal rim, a seal. */}
+      <MenuSection label="Holo y reflejo" icon="sparkles" active={count(foil)} summary={names(foil)}>
+        <EffectList label="Holo y reflejo">
           <EffectRow id="holo" label="Holo" icon="sparkles" preview="c-holo" on={holoIsOn}
             onToggle={v => patchHolo({ enabled: v, intensity: v && !(holo?.intensity) ? HOLO_DEFAULT_INTENSITY : holo?.intensity })}
             state={holoIsOn ? holoName : undefined}>
             {holoIsOn ? (
               <>
-                <MenuRow label="Acabado">
-                  <FontSelect value={holoStyleOf(effective)} onChange={v => patchHolo({ enabled: true, style: v as NonNullable<CardEffects["holo"]>["style"] })}
-                    fonts={HOLO_STYLES.map(s => ({ key: s.id, label: s.label }))} />
-                </MenuRow>
+                <FinishGrid value={holoStyle} fx={effective} onChange={v => patchHolo({ enabled: true, style: v })} />
+                <PaletteField value={holo} auto={HOLO_PALETTES[holoStyle]} autoLabel="Del acabado"
+                  onChange={v => patchHolo({ enabled: true, palette: v.palette, colors: v.colors })} />
                 <SliderRow label="Intensidad" icon="sparkles" min={0.05} max={1} step={0.01} value={holo?.intensity ?? HOLO_DEFAULT_INTENSITY}
                   onChange={v => patchHolo({ enabled: true, intensity: v })} fmt={pct} />
                 {/* Four options: a row of their own (beside a label they were cramped). */}
@@ -202,8 +235,14 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
                   <Tabs tabs={HOLO_SCOPES} active={holoScopeOf(effective)}
                     onChange={id => patchHolo({ enabled: true, scope: id === "card" ? undefined : id as NonNullable<CardEffects["holo"]>["scope"] })} label="Dónde" />
                 </div>
-                <SwitchRow label="Moverse solo" icon="play" value={holo?.idle !== false}
-                  onChange={v => patchHolo({ enabled: true, idle: v ? undefined : false })} />
+                <Collapsible label="Más ajustes">
+                  <SliderRow label="Tamaño del dibujo" icon="maximize" min={0.5} max={2} step={0.05} value={holo?.scale ?? 1}
+                    onChange={v => patchHolo({ enabled: true, scale: v === 1 ? undefined : v })} fmt={pct} />
+                  <SliderRow label="Ángulo" icon="rotate" min={-90} max={90} step={5} value={holo?.angle ?? 0}
+                    onChange={v => patchHolo({ enabled: true, angle: v === 0 ? undefined : v })} fmt={v => `${Math.round(v)}°`} />
+                  <SwitchRow label="Moverse solo" icon="play" value={holo?.idle !== false}
+                    onChange={v => patchHolo({ enabled: true, idle: v ? undefined : false })} />
+                </Collapsible>
                 <MenuNote>Se mueve con el mouse, el dedo o el giroscopio del celular.</MenuNote>
               </>
             ) : null}
@@ -213,68 +252,138 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             state={glareIsOn ? pct(glare?.intensity ?? GLARE_DEFAULT_INTENSITY) : undefined}>
             {glareIsOn ? (
               <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <GroupLabel>Forma</GroupLabel>
+                  <Tabs tabs={GLARE_SHAPES} active={glare?.shape ?? "both"}
+                    onChange={id => patchGlare({ enabled: true, shape: id === "both" ? undefined : id as NonNullable<CardEffects["glare"]>["shape"] })} label="Forma" />
+                </div>
                 <SliderRow label="Intensidad" icon="sun" min={0.05} max={1} step={0.01} value={glare?.intensity ?? GLARE_DEFAULT_INTENSITY}
                   onChange={v => patchGlare({ enabled: true, intensity: v })} fmt={pct} />
                 <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={glare?.size ?? GLARE_DEFAULT_SIZE}
                   onChange={v => patchGlare({ enabled: true, size: v })} fmt={pct} />
+                <ColorRow label="Color" value={glare?.color ?? FX_WHITE} onChange={v => patchGlare({ enabled: true, color: v })}
+                  state={raw?.glare?.color ? "modified" : undefined} onReset={() => patchGlare({ enabled: true, color: undefined })} />
               </>
             ) : null}
           </EffectRow>
-          <EffectRow id="glitter" label="Glitter" icon="sparkles" preview="t-shim" on={!!glitter?.enabled}
-            onToggle={v => patchFx("glitter", { enabled: v })} state={glitter?.enabled ? GLITTER_COLOR_LABEL[glitter.color ?? "white"] : undefined}>
-            {glitter?.enabled ? (
+          <EffectRow id="edge" label="Canto metálico" icon="frame" preview="c-edge" on={!!edge?.enabled}
+            onToggle={v => patchFx("edge", { enabled: v })} state={edge?.enabled ? EDGE_METALS.find(m => m.id === (edge.metal ?? "gold"))?.label : undefined}>
+            {edge?.enabled ? (
               <>
-                <MenuRow label="Color">
-                  <FontSelect value={glitter.color ?? "white"} onChange={v => patchFx("glitter", { enabled: true, color: v as NonNullable<CardEffects["glitter"]>["color"] })}
-                    fonts={Object.entries(GLITTER_COLOR_LABEL).map(([key, label]) => ({ key, label }))} />
+                <MenuRow label="Metal">
+                  <FontSelect value={edge.metal ?? "gold"} onChange={v => patchFx("edge", { enabled: true, metal: v as NonNullable<CardEffects["edge"]>["metal"] })}
+                    fonts={EDGE_METALS.map(m => ({ key: m.id, label: m.label }))} />
                 </MenuRow>
-                <SliderRow label="Cantidad" icon="sparkles" min={0} max={1} step={0.01} value={glitter.amount ?? GLITTER_DEFAULT_AMOUNT}
-                  onChange={v => patchFx("glitter", { enabled: true, amount: v })} fmt={pct} />
-                <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={glitter.size ?? GLITTER_DEFAULT_SIZE}
-                  onChange={v => patchFx("glitter", { enabled: true, size: v })} fmt={pct} />
+                {edge.metal === "custom" ? (
+                  <ColorRow label="Color" value={edge.color ?? EDGE_CUSTOM_DEFAULT} onChange={v => patchFx("edge", { enabled: true, color: v })} />
+                ) : null}
+                <SliderRow label="Grosor" icon="frame" min={2} max={14} step={1} value={edge.width ?? EDGE_DEFAULT_WIDTH}
+                  onChange={v => patchFx("edge", { enabled: true, width: v })} fmt={px} />
               </>
             ) : null}
           </EffectRow>
-          <EffectRow id="strass" label="Strass" icon="frame" preview="c-border" on={!!strass?.enabled}
-            onToggle={v => patchFx("strass", { enabled: v })} state={strass?.enabled ? STRASS_COLOR_LABEL[strass.color ?? "crystal"] : undefined}>
-            {strass?.enabled ? (
+          <EffectRow id="seal" label="Sello" icon="disc" preview="c-seal" on={!!seal?.enabled}
+            onToggle={v => patchFx("seal", { enabled: v })} state={seal?.enabled ? sealText(effective) : undefined}>
+            {seal?.enabled ? (
               <>
-                <MenuRow label="Piedras">
-                  <FontSelect value={strass.color ?? "crystal"} onChange={v => patchFx("strass", { enabled: true, color: v as NonNullable<CardEffects["strass"]>["color"] })}
-                    fonts={Object.entries(STRASS_COLOR_LABEL).map(([key, label]) => ({ key, label }))} />
+                <TextInput label="Texto (hasta 3 letras)" value={seal.text ?? ""} placeholder={SEAL_DEFAULTS.text} maxLength={3}
+                  onChange={v => patchFx("seal", { enabled: true, text: v || undefined })} />
+                <MenuRow label="Esquina">
+                  <FontSelect value={seal.corner ?? SEAL_DEFAULTS.corner} onChange={v => patchFx("seal", { enabled: true, corner: v as NonNullable<CardEffects["seal"]>["corner"] })}
+                    fonts={SEAL_CORNERS.map(c => ({ key: c.id, label: c.label }))} />
                 </MenuRow>
-                <SliderRow label="Tamaño" icon="maximize" min={5} max={16} step={1} value={strass.size ?? STRASS_DEFAULT_SIZE}
-                  onChange={v => patchFx("strass", { enabled: true, size: v })} fmt={px} />
-                <SliderRow label="Separación" icon="spacing" min={0} max={1} step={0.01} value={strass.gap ?? STRASS_DEFAULT_GAP}
-                  onChange={v => patchFx("strass", { enabled: true, gap: v })} fmt={pct} />
-              </>
-            ) : null}
-          </EffectRow>
-          <EffectRow id="entrance" label="Entrada" icon="play" preview="c-enter" on={entranceOn}
-            onToggle={v => patchEntrance({ enabled: v, style: entrance?.style ?? ENTRANCE_DEFAULT_STYLE })}
-            state={entranceOn ? entranceName : undefined}>
-            {entranceOn ? (
-              <>
-                <MenuRow label="Animación">
-                  <FontSelect value={entrance?.style ?? ENTRANCE_DEFAULT_STYLE} onChange={v => patchEntrance({ enabled: true, style: v as NonNullable<CardEffects["entrance"]>["style"] })}
-                    fonts={ENTRANCE_STYLES.map(s => ({ key: s.id, label: s.label }))} />
-                </MenuRow>
-                <SliderRow label="Duración" icon="rotate" min={0.3} max={3} step={0.1} value={entrance?.duration ?? ENTRANCE_DEFAULT_DURATION}
-                  onChange={v => patchEntrance({ enabled: true, duration: v })} fmt={v => `${v.toFixed(1).replace(".", ",")} s`} />
-                <SwitchRow label="Destello al entrar" icon="sparkles" value={!!entrance?.shine}
-                  onChange={v => patchEntrance({ enabled: true, shine: v || undefined })} />
-                <ActionButton fullWidth onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent(ENTRANCE_PREVIEW_EVENT)); }}>
-                  Ver entrada
-                </ActionButton>
-                <MenuNote>Se ve cada vez que alguien abre tu perfil.</MenuNote>
+                <SliderRow label="Tamaño" icon="maximize" min={30} max={84} step={1} value={seal.size ?? SEAL_DEFAULTS.size}
+                  onChange={v => patchFx("seal", { enabled: true, size: v })} fmt={px} />
+                <PaletteField value={seal} auto={FX_PALETTES.rainbow} autoLabel="Arcoíris"
+                  onChange={v => patchFx("seal", { enabled: true, palette: v.palette, colors: v.colors })} />
               </>
             ) : null}
           </EffectRow>
         </EffectList>
       </MenuSection>
 
-      <MenuSection label="Luz" icon="sun" active={count(light)} summary={names(light)}>
-        <EffectList label="Luz">
+      <MenuSection label="Partículas" icon="sparkles" active={count(particles)} summary={names(particles)}>
+        <EffectList label="Partículas">
+          <EffectRow id="glitter" label="Glitter" icon="sparkles" preview="c-glitter" on={!!glitter?.enabled}
+            onToggle={v => patchFx("glitter", { enabled: v })}
+            state={glitter?.enabled ? GLITTER_SCOPES.find(s => s.id === (glitter.scope ?? "text"))?.label : undefined}>
+            {glitter?.enabled ? (
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <GroupLabel>Dónde</GroupLabel>
+                  <Tabs tabs={GLITTER_SCOPES} active={glitter.scope ?? "text"}
+                    onChange={id => patchFx("glitter", { enabled: true, scope: id === "text" ? undefined : id as NonNullable<CardEffects["glitter"]>["scope"] })} label="Dónde" />
+                </div>
+                <PaletteField value={glitter} auto={GLITTER_COLORS[glitter.color ?? "white"]} autoLabel={GLITTER_COLOR_LABEL[glitter.color ?? "white"]}
+                  onChange={v => patchFx("glitter", { enabled: true, palette: v.palette, colors: v.colors })} />
+                <SliderRow label="Cantidad" icon="sparkles" min={0} max={1} step={0.01} value={glitter.amount ?? GLITTER_DEFAULT_AMOUNT}
+                  onChange={v => patchFx("glitter", { enabled: true, amount: v })} fmt={pct} />
+                <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={glitter.size ?? GLITTER_DEFAULT_SIZE}
+                  onChange={v => patchFx("glitter", { enabled: true, size: v })} fmt={pct} />
+                {!glitter.palette ? (
+                  <Collapsible label="Más ajustes">
+                    <MenuRow label="Tono base">
+                      <FontSelect value={glitter.color ?? "white"} onChange={v => patchFx("glitter", { enabled: true, color: v as NonNullable<CardEffects["glitter"]>["color"] })}
+                        fonts={Object.entries(GLITTER_COLOR_LABEL).map(([key, label]) => ({ key, label }))} />
+                    </MenuRow>
+                  </Collapsible>
+                ) : null}
+                <MenuNote>Destella más donde pasa la luz.</MenuNote>
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="strass" label="Strass" icon="frame" preview="c-strass" on={!!strass?.enabled}
+            onToggle={v => patchFx("strass", { enabled: v })} state={strass?.enabled ? STRASS_SHAPES.find(s => s.id === (strass.shape ?? "round"))?.label : undefined}>
+            {strass?.enabled ? (
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <GroupLabel>Forma</GroupLabel>
+                  <Tabs tabs={STRASS_SHAPES} active={strass.shape ?? "round"}
+                    onChange={id => patchFx("strass", { enabled: true, shape: id === "round" ? undefined : id as NonNullable<CardEffects["strass"]>["shape"] })} label="Forma" />
+                </div>
+                <PaletteField value={strass} auto={strassColors({ strass: { enabled: true, color: strass.color } })} autoLabel={STRASS_COLOR_LABEL[strass.color ?? "crystal"]}
+                  onChange={v => patchFx("strass", { enabled: true, palette: v.palette, colors: v.colors })} />
+                <SliderRow label="Tamaño" icon="maximize" min={5} max={16} step={1} value={strass.size ?? STRASS_DEFAULT_SIZE}
+                  onChange={v => patchFx("strass", { enabled: true, size: v })} fmt={px} />
+                <SliderRow label="Separación" icon="spacing" min={0} max={1} step={0.01} value={strass.gap ?? STRASS_DEFAULT_GAP}
+                  onChange={v => patchFx("strass", { enabled: true, gap: v })} fmt={pct} />
+                {!strass.palette ? (
+                  <Collapsible label="Más ajustes">
+                    <MenuRow label="Piedras">
+                      <FontSelect value={strass.color ?? "crystal"} onChange={v => patchFx("strass", { enabled: true, color: v as NonNullable<CardEffects["strass"]>["color"] })}
+                        fonts={Object.entries(STRASS_COLOR_LABEL).map(([key, label]) => ({ key, label }))} />
+                    </MenuRow>
+                  </Collapsible>
+                ) : null}
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="dust" label="Polvo de estrellas" icon="sparkles" preview="c-dust" on={!!dust?.enabled}
+            onToggle={v => patchFx("dust", { enabled: v })} state={dust?.enabled ? (dust.layer === "back" ? "Detrás" : "Delante") : undefined}>
+            {dust?.enabled ? (
+              <>
+                <MenuRow label="Dónde">
+                  <div style={{ width: 228 }}>
+                    <Tabs tabs={DUST_LAYERS} active={dust.layer ?? "front"}
+                      onChange={id => patchFx("dust", { enabled: true, layer: id === "front" ? undefined : "back" })} label="Dónde" />
+                  </div>
+                </MenuRow>
+                <PaletteField value={dust} auto={DUST_AUTO} autoLabel="Blanco cálido"
+                  onChange={v => patchFx("dust", { enabled: true, palette: v.palette, colors: v.colors })} />
+                <SliderRow label="Cantidad" icon="sparkles" min={0} max={1} step={0.01} value={dust.amount ?? DUST_DEFAULTS.amount}
+                  onChange={v => patchFx("dust", { enabled: true, amount: v })} fmt={pct} />
+                <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={dust.size ?? DUST_DEFAULTS.size}
+                  onChange={v => patchFx("dust", { enabled: true, size: v })} fmt={pct} />
+                <SliderRow label="Velocidad" icon="play" min={0.3} max={3} step={0.1} value={dust.speed ?? DUST_DEFAULTS.speed}
+                  onChange={v => patchFx("dust", { enabled: true, speed: v })} fmt={x} />
+              </>
+            ) : null}
+          </EffectRow>
+        </EffectList>
+      </MenuSection>
+
+      <MenuSection label="Borde, sombra y brillo" icon="sun" active={count(light)} summary={names(light)}>
+        <EffectList label="Borde, sombra y brillo">
           <EffectRow id="border" label="Borde" icon="frame" preview="c-border" active={borderW > 0}
             state={borderW > 0 ? px(borderW) : "Sin borde"}>
             <ColorRow
@@ -347,11 +456,30 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             )}
             {pulseOn && !anyGlow && <MenuNote tone="warn">Prendé Brillo para ver el pulso</MenuNote>}
           </EffectRow>
+
+          <EffectRow id="aura" label="Aura" icon="sun" preview="c-aura" on={!!aura?.enabled}
+            onToggle={v => patchFx("aura", { enabled: v })} state={aura?.enabled ? paletteName(aura, "Neón") : undefined}>
+            {aura?.enabled ? (
+              <>
+                <PaletteField value={aura} auto={FX_PALETTES.neon} autoLabel="Neón"
+                  onChange={v => patchFx("aura", { enabled: true, palette: v.palette, colors: v.colors })} />
+                <SliderRow label="Intensidad" icon="sun" min={0} max={1} step={0.01} value={aura.intensity ?? AURA_DEFAULTS.intensity}
+                  onChange={v => patchFx("aura", { enabled: true, intensity: v })} fmt={pct} />
+                <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={aura.size ?? AURA_DEFAULTS.size}
+                  onChange={v => patchFx("aura", { enabled: true, size: v })} fmt={pct} />
+                <SwitchRow label="Que lata" icon="sparkles" value={!!aura.pulse}
+                  onChange={v => patchFx("aura", { enabled: true, pulse: v || undefined })} />
+                <SwitchRow label="Que gire" icon="rotate" value={!!aura.spin}
+                  onChange={v => patchFx("aura", { enabled: true, spin: v || undefined })} />
+              </>
+            ) : null}
+          </EffectRow>
         </EffectList>
       </MenuSection>
 
-      <MenuSection label="Movimiento" icon="move" active={count(motion)} summary={names(motion)}>
-        <EffectList label="Movimiento">
+      {/* What the card does by itself while it is on screen (cardFx.ts). */}
+      <MenuSection label="Animaciones" icon="move" active={count(motion)} summary={names(motion)}>
+        <EffectList label="Animaciones">
           <EffectRow id="float" label="Flotar" icon="arrow-up" preview="c-float" on={!!anim?.floating} onToggle={v => patchAnimations({ floating: v })}
             state={anim?.floating ? px(anim?.floatHeight ?? 8) : undefined}>
             {anim?.floating ? (
@@ -363,6 +491,70 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
               </>
             ) : null}
           </EffectRow>
+          <EffectRow id="breathe" label="Respirar" icon="maximize" preview="c-breathe" on={!!mo?.breathe?.enabled}
+            onToggle={v => patchMotion("breathe", { enabled: v })} state={mo?.breathe?.enabled ? pct(mo.breathe.amount ?? MOTION_DEFAULTS.breathe.amount) : undefined}>
+            {mo?.breathe?.enabled ? (
+              <>
+                <SliderRow label="Cuánto" icon="maximize" min={0} max={1} step={0.01} value={mo.breathe.amount ?? MOTION_DEFAULTS.breathe.amount}
+                  onChange={v => patchMotion("breathe", { enabled: true, amount: v })} fmt={pct} />
+                <SliderRow label="Velocidad" icon="play" min={0.3} max={3} step={0.1} value={mo.breathe.speed ?? MOTION_DEFAULTS.breathe.speed}
+                  onChange={v => patchMotion("breathe", { enabled: true, speed: v })} fmt={x} />
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="sway" label="Balanceo" icon="rotate" preview="c-sway" on={!!mo?.sway?.enabled}
+            onToggle={v => patchMotion("sway", { enabled: v })} state={mo?.sway?.enabled ? pct(mo.sway.amount ?? MOTION_DEFAULTS.sway.amount) : undefined}>
+            {mo?.sway?.enabled ? (
+              <>
+                <SliderRow label="Cuánto" icon="rotate" min={0} max={1} step={0.01} value={mo.sway.amount ?? MOTION_DEFAULTS.sway.amount}
+                  onChange={v => patchMotion("sway", { enabled: true, amount: v })} fmt={pct} />
+                <SliderRow label="Velocidad" icon="play" min={0.3} max={3} step={0.1} value={mo.sway.speed ?? MOTION_DEFAULTS.sway.speed}
+                  onChange={v => patchMotion("sway", { enabled: true, speed: v })} fmt={x} />
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="heartbeat" label="Latido" icon="sparkles" preview="c-beat" on={!!mo?.heartbeat?.enabled}
+            onToggle={v => patchMotion("heartbeat", { enabled: v })} state={mo?.heartbeat?.enabled ? pct(mo.heartbeat.amount ?? MOTION_DEFAULTS.heartbeat.amount) : undefined}>
+            {mo?.heartbeat?.enabled ? (
+              <>
+                <SliderRow label="Cuánto" icon="maximize" min={0} max={1} step={0.01} value={mo.heartbeat.amount ?? MOTION_DEFAULTS.heartbeat.amount}
+                  onChange={v => patchMotion("heartbeat", { enabled: true, amount: v })} fmt={pct} />
+                <SliderRow label="Velocidad" icon="play" min={0.3} max={3} step={0.1} value={mo.heartbeat.speed ?? MOTION_DEFAULTS.heartbeat.speed}
+                  onChange={v => patchMotion("heartbeat", { enabled: true, speed: v })} fmt={x} />
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="sweep" label="Destello" icon="sun" preview="c-sweep" on={!!mo?.sweep?.enabled}
+            onToggle={v => patchMotion("sweep", { enabled: v })} state={mo?.sweep?.enabled ? `cada ${secs(mo.sweep.interval ?? MOTION_DEFAULTS.sweep.interval)}` : undefined}>
+            {mo?.sweep?.enabled ? (
+              <>
+                <SliderRow label="Cada cuánto" icon="rotate" min={2} max={20} step={0.5} value={mo.sweep.interval ?? MOTION_DEFAULTS.sweep.interval}
+                  onChange={v => patchMotion("sweep", { enabled: true, interval: v })} fmt={secs} />
+                <ColorRow label="Color" value={mo.sweep.color ?? FX_WHITE} onChange={v => patchMotion("sweep", { enabled: true, color: v })}
+                  state={raw?.motion?.sweep?.color ? "modified" : undefined} onReset={() => patchMotion("sweep", { enabled: true, color: undefined })} />
+                <MenuNote>Una franja de luz cruza la tarjeta cada tanto.</MenuNote>
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="borderRun" label="Luz en el borde" icon="frame" preview="c-run" on={!!mo?.borderRun?.enabled}
+            onToggle={v => patchMotion("borderRun", { enabled: v })} state={mo?.borderRun?.enabled ? x(mo.borderRun.speed ?? MOTION_DEFAULTS.borderRun.speed) : undefined}>
+            {mo?.borderRun?.enabled ? (
+              <>
+                <PaletteField value={mo.borderRun} auto={BORDER_RUN_AUTO} autoLabel="Blanco"
+                  onChange={v => patchMotion("borderRun", { enabled: true, palette: v.palette, colors: v.colors })} />
+                <SliderRow label="Velocidad" icon="play" min={0.3} max={3} step={0.1} value={mo.borderRun.speed ?? MOTION_DEFAULTS.borderRun.speed}
+                  onChange={v => patchMotion("borderRun", { enabled: true, speed: v })} fmt={x} />
+                <SliderRow label="Grosor" icon="frame" min={1} max={8} step={0.5} value={mo.borderRun.width ?? MOTION_DEFAULTS.borderRun.width}
+                  onChange={v => patchMotion("borderRun", { enabled: true, width: v })} fmt={px} />
+              </>
+            ) : null}
+          </EffectRow>
+        </EffectList>
+      </MenuSection>
+
+      {/* What answers to the visitor: the cursor, the finger, the phone's tilt. */}
+      <MenuSection label="Al tocar o pasar el cursor" icon="pointer" active={count(cursor)} summary={names(cursor)}>
+        <EffectList label="Al tocar o pasar el cursor">
           <EffectRow id="tilt" label="Inclinar 3D" icon="move" preview="c-tilt" on={!!inter?.tilt3d} onToggle={v => patchInteractions({ tilt3d: v })}
             state={inter?.tilt3d ? `${inter?.tiltIntensity ?? PROFILE_TILT_DEFAULT}°` : undefined}>
             {inter?.tilt3d ? (
@@ -370,13 +562,16 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
                 onChange={v => patchInteractions({ tiltIntensity: v })} fmt={v => `${String(v).replace(".", ",")}°`} />
             ) : null}
           </EffectRow>
-        </EffectList>
-      </MenuSection>
-
-      {/* Stage FASE 3: hover glow / scale, each on its own nested layer
-          (useCardInteractions.ts + CardLayers.tsx) — two independent tiles. */}
-      <MenuSection label="Al pasar el cursor" icon="pointer" active={count(cursor)} summary={names(cursor)}>
-        <EffectList label="Al pasar el cursor">
+          <EffectRow id="depth" label="Foto con profundidad" icon="image" preview="c-depth" on={!!depth?.enabled}
+            onToggle={v => patchFx("depth", { enabled: v })} state={depth?.enabled ? pct(depth.amount ?? DEPTH_DEFAULT) : undefined}>
+            {depth?.enabled ? (
+              <>
+                <SliderRow label="Cuánto" icon="move" min={0} max={1} step={0.01} value={depth.amount ?? DEPTH_DEFAULT}
+                  onChange={v => patchFx("depth", { enabled: true, amount: v })} fmt={pct} />
+                <MenuNote>La foto se corre apenas contra la tarjeta al mover el mouse o el celular.</MenuNote>
+              </>
+            ) : null}
+          </EffectRow>
           <EffectRow id="hover" label="Brillo" icon="sun" preview="c-glow" on={!!inter?.hoverGlow} onToggle={setHoverGlow} state="Al pasar" />
           <EffectRow id="hoverScale" label="Escala" icon="maximize" on={hoverScaleOn}
             onToggle={v => fx.setEnabled("interactions.hoverScale", v)}
@@ -405,6 +600,62 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
                   onChange={v => patchInteractions({ spotlightSize: v })} unit="%" fmt={v => `${Math.round(v)}%`}
                   state={raw?.interactions?.spotlightSize !== undefined ? "modified" : undefined}
                   onReset={() => patchInteractions({ spotlightSize: undefined })} />
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="ripple" label="Onda" icon="disc" preview="c-ripple" on={!!mo?.ripple?.enabled}
+            onToggle={v => patchMotion("ripple", { enabled: v })} state={mo?.ripple?.enabled ? "Al tocar" : undefined}>
+            {mo?.ripple?.enabled ? (
+              <>
+                <ColorRow label="Color" value={mo.ripple.color ?? FX_WHITE} onChange={v => patchMotion("ripple", { enabled: true, color: v })}
+                  state={raw?.motion?.ripple?.color ? "modified" : undefined} onReset={() => patchMotion("ripple", { enabled: true, color: undefined })} />
+                <ActionButton fullWidth onClick={tryPress("ripple")}>Probar</ActionButton>
+                <MenuNote>Sale de donde tocan la tarjeta en tu perfil.</MenuNote>
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="jelly" label="Rebote" icon="maximize" preview="c-jelly" on={!!mo?.jelly?.enabled}
+            onToggle={v => patchMotion("jelly", { enabled: v })} state={mo?.jelly?.enabled ? pct(mo.jelly.amount ?? MOTION_DEFAULTS.jelly.amount) : undefined}>
+            {mo?.jelly?.enabled ? (
+              <>
+                <SliderRow label="Cuánto" icon="maximize" min={0} max={1} step={0.01} value={mo.jelly.amount ?? MOTION_DEFAULTS.jelly.amount}
+                  onChange={v => patchMotion("jelly", { enabled: true, amount: v })} fmt={pct} />
+                <ActionButton fullWidth onClick={tryPress("jelly")}>Probar</ActionButton>
+              </>
+            ) : null}
+          </EffectRow>
+          <EffectRow id="spin" label="Giro" icon="rotate" preview="c-spin" on={!!mo?.spin?.enabled}
+            onToggle={v => patchMotion("spin", { enabled: v })} state={mo?.spin?.enabled ? "Al tocar" : undefined}>
+            {mo?.spin?.enabled ? (
+              <>
+                <ActionButton fullWidth onClick={tryPress("spin")}>Probar</ActionButton>
+                <MenuNote>La tarjeta da una vuelta entera cuando la tocan.</MenuNote>
+              </>
+            ) : null}
+          </EffectRow>
+        </EffectList>
+      </MenuSection>
+
+      {/* How the card comes in on the public profile. */}
+      <MenuSection label="Entrada" icon="play" active={entranceOn ? 1 : 0} summary={entranceOn ? entranceName ?? "Activa" : "La de siempre"}>
+        <EffectList label="Entrada">
+          <EffectRow id="entrance" label="Entrada" icon="play" preview="c-enter" on={entranceOn}
+            onToggle={v => patchEntrance({ enabled: v, style: entrance?.style ?? ENTRANCE_DEFAULT_STYLE })}
+            state={entranceOn ? entranceName : undefined}>
+            {entranceOn ? (
+              <>
+                <MenuRow label="Animación">
+                  <FontSelect value={entrance?.style ?? ENTRANCE_DEFAULT_STYLE} onChange={v => patchEntrance({ enabled: true, style: v as NonNullable<CardEffects["entrance"]>["style"] })}
+                    fonts={ENTRANCE_STYLES.map(s => ({ key: s.id, label: s.label }))} />
+                </MenuRow>
+                <SliderRow label="Duración" icon="rotate" min={0.3} max={3} step={0.1} value={entrance?.duration ?? ENTRANCE_DEFAULT_DURATION}
+                  onChange={v => patchEntrance({ enabled: true, duration: v })} fmt={v => `${v.toFixed(1).replace(".", ",")} s`} />
+                <SwitchRow label="Destello al entrar" icon="sparkles" value={!!entrance?.shine}
+                  onChange={v => patchEntrance({ enabled: true, shine: v || undefined })} />
+                <ActionButton fullWidth onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent(ENTRANCE_PREVIEW_EVENT)); }}>
+                  Ver entrada
+                </ActionButton>
+                <MenuNote>Se ve cada vez que alguien abre tu perfil.</MenuNote>
               </>
             ) : null}
           </EffectRow>

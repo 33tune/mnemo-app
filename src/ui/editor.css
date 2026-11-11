@@ -591,6 +591,57 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-glare"] { background: linear-gradient(115deg, color-mix(in srgb, currentColor 35%, transparent) 30%, currentColor 50%, color-mix(in srgb, currentColor 35%, transparent) 70%); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-enter"] { transform: translateY(3px) scale(0.85); opacity: 0.75; box-shadow: 0 -4px 0 -2px color-mix(in srgb, currentColor 40%, transparent); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-chroma"] { background: transparent; box-shadow: inset 0 0 0 2px currentColor, -2.5px 0 0 var(--ui-accent-main), 2.5px 0 0 var(--ui-accent-focus); }
+/* Tarjeta › Efectos (2026-11-11): previews of the new effects and animations. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-edge"] { background: transparent; box-shadow: inset 0 0 0 3px currentColor, inset 0 0 0 4px color-mix(in srgb, currentColor 35%, transparent); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-aura"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent-main) 55%, transparent), 0 0 10px 4px var(--ui-accent-focus); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-dust"] { background: radial-gradient(currentColor 1px, transparent 1.3px) 0 0 / 6px 6px, radial-gradient(currentColor 0.7px, transparent 1px) 3px 2px / 5px 7px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-glitter"] { background: currentColor; clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-strass"] { background: transparent; border-radius: 50%; box-shadow: inset 0 0 0 2px currentColor, inset 3px 3px 0 0 color-mix(in srgb, currentColor 45%, transparent); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-seal"] { border-radius: 50%; background: conic-gradient(var(--ui-accent-main), var(--ui-accent-focus), currentColor, var(--ui-accent-main)); box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 60%, transparent); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-depth"] { border-radius: 50%; box-shadow: 3px 3px 0 0 color-mix(in srgb, currentColor 35%, transparent); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-breathe"] { box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 30%, transparent); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-sway"] { transform: rotate(-9deg); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-beat"] { background: currentColor; clip-path: polygon(50% 100%, 6% 52%, 6% 26%, 26% 8%, 50% 26%, 74% 8%, 94% 26%, 94% 52%); border-radius: 0; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-sweep"] { background: linear-gradient(105deg, color-mix(in srgb, currentColor 30%, transparent) 35%, currentColor 50%, color-mix(in srgb, currentColor 30%, transparent) 65%); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-run"] { background: conic-gradient(from 200deg, transparent 0 55%, currentColor 95%, transparent); -webkit-mask: radial-gradient(farthest-side, transparent 55%, CanvasText 58%); mask: radial-gradient(farthest-side, transparent 55%, CanvasText 58%); border-radius: 5px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-ripple"] { background: transparent; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor, 0 0 0 3px color-mix(in srgb, currentColor 35%, transparent); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-jelly"] { transform: scale(1.18, 0.82); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-spin"] { transform: perspective(40px) rotateY(58deg); }
+@media (prefers-reduced-motion: no-preference) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-breathe"] { animation: mn-pv-breathe 1.6s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-sway"] { animation: mn-pv-sway 1.6s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-beat"] { animation: mn-pv-beat 1s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-jelly"] { animation: mn-pv-jelly 0.7s ease-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-spin"] { animation: mn-pv-spin 1.1s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-float"] { animation: mn-pv-float 1.4s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-run"] { animation: mn-pv-turn 1.4s linear infinite; }
+}
+@keyframes mn-pv-breathe { 50% { transform: scale(1.22); } }
+@keyframes mn-pv-sway { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
+@keyframes mn-pv-beat { 0%, 30%, 60%, 100% { transform: scale(1); } 15% { transform: scale(1.3); } 45% { transform: scale(1.16); } }
+@keyframes mn-pv-jelly { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.25, 0.78); } 55% { transform: scale(0.86, 1.14); } 78% { transform: scale(1.07, 0.94); } }
+@keyframes mn-pv-spin { to { transform: perspective(40px) rotateY(360deg); } }
+@keyframes mn-pv-float { 50% { transform: translateY(-5px); } }
+@keyframes mn-pv-turn { to { transform: rotate(360deg); } }
+
+/* Palette picker and holo finishes (FxMenuParts.tsx). */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-swatches { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-swatch { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px 2px 4px; border: 0; border-radius: 10px; background: var(--ui-surface-control); color: var(--ui-text-secondary); cursor: pointer; font-family: var(--ui-font-sans); transition: background var(--ui-motion-fast) var(--ui-motion-ease); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-swatch:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-swatch:focus-visible { outline: none; box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-swatch[data-on] { background: var(--ui-accent-main); color: var(--ui-accent-ink); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-swatch__fill { width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--ui-line-field); forced-color-adjust: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-swatch__name { font-size: 10px; line-height: 1.1; font-weight: 600; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-finishes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-finish { display: flex; flex-direction: column; gap: 4px; padding: 4px 4px 5px; border: 0; border-radius: 12px; background: var(--ui-surface-control); color: var(--ui-text-secondary); cursor: pointer; font-family: var(--ui-font-sans); transition: background var(--ui-motion-fast) var(--ui-motion-ease); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-finish:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-finish:focus-visible { outline: none; box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-finish[data-on] { background: var(--ui-accent-main); color: var(--ui-accent-ink); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-finish__pv { position: relative; display: block; width: 100%; height: 52px; border-radius: 9px; overflow: hidden; background: var(--ui-accent-fx-thumb); isolation: isolate; forced-color-adjust: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-finish__name { font-size: 10.5px; line-height: 1.15; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-swatch[data-on], :where([data-mnemo-editor], [data-mnemo-ui]) .mn-finish[data-on] { outline: 2px solid Highlight; }
+}
 @media (forced-colors: active) {
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile { border: 1px solid ButtonText; }
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile[data-on] { border: 2px solid Highlight; }
