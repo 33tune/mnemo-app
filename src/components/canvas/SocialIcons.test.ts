@@ -4,7 +4,9 @@ import { detectPlatform, PLATFORM_LABELS, type Platform } from "./SocialIcons";
 
 // ── Detection: one canonical URL per platform (Stage 4.2-B §11 "Detection") ──
 
-const CANONICAL: Record<Platform, string> = {
+// bnb / trx share their address format with eth / usdt (the default); the
+// owner picks them in the menu, so detection alone never returns them.
+const CANONICAL: Record<Exclude<Platform, "bnb" | "trx">, string> = {
   discord:    "https://discord.gg/abc123",
   instagram:  "https://www.instagram.com/someuser/",
   github:     "https://github.com/someuser",
@@ -19,9 +21,16 @@ const CANONICAL: Record<Platform, string> = {
   linkedin:   "https://www.linkedin.com/in/someuser",
   facebook:   "https://www.facebook.com/someuser",
   link:       "https://someone-elses-site.example.com/someuser",
+  btc:        "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+  eth:        "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+  sol:        "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV",
+  ltc:        "LVg2kJoFNg45Nbpy53h7Fe1wKyeXVRhMH9",
+  doge:       "DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L",
+  xmr:        "44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A",
+  usdt:       "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
 };
 
-for (const platform of Object.keys(CANONICAL) as Platform[]) {
+for (const platform of Object.keys(CANONICAL) as (keyof typeof CANONICAL)[]) {
   test(`detectPlatform: recognizes ${platform}`, () => {
     assert.equal(detectPlatform(CANONICAL[platform]), platform);
   });

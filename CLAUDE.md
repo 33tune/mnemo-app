@@ -540,6 +540,14 @@ planeado acá hasta confirmarlo.
 >     deja sonar recién después de un toque en la página). Celular: fila "Tus favoritos" en la pantalla de inicio.
 >   - Sin QA en iPhone real (sonido, Realtime en Safari).
 >
+> **Billeteras cripto en los íconos (2026-11-13, pedido del usuario, "como guns.lol"):** en Contenido › Íconos se puede
+>   pegar una dirección de billetera en lugar de un link (`src/lib/wallets.ts`, con test). La moneda se detecta por el
+>   formato (Bitcoin, Ethereum, Solana, Litecoin, Dogecoin, Monero, USDT, BNB, Tron); `0x…` sirve para Ethereum / USDT /
+>   BNB y `T…` para USDT / Tron: el menú muestra un selector y la elección se guarda en `ContactLink.coin`. Se guarda la
+>   dirección limpia (sin `bitcoin:`, `?amount`, espacios). En la card el ícono es un BOTÓN que solo copia la dirección
+>   (`WalletCopyIcon.tsx`, nunca un `<a>`) y muestra "Copiada · bc1qar…f5mdq". Una dirección con pinta de billetera pero
+>   inválida no se agrega (aviso). Íconos propios SVG (símbolos, no logos) en `SocialIcons.tsx` (`Platform` incluye `Coin`).
+>
 > **Panel de admin y métricas propias (2026-11-07, pedido del usuario):** `/admin` (`src/app/admin/page.tsx` +
 >   `src/components/admin/AdminPanel.tsx`), solo para quien está en la tabla `admins` (el dueño, `nico`, por user id);
 >   cualquier otro ve el 404. Base: `supabase/migrations/20261107000000_admin_and_metrics.sql` (APLICADA). Funciones

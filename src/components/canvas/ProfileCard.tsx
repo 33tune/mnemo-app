@@ -31,6 +31,8 @@ import {
 import { resolvePfpSize, pfpRadiusToPercent, getCardPadding, PFP_PHOTO_SIZES, centerCardPosition, shouldApplyGrowth } from "@/lib/cardGeometry";
 import { isPfpAnchorDraggable } from "@/lib/canvasSelectionGuards";
 import { detectPlatform, PlatformIcon, PLATFORM_COLORS, PLATFORM_LABELS } from "./SocialIcons";
+import WalletCopyIcon from "./WalletCopyIcon";
+import { walletCoin } from "@/lib/wallets";
 import { CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP, CONTACT_LINK_ICON_OPACITY } from "@/lib/contactLinksBlock";
 import { resolveClickAfterDrag } from "@/lib/dragClickGuard";
 import { withOpacity, resolveCardColors, cardIsLight, cardBaseColor } from "@/lib/cardColors";
@@ -142,6 +144,9 @@ function ContactLinkIcon({
   didDragRef?: React.RefObject<boolean>;
 }) {
   const [hov, setHov] = useState(false);
+  // A wallet address (2026-11-13) is a copy button, never a link.
+  const coin = walletCoin(link.url, link.coin);
+  if (coin) return <WalletCopyIcon address={link.url} coin={coin} color={color} size={size} opacity={opacity} menuOpen={menuOpen} didDragRef={didDragRef} />;
   const platform = detectPlatform(link.url);
   const safeUrl = link.url.startsWith("http") ? link.url : `https://${link.url}`;
   return (

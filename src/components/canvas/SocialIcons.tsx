@@ -1,10 +1,16 @@
 "use client";
 import { useState } from "react";
+import { type Coin, COIN_COLORS, COIN_LABELS, walletCoin } from "@/lib/wallets";
 
 export type Platform =
   | "discord" | "instagram" | "spotify" | "tiktok" | "github"
   | "twitter" | "twitch" | "youtube" | "steam" | "telegram"
-  | "linkedin" | "facebook" | "soundcloud" | "link";
+  | "linkedin" | "facebook" | "soundcloud" | "link"
+  // Crypto wallets (2026-11-13): the "url" is an address and the icon copies it.
+  | Coin;
+
+const COINS = new Set<string>(Object.keys(COIN_LABELS));
+export function isWalletPlatform(p: Platform): p is Coin { return COINS.has(p); }
 
 export const PLATFORM_COLORS: Record<Platform, string> = {
   discord:    "#5865F2",
@@ -21,6 +27,7 @@ export const PLATFORM_COLORS: Record<Platform, string> = {
   facebook:   "#1877F2",
   soundcloud: "#FF5500",
   link:       "#aaaaaa",
+  ...COIN_COLORS,
 };
 
 export const PLATFORM_LABELS: Record<Platform, string> = {
@@ -38,6 +45,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   facebook:   "Facebook",
   soundcloud: "SoundCloud",
   link:       "Link",
+  ...COIN_LABELS,
 };
 
 export function detectPlatform(url: string): Platform {
@@ -55,7 +63,7 @@ export function detectPlatform(url: string): Platform {
   if (u.includes("linkedin.com")) return "linkedin";
   if (u.includes("facebook.com") || u.includes("fb.com")) return "facebook";
   if (u.includes("soundcloud.com")) return "soundcloud";
-  return "link";
+  return walletCoin(url) ?? "link";
 }
 
 export function PlatformIcon({ platform, size, color }: { platform: Platform; size: number; color: string }) {
@@ -102,6 +110,36 @@ export function PlatformIcon({ platform, size, color }: { platform: Platform; si
   // than a scraped brand asset.
   if (platform === "soundcloud") return (
     <svg {...p}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+  );
+
+  // Crypto: original simple glyphs of each coin's symbol (not the logos).
+  const stroke = { ...p, fill: "none", stroke: color, strokeWidth: 2.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (platform === "btc") return (
+    <svg {...stroke}><g transform="rotate(14 12 12)"><path d="M8 5.5h5.2a3.1 3.1 0 0 1 0 6.2H8M8 11.7h6a3.4 3.4 0 0 1 0 6.8H8M8 5.5v13M10.2 3.2v2.3M13.3 3.2v2.3M10.2 18.5v2.3M13.3 18.5v2.3"/></g></svg>
+  );
+  if (platform === "eth") return (
+    <svg {...p}><path d="M12 1.5 5.2 12.3 12 16.2l6.8-3.9z"/><path d="M12 17.6 5.2 13.7 12 22.5l6.8-8.8z" opacity=".75"/></svg>
+  );
+  if (platform === "sol") return (
+    <svg {...p}><path d="M6.6 4.5h14L17.4 8H3.4zM3.4 10.25h14l3.2 3.5h-14zM6.6 16h14l-3.2 3.5H3.4z"/></svg>
+  );
+  if (platform === "ltc") return (
+    <svg {...stroke}><path d="M11 3.5 8.6 19.5H19M5.5 13.6l9-3.6"/></svg>
+  );
+  if (platform === "doge") return (
+    <svg {...stroke}><path d="M8.5 4.5h3.6a7.5 7.5 0 0 1 0 15H8.5zM5 12h8"/></svg>
+  );
+  if (platform === "xmr") return (
+    <svg {...stroke}><path d="M5 16.5V6.5l7 7 7-7v10M2.5 16.5H6M18 16.5h3.5"/></svg>
+  );
+  if (platform === "usdt") return (
+    <svg {...stroke}><path d="M5 5.5h14M12 5.5v14M6.5 11c1.6.9 3.4 1.2 5.5 1.2s3.9-.3 5.5-1.2"/></svg>
+  );
+  if (platform === "bnb") return (
+    <svg {...p}><path d="m12 2.8 3.1 3.1L12 9 8.9 5.9zM12 15l3.1 3.1L12 21.2l-3.1-3.1zM5.9 8.9 9 12l-3.1 3.1L2.8 12zM18.1 8.9l3.1 3.1-3.1 3.1L15 12zM12 9.6 14.4 12 12 14.4 9.6 12z"/></svg>
+  );
+  if (platform === "trx") return (
+    <svg {...stroke}><path d="M3.5 4.5 20.5 8 11 20.5zM3.5 4.5l9.5 7.2 7.5-3.7M13 11.7 11 20.5"/></svg>
   );
 
   return (

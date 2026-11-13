@@ -294,7 +294,11 @@ export type MusicBlockData = {
 // would just drift out of sync with the url otherwise).
 export type ContactLink = {
   id:  string;
+  /** A URL, or a crypto wallet address (2026-11-13: the icon copies it). */
   url: string;
+  /** Only for an address whose format serves several coins (0x… / T…): the
+   * owner's pick. Absent = the format's default (src/lib/wallets.ts). */
+  coin?: import("@/lib/wallets").Coin;
 };
 
 export type SocialLink = {

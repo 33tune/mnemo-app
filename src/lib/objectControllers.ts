@@ -20,6 +20,7 @@
  * so no menu can forget it.
  */
 import type { LinkButton, LinkButtonStyle, CanvasElement, CardEffects, ContactLink, ProfileCardData } from "@/types";
+import { walletCoins, normalizeWallet, type Coin } from "./wallets";
 import { mergePatch } from "./effectPause";
 import { patchEffectGroup, setEffectEnabled } from "./effectBinding";
 import { GRADIENT_DEFAULT } from "./effectEditorDefaults";
@@ -201,8 +202,15 @@ function legacyIconColorCleared(blockStyle?: ProfileCardData["blockStyle"]): Par
 
 export function linksController(links: ContactLink[], write: Write<Partial<ProfileCardData>>, newId: () => string = () => crypto.randomUUID()) {
   return {
-    add: (url: string) => write({ contactLinks: [...links, { id: newId(), url }] }),
-    update: (id: string, url: string) => write({ contactLinks: links.map(l => l.id === id ? { ...l, url } : l) }),
+    // A wallet address is stored bare ("bitcoin:…?amount" and spaces dropped).
+    add: (url: string) => write({ contactLinks: [...links, { id: newId(), url: walletCoins(url) ? normalizeWallet(url) : url }] }),
+    update: (id: string, url: string) => write({ contactLinks: links.map(l => {
+      if (l.id !== id) return l;
+      const { coin, ...rest } = l;
+      return walletCoins(url) ? { ...rest, url: normalizeWallet(url), ...(coin && walletCoins(url)!.includes(coin) ? { coin } : {}) } : { ...rest, url };
+    }) }),
+    /** The coin of an address whose format serves several (0x… / T…). */
+    setCoin: (id: string, coin: Coin) => write({ contactLinks: links.map(l => l.id === id ? { ...l, coin } : l) }),
     remove: (id: string) => write({ contactLinks: links.filter(l => l.id !== id) }),
     setIconSize: (v: number) => write({ linksIconSize: v }),
     setIconOpacity: (v: number) => write({ linksIconOpacity: v }),
