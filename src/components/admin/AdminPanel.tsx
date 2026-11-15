@@ -8,6 +8,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { C, FONT, STEP_LABEL, EVENT_LABEL, fmtN, fmtB, fmtD, ago, Box, Stat, grid, chip, btn, input, badge, cell, th, td } from "./adminUi";
+import { Live, Feed, Relations, Space, UserDetail } from "./AdminInsights";
 
 type Metrics = {
   totals: { users: number; real_profiles: number; banned: number; new_in_range: number; notes_active: number; favorites: number; views_in_range: number };
@@ -27,32 +29,8 @@ type UserRow = {
 type Report = { id: number; created_at: string; handle: string | null; email: string | null; message: string; page: string | null; user_agent: string | null };
 type Action = { id: number; at: string; action: string; target_handle: string | null; detail: Record<string, unknown> | null };
 
-const C = {
-  bg: "#0E0C12", panel: "#17141d", line: "rgba(255,255,255,.08)", text: "#f2eef6", dim: "rgba(242,238,246,.58)",
-  pink: "#ff4fa3", green: "#4ade80", red: "#ff5b6b", amber: "#fbbf24",
-};
-const FONT = "'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif";
-
-const STEP_LABEL: Record<string, string> = {
-  landing_view: "Entró a la landing", claim_click: "Tocó Reclamar", login_view: "Abrió login / registro",
-  signup_submit: "Envió el registro", setup_done: "Eligió su nombre", editor_open: "Abrió el editor",
-  tour_done: "Terminó el tutorial", publish: "Publicó",
-};
-const EVENT_LABEL: Record<string, string> = {
-  ...STEP_LABEL, signup_google: "Entró con Google", login_done: "Inició sesión", tour_skip: "Saltó el tutorial",
-  note_post: "Escribió una nota", favorite_add: "Dio favorito", favorite_remove: "Sacó favorito",
-  share_open: "Abrió Compartir", share_save: "Guardó la historia", share_copy_link: "Copió su link", bug_report: "Reportó un error",
-};
 const ACTION_LABEL: Record<string, string> = { ban: "Baneó", unban: "Desbaneó", delete: "Eliminó", rename: "Renombró", delete_note: "Borró la nota de" };
 
-const fmtN = (n: number) => n.toLocaleString("es-AR");
-const fmtB = (b: number) => b > 1e9 ? `${(b / 1e9).toFixed(2)} GB` : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.round(b / 1e3)} KB`;
-const fmtD = (s: string | null) => s ? new Date(s).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
-const ago = (s: string | null) => {
-  if (!s) return "nunca";
-  const d = (Date.now() - new Date(s).getTime()) / 864e5;
-  return d < 1 / 24 ? "recién" : d < 1 ? `hace ${Math.round(d * 24)} h` : `hace ${Math.round(d)} d`;
-};
 const ERR: Record<string, string> = {
   handle_taken: "Ese nombre ya lo tiene otra cuenta.", invalid_handle: "Nombre inválido: 3 a 20, minúsculas, números, _ o -.",
   cannot_ban_self: "No te podés banear a vos.", cannot_delete_self: "No te podés eliminar a vos.", cannot_delete_admin: "No se puede eliminar a un admin.",
@@ -60,8 +38,12 @@ const ERR: Record<string, string> = {
 };
 const errText = (m: string) => Object.entries(ERR).find(([k]) => m.includes(k))?.[1] ?? m;
 
+type Tab = "resumen" | "vivo" | "actividad" | "usuarios" | "relaciones" | "espacio" | "reportes" | "historial";
+const TABS: [Tab, string][] = [["resumen", "Resumen"], ["vivo", "En vivo"], ["actividad", "Actividad"], ["usuarios", "Usuarios"],
+  ["relaciones", "Favoritos y visitas"], ["espacio", "Espacio"], ["reportes", "Reportes"], ["historial", "Historial"]];
+
 export default function AdminPanel() {
-  const [tab, setTab] = useState<"resumen" | "usuarios" | "reportes" | "historial">("resumen");
+  const [tab, setTab] = useState<Tab>("resumen");
   useEffect(() => {
     const b = document.body; const prev = b.style.background;
     b.style.background = C.bg;
@@ -77,41 +59,26 @@ export default function AdminPanel() {
             <b style={{ fontSize: 18 }}>myLand</b>
           </a>
           <span style={{ padding: "4px 10px", borderRadius: 999, background: C.pink, color: "#fff", fontWeight: 700, fontSize: 11, letterSpacing: ".08em" }}>ADMIN</span>
-          <nav role="tablist" style={{ display: "flex", gap: 4, marginLeft: "auto", background: C.panel, padding: 4, borderRadius: 999, border: `1px solid ${C.line}` }}>
-            {(["resumen", "usuarios", "reportes", "historial"] as const).map(t => (
+          <nav role="tablist" style={{ display: "flex", flexWrap: "wrap", gap: 4, marginLeft: "auto", background: C.panel, padding: 4, borderRadius: 999, border: `1px solid ${C.line}` }}>
+            {TABS.map(([t, label]) => (
               <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
                 style={{ border: 0, borderRadius: 999, padding: "8px 14px", cursor: "pointer", font: `600 13px ${FONT}`,
                   background: tab === t ? C.text : "transparent", color: tab === t ? C.bg : C.dim }}>
-                {t[0].toUpperCase() + t.slice(1)}
+                {label}
               </button>
             ))}
           </nav>
         </header>
         {tab === "resumen" && <Summary />}
+        {tab === "vivo" && <Live />}
+        {tab === "actividad" && <Feed />}
+        {tab === "relaciones" && <Relations />}
+        {tab === "espacio" && <Space />}
         {tab === "usuarios" && <Users />}
         {tab === "reportes" && <Reports />}
         {tab === "historial" && <History />}
       </div>
     </div>
-  );
-}
-
-function Box({ title, children, right }: { title?: string; children: React.ReactNode; right?: React.ReactNode }) {
-  return (
-    <section style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 18, padding: 18, minWidth: 0 }}>
-      {title && <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}><h2 style={{ margin: 0, fontSize: 15 }}>{title}</h2><div style={{ marginLeft: "auto" }}>{right}</div></div>}
-      {children}
-    </section>
-  );
-}
-
-function Stat({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
-  return (
-    <Box>
-      <div style={{ color: C.dim, fontSize: 12.5 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.5px", marginTop: 4 }}>{typeof value === "number" ? fmtN(value) : value}</div>
-      {hint && <div style={{ color: C.dim, fontSize: 12, marginTop: 2 }}>{hint}</div>}
-    </Box>
   );
 }
 
@@ -356,6 +323,7 @@ function UserCard({ u, open, onToggle, act }: {
             Se registró {fmtD(u.created_at)} · última entrada {fmtD(u.last_sign_in_at)} · {u.has_note ? "tiene nota activa" : "sin nota"}
             {u.banned && u.ban_reason ? ` · motivo del baneo: ${u.ban_reason}` : ""}
           </div>
+          <UserDetail userId={u.user_id} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {u.handle && !u.banned && <a href={`/${u.handle}`} target="_blank" rel="noreferrer" style={{ ...btn(), textDecoration: "none" }}>Ver perfil</a>}
             {u.handle && <button style={btn()} onClick={() => { setMode("rename"); setVal(u.handle ?? ""); }}>Cambiar nombre</button>}
@@ -464,14 +432,3 @@ function History() {
   );
 }
 
-const grid = (min: number): React.CSSProperties => ({ display: "grid", gap: 14, gridTemplateColumns: `repeat(auto-fit, minmax(min(${min}px, 100%), 1fr))` });
-const chip = (on: boolean): React.CSSProperties => ({ border: `1px solid ${on ? C.text : C.line}`, background: on ? C.text : "transparent", color: on ? C.bg : C.text, borderRadius: 999, padding: "6px 12px", cursor: "pointer", font: `600 12.5px ${FONT}` });
-const btn = (color?: string): React.CSSProperties => ({
-  border: `1px solid ${color ? color : C.line}`, background: color && color !== C.text ? "transparent" : color ? C.text : "rgba(255,255,255,.04)",
-  color: color && color !== C.text ? color : color ? C.bg : C.text, borderRadius: 10, padding: "8px 12px", cursor: "pointer", font: `600 13px ${FONT}`,
-});
-const input: React.CSSProperties = { background: "rgba(255,255,255,.05)", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", color: C.text, font: `500 14px ${FONT}`, outline: "none", minWidth: 0 };
-const badge = (color: string): React.CSSProperties => ({ marginLeft: 8, padding: "2px 7px", borderRadius: 6, border: `1px solid ${color}`, color, fontSize: 10, fontWeight: 700, letterSpacing: ".05em" });
-const cell: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: "flex-end", fontSize: 13 };
-const th: React.CSSProperties = { padding: "6px 4px", fontWeight: 600, fontSize: 12 };
-const td: React.CSSProperties = { padding: "6px 4px", borderTop: `1px solid ${C.line}` };

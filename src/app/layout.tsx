@@ -6,6 +6,7 @@ import "@/ui/editor.css";
 import { uiCssVarsStylesheet } from "@/ui/tokens";
 import { DEFAULT_EDITOR_THEME, editorThemeBootScript } from "@/lib/editorTheme";
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
+import PresencePing from "@/components/PresencePing";
 
 export const metadata: Metadata = {
   title: "myLand",
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <AppErrorBoundary>{children}</AppErrorBoundary>
+        <PresencePing />
       </body>
     </html>
   );

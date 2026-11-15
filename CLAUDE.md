@@ -561,6 +561,19 @@ planeado acá hasta confirmarlo.
 >   registro → nombre → editor → tutorial → Publicar), retención por semana de registro, eventos, perfiles más vistos y
 >   espacio usado en Supabase. Claude lee los mismos datos por el conector para resumirle al usuario.
 >
+> **Panel de admin v2 (2026-11-15, pedido del usuario):** pestañas nuevas en `/admin` (`AdminInsights.tsx` + estilos
+>   compartidos en `adminUi.tsx`): **En vivo** (conectados ahora, mapa de calor día × hora, últimas sesiones con duración y
+>   recorrido), **Actividad** (todo lo que pasa: entradas, acciones, ediciones agrupadas cada 10 min, visitas, favoritos,
+>   clics; filtros por tipo y @), **Favoritos y visitas** (quién le da favorito a quién, quién visita a quién con sesión,
+>   visitas anónimas por perfil, clics en links), **Espacio** (base y archivos, tablas más pesadas, archivos por persona) y,
+>   en Usuarios, la ficha completa de cada persona (última actividad, horas, qué edita, favoritos dados/recibidos, visitas
+>   hechas/recibidas, sesiones y su línea de tiempo). Base: `supabase/migrations/20261115000000_admin_insights.sql`
+>   (APLICADA): `presence_sessions` + `ping()` (una fila por visita; el cliente `PresencePing.tsx`, montado en el layout,
+>   pinguea cada minuto con la página visible; 5 min sin ping = visita nueva; 120 días, cron `presence-gc`) y las
+>   funciones `admin_online/feed/relations/user_detail/space` (security definer, `admin_guard`). Las sesiones se miden desde
+>   el 15/11; lo demás usa datos que ya existían. Verificado: ban / unban / renombrar / borrar nota en una transacción
+>   deshecha, y las pestañas con un admin temporal en navegador.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por
