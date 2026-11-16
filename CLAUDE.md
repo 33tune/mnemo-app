@@ -583,11 +583,14 @@ planeado acá hasta confirmarlo.
 >   quedaban ocultas para siempre ("UN SOLO" sin "LINK.", y el link/texto de esa sección) porque `bind()` volvía a crear
 >   el observer y los elementos ya marcados quedaban huérfanos; además la línea que sube no "intersecta" (está fuera de su
 >   wrapper con overflow hidden): ahora se observa el wrapper y los pendientes se re-observan (`pendingReveal`).
->   **Tutorial nuevo** (`video/tutorial.mp4`, 1280×720, 43 s, ya en cámara rápida: se reproduce a 1×): grabado con la
+>   **Tutorial nuevo** (`video/tutorial.mp4`, 1280×720, 25 s, ya en cámara rápida: se reproduce a 1×): grabado con la
 >   cuenta de prueba `pruebacrewa` (el @ se ve como "luna"), zoom que sigue al cursor y un cartel por paso (foto, nombre,
 >   fuente, frase, redes, holo y reflejo, fondo de la sala, imagen, arrastrar, publicar). La cuenta quedó reseteada a la
->   card en blanco. **Sección nueva "Hechas en myLand"** (antes del cierre): grilla con esas cards reales, cada una abre
->   `/<handle>`, y una celda "La tuya va acá" → registro. `/login` todavía usa las cards de ejemplo viejas.
+>   card en blanco. **Sección "Explorar"** (entre "Un solo link" y el video; decisión del usuario): previews de escritorio
+>   (16:9, todas del mismo tamaño, `public/landing/explorar/<handle>.webp`) de 7 salas elegidas, cada una abre `/<handle>`;
+>   4 + 3 centradas en compu, fila deslizable en el celular; debajo, solo `myland.lol/[tu-nombre] Reclamar` (mismo estado
+>   y `claim` que el cierre). **Sin ranking por ahora** (el usuario lo pidió para después, tipo guns.lol). Los dueños de
+>   esas salas dieron permiso. `/login` todavía usa las cards de ejemplo viejas.
 >
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
