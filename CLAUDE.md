@@ -576,8 +576,9 @@ planeado acá hasta confirmarlo.
 >
 > **Landing con cards reales (2026-11-16, pedido del usuario):** `LandingPage.tsx` ya NO es 1:1 con el `.dc.html`
 >   (correr `regen.sh` pisaría esto; re-aplicarlo a mano). Hero: 7 de las cards del río son cards reales de la comunidad
->   (`public/landing/hero/r-<handle>.webp`: raincandy_u, gutted, zaid, drakovin, faexiu, sorceror, cloms; capturadas de su
->   perfil publicado con las imágenes que tocan la card, sin el fondo). "Un solo link": el teléfono muestra el perfil de
+>   (`public/landing/hero/r-<handle>.webp`: raincandy_u, gutted, zaid, faexiu, sorceror, cloms — drakovin salió a pedido del
+>   usuario; capturadas de su perfil publicado con las imágenes que tocan la card, sin el fondo ni el velo semitransparente
+>   que dejaba la captura alrededor: fuera de la card solo queda lo opaco). "Un solo link": el teléfono muestra el perfil de
 >   `@gutted` (foto, `myland.lol/gutted`, grilla con recortes de su sala) y al tocar el link, su vista real de celular
 >   (`video/gutted-phone.mp4`). **Bug arreglado:** las líneas con animación de entrada (`data-rise` / `data-reveal`) se
 >   quedaban ocultas para siempre ("UN SOLO" sin "LINK.", y el link/texto de esa sección) porque `bind()` volvía a crear

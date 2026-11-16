@@ -16,7 +16,7 @@ class LandingPage extends React.Component<any, any> {
   FRAMES = ["linear-gradient(140deg,#FF4F94,#FFE14D)","linear-gradient(140deg,#5AC8FA,#D4FF3F)","linear-gradient(140deg,#FF7A2E,#FF4F94)","linear-gradient(140deg,#D4FF3F,#FFE14D)","linear-gradient(140deg,#FFE14D,#FF7A2E)","linear-gradient(140deg,#FF4F94,#5AC8FA)","linear-gradient(140deg,#141118,#3A3440)"];
   // Real ProfileCard formats (src/lib/cardGeometry.ts): vertical .55–.85, horizontal 1.3–2, square 1, phone 9:16, card .9–1.6
   // "r-*" = real cards from myLand profiles (as seen, with the images that touch them), webp.
-  RIVER = [["r-raincandy_u",.698,262],["r-gutted",1.945,172],["c1",1,206],["r-zaid",.808,262],["r-drakovin",1.553,190],["r-faexiu",.828,256],["c2",.5625,284],["r-sorceror",.967,226],["krystal",.709,262],["r-cloms",.906,236],["ithought",1.768,172],["c3",1.7,170]];
+  RIVER = [["r-raincandy_u",.681,262],["r-gutted",2.025,170],["c1",1,206],["r-zaid",.887,256],["r-faexiu",.778,262],["c2",.5625,284],["r-sorceror",1.006,226],["krystal",.709,262],["r-cloms",.836,246],["ithought",1.768,172],["c3",1.7,170]];
   GAL = [
     { m: "justme", user: "justme", r: 1.6, h: 46, base: "#F6F4FA", tint: "transparent", bar: "rgba(255,255,255,.6)", ink: "#5A5360", cr: .747, ch: "72%", op: 0, art: 1 },
     { m: "krystal", user: "krystalichny", r: 1.6, h: 52, base: "#d9dadf", tint: "linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,.1))", bar: "rgba(255,255,255,.55)", ink: "#222", cr: .709, ch: "80%", op: .9 },
