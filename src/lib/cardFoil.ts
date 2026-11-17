@@ -202,18 +202,18 @@ export function glareOn(fx: CardEffects | undefined): boolean {
 }
 /** The card has something that follows the light (or the pointer). */
 export function lightEffectsOn(fx: CardEffects | undefined): boolean {
-  return holoOn(fx) || glareOn(fx) || !!fx?.strass?.enabled || !!fx?.edge?.enabled || !!fx?.seal?.enabled
+  return holoOn(fx) || glareOn(fx) || !!fx?.strass?.enabled || !!fx?.edge?.enabled
     || !!fx?.depth?.enabled || !!fx?.glitter?.enabled;
 }
 /** Worth asking an iPhone for its motion sensor (glitter alone is not: it
  * only sparkles a bit more near the cursor). */
 export function lightGyroOn(fx: CardEffects | undefined): boolean {
-  return holoOn(fx) || glareOn(fx) || !!fx?.strass?.enabled || !!fx?.edge?.enabled || !!fx?.seal?.enabled || !!fx?.depth?.enabled;
+  return holoOn(fx) || glareOn(fx) || !!fx?.strass?.enabled || !!fx?.edge?.enabled || !!fx?.depth?.enabled;
 }
 /** The light drifts by itself (holo "Moverse solo"; the stones, the rim and
  * the seal need a moving light to sparkle). */
 export function lightIdleOn(fx: CardEffects | undefined): boolean {
-  return (holoOn(fx) && fx?.holo?.idle !== false) || !!fx?.strass?.enabled || !!fx?.edge?.enabled || !!fx?.seal?.enabled;
+  return (holoOn(fx) && fx?.holo?.idle !== false) || !!fx?.strass?.enabled || !!fx?.edge?.enabled;
 }
 
 /** One painted-once layer of a light effect. `lm` = how it moves

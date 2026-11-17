@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   resolveLinkButtonStyle, linkButtonsBlockSize, linkButtonCss, linkButtonHeight, contrastInk, linkButtonHref,
-  LINK_BUTTON_FONT_SIZE,
+  LINK_BUTTON_FONT_SIZE, LINK_BUTTON_LENGTH, linkButtonsFitWidth,
 } from "./linkButtons";
 
 test("defaults: a card with no style gets pill, solid buttons in its own text color with readable ink", () => {
@@ -35,11 +35,22 @@ test("css: solid / outline / glass, hover lift / glow / invert", () => {
   const outline = linkButtonCss(resolveLinkButtonStyle({ fill: "outline", color: "#00ff00" }, "#000"), "X");
   assert.equal(outline.background, "transparent");
   assert.match(String(outline.boxShadow), /inset 0 0 0 1\.5px #00ff00/);
-  assert.equal(linkButtonCss(resolveLinkButtonStyle({ width: "fit" }, "#000"), "X").width, "auto");
+  // Every button fills the block, so in "Ajustado" they all share one length (2026-11-17).
+  assert.equal(linkButtonCss(resolveLinkButtonStyle({ width: "fit" }, "#000"), "X").width, "100%");
 });
 
 test("helpers", () => {
   assert.equal(contrastInk("#000000"), "#FFFFFF");
   assert.equal(linkButtonHref("mara.land"), "https://mara.land");
   assert.equal(linkButtonHref("http://a.b"), "http://a.b");
+});
+
+test("Ajustado: one length for every button — the longest label's, or the chosen Largo", () => {
+  const r = resolveLinkButtonStyle({ width: "fit", showIcon: false }, "#000");
+  const pad = 2 * Math.round(r.fontSize * 1.2);
+  assert.equal(linkButtonsFitWidth(["ab", "abcdef"], r, l => l.length * 10), 60 + pad, "the longest label decides");
+  assert.equal(linkButtonsFitWidth([], r, () => 10), 0);
+  assert.equal(r.length, null, "no Largo chosen");
+  assert.equal(resolveLinkButtonStyle({ width: "fit", length: 9999 }, "#000").length, LINK_BUTTON_LENGTH.max, "clamped");
+  assert.equal(resolveLinkButtonStyle({ width: "fit", length: 10 }, "#000").length, LINK_BUTTON_LENGTH.min, "clamped");
 });

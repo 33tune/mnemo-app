@@ -10,7 +10,7 @@ import {
   GLITTER_COLOR_LABEL, STRASS_COLOR_LABEL, GLITTER_COLORS, strassColors,
 } from "@/lib/cardFoil";
 import {
-  EDGE_METALS, EDGE_DEFAULT_WIDTH, SEAL_DEFAULTS, SEAL_CORNERS, sealText, AURA_DEFAULTS, DUST_DEFAULTS, DEPTH_DEFAULT, MOTION_DEFAULTS,
+  EDGE_METALS, EDGE_DEFAULT_WIDTH, AURA_DEFAULTS, DUST_DEFAULTS, DEPTH_DEFAULT, MOTION_DEFAULTS,
   FX_PRESS_EVENT, FX_WHITE, EDGE_CUSTOM_DEFAULT, DUST_AUTO, BORDER_RUN_AUTO,
 } from "@/lib/cardFx";
 import { FX_PALETTES, FX_PALETTE_OPTIONS } from "@/lib/fxPalette";
@@ -97,7 +97,7 @@ export function useCardEffectActions({ effective, raw, onChange }: Props) {
   }
   /** One writer for the effects that are a single group with a switch
    * (turning one off keeps its settings). */
-  function patchFx<K extends "glitter" | "strass" | "edge" | "aura" | "dust" | "depth" | "seal">(key: K, patch: Partial<NonNullable<CardEffects[K]>>) {
+  function patchFx<K extends "glitter" | "strass" | "edge" | "aura" | "dust" | "depth">(key: K, patch: Partial<NonNullable<CardEffects[K]>>) {
     onChange({ ...raw, [key]: { enabled: false, ...(raw?.[key] as object | undefined), ...patch } });
   }
   /** The card animations (effects.motion.*), same contract. */
@@ -185,7 +185,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
   const holoStyle = holoStyleOf(effective);
   const holoName = HOLO_STYLES.find(s => s.id === holoStyle)?.label;
   const glitter = effective.glitter, strass = effective.strass;
-  const edge = effective.edge, aura = effective.aura, dust = effective.dust, depth = effective.depth, seal = effective.seal;
+  const edge = effective.edge, aura = effective.aura, dust = effective.dust, depth = effective.depth;
   const mo = effective.motion;
   const entranceName = ENTRANCE_STYLES.find(s => s.id === (entrance?.style ?? ENTRANCE_DEFAULT_STYLE))?.label;
   // The Brillo tile: on = the outer glow (O3 neutral color and a visible
@@ -205,7 +205,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
   const paletteName = (v: { palette?: string } | undefined, auto: string) => FX_PALETTE_OPTIONS.find(o => o.id === v?.palette)?.label ?? auto;
   const tryPress = (kind: string) => (e: React.MouseEvent) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent(FX_PRESS_EVENT, { detail: kind })); };
 
-  const foil = [holoIsOn && "Holo", glareIsOn && "Reflejo", !!edge?.enabled && "Canto metálico", !!seal?.enabled && "Sello"];
+  const foil = [holoIsOn && "Holo", glareIsOn && "Reflejo", !!edge?.enabled && "Canto metálico"];
   const particles = [!!glitter?.enabled && "Glitter", !!strass?.enabled && "Strass", !!dust?.enabled && "Polvo"];
   const light = [borderW > 0 && "Borde", shadowOn && "Sombra", anyGlow && "Brillo", pulseOn && anyGlow && "Pulso", !!aura?.enabled && "Aura"];
   const motion = [!!anim?.floating && "Flotar", !!mo?.breathe?.enabled && "Respirar", !!mo?.sway?.enabled && "Balanceo", !!mo?.heartbeat?.enabled && "Latido",
@@ -216,7 +216,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
   return (
     <>
       {/* What makes the card feel like a collectible: a foil that moves
-          with the light, the glare over it, a metal rim, a seal. */}
+          with the light, the glare over it, a metal rim. */}
       <MenuSection label="Holo y reflejo" icon="sparkles" active={count(foil)} summary={names(foil)}>
         <EffectList label="Holo y reflejo">
           <EffectRow id="holo" label="Holo" icon="sparkles" preview="c-holo" on={holoIsOn}
@@ -279,23 +279,6 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
                 ) : null}
                 <SliderRow label="Grosor" icon="frame" min={2} max={14} step={1} value={edge.width ?? EDGE_DEFAULT_WIDTH}
                   onChange={v => patchFx("edge", { enabled: true, width: v })} fmt={px} />
-              </>
-            ) : null}
-          </EffectRow>
-          <EffectRow id="seal" label="Sello" icon="disc" preview="c-seal" on={!!seal?.enabled}
-            onToggle={v => patchFx("seal", { enabled: v })} state={seal?.enabled ? sealText(effective) : undefined}>
-            {seal?.enabled ? (
-              <>
-                <TextInput label="Texto (hasta 3 letras)" value={seal.text ?? ""} placeholder={SEAL_DEFAULTS.text} maxLength={3}
-                  onChange={v => patchFx("seal", { enabled: true, text: v || undefined })} />
-                <MenuRow label="Esquina">
-                  <FontSelect value={seal.corner ?? SEAL_DEFAULTS.corner} onChange={v => patchFx("seal", { enabled: true, corner: v as NonNullable<CardEffects["seal"]>["corner"] })}
-                    fonts={SEAL_CORNERS.map(c => ({ key: c.id, label: c.label }))} />
-                </MenuRow>
-                <SliderRow label="Tamaño" icon="maximize" min={30} max={84} step={1} value={seal.size ?? SEAL_DEFAULTS.size}
-                  onChange={v => patchFx("seal", { enabled: true, size: v })} fmt={px} />
-                <PaletteField value={seal} auto={FX_PALETTES.rainbow} autoLabel="Arcoíris"
-                  onChange={v => patchFx("seal", { enabled: true, palette: v.palette, colors: v.colors })} />
               </>
             ) : null}
           </EffectRow>

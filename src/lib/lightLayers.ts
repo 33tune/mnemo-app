@@ -1,6 +1,6 @@
 /**
  * Light layers (2026-11-11, performance): every effect that follows the
- * card's "light" (holo, glare, strass, edge, seal, photo depth) is built from
+ * card's "light" (holo, glare, strass, edge, photo depth) is built from
  * layers that are painted ONCE and then only MOVED — a `transform` the
  * compositor applies without repainting. Before, the gradients and the mask
  * read CSS variables and the browser repainted them on every frame (a holo

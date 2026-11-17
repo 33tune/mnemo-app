@@ -10,9 +10,20 @@ import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
 import { WeightControl, fontDetail } from "./RoleTypographyFields";
 import { linkButtonsController } from "@/lib/objectControllers";
 import {
-  LINK_BUTTONS_MAX, LINK_BUTTON_LABEL_MAX, LINK_BUTTON_FONT_SIZE, LINK_BUTTON_GAP,
-  resolveLinkButtonStyle,
+  LINK_BUTTONS_MAX, LINK_BUTTON_LABEL_MAX, LINK_BUTTON_FONT_SIZE, LINK_BUTTON_GAP, LINK_BUTTON_LENGTH,
+  resolveLinkButtonStyle, linkButtonsFitWidth, type ResolvedLinkButtonStyle,
 } from "@/lib/linkButtons";
+
+/** The length "Ajustado" gives the buttons when no "Largo" was chosen: the
+ * longest label's (what the layout engine uses), measured in their font. */
+function naturalLength(buttons: readonly LinkButton[], r: ResolvedLinkButtonStyle): number {
+  if (typeof document === "undefined" || !buttons.length) return 160;
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return 160;
+  ctx.font = `${r.fontWeight} ${r.fontSize}px ${getFontStyle(r.font)}`;
+  const w = linkButtonsFitWidth(buttons.map(b => b.label || b.url), r, l => ctx.measureText(l).width - 0.01 * r.fontSize * l.length);
+  return Math.round(Math.min(LINK_BUTTON_LENGTH.max, Math.max(LINK_BUTTON_LENGTH.min, w)));
+}
 
 interface Props {
   card: Pick<ProfileCardData, "linkButtons" | "linkButtonStyle">;
@@ -61,7 +72,7 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
   const shapeName = SHAPES.find(s => s.id === r.shape)?.label ?? "";
   const fillName = FILLS.find(f => f.id === r.fill)?.label ?? "";
   const styleChanged = ["shape", "fill", "color", "textColor", "font", "fontSize", "fontWeight", "showIcon"].filter(k => style?.[k as keyof LinkButtonStyle] !== undefined).length;
-  const layoutChanged = ["width", "gap"].filter(k => style?.[k as keyof LinkButtonStyle] !== undefined).length;
+  const layoutChanged = ["width", "length", "gap"].filter(k => style?.[k as keyof LinkButtonStyle] !== undefined).length;
   const hoverOn = [r.hover.lift && "Elevar", r.hover.glow && "Brillo", r.hover.invert && "Invertir"].filter(Boolean) as string[];
 
   return (
@@ -117,11 +128,17 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
       </MenuSection>
 
       <MenuSection label="Distribución" icon="spacing" changed={layoutChanged}
-        summary={`${r.width === "full" ? "Ancho completo" : "Ajustado al texto"} · ${r.gap} px`}
-        onReset={() => ctl.setStyle({ width: undefined, gap: undefined })}>
+        summary={`${r.width === "full" ? "Ancho completo" : r.length != null ? `Ajustado · ${r.length} px` : "Ajustado al texto"} · ${r.gap} px`}
+        onReset={() => ctl.setStyle({ width: undefined, length: undefined, gap: undefined })}>
         <MenuRow label="Ancho" state={style?.width ? "modified" : undefined} onReset={() => ctl.setStyle({ width: undefined })}>
           <div style={{ width: 212 }}><Tabs tabs={WIDTHS} active={r.width} onChange={v => ctl.setStyle({ width: v as LinkButtonStyle["width"] })} /></div>
         </MenuRow>
+        {r.width === "fit" && (
+          <SliderRow label="Largo" icon="maximize" min={LINK_BUTTON_LENGTH.min} max={LINK_BUTTON_LENGTH.max} step={2}
+            value={r.length ?? naturalLength(buttons, r)} unit="px" fmt={px}
+            onChange={v => ctl.setStyle({ length: v })} state={style?.length != null ? "modified" : undefined}
+            onReset={() => ctl.setStyle({ length: undefined })} />
+        )}
         <SliderRow label="Separación" icon="spacing" min={LINK_BUTTON_GAP.min} max={LINK_BUTTON_GAP.max} step={1} value={r.gap} unit="px" fmt={px}
           onChange={v => ctl.setStyle({ gap: v })} state={style?.gap != null ? "modified" : undefined} onReset={() => ctl.setStyle({ gap: undefined })} />
       </MenuSection>

@@ -26,6 +26,9 @@ export interface LinkButtonStyle {
   /** The platform icon before the label. Absent = shown. */
   showIcon?:   boolean;
   width?:      "full" | "fit";
+  /** "fit" only (2026-11-17): every button's length in px. Absent = the
+   * longest label decides, and all the buttons take that same length. */
+  length?:     number;
   gap?:        number;
   hover?:      { lift?: boolean; glow?: boolean; invert?: boolean };
 }
@@ -964,8 +967,6 @@ export type CardEffects = {
   dust?: { enabled: boolean; palette?: FxPaletteId; colors?: string[]; amount?: number; size?: number; speed?: number; layer?: "front" | "back" };
   /** Foto con profundidad: the photo shifts a little against the card. */
   depth?: { enabled: boolean; amount?: number };
-  /** Sello holográfico: a small round foil seal on a corner. */
-  seal?: { enabled: boolean; text?: string; corner?: "tl" | "tr" | "bl" | "br"; size?: number; palette?: FxPaletteId; colors?: string[] };
   /** Card animations (not the entrance): what the card does while it is on
    * screen (`breathe` … `borderRun`) or when it is tapped (`ripple` … `spin`). */
   motion?: {
@@ -1115,4 +1116,8 @@ export interface NoteBoxStyle {
   color?: string;
   /** Visitors see how many people saw the note. */
   showViews?: boolean;
+  /** "Ocultar nota" (2026-11-17): the profile never shows the box (nor the
+   * favorites bar the note); in the editor it stays as a faint ghost so the
+   * owner can reach its gear and turn it back on. */
+  hidden?: boolean;
 }

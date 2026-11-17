@@ -593,6 +593,14 @@ planeado acá hasta confirmarlo.
 >   y `claim` que el cierre). **Sin ranking por ahora** (el usuario lo pidió para después, tipo guns.lol). Los dueños de
 >   esas salas dieron permiso. `/login` todavía usa las cards de ejemplo viejas.
 >
+> **Correcciones (2026-11-17, pedido del usuario):** **Ocultar la nota** (`noteBox.hidden`, interruptor "Mostrar la nota en
+>   mi perfil" arriba del panel de la Nota): el perfil no la dibuja ni le reserva lugar (`noteBoxVisible`), la barra de
+>   favoritos no muestra su globo (`/api/shortcuts`); en el editor queda como un fantasma gris (opacidad .28) para llegar
+>   al engranaje. **Botones "Ajustado":** todos del MISMO largo (cada botón llena el bloque; el bloque mide lo que pide la
+>   etiqueta más larga, `linkButtonsFitWidth`) y **Largo** (`linkButtonStyle.length`, 80–420 px, solo en Ajustado; nunca
+>   más ancho que la card). **Sello ELIMINADO** (no le gustó): sin tipo, menú, render ni capacidades; una card que lo tenía
+>   guardado ya no lo muestra.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por

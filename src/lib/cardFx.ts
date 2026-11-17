@@ -54,7 +54,7 @@ export const FX_KEYFRAMES_CSS = `
 /** Any of these on = the shared keyframes are needed. */
 export function fxKeyframesOn(fx: CardEffects | undefined): boolean {
   const m = fx?.motion;
-  return !!(fx?.aura?.enabled || fx?.dust?.enabled || fx?.glitter?.enabled || fx?.edge?.enabled || fx?.seal?.enabled || fx?.strass?.enabled
+  return !!(fx?.aura?.enabled || fx?.dust?.enabled || fx?.glitter?.enabled || fx?.edge?.enabled || fx?.strass?.enabled
     || m?.breathe?.enabled || m?.sway?.enabled || m?.heartbeat?.enabled || m?.sweep?.enabled || m?.borderRun?.enabled
     || m?.ripple?.enabled || m?.jelly?.enabled || m?.spin?.enabled);
 }
@@ -292,51 +292,6 @@ export function edgeSpec(fx: CardEffects | undefined, box: FoilBox): { width: nu
         },
       },
     ],
-  };
-}
-
-// ── Sello holográfico ──────────────────────────────────────────────────────
-export const SEAL_DEFAULTS = { size: 46, text: "★", corner: "br" } as const;
-export const SEAL_CORNERS: { id: NonNullable<NonNullable<CardEffects["seal"]>["corner"]>; label: string }[] = [
-  { id: "tl", label: "Arriba izq." }, { id: "tr", label: "Arriba der." }, { id: "bl", label: "Abajo izq." }, { id: "br", label: "Abajo der." },
-];
-/** At most 3 characters, as plain text. */
-export function sealText(fx: CardEffects | undefined): string {
-  const t = (fx?.seal?.text ?? SEAL_DEFAULTS.text).trim();
-  return Array.from(t).slice(0, 3).join("") || SEAL_DEFAULTS.text;
-}
-/** A scalloped disc (the edge of an authenticity seal), as a clip-path. */
-export function sealClip(scallops = 18): string {
-  const pts: string[] = [];
-  const steps = scallops * 6;
-  for (let i = 0; i < steps; i++) {
-    const a = (i / steps) * Math.PI * 2, rr = 47 + 3 * Math.cos(a * scallops);
-    pts.push(`${f1(50 + Math.cos(a) * rr)}% ${f1(50 + Math.sin(a) * rr)}%`);
-  }
-  return `polygon(${pts.join(", ")})`;
-}
-export function sealSpec(fx: CardEffects | undefined, box: FoilBox, cardColors?: readonly string[]):
-  { wrap: CSSProperties; size: number; foil: CSSProperties; foilLm: string; sheen: CSSProperties; sheenLm: string; text: string } | null {
-  const s = fx?.seal;
-  if (!s?.enabled) return null;
-  const size = Math.round(Math.max(30, Math.min(84, s.size ?? SEAL_DEFAULTS.size, Math.min(box.w, box.h) * 0.4)));
-  const m = Math.round(Math.max(8, size * 0.24));
-  const corner = s.corner ?? SEAL_DEFAULTS.corner;
-  const pal = loopColors(fxColors(s, FX_PALETTES.rainbow, cardColors));
-  return {
-    size, text: sealText(fx),
-    wrap: {
-      position: "absolute", width: size, height: size, pointerEvents: "none",
-      ...(corner[0] === "t" ? { top: m } : { bottom: m }), ...(corner[1] === "l" ? { left: m } : { right: m }),
-      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.45))",
-    },
-    foil: { position: "absolute", inset: "-25%", willChange: "transform", backgroundImage: `conic-gradient(from 0deg, ${pal.join(", ")})` },
-    foilLm: lm.rot(0, 260, 180),
-    sheen: {
-      position: "absolute", left: -size * 0.3, top: -size, width: size * 0.6, height: size * 3, willChange: "transform",
-      backgroundImage: "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0) 100%)",
-    },
-    sheenLm: lm.band(size, 28),
   };
 }
 

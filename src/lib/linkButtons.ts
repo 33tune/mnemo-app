@@ -22,6 +22,7 @@ export const LINK_BUTTONS_MAX = 8;
 export const LINK_BUTTON_LABEL_MAX = 40;
 export const LINK_BUTTON_FONT_SIZE = { min: 11, max: 20, default: 13 } as const;
 export const LINK_BUTTON_GAP = { min: 4, max: 20, default: 8 } as const;
+export const LINK_BUTTON_LENGTH = { min: 80, max: 420 } as const;
 export const LINK_BUTTON_DEFAULT_FONT = "DM Sans";
 export const LINK_BUTTON_DEFAULT_WEIGHT = 600;
 
@@ -40,6 +41,8 @@ export interface ResolvedLinkButtonStyle {
   fontWeight: number;
   showIcon: boolean;
   width: NonNullable<LinkButtonStyle["width"]>;
+  /** "fit": every button's length in px (null = the longest label decides). */
+  length: number | null;
   gap: number;
   height: number;
   radius: number;
@@ -69,6 +72,7 @@ export function resolveLinkButtonStyle(style: LinkButtonStyle | undefined, baseC
     fontWeight: style?.fontWeight ?? LINK_BUTTON_DEFAULT_WEIGHT,
     showIcon: style?.showIcon ?? true,
     width: style?.width ?? "full",
+    length: style?.length != null ? clamp(style.length, LINK_BUTTON_LENGTH.min, LINK_BUTTON_LENGTH.max) : null,
     gap: clamp(style?.gap ?? LINK_BUTTON_GAP.default, LINK_BUTTON_GAP.min, LINK_BUTTON_GAP.max),
     height,
     radius: shape === "square" ? 4 : shape === "soft" ? Math.round(height * 0.3) : Math.ceil(height / 2),
@@ -99,7 +103,9 @@ export function linkButtonCss(style: ResolvedLinkButtonStyle, fontFamily: string
   return {
     display: "flex", alignItems: "center", justifyContent: "center", gap: Math.round(style.fontSize * 0.55),
     boxSizing: "border-box", height: style.height, padding: `0 ${Math.round(style.fontSize * 1.2)}px`,
-    width: style.width === "full" ? "100%" : "auto", maxWidth: "100%",
+    // Every button fills the block (2026-11-17): in "fit" the block is as wide as the
+    // longest label (or the chosen length), so the buttons all share one length.
+    width: "100%", maxWidth: "100%",
     borderRadius: style.radius, background, color: fg,
     boxShadow: shadows.length ? shadows.join(", ") : undefined,
     backdropFilter: style.fill === "glass" ? "blur(8px)" : undefined,
@@ -108,6 +114,15 @@ export function linkButtonCss(style: ResolvedLinkButtonStyle, fontFamily: string
     transform: hovered && style.hover.lift ? "translateY(-2px)" : undefined,
     transition: "transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, color 160ms ease",
   };
+}
+
+/** The "fit" length the longest label asks for (label + padding + icon), with
+ * `measure` = the width of a label in the buttons' font. The layout engine and
+ * the menu's "Largo" slider both use it. */
+export function linkButtonsFitWidth(labels: readonly string[], style: ResolvedLinkButtonStyle, measure: (label: string) => number): number {
+  if (!labels.length) return 0;
+  return Math.max(...labels.map(measure)) + 2 * Math.round(style.fontSize * 1.2)
+    + (style.showIcon ? Math.round(style.fontSize * 1.15) + Math.round(style.fontSize * 0.55) : 0);
 }
 
 /** "https://" added when missing (what the <a> opens). */

@@ -14,7 +14,7 @@ import type { CardEffects } from "@/types";
 import {
   holoLayers, holoGroupStyle, glareLayers, glareGroupStyle, ringMask, holoRingWidth, holoScopeOf, type FoilLayer, type FoilBox,
 } from "@/lib/cardFoil";
-import { auraSpec, dustLayers, edgeSpec, sealSpec, sealClip, sparkleField, borderRunSpec, sweepColor } from "@/lib/cardFx";
+import { auraSpec, dustLayers, edgeSpec, sparkleField, borderRunSpec, sweepColor } from "@/lib/cardFx";
 import { lm } from "@/lib/lightLayers";
 import { rgba } from "@/lib/fxPalette";
 
@@ -169,34 +169,6 @@ export function SparkleField({ fx, box, radius, scope, cardColors }: {
   );
 }
 
-/** Sello holográfico. */
-export function SealBadge({ fx, box, cardColors }: { fx: CardEffects; box: FoilBox; cardColors?: readonly string[] }) {
-  const s = fx.seal;
-  const spec = useMemo(
-    () => sealSpec(fx, box, cardColors),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [box.w, box.h, s?.enabled, s?.text, s?.corner, s?.size, s?.palette, keyOf(s?.colors), keyOf(cardColors)],
-  );
-  const clip = useMemo(() => sealClip(), []);
-  if (!spec || box.w <= 0) return null;
-  const n = Array.from(spec.text).length;
-  return (
-    <div data-fx="seal" aria-hidden style={spec.wrap}>
-      <div style={{ position: "absolute", inset: 0, clipPath: clip, WebkitClipPath: clip, overflow: "hidden", background: "#cfd6e4" }}>
-        <div data-lm={spec.foilLm} style={spec.foil} />
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.1) 55%, rgba(0,0,0,0.18) 100%)" }} />
-        <div data-lm={spec.sheenLm} style={{ ...spec.sheen, mixBlendMode: "overlay" }} />
-        <div style={{ position: "absolute", inset: "13%", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 0 0 1px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(0,0,0,0.12)" }} />
-        <div style={{
-          position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: "'Syne', 'DM Sans', system-ui, sans-serif", fontWeight: 800, lineHeight: 1,
-          fontSize: spec.size * (n === 1 ? 0.44 : n === 2 ? 0.32 : 0.24), letterSpacing: n > 1 ? "0.02em" : 0,
-          color: "rgba(20,24,40,0.72)", textShadow: "0 1px 0 rgba(255,255,255,0.7)",
-        }}>{spec.text}</div>
-      </div>
-    </div>
-  );
-}
 
 /** Luz que recorre el borde. */
 export function BorderRun({ fx, box, radius, cardColors }: { fx: CardEffects; box: FoilBox; radius: number; cardColors?: readonly string[] }) {

@@ -128,7 +128,7 @@ export function useCardInteractions(
     return () => { io.disconnect(); el.removeAttribute("data-fx-paused"); };
   }, [cardRef]);
 
-  // "Moverse solo" (holo idle, Strass, the rim, the seal): while nobody
+  // "Moverse solo" (holo idle, Strass, the rim): while nobody
   // holds the light it drifts slowly around its rest point, so the foil and
   // the stones keep catching light. Stops with reduced motion, in hidden
   // tabs and off screen.

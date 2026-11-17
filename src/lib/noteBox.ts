@@ -32,7 +32,7 @@ export const NOTE_FONT_SIZE = { min: 12, max: 19 } as const;
 export const NOTE_FONT_ADJUST = 0.52;
 
 export const NOTE_DEFAULTS: Required<NoteBoxStyle> = {
-  scale: 1, w: 1, h: 1, gap: 28, bg: "#ffffff", opacity: 1, radius: 16, font: "DM Sans", fontSize: 15, color: "#141418", showViews: false,
+  scale: 1, w: 1, h: 1, gap: 28, bg: "#ffffff", opacity: 1, radius: 16, font: "DM Sans", fontSize: 15, color: "#141418", showViews: false, hidden: false,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -51,6 +51,7 @@ export function resolveNoteBox(s?: NoteBoxStyle): Required<NoteBoxStyle> {
     fontSize: clamp(s?.fontSize ?? d.fontSize, NOTE_FONT_SIZE.min, NOTE_FONT_SIZE.max),
     color: s?.color || d.color,
     showViews: !!s?.showViews,
+    hidden: !!s?.hidden,
   };
 }
 
@@ -100,6 +101,7 @@ export function noteReserve(st: Required<NoteBoxStyle>, gap = NOTE_BOX_GAP): num
 /** The profile shows the box with an active note, or (empty) when the owner
  * styled it — a decoration around it must not lose what it frames. */
 export function noteBoxVisible(hasNote: boolean, style: NoteBoxStyle | undefined): boolean {
+  if (style?.hidden) return false;
   return hasNote || (!!style && Object.keys(style).length > 0);
 }
 

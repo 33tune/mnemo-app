@@ -119,12 +119,15 @@ export default function NoteBox({ card, ownerUserId, editor, panelOpen, onSelect
   });
   const place: React.CSSProperties = { position: "absolute", left: 0, bottom: 0, width: boxW, transform: "translateX(-50%)" };
 
+  // Hidden ("Ocultar nota"): the profile never draws it; the owner sees a faint ghost.
+  const ghost = editor && st.hidden && !editing && !panelOpen ? { opacity: 0.28, filter: "grayscale(1)" } : null;
+
   return (<>
-    <div data-export-skip="" data-note-bg="" aria-hidden style={anchor(0)}>
+    <div data-export-skip="" data-note-bg="" aria-hidden style={{ ...anchor(0), ...ghost }}>
       {entryDelayMs != null && <style>{"@keyframes mnemo-note-in{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}"}</style>}
       <div style={{ ...place, ...noteSurface(st), height: boxH }} />
     </div>
-    <div data-export-skip="" data-note-box="" aria-hidden={!editor && !n.note ? true : undefined} style={anchor(4000)}>
+    <div data-export-skip="" data-note-box="" aria-hidden={!editor && !n.note ? true : undefined} style={{ ...anchor(4000), ...ghost }}>
       <div
         {...(editor ? { [EDITOR_UI_ATTR]: "" } : {})}
         onMouseEnter={editor ? () => setHover(true) : undefined}

@@ -33,7 +33,7 @@ export type TilePreview =
   | "t-shadow" | "t-glow" | "t-stroke" | "t-blur" | "t-shim" | "t-let" | "t-grad"
   | "c-border" | "c-shadow" | "c-glow" | "c-pulse" | "c-grad" | "c-glass" | "c-blur" | "c-float" | "c-tilt"
   | "c-spot" | "c-scan" | "c-noise" | "c-flick" | "c-chroma" | "c-holo" | "c-glare" | "c-enter"
-  | "c-edge" | "c-aura" | "c-dust" | "c-glitter" | "c-strass" | "c-seal" | "c-depth"
+  | "c-edge" | "c-aura" | "c-dust" | "c-glitter" | "c-strass" | "c-depth"
   | "c-breathe" | "c-sway" | "c-beat" | "c-sweep" | "c-run" | "c-ripple" | "c-jelly" | "c-spin";
 
 interface EffectRowProps {

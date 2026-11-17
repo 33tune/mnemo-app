@@ -4,7 +4,7 @@ import type { CardEffects } from "@/types";
 import { bgImageStyle } from "@/lib/bgStyle";
 import { withOpacity } from "@/lib/cardColors";
 import StrassRing, { useStrassColors } from "./StrassRing";
-import { HoloSheet, GlareSheet, EdgeRim, AuraHalo, DustField, SparkleField, SealBadge, BorderRun, Sweep } from "./CardFx";
+import { HoloSheet, GlareSheet, EdgeRim, AuraHalo, DustField, SparkleField, BorderRun, Sweep } from "./CardFx";
 import { useMotionKeyframes, resolveGlowPulseAnimation, resolveFlickerAnimation } from "@/lib/cardMotion";
 import { holoOn, glareOn, useFoilKeyframes, entranceShineAnimation, holoScopeOf } from "@/lib/cardFoil";
 import { useFxKeyframes, motionAnimations, sweepKeyframes, sweepColor } from "@/lib/cardFx";
@@ -408,7 +408,6 @@ export default function CardLayers({
           {fx?.edge?.enabled && box ? <EdgeRim fx={fx} box={box} radius={rad} /> : null}
           {strass && box ? <StrassRing w={box.w} h={box.h} radius={rad} cfg={strass} colors={strassPalette} /> : null}
           {fx?.motion?.borderRun?.enabled && box ? <BorderRun fx={fx} box={box} radius={rad} cardColors={cardColors} /> : null}
-          {fx?.seal?.enabled && box ? <SealBadge fx={fx} box={box} cardColors={cardColors} /> : null}
           {glare && box ? <GlareSheet fx={glare} box={box} radius={rad} /> : null}
           {shine ? <Sweep animation={shine} radius={rad} /> : null}
           {sweep && !shine ? <Sweep animation={sweep.animation} radius={rad} color={sweepColor(effects)} /> : null}

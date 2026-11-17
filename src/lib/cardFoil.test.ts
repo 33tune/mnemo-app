@@ -9,7 +9,7 @@ import {
 import { lightTransform, lm } from "./lightLayers";
 import { fxColors, cleanColors, loopColors, FX_PALETTES, mixHex } from "./fxPalette";
 import {
-  motionAnimations, sweepKeyframes, borderRunSpec, auraSpec, dustLayers, edgeSpec, sealSpec, sealText, sparkleField, depthLm, jellyFrames,
+  motionAnimations, sweepKeyframes, borderRunSpec, auraSpec, dustLayers, edgeSpec, sparkleField, depthLm, jellyFrames,
   fxKeyframesOn, TWINKLE_LAYERS,
 } from "./cardFx";
 
@@ -154,7 +154,6 @@ test("new effects: absent = nothing is drawn or animated", () => {
   assert.equal(auraSpec({}, BOX), null);
   assert.deepEqual(dustLayers({}, BOX), []);
   assert.equal(edgeSpec({}, BOX), null);
-  assert.equal(sealSpec({}, BOX), null);
   assert.equal(depthLm({}, 100), undefined);
 });
 
@@ -172,9 +171,7 @@ test("card animations: only transform / opacity properties, on the right wrapper
   for (const f of jellyFrames({ motion: { jelly: { enabled: true, amount: 1 } } })) assert.match(String(f.transform), /^scale\(/);
 });
 
-test("seal text is at most 3 characters; sparkle field is split in twinkling sheets", () => {
-  assert.equal(sealText({ seal: { enabled: true, text: "ABCDE" } }), "ABC");
-  assert.equal(sealText({ seal: { enabled: true, text: "  " } }), "★");
+test("sparkle field is split in twinkling sheets", () => {
   const f = sparkleField({ glitter: { enabled: true, amount: 1 } }, BOX, "card");
   assert.equal(f.layers.length, TWINKLE_LAYERS);
   for (const l of f.layers) assert.match(l.animation, /^mnemo-twinkle /);

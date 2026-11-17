@@ -597,7 +597,6 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-dust"] { background: radial-gradient(currentColor 1px, transparent 1.3px) 0 0 / 6px 6px, radial-gradient(currentColor 0.7px, transparent 1px) 3px 2px / 5px 7px; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-glitter"] { background: currentColor; clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-strass"] { background: transparent; border-radius: 50%; box-shadow: inset 0 0 0 2px currentColor, inset 3px 3px 0 0 color-mix(in srgb, currentColor 45%, transparent); }
-:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-seal"] { border-radius: 50%; background: conic-gradient(var(--ui-accent-main), var(--ui-accent-focus), currentColor, var(--ui-accent-main)); box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 60%, transparent); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-depth"] { border-radius: 50%; box-shadow: 3px 3px 0 0 color-mix(in srgb, currentColor 35%, transparent); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-breathe"] { box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 30%, transparent); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-sway"] { transform: rotate(-9deg); }

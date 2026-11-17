@@ -52,7 +52,7 @@ export async function GET() {
       name: (og?.name || (p.display_name as string | null) || handle).slice(0, 60),
       photo, pfpRadius: og?.pfpRadius ?? "50%", bg: og?.bg ?? "#17151c", nameColor: og?.nameColor ?? "#f6f3f8",
       pinned: !!f.pinned, hidden: !!f.hidden, visits: visitsOf.get(p.user_id as string) ?? 0, favoritedAt: f.created_at as string,
-      note: n ? { id: n.id as string, body: n.body as string, created_at: n.created_at as string, expires_at: n.expires_at as string } : null,
+      note: n && !card?.noteBox?.hidden ? { id: n.id as string, body: n.body as string, created_at: n.created_at as string, expires_at: n.expires_at as string } : null,
       noteSeen: n ? seenSet.has(n.id as string) : false,
       noteStyle: card?.noteBox,
       sig: state ? createHash("sha1").update(JSON.stringify(state)).digest("base64url").slice(0, 16) : undefined,

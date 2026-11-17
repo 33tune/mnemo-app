@@ -27,7 +27,7 @@ import {
 import { anchorToRect, rectToAnchor } from "./blockConstraints";
 import { getCardPadding, getFreeformCardBounds, PFP_PHOTO_SIZES, resolvePfpSize } from "./cardGeometry";
 import { CONTACT_LINK_ICON_SIZE, CONTACT_LINK_GAP } from "./contactLinksBlock";
-import { linkButtonHeight, resolveLinkButtonStyle } from "./linkButtons";
+import { linkButtonHeight, linkButtonsFitWidth, resolveLinkButtonStyle } from "./linkButtons";
 import { resolveCardTypography, resolveTypographyMetrics, TYPOGRAPHY_METRICS } from "./cardTypography";
 import { getFontStyle } from "./fontList";
 
@@ -334,9 +334,9 @@ export function profileBlocks(card: ProfileCardData, o: ProfileLayoutOptions = {
     const labelW = (label: string) => (o.measure
       ? o.measure.width(label, { family: getFontStyle(style.font, SANS), size: style.fontSize, weight: style.fontWeight, letterSpacing: -0.01 * style.fontSize })
       : label.length * style.fontSize * 0.56);
-    const fitW = Math.max(...buttons.map(b => labelW(b.label || b.url))) + 2 * Math.round(style.fontSize * 1.2)
-      + (style.showIcon ? Math.round(style.fontSize * 1.15) + Math.round(style.fontSize * 0.55) : 0) + SAFETY;
-    const natW = style.width === "full" ? Math.max(availW, Math.min(fitW, availW)) : fitW;
+    const fitW = linkButtonsFitWidth(buttons.map(b => b.label || b.url), style, labelW) + SAFETY;
+    // "fit": one length for every button — the chosen one, else the longest label's.
+    const natW = style.width === "full" ? Math.max(availW, Math.min(fitW, availW)) : Math.min(availW, style.length ?? fitW);
     specs.buttons = {
       natW,
       minW: Math.min(natW, BUTTONS_MIN_W),

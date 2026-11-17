@@ -49,6 +49,7 @@ export default function NoteInspector(p: NoteInspectorProps) {
       onClose={p.onClose} returnFocusTo={p.returnFocusTo} top={p.top} width={p.width} mode={p.mode}
       height={p.height} collapsed={p.collapsed} onExpand={p.onExpand}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <SwitchRow label="Mostrar la nota en mi perfil" icon="eye" value={!st.hidden} onChange={v => setStyle({ hidden: v ? undefined : true })} />
         <MenuSection label="Nota" pinned>
           {n.note ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
