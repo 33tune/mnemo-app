@@ -133,7 +133,7 @@ export function SliderRow({
           onDoubleClick={onTrackDoubleClick}
         />
         <div className="mn-lslider__row">
-          {icon && <Icon name={icon} size={17} />}
+          {icon && (SLIDER_GLYPHS.has(icon) ? <SliderGlyph icon={icon} t={pct / 100} /> : <Icon name={icon} size={17} />)}
           <label htmlFor={id} className="mn-lslider__label">{label}</label>
           {state === "inherited" && <InheritedChip id={chipId}>{inheritedLabel}</InheritedChip>}
           {draft !== null ? (
@@ -174,4 +174,28 @@ export function SliderRow({
       {state === "modified" && onReset && <FieldResetButton label={label} onReset={onReset} />}
     </div>
   );
+}
+
+// Menu redesign (2026-11-17, "sliders que se explican solos"): for the common
+// slider kinds the glyph left of the label IS a tiny live picture of the value
+// (the corner rounds, the square fades, the gap opens…), so the number can
+// stay hidden until you use the slider.
+const SLIDER_GLYPHS = new Set<IconName>(["corner", "eye", "sun", "maximize", "spacing", "frame", "height", "blend", "text", "rotate"]);
+function SliderGlyph({ icon, t }: { icon: IconName; t: number }) {
+  const c = "currentColor";
+  const k = Math.max(0, Math.min(1, t));
+  let body: React.ReactNode;
+  switch (icon) {
+    case "corner": body = <rect x="2.5" y="2.5" width="13" height="13" rx={k * 6.5} fill="none" stroke={c} strokeWidth="1.6" />; break;
+    case "eye": body = <><rect x="2.5" y="2.5" width="13" height="13" rx="3" fill="none" stroke={c} strokeOpacity={0.5} strokeWidth="1.2" /><rect x="2.5" y="2.5" width="13" height="13" rx="3" fill={c} fillOpacity={0.12 + 0.88 * k} /></>; break;
+    case "sun": body = <><circle cx="9" cy="9" r={2.4 + 1.6 * k} fill={c} />{[0, 45, 90, 135, 180, 225, 270, 315].map(a => <line key={a} x1="9" y1={9 - 4.6 - k} x2="9" y2={9 - 4.6 - k - 1.2 - 2.2 * k} stroke={c} strokeWidth="1.4" strokeLinecap="round" transform={`rotate(${a} 9 9)`} opacity={0.35 + 0.65 * k} />)}</>; break;
+    case "maximize": case "text": { const s = 5 + 9 * k; body = <rect x={9 - s / 2} y={9 - s / 2} width={s} height={s} rx={s * 0.22} fill={c} />; break; }
+    case "spacing": { const g = 1 + 6 * k; body = <><rect x={9 - g / 2 - 4} y="3" width="4" height="12" rx="1.2" fill={c} /><rect x={9 + g / 2} y="3" width="4" height="12" rx="1.2" fill={c} /></>; break; }
+    case "frame": body = <rect x="3" y="3" width="12" height="12" rx="3" fill="none" stroke={c} strokeWidth={0.8 + 3.4 * k} />; break;
+    case "height": { const h = 4 + 10 * k; body = <rect x="6" y={9 - h / 2} width="6" height={h} rx="2" fill={c} />; break; }
+    case "blend": body = <><defs><filter id="mn-sg-blur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation={0.01 + 2.6 * k} /></filter></defs><circle cx="9" cy="9" r="5" fill={c} filter="url(#mn-sg-blur)" /></>; break;
+    case "rotate": body = <><circle cx="9" cy="9" r="6.5" fill="none" stroke={c} strokeOpacity={0.35} strokeWidth="1.2" /><line x1="9" y1="9" x2="9" y2="3" stroke={c} strokeWidth="1.8" strokeLinecap="round" transform={`rotate(${k * 360} 9 9)`} /></>; break;
+    default: body = null;
+  }
+  return <svg className="mn-sglyph" width={18} height={18} viewBox="0 0 18 18" aria-hidden>{body}</svg>;
 }

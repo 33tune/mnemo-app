@@ -1,4 +1,5 @@
 "use client";
+import { useCardPreview } from "@/lib/cardPreview";
 import { Fragment, useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, memo, type CSSProperties } from "react";
 import { trackRender } from "@/lib/perfDebug";
 import type { ProfileCardData, TextFont, ProfileCardVariant, CardEffects, ContactLink } from "@/types";
@@ -257,12 +258,14 @@ function initFreePos(card: ProfileCardData): FreePos {
 const GLITTER_SEED = { name: 1, handle: 2, descriptor: 3, bio: 4, location: 5, views: 6, about: 7 } as const;
 
 function ProfileCard({
-  card, isSel, draggingId, parallaxTransform,
+  card: savedCard, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
   inspectorOpen = false, onEditActivate, onEditorFacts, activePart,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
+  // "Probar antes de elegir": the option under the pointer in the editor, live (cardPreview.ts).
+  const card = useCardPreview(savedCard, !!canInteract);
 
   // Menu redesign Phase 2: "menu open" = this card's inspector is open.
   const menuOpen = inspectorOpen && !!canInteract;

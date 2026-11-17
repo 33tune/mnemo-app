@@ -3,7 +3,7 @@ import { elementSearch } from "@/ui/SettingsSearch";
 import React, { useState } from "react";
 import type { MusicCardData, CardEffects } from "@/types";
 import {
-  T, Accordion, InspectorShell, MenuSection, MenuRow, SliderRow, ColorRow, TextInput, MenuNote, FontField, Tabs, EffectList, EffectRow, UploadField,
+  T, Accordion, InspectorShell, MenuSection, MenuRow, SliderRow, ColorRow, TextInput, MenuNote, FontField, ChoiceTiles, Draw, type Choice, EffectList, EffectRow, UploadField,
 } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
 import { uploadToStorage } from "@/lib/storage";
@@ -34,8 +34,8 @@ interface MusicInspectorProps extends ElementShellProps {
   onSetLayer?: (layer: LayerIndex) => void;
 }
 
-const GLOW_WHERE = [
-  { id: "outer", label: "Exterior", withText: true }, { id: "inner", label: "Interior", withText: true }, { id: "both", label: "Ambos", withText: true },
+const GLOW_WHERE: Choice[] = [
+  { id: "outer", label: "Afuera", draw: Draw.glowWhere("outer") }, { id: "inner", label: "Adentro", draw: Draw.glowWhere("inner") }, { id: "both", label: "Afuera y adentro", draw: Draw.glowWhere("both") },
 ];
 
 export default function MusicInspector(p: MusicInspectorProps) {
@@ -201,11 +201,7 @@ export default function MusicInspector(p: MusicInspectorProps) {
             <EffectRow id="glow" label="Glow" icon="sun" preview="c-glow" on={anyGlow} onToggle={setGlowOn}
               state={anyGlow ? (where === "both" ? "Ambos" : where === "inner" ? "Interior" : "Exterior") : undefined}>
               {anyGlow && (<>
-                <MenuRow label="Dónde">
-                  <div style={{ width: 228 }}>
-                    <Tabs tabs={GLOW_WHERE} active={where} onChange={setWhere} label="Dónde" />
-                  </div>
-                </MenuRow>
+                <ChoiceTiles options={GLOW_WHERE} value={where} onChange={setWhere} label="Dónde" />
                 <ColorRow label="Color" value={glow?.color ?? D.glowColor} onChange={v => patchGlow({ color: v })} />
                 <SliderRow label="Intensidad" icon="sun" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={glow?.intensity ?? 0} onChange={v => patchGlow({ intensity: v })} fmt={pct} />
               </>)}

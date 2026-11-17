@@ -1,4 +1,5 @@
 "use client";
+import { useTryOn } from "@/lib/cardPreview";
 import type { TextFont, TextGradientEffect, TextShimmerEffect, TextLetterAnimationEffect } from "@/types";
 import React, { useId } from "react";
 import { T, uv, MenuSection, MenuNote, ColorRow, FontField, SliderRow, GradientStops, EffectList, EffectRow, FieldResetButton } from "@/ui";
@@ -93,6 +94,7 @@ export function WeightControl({ font, family, weight, onChange, modified, onRese
   const loaded = options.filter(o => !o.synthetic).length;
   const synthetic = options.some(o => o.synthetic && o.value === weight);
   const labelId = useId();
+  const tryOn = useTryOn();
   return (
     <div className="mn-field" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px", minHeight: 28 }}>
@@ -105,6 +107,7 @@ export function WeightControl({ font, family, weight, onChange, modified, onRese
         {options.map(o => (
           <button key={o.value} type="button" role="radio" aria-checked={o.value === weight} className="mn-weight"
             aria-label={o.label} title={o.label}
+            {...(o.value === weight ? {} : tryOn(() => onChange(o.value)))}
             onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onChange(o.value); }}
             style={{ fontFamily: family, fontWeight: o.value, opacity: o.synthetic ? 0.5 : 1 }}>Aa</button>
         ))}

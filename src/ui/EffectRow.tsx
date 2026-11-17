@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useId, useState } from "react";
 import { Icon, type IconName } from "./icons";
 import { SectionNumber } from "./MenuSection";
+import { useTryOn, clearCardPreview } from "@/lib/cardPreview";
 
 type Tone = 1 | 2 | 3 | 4;
 
@@ -10,19 +11,25 @@ const ListContext = createContext<{ open: string | null; setOpen: (k: string | n
 /** Position of a tile in its grid — the inline detail panel goes under the
  * pair (row) the open tile belongs to. */
 const IndexContext = createContext<number>(0);
+/** Columns of the grid (gallery = 3) — the detail panel goes under the tile's row. */
+const ColsContext = createContext<number>(2);
 
 // Liquid glass (L1): EffectList = the DS tile grid (2 columns, gap 8). Each
 // EffectRow is a tile; its parameters unfold FULL WIDTH under the tile's row
 // (`order` keeps tile pairs and their detail panel together without
 // changing the DOM order the screen reader follows: tile, then its panel).
-export function EffectList({ children, label }: { children: React.ReactNode; label?: string }) {
+// Menu redesign (2026-11-17, "galería de efectos"): 3 columns of tiles, each
+// a live mini card doing its effect; the name under it; no state words.
+export function EffectList({ children, label, columns = 3 }: { children: React.ReactNode; label?: string; columns?: number }) {
   const [open, setOpen] = useState<string | null>(null);
   const items = React.Children.toArray(children).filter(React.isValidElement);
   return (
     <ListContext.Provider value={{ open, setOpen }}>
-      <div className="mn-tiles" role="group" aria-label={label}>
-        {items.map((child, i) => <IndexContext.Provider key={child.key ?? i} value={i}>{child}</IndexContext.Provider>)}
-      </div>
+      <ColsContext.Provider value={columns}>
+        <div className="mn-tiles" data-cols={columns} role="group" aria-label={label}>
+          {items.map((child, i) => <IndexContext.Provider key={child.key ?? i} value={i}>{child}</IndexContext.Provider>)}
+        </div>
+      </ColsContext.Provider>
     </ListContext.Provider>
   );
 }
@@ -68,6 +75,8 @@ interface EffectRowProps {
 export function EffectRow({ id, label, state, offState, paused, on, onToggle, active, icon, preview, children }: EffectRowProps) {
   const list = useContext(ListContext);
   const index = useContext(IndexContext);
+  const cols = useContext(ColsContext);
+  const tryOnProps = useTryOn();
   const [localOpen, setLocalOpen] = useState(false);
   const open = list ? list.open === id : localOpen;
   const setOpen = (o: boolean) => (list ? list.setOpen(o ? id : null) : setLocalOpen(o));
@@ -77,7 +86,7 @@ export function EffectRow({ id, label, state, offState, paused, on, onToggle, ac
   const lit = on ?? !!active;
   const hasDetail = React.Children.toArray(children).some(Boolean);
   const stateText = lit ? (state ?? "Activado") : paused ? "Pausado" : (offState ?? state ?? "Apagado");
-  const row = Math.floor(index / 2);
+  const row = Math.floor(index / cols);
 
   function tap(e: React.MouseEvent | React.KeyboardEvent) {
     e.stopPropagation();
@@ -104,33 +113,32 @@ export function EffectRow({ id, label, state, offState, paused, on, onToggle, ac
         tabIndex={0}
         data-on={lit || undefined}
         data-open={open || undefined}
-        style={{ order: row * 3 + (index % 2) }}
+        style={{ order: row * (cols + 1) + (index % cols) }}
         onMouseDown={e => e.stopPropagation()}
-        onClick={tap}
+        // "Probar antes de elegir": an OFF effect shows on the card while the pointer is on it.
+        {...(toggleable && !on ? tryOnProps(() => onToggle?.(true)) : {})}
+        onClick={e => { clearCardPreview(); tap(e); }}
         onKeyDown={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); tap(e); } }}
       >
         {ripple && <span key={ripple.k} className="mn-tile__ripple" aria-hidden style={{ left: ripple.x, top: ripple.y }} />}
         <span key={String(lit)} className="mn-tile__ico" aria-hidden>
           {preview ? <span className="mn-tile__pv" data-pv={preview}>{preview.startsWith("t-") ? "Aa" : null}</span>
-            : <Icon name={icon ?? "sparkles"} size={17} />}
+            : <Icon name={icon ?? "sparkles"} size={22} />}
         </span>
-        <span>
-          <span className="mn-tile__name">{label}</span>
-          <span className="mn-tile__state" data-paused={!lit && paused ? "" : undefined}>{!lit && paused ? "Pausado · se guardan" : stateText}</span>
-        </span>
+        <span className="mn-tile__name">{label}</span>
+        {!lit && paused && <span className="mn-tile__paused" title="Pausado · se guardan" aria-hidden />}
         {hasDetail && toggleable && (
           <button type="button" className="mn-tile__more" aria-label={`Ajustes de ${label}`} aria-expanded={open}
             aria-controls={open ? panelId : undefined}
             onMouseDown={e => e.stopPropagation()}
             onKeyDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); setOpen(!open); }}>
-            <Icon name="chevron-down" size={14} />
+            <Icon name="gear" size={13} />
           </button>
         )}
-        {hasDetail && !toggleable && <span className="mn-tile__more" aria-hidden><Icon name="chevron-down" size={14} /></span>}
       </div>
       {open && hasDetail && (
-        <div id={panelId} className="mn-tile__detail" role="group" aria-label={`Ajustes de ${label}`} style={{ order: row * 3 + 2 }}>
+        <div id={panelId} className="mn-tile__detail" role="group" aria-label={`Ajustes de ${label}`} style={{ order: row * (cols + 1) + cols }}>
           <div className="mn-tile__detail-head">
             <span>Ajustes de {label}</span>
             {!lit && toggleable && <span className="mn-tile__detail-state">Apagado · se guardan</span>}

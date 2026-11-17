@@ -4,10 +4,17 @@ import React, { useState } from "react";
 import type { SpaceCursor, SpaceFont, SpaceMusic } from "@/types";
 import {
   InspectorShell, MenuSection, MenuRow, MenuNote, ColorRow, SliderRow, ActionButton, SwitchRow, Tabs, Icon, UploadField, Accordion, T,
+  ExampleStrip,
 } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
 import { useEditorTheme } from "@/lib/useEditorTheme";
 import { EDITOR_THEMES, type EditorTheme } from "@/lib/editorTheme";
+
+/** "Ejemplos en lo vacío": wallpapers made for myLand (public/editor/wallpapers). */
+const SAMPLE_WALLPAPERS = [
+  { id: "aurora", label: "Aurora" }, { id: "noche", label: "Noche" }, { id: "atardecer", label: "Atardecer" },
+  { id: "pastel", label: "Pastel" }, { id: "oscuro", label: "Oscuro" }, { id: "lima", label: "Lima" },
+];
 
 /** The room setting ops "Tu sala" writes — the SAME set_* ops the old
  * "Ajustes de MyLand" submenu of the "+" menu sent (CanvasBoard.enqueueOp). */
@@ -125,7 +132,10 @@ export default function RoomInspector(p: RoomInspectorProps) {
           <ColorRow label="Color" value={p.bgColor} onChange={v => enqueue({ type: "set_bg", value: v })} />
           <UploadField kind="cover" value={p.wallpaper || null} label="Subir wallpaper" caption="Wallpaper" accept="image/*"
             onPick={() => p.pickWallpaper()} onRemove={() => enqueue({ type: "set_wallpaper", value: "" })} />
-          {p.wallpaper && <MenuNote>Se muestra encima del color</MenuNote>}
+          {p.wallpaper ? <MenuNote>Se muestra encima del color</MenuNote> : (
+            <ExampleStrip wide label="Fondos de ejemplo" onPick={id => enqueue({ type: "set_wallpaper", value: `/editor/wallpapers/${id}.jpg` })}
+              examples={SAMPLE_WALLPAPERS.map(w => ({ id: w.id, label: w.label, image: `/editor/wallpapers/${w.id}-thumb.webp` }))} />
+          )}
           <SliderRow label="Desenfoque" icon="blend" value={p.wallpaperBlur} min={0} max={40} step={1} unit="px" defaultValue={0} fmt={v => `${Math.round(v)} px`}
             onChange={v => enqueue({ type: "set_wallpaper_blur", value: v })} />
           <SliderRow label="Brillo" icon="sun" value={p.wallpaperBrightness} min={0} max={200} step={1} unit="%" defaultValue={100} fmt={v => `${Math.round(v)}%`}

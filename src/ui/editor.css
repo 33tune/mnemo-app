@@ -1582,3 +1582,149 @@
 @media (forced-colors: active) {
   :where([data-mnemo-editor], [data-mnemo-ui]) .mn-section__dot { color: CanvasText; }
 }
+
+/* Menu redesign (2026-11-17): choices drawn as small pictures of the result
+   (ChoiceTiles.tsx) — the word lives in the tooltip / accessible name. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-choices { display: grid; gap: 6px; width: 100%; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-choice {
+  display: grid; place-items: center; height: 46px; padding: 6px; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--ui-surface-control); color: var(--ui-text-secondary);
+  transition: background var(--ui-motion-fast) var(--ui-motion-ease), color var(--ui-motion-fast) var(--ui-motion-ease), transform 260ms var(--ui-motion-spring);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-choice:hover { background: var(--ui-surface-control-hover); color: var(--ui-text-primary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-choice:active { transform: scale(0.94); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-choice:focus-visible { outline: none; box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-choice[data-on] { background: var(--ui-accent-main); color: var(--ui-accent-ink); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-choice__draw { width: 100%; max-width: 54px; height: 32px; overflow: visible; }
+@media (forced-colors: active) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-choice[data-on] { outline: 2px solid Highlight; }
+}
+
+/* Menu redesign (2026-11-17) — "galería de efectos": 3 columns; each tile is a
+   live mini card doing its effect (the preview, animated), the name under it;
+   no state words (the name + state stay in the accessible name). ON = accent;
+   the gear (top right) opens the settings of an effect that is on. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tiles[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile {
+  height: auto; min-height: 96px; padding: 10px 6px 9px; align-items: center; justify-content: flex-start; gap: 7px; text-align: center;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__ico {
+  width: 54px; height: 54px; border-radius: 14px; background: color-mix(in srgb, currentColor 7%, transparent); overflow: visible;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__name { font-size: 12px; line-height: 1.15; font-weight: 600; max-width: 100%; overflow-wrap: anywhere; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__state { display: none; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__paused { position: absolute; top: 8px; left: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--ui-accent-main); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__more { top: 5px; right: 5px; width: 24px; height: 24px; opacity: 0; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile[data-on] .mn-tile__more,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__more,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__more:focus-visible { opacity: 0.85; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile[data-open] .mn-tile__more { transform: none; opacity: 1; background: color-mix(in srgb, currentColor 18%, transparent); }
+/* The preview grows into a mini card (30×38) and moves on its own. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv { font-size: 22px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv^="c-"] { width: 28px; height: 36px; border-radius: 6px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-holo"] { background-size: 300% 300%; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-glare"],
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-sweep"] { background-size: 300% 100%; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="t-shim"],
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="t-grad"] { background-size: 250% 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-holo"] { animation: mn-pv-pan 3.2s ease-in-out infinite alternate; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-glare"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-sweep"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="t-shim"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="t-grad"] { animation: mn-pv-slide 2.4s linear infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-glitter"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-strass"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-flick"] { animation: mn-pv-twinkle 1.4s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-dust"] { animation: mn-pv-drift 3s linear infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-scan"] { animation: mn-pv-scan 1.2s linear infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-noise"] { animation: mn-pv-noise 0.35s steps(3) infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-glow"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-pulse"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-aura"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="t-glow"] { animation: mn-pv-glow 1.8s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-tilt"] { animation: mn-pv-tilt 2.4s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-spot"] { animation: mn-pv-spot 2.6s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-depth"] { animation: mn-pv-depth 2.2s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-chroma"] { animation: mn-pv-chroma 0.9s steps(2) infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-enter"] { animation: mn-pv-enter 2.2s var(--ui-motion-spring) infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-edge"] { animation: mn-pv-glow 2.4s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="t-let"] { animation: mn-pv-float 1.1s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-breathe"] { animation: mn-pv-breathe 1.8s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-sway"] { animation: mn-pv-sway 2s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-beat"] { animation: mn-pv-beat 1.2s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-float"] { animation: mn-pv-float 1.8s ease-in-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-run"] { animation: mn-pv-turn 2s linear infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv[data-pv="c-ripple"] { animation: mn-pv-ripple 1.6s ease-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-jelly"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile[data-on] .mn-tile__pv[data-pv="c-jelly"] { animation: mn-pv-jelly 0.9s ease-out infinite; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:hover .mn-tile__pv[data-pv="c-spin"],
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile[data-on] .mn-tile__pv[data-pv="c-spin"] { animation: mn-pv-spin 1.4s ease-in-out infinite; }
+}
+@keyframes mn-pv-pan { from { background-position: 0% 30%; } to { background-position: 100% 70%; } }
+@keyframes mn-pv-slide { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@keyframes mn-pv-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.82); } }
+@keyframes mn-pv-drift { from { background-position: 0 0, 3px 2px; } to { background-position: 0 -12px, 3px -12px; } }
+@keyframes mn-pv-scan { to { background-position: 0 7px; } }
+@keyframes mn-pv-noise { 0% { background-position: 0 0; } 50% { background-position: 1px 2px; } 100% { background-position: 2px 1px; } }
+@keyframes mn-pv-glow { 50% { filter: brightness(1.35) saturate(1.3); opacity: 0.8; } }
+@keyframes mn-pv-tilt { 0%, 100% { transform: perspective(60px) rotateY(-24deg) rotateX(6deg); } 50% { transform: perspective(60px) rotateY(24deg) rotateX(-6deg); } }
+@keyframes mn-pv-spot { 0%, 100% { background-position: -6px -6px; } 50% { background-position: 6px 8px; } }
+@keyframes mn-pv-depth { 0%, 100% { box-shadow: 3px 3px 0 0 color-mix(in srgb, currentColor 35%, transparent); } 50% { box-shadow: -3px 2px 0 0 color-mix(in srgb, currentColor 35%, transparent); } }
+@keyframes mn-pv-chroma { 50% { box-shadow: inset 0 0 0 2px currentColor, 2.5px 0 0 var(--ui-accent-main), -2.5px 0 0 var(--ui-accent-focus); } }
+@keyframes mn-pv-enter { 0% { transform: translateY(10px) scale(0.6); opacity: 0; } 35%, 80% { transform: none; opacity: 1; } 100% { transform: none; opacity: 0; } }
+@keyframes mn-pv-ripple { 0% { box-shadow: inset 0 0 0 1.5px currentColor, 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent); } 100% { box-shadow: inset 0 0 0 1.5px currentColor, 0 0 0 10px color-mix(in srgb, currentColor 0%, transparent); } }
+/* An always-open group of tiles (FxGroup): a small title, then the grid. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-card--group { background: transparent; box-shadow: none; padding: 4px 0 2px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-group__head { display: flex; align-items: center; gap: 8px; padding: 0 4px 8px; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-group__head .mn-card__title { font-size: 13px; font-weight: 650; color: var(--ui-text-secondary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-group__icon { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: var(--ui-surface-control); color: var(--ui-text-secondary); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-group__icon[data-lit] { background: var(--ui-accent-main); color: var(--ui-accent-ink); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-group__count { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; box-sizing: border-box; background: var(--ui-accent-main); color: var(--ui-accent-ink); font: 700 11px/1 var(--ui-font-sans); }
+/* "Fuentes que se ven" (FontStrip): the real text in every font, a row you swipe. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontstrip { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 6px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontstrip__item {
+  flex: none; scroll-snap-align: center; min-width: 64px; max-width: 132px; height: 46px; padding: 0 12px; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--ui-surface-control); color: var(--ui-text-primary); font-size: 17px; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background var(--ui-motion-fast) var(--ui-motion-ease), transform 260ms var(--ui-motion-spring);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontstrip__item:hover { background: var(--ui-surface-control-hover); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontstrip__item:active { transform: scale(0.95); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontstrip__item:focus-visible { outline: none; box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-fontstrip__item[data-on] { background: var(--ui-accent-main); color: var(--ui-accent-ink); }
+/* Hints as an info glyph with a bubble (MenuNote, 2026-11-17). */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hintrow { display: flex; justify-content: flex-end; margin: -2px 0; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hint {
+  position: relative; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; cursor: help;
+  color: var(--ui-text-tertiary); outline: none;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hint:hover,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hint:focus-visible { color: var(--ui-text-primary); background: var(--ui-surface-control); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hint:focus-visible { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hint__bubble {
+  position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 5; width: max-content; max-width: 240px; padding: 8px 10px; border-radius: 10px;
+  background: var(--ui-surface-panel-opaque); color: var(--ui-text-primary); box-shadow: var(--ui-shadow-popover);
+  font-family: var(--ui-font-sans); font-size: 12px; line-height: 1.35; font-weight: 450; text-align: left;
+  opacity: 0; transform: translateY(4px); pointer-events: none; transition: opacity 140ms ease, transform 140ms ease;
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hint:hover .mn-hint__bubble,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-hint:focus-visible .mn-hint__bubble { opacity: 1; transform: none; }
+/* Sliders that explain themselves: the number shows only while you use it. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-lslider .mn-value { opacity: 0; transition: opacity 140ms ease; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-lslider:hover .mn-value,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-lslider[data-active] .mn-value,
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-lslider:focus-within .mn-value { opacity: 1; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-sglyph { flex: none; display: block; overflow: visible; }
+/* "Ejemplos en lo vacío" (ExampleStrip): tap one to try it. */
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-examples { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-example {
+  flex: none; display: grid; place-items: center; width: 52px; height: 52px; padding: 6px; border: 0; border-radius: 12px; cursor: pointer; overflow: hidden;
+  background: var(--ui-surface-control); color: var(--ui-text-primary);
+  transition: background var(--ui-motion-fast) var(--ui-motion-ease), transform 260ms var(--ui-motion-spring);
+}
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-examples[data-wide] .mn-example { width: 84px; height: 48px; padding: 0; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-example:hover { background: var(--ui-surface-control-hover); transform: translateY(-2px); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-example:active { transform: scale(0.94); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-example:focus-visible { outline: none; box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-example img { width: 100%; height: 100%; object-fit: contain; display: block; }
+:where([data-mnemo-editor], [data-mnemo-ui]) .mn-examples[data-wide] .mn-example img { object-fit: cover; }

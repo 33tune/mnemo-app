@@ -1,7 +1,21 @@
 "use client";
 import { useState } from "react";
 import type { ContactLink, ProfileCardData } from "@/types";
-import { MenuSection, MenuNote, SliderRow, ColorRow, TextInput, IconButton, Tabs, refocusFieldControl } from "@/ui";
+import { MenuSection, MenuNote, SliderRow, ColorRow, TextInput, IconButton, Tabs, refocusFieldControl, ExampleStrip } from "@/ui";
+
+/** "Ejemplos en lo vacío": tap a network and its link starts written for you. */
+export const SAMPLE_NETWORKS: { id: string; label: string; prefix: string }[] = [
+  { id: "instagram", label: "Instagram", prefix: "instagram.com/" }, { id: "tiktok", label: "TikTok", prefix: "tiktok.com/@" },
+  { id: "spotify", label: "Spotify", prefix: "open.spotify.com/user/" }, { id: "youtube", label: "YouTube", prefix: "youtube.com/@" },
+  { id: "twitter", label: "X", prefix: "x.com/" }, { id: "discord", label: "Discord", prefix: "discord.gg/" },
+];
+/** Puts the cursor at the end of the field labelled `label` (after a prefill). */
+export function focusFieldEnd(label: string) {
+  requestAnimationFrame(() => {
+    const el = document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  });
+}
 import { walletCoins, walletCoin, looksLikeBadWallet, shortWallet, COIN_LABELS, type Coin } from "@/lib/wallets";
 import { detectPlatform, PlatformIcon, PLATFORM_LABELS } from "./SocialIcons";
 import { CONTACT_LINKS_MAX, CONTACT_LINK_ICON_SIZE, CONTACT_LINK_ICON_SIZE_MIN, CONTACT_LINK_ICON_SIZE_MAX, CONTACT_LINK_ICON_OPACITY } from "@/lib/contactLinksBlock";
@@ -131,6 +145,10 @@ export default function ProfileContactLinksMenu({ card, baseColor, fitsInCard, o
           );
         })}
 
+        {links.length === 0 && (
+          <ExampleStrip label="Redes" onPick={id => { const n = SAMPLE_NETWORKS.find(x => x.id === id); if (n) { setNewUrl(n.prefix); setBad(false); focusFieldEnd("URL del link nuevo"); } }}
+            examples={SAMPLE_NETWORKS.map(n => ({ id: n.id, label: n.label, node: <PlatformIcon platform={n.id as Parameters<typeof PlatformIcon>[0]["platform"]} size={22} color="currentColor" /> }))} />
+        )}
         {links.length < CONTACT_LINKS_MAX && (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <TextInput
@@ -148,7 +166,7 @@ export default function ProfileContactLinksMenu({ card, baseColor, fitsInCard, o
           </div>
         )}
         {bad && <MenuNote tone="warn">Esa dirección de billetera no parece válida: revisá que esté completa y sin errores.</MenuNote>}
-        <span className="mn-linkrow__count">{links.length}/{CONTACT_LINKS_MAX} · la plataforma o la moneda se detectan solas</span>
+        {links.length > 0 && <span className="mn-linkrow__count">{links.length}/{CONTACT_LINKS_MAX}</span>}
         <MenuNote>Pegá la dirección de tu billetera (Bitcoin, Ethereum, Solana, USDT, Litecoin, Dogecoin, Monero, BNB o Tron): en la card el ícono solo copia la dirección.</MenuNote>
       </MenuSection>
 

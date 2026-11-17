@@ -601,6 +601,21 @@ planeado acá hasta confirmarlo.
 >   más ancho que la card). **Sello ELIMINADO** (no le gustó): sin tipo, menú, render ni capacidades; una card que lo tenía
 >   guardado ya no lo muestra.
 >
+> **Menú más intuitivo (2026-11-17, las 7 opciones aprobadas por el usuario: "no explicar con texto"):**
+>   - **Probador:** pasar el mouse por una opción la muestra en la card sin guardarla (`src/lib/cardPreview.ts`: el
+>     control corre su propio onChange en modo ensayo; `EditorHost` › `captureWrite(patch)` lo convierte en vista previa;
+>     `ProfileCard` dibuja `useCardPreview`). Solo dentro de `ProfileInspector` (`CardTryOnContext`); en Nota / Music /
+>     Texto el hover no hace nada (ahí onChange guardaría de verdad).
+>   - **Dibujos en lugar de palabras:** `src/ui/ChoiceTiles.tsx` (`ChoiceTiles` + `Draw`): forma/relleno/ancho de botones,
+>     forma de la foto, zonas del holo, reflejo, glitter, strass, polvo, dónde va el brillo.
+>   - **Galería de efectos:** Tarjeta › Efectos con grupos siempre abiertos (`FxGroup` en `MenuSection.tsx`), tiles de 3
+>     columnas con preview animada (`mn-pv-*` en editor.css), solo el nombre y un engranaje para los ajustes.
+>   - **Fuentes a la vista:** `FontStrip` (fila de fuentes escritas con el texto real). **Sin textos explicativos:** las
+>     notas pasan a un ícono "i" con globo (`MenuNote`), los resúmenes neutros se ocultan (`QUIET_SUMMARY`).
+>     **Sliders:** glifo que muestra el valor (`SliderGlyph`), el número solo al pasar el mouse / foco.
+>   - **Ejemplos en vacío** (`ExampleStrip`): redes en Íconos y Botones, fondos de sala (`public/editor/wallpapers/`) y
+>     stickers (`public/editor/stickers/`).
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por

@@ -1,5 +1,6 @@
 "use client";
-import React, { useLayoutEffect, useMemo, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { clearCardPreview, CardTryOnContext } from "@/lib/cardPreview";
 import type { ProfileCardData } from "@/types";
 import { InspectorShell, CardPaletteProvider } from "@/ui";
 import { cardPalette } from "@/lib/cardPalette";
@@ -48,6 +49,8 @@ export default function ProfileInspector({
   onChange, onClose, returnFocusTo, top, width, mode, height, collapsed, onExpand,
 }: ProfileInspectorProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
+  // A hover preview never outlives the panel or a change of part.
+  useEffect(() => clearCardPreview, [object]);
   const panelId = `mnemo-inspector-panel-${card.id}`;
   const obj = inspectorObject(object);
   const effective = getProfileCardEffects(card);
@@ -84,6 +87,7 @@ export default function ProfileInspector({
   }, [object, card.id, collapsed, memory]);
 
   return (
+    <CardTryOnContext.Provider value={true}>
     <InspectorShell
       id={id}
       // Liquid glass header (DS dock): the part's glyph, its name, the route
@@ -116,5 +120,6 @@ export default function ProfileInspector({
         </CardPaletteProvider>
       </div>
     </InspectorShell>
+    </CardTryOnContext.Provider>
   );
 }

@@ -17,6 +17,20 @@ interface MenuNoteProps {
 // no box — a glyph before a hint, the accent dot before a warning. Status
 // information, not an alert.
 export function MenuNote({ children, id, tone = "hint", icon }: MenuNoteProps) {
+  // Menu redesign (2026-11-17, "sin textos que explican"): a hint no longer
+  // takes a line — it is a small info glyph; its text shows in a bubble on
+  // hover / focus (and stays the note's accessible text). Warnings stay
+  // visible lines: they ask for something.
+  if (tone !== "warn") {
+    return (
+      <div className="mn-hintrow">
+        <span role="note" id={id} className="mn-hint" tabIndex={0} onMouseDown={e => e.stopPropagation()}>
+          <Icon name={icon ?? "info"} size={14} />
+          <span className="mn-hint__bubble">{children}</span>
+        </span>
+      </div>
+    );
+  }
   return (
     <div role="note" id={id} className="mn-note" data-tone={tone}>
       {tone === "warn"

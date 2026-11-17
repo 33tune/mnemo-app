@@ -1,8 +1,9 @@
 "use client";
+import { SAMPLE_NETWORKS, focusFieldEnd } from "./ProfileContactLinksMenu";
 import React, { useRef, useState } from "react";
 import type { LinkButton, LinkButtonStyle, ProfileCardData } from "@/types";
 import {
-  MenuSection, MenuRow, MenuNote, SliderRow, Tabs, ColorRow, FontField, SwitchRow, EffectList, EffectRow,
+  MenuSection, MenuNote, SliderRow, ChoiceTiles, Draw, ExampleStrip, ColorRow, FontField, SwitchRow, EffectList, EffectRow,
   TextInput, IconButton, Icon, refocusFieldControl,
 } from "@/ui";
 import { detectPlatform, PlatformIcon } from "./SocialIcons";
@@ -36,9 +37,9 @@ interface Props {
   onChange: (patch: Partial<ProfileCardData>) => void;
 }
 
-const SHAPES = [{ id: "square", label: "Recta" }, { id: "soft", label: "Suave" }, { id: "pill", label: "Píldora" }];
-const FILLS = [{ id: "solid", label: "Sólido" }, { id: "outline", label: "Contorno" }, { id: "glass", label: "Vidrio" }];
-const WIDTHS = [{ id: "full", label: "Completo" }, { id: "fit", label: "Ajustado" }];
+const SHAPES = [{ id: "square", label: "Recta", draw: Draw.buttonShape(0.5) }, { id: "soft", label: "Suave", draw: Draw.buttonShape(4) }, { id: "pill", label: "Píldora", draw: Draw.buttonShape(7) }];
+const FILLS = [{ id: "solid", label: "Sólido", draw: Draw.buttonFill("solid") }, { id: "outline", label: "Contorno", draw: Draw.buttonFill("outline") }, { id: "glass", label: "Vidrio", draw: Draw.buttonFill("glass") }];
+const WIDTHS = [{ id: "full", label: "Ancho completo", draw: Draw.buttonWidth("full") }, { id: "fit", label: "Ajustado al texto", draw: Draw.buttonWidth("fit") }];
 const px = (v: number) => `${Math.round(v)} px`;
 
 // Link buttons (Linktree-style, user decision 2026-10-14). Content first —
@@ -88,6 +89,10 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
             onRemove={(id, el) => { ctl.remove(id); if (editingId === id) setEditingId(null); refocusFieldControl(el); }}
             onMove={(from, to) => ctl.move(from, to)} />
         )}
+        {buttons.length === 0 && (
+          <ExampleStrip label="Botones de ejemplo" onPick={id => { const n = SAMPLE_NETWORKS.find(x => x.id === id); if (n) { setLabel(`Mi ${n.label}`); setUrl(`https://${n.prefix}`); focusFieldEnd("Link del botón"); } }}
+            examples={SAMPLE_NETWORKS.map(n => ({ id: n.id, label: n.label, node: <PlatformIcon platform={n.id as Parameters<typeof PlatformIcon>[0]["platform"]} size={22} color="currentColor" /> }))} />
+        )}
         {!full && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <TextInput value={label} onChange={setLabel} placeholder="Texto del botón" label="Texto del botón" maxLength={LINK_BUTTON_LABEL_MAX}
@@ -102,18 +107,14 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
             </div>
           </div>
         )}
-        <span className="mn-linkrow__count">{buttons.length}/{LINK_BUTTONS_MAX} · el ícono sale del link{buttons.length > 1 ? " · arrastrá para ordenar" : ""}</span>
+        {buttons.length > 0 && <span className="mn-linkrow__count">{buttons.length}/{LINK_BUTTONS_MAX}</span>}
       </MenuSection>
 
       <MenuSection label="Estilo" icon="palette" changed={styleChanged} swatch={r.fill === "solid" ? r.color : undefined}
         summary={`${shapeName} · ${fillName} · ${CANVAS_FONTS.find(f => f.key === r.font)?.label ?? r.font} ${r.fontSize} px`}
         onReset={() => ctl.setStyle({ shape: undefined, fill: undefined, color: undefined, textColor: undefined, font: undefined, fontSize: undefined, fontWeight: undefined, showIcon: undefined })}>
-        <MenuRow label="Forma" state={style?.shape ? "modified" : undefined} onReset={() => ctl.setStyle({ shape: undefined })}>
-          <div style={{ width: 212 }}><Tabs tabs={SHAPES} active={r.shape} onChange={v => ctl.setStyle({ shape: v as LinkButtonStyle["shape"] })} /></div>
-        </MenuRow>
-        <MenuRow label="Relleno" state={style?.fill ? "modified" : undefined} onReset={() => ctl.setStyle({ fill: undefined })}>
-          <div style={{ width: 212 }}><Tabs tabs={FILLS} active={r.fill} onChange={v => ctl.setStyle({ fill: v as LinkButtonStyle["fill"] })} /></div>
-        </MenuRow>
+        <ChoiceTiles label="Forma" options={SHAPES} value={r.shape} onChange={v => ctl.setStyle({ shape: v as LinkButtonStyle["shape"] })} />
+        <ChoiceTiles label="Relleno" options={FILLS} value={r.fill} onChange={v => ctl.setStyle({ fill: v as LinkButtonStyle["fill"] })} />
         <ColorRow label="Color del botón" value={r.color} onChange={v => ctl.setStyle({ color: v })}
           state={style?.color ? "modified" : "inherited"} inheritedLabel="Color de los textos" onReset={() => ctl.setStyle({ color: undefined })} />
         <ColorRow label="Color del texto" value={r.textColor} onChange={v => ctl.setStyle({ textColor: v })}
@@ -130,9 +131,7 @@ export default function ProfileLinkButtonsMenu({ card, baseColor, fits, onChange
       <MenuSection label="Distribución" icon="spacing" changed={layoutChanged}
         summary={`${r.width === "full" ? "Ancho completo" : r.length != null ? `Ajustado · ${r.length} px` : "Ajustado al texto"} · ${r.gap} px`}
         onReset={() => ctl.setStyle({ width: undefined, length: undefined, gap: undefined })}>
-        <MenuRow label="Ancho" state={style?.width ? "modified" : undefined} onReset={() => ctl.setStyle({ width: undefined })}>
-          <div style={{ width: 212 }}><Tabs tabs={WIDTHS} active={r.width} onChange={v => ctl.setStyle({ width: v as LinkButtonStyle["width"] })} /></div>
-        </MenuRow>
+        <ChoiceTiles label="Ancho" options={WIDTHS} value={r.width} onChange={v => ctl.setStyle({ width: v as LinkButtonStyle["width"] })} />
         {r.width === "fit" && (
           <SliderRow label="Largo" icon="maximize" min={LINK_BUTTON_LENGTH.min} max={LINK_BUTTON_LENGTH.max} step={2}
             value={r.length ?? naturalLength(buttons, r)} unit="px" fmt={px}

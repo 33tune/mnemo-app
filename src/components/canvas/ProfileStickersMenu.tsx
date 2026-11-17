@@ -2,7 +2,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { CardSticker, ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { MenuSection, MenuNote, UploadField, ActionButton, IconButton, Icon } from "@/ui";
+import { MenuSection, MenuNote, UploadField, ActionButton, IconButton, Icon, ExampleStrip } from "@/ui";
+
+/** "Ejemplos en lo vacío": myLand's own decorations as starter stickers (public/editor/stickers). */
+const SAMPLE_STICKERS = [
+  { id: "star", label: "Estrella cromada", w: 600, h: 536 }, { id: "starburst", label: "Destello", w: 475, h: 525 },
+  { id: "wings", label: "Alas", w: 447, h: 559 }, { id: "tribal", label: "Tribal", w: 382, h: 600 },
+  { id: "spine", label: "Espina", w: 300, h: 600 }, { id: "vcorner", label: "Esquina", w: 300, h: 600 },
+  { id: "starround", label: "Estrella redonda", w: 400, h: 385 },
+];
 import { CARD_ROW, STICKER_MAX, moveRow, newSticker, stickerRows } from "@/lib/stickerGeometry";
 import { stickerEditing, useStickerEditing } from "@/lib/stickerEditing";
 
@@ -52,6 +60,14 @@ export default function ProfileStickersMenu({ card, onChange }: Props) {
       stickerEditing.start(card.id, [st.id]);
     } catch { /* uploadToStorage already told the user */ }
     finally { setBusy(false); }
+  }
+
+  function addSample(id: string) {
+    const x = SAMPLE_STICKERS.find(s => s.id === id);
+    if (!x || full) return;
+    const st = newSticker(crypto.randomUUID(), `/editor/stickers/${x.id}.webp`, x.w, x.h, card.w, card.h);
+    setStickers([...(card.stickers ?? []), st]);
+    stickerEditing.start(card.id, [st.id]);
   }
 
   // ── Rows (top = front) and dragging them ─────────────────────────────────
@@ -121,6 +137,10 @@ export default function ProfileStickersMenu({ card, onChange }: Props) {
       <MenuSection label="Stickers" pinned summary={summary}>
         <UploadField kind="logo" value={null} label={full ? `Máximo ${STICKER_MAX} stickers` : busy ? "Subiendo…" : "Agregar sticker"}
           caption="PNG, GIF o WebP" accept="image/*" onFile={add} disabled={full || busy} />
+        {stickers.length === 0 && (
+          <ExampleStrip label="Stickers de ejemplo" onPick={addSample}
+            examples={SAMPLE_STICKERS.map(s => ({ id: s.id, label: s.label, image: `/editor/stickers/${s.id}.webp` }))} />
+        )}
         <div style={{ display: "flex", gap: 8 }}>
           <ActionButton variant={editing ? "primary" : "secondary"} fullWidth disabled={!editing && stickers.length === 0}
             onClick={e => { e.stopPropagation(); if (editing) stickerEditing.apply(); else stickerEditing.start(card.id); }}>

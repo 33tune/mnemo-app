@@ -1,7 +1,7 @@
 export { T, uv }          from "./tokens";
 export { MenuPanel, usePanelFocus } from "./MenuPanel";
 export { InspectorShell, INSPECTOR_TITLE_ID, INSPECTOR_EXPAND_ID } from "./InspectorShell";
-export { MenuSection, SectionNumber, Accordion, GroupLabel } from "./MenuSection";
+export { MenuSection, SectionNumber, Accordion, GroupLabel, FxGroup } from "./MenuSection";
 export type { SectionNumberValue } from "./MenuSection";
 export { EffectList, EffectRow } from "./EffectRow";
 export { FontField }      from "./FontField";
@@ -28,3 +28,7 @@ export type { IconName }  from "./icons";
 export { IconButton }     from "./IconButton";
 export { UploadField }    from "./UploadField";
 export type { UploadKind } from "./UploadField";
+export { ChoiceTiles, Draw, miniCard, miniCardContent } from "./ChoiceTiles";
+export type { Choice } from "./ChoiceTiles";
+export { ExampleStrip } from "./ExampleStrip";
+export type { Example } from "./ExampleStrip";

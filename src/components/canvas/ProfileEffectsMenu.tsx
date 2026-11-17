@@ -2,9 +2,9 @@
 import React from "react";
 import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import type { CardEffects } from "@/types";
-import { SliderRow, ColorRow, MenuSection, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, Tabs, FontSelect, SwitchRow, ActionButton, GroupLabel, TextInput } from "@/ui";
+import { SliderRow, ColorRow, MenuSection, FxGroup, MenuRow, MenuNote, Collapsible, OffsetRow, EffectList, EffectRow, ChoiceTiles, Draw, type Choice, FontSelect, SwitchRow, ActionButton, GroupLabel, TextInput } from "@/ui";
 import {
-  HOLO_STYLES, HOLO_SCOPES, HOLO_PALETTES, ENTRANCE_STYLES, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE,
+  HOLO_STYLES, HOLO_PALETTES, ENTRANCE_STYLES, HOLO_DEFAULT_INTENSITY, GLARE_DEFAULT_INTENSITY, GLARE_DEFAULT_SIZE,
   ENTRANCE_DEFAULT_DURATION, ENTRANCE_DEFAULT_STYLE, ENTRANCE_PREVIEW_EVENT, holoOn, glareOn, holoStyleOf, holoScopeOf,
   GLITTER_DEFAULT_AMOUNT, GLITTER_DEFAULT_SIZE, STRASS_DEFAULT_SIZE, STRASS_DEFAULT_GAP,
   GLITTER_COLOR_LABEL, STRASS_COLOR_LABEL, GLITTER_COLORS, strassColors,
@@ -150,19 +150,24 @@ export function CardCornersSection({ children, summaryExtra, ...props }: Props &
   );
 }
 
-const GLARE_SHAPES = [
-  { id: "both", label: "Punto y franja", withText: true }, { id: "spot", label: "Punto", withText: true }, { id: "streak", label: "Franja", withText: true },
+// Menu redesign (2026-11-17): every "which look / where" choice is a drawing (ChoiceTiles).
+const GLARE_SHAPES: Choice[] = [
+  { id: "both", label: "Punto y franja", draw: Draw.glare("both") }, { id: "spot", label: "Punto", draw: Draw.glare("spot") }, { id: "streak", label: "Franja", draw: Draw.glare("streak") },
 ];
-const GLITTER_SCOPES = [
-  { id: "text", label: "Textos", withText: true }, { id: "card", label: "Toda", withText: true }, { id: "border", label: "Borde", withText: true },
+const GLITTER_SCOPES: Choice[] = [
+  { id: "text", label: "Sobre los textos", draw: Draw.zone("text") }, { id: "card", label: "Toda la card", draw: Draw.zone("card") }, { id: "border", label: "En el borde", draw: Draw.zone("border") },
 ];
-const STRASS_SHAPES = [
-  { id: "round", label: "Redonda", withText: true }, { id: "heart", label: "Corazón", withText: true }, { id: "star", label: "Estrella", withText: true },
+const STRASS_SHAPES: Choice[] = [
+  { id: "round", label: "Redonda", draw: Draw.gem("round") }, { id: "heart", label: "Corazón", draw: Draw.gem("heart") }, { id: "star", label: "Estrella", draw: Draw.gem("star") },
 ];
-const DUST_LAYERS = [{ id: "front", label: "Delante", withText: true }, { id: "back", label: "Detrás", withText: true }];
+const DUST_LAYERS: Choice[] = [{ id: "front", label: "Delante de la card", draw: Draw.layer("front") }, { id: "back", label: "Detrás de la card", draw: Draw.layer("back") }];
+const HOLO_ZONES: Choice[] = [
+  { id: "card", label: "Toda la card", draw: Draw.zone("card") }, { id: "bg", label: "Solo el fondo", draw: Draw.zone("background") },
+  { id: "photo", label: "Solo la foto", draw: Draw.zone("photo") }, { id: "border", label: "Solo el borde", draw: Draw.zone("border") },
+];
 
-const GLOW_WHERE = [
-  { id: "outer", label: "Exterior", withText: true }, { id: "inner", label: "Interior", withText: true }, { id: "both", label: "Ambos", withText: true },
+const GLOW_WHERE: Choice[] = [
+  { id: "outer", label: "Afuera", draw: Draw.glowWhere("outer") }, { id: "inner", label: "Adentro", draw: Draw.glowWhere("inner") }, { id: "both", label: "Afuera y adentro", draw: Draw.glowWhere("both") },
 ];
 
 /** Every card-level effect — mounted by "Efectos de la card".
@@ -217,7 +222,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
     <>
       {/* What makes the card feel like a collectible: a foil that moves
           with the light, the glare over it, a metal rim. */}
-      <MenuSection label="Holo y reflejo" icon="sparkles" active={count(foil)} summary={names(foil)}>
+      <FxGroup label="Holo y reflejo" icon="sparkles" active={count(foil)}>
         <EffectList label="Holo y reflejo">
           <EffectRow id="holo" label="Holo" icon="sparkles" preview="c-holo" on={holoIsOn}
             onToggle={v => patchHolo({ enabled: v, intensity: v && !(holo?.intensity) ? HOLO_DEFAULT_INTENSITY : holo?.intensity })}
@@ -230,11 +235,8 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
                 <SliderRow label="Intensidad" icon="sparkles" min={0.05} max={1} step={0.01} value={holo?.intensity ?? HOLO_DEFAULT_INTENSITY}
                   onChange={v => patchHolo({ enabled: true, intensity: v })} fmt={pct} />
                 {/* Four options: a row of their own (beside a label they were cramped). */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <GroupLabel>Dónde</GroupLabel>
-                  <Tabs tabs={HOLO_SCOPES} active={holoScopeOf(effective)}
-                    onChange={id => patchHolo({ enabled: true, scope: id === "card" ? undefined : id as NonNullable<CardEffects["holo"]>["scope"] })} label="Dónde" />
-                </div>
+                <ChoiceTiles options={HOLO_ZONES} value={holoScopeOf(effective)}
+                  onChange={id => patchHolo({ enabled: true, scope: id === "card" ? undefined : id as NonNullable<CardEffects["holo"]>["scope"] })} label="Dónde" />
                 <Collapsible label="Más ajustes">
                   <SliderRow label="Tamaño del dibujo" icon="maximize" min={0.5} max={2} step={0.05} value={holo?.scale ?? 1}
                     onChange={v => patchHolo({ enabled: true, scale: v === 1 ? undefined : v })} fmt={pct} />
@@ -252,11 +254,8 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             state={glareIsOn ? pct(glare?.intensity ?? GLARE_DEFAULT_INTENSITY) : undefined}>
             {glareIsOn ? (
               <>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <GroupLabel>Forma</GroupLabel>
-                  <Tabs tabs={GLARE_SHAPES} active={glare?.shape ?? "both"}
-                    onChange={id => patchGlare({ enabled: true, shape: id === "both" ? undefined : id as NonNullable<CardEffects["glare"]>["shape"] })} label="Forma" />
-                </div>
+                <ChoiceTiles options={GLARE_SHAPES} value={glare?.shape ?? "both"}
+                  onChange={id => patchGlare({ enabled: true, shape: id === "both" ? undefined : id as NonNullable<CardEffects["glare"]>["shape"] })} label="Forma" />
                 <SliderRow label="Intensidad" icon="sun" min={0.05} max={1} step={0.01} value={glare?.intensity ?? GLARE_DEFAULT_INTENSITY}
                   onChange={v => patchGlare({ enabled: true, intensity: v })} fmt={pct} />
                 <SliderRow label="Tamaño" icon="maximize" min={0} max={1} step={0.01} value={glare?.size ?? GLARE_DEFAULT_SIZE}
@@ -283,20 +282,17 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             ) : null}
           </EffectRow>
         </EffectList>
-      </MenuSection>
+      </FxGroup>
 
-      <MenuSection label="Partículas" icon="sparkles" active={count(particles)} summary={names(particles)}>
+      <FxGroup label="Partículas" icon="sparkles" active={count(particles)}>
         <EffectList label="Partículas">
           <EffectRow id="glitter" label="Glitter" icon="sparkles" preview="c-glitter" on={!!glitter?.enabled}
             onToggle={v => patchFx("glitter", { enabled: v })}
             state={glitter?.enabled ? GLITTER_SCOPES.find(s => s.id === (glitter.scope ?? "text"))?.label : undefined}>
             {glitter?.enabled ? (
               <>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <GroupLabel>Dónde</GroupLabel>
-                  <Tabs tabs={GLITTER_SCOPES} active={glitter.scope ?? "text"}
-                    onChange={id => patchFx("glitter", { enabled: true, scope: id === "text" ? undefined : id as NonNullable<CardEffects["glitter"]>["scope"] })} label="Dónde" />
-                </div>
+                <ChoiceTiles options={GLITTER_SCOPES} value={glitter.scope ?? "text"}
+                  onChange={id => patchFx("glitter", { enabled: true, scope: id === "text" ? undefined : id as NonNullable<CardEffects["glitter"]>["scope"] })} label="Dónde" />
                 <PaletteField value={glitter} auto={GLITTER_COLORS[glitter.color ?? "white"]} autoLabel={GLITTER_COLOR_LABEL[glitter.color ?? "white"]}
                   onChange={v => patchFx("glitter", { enabled: true, palette: v.palette, colors: v.colors })} />
                 <SliderRow label="Cantidad" icon="sparkles" min={0} max={1} step={0.01} value={glitter.amount ?? GLITTER_DEFAULT_AMOUNT}
@@ -319,11 +315,8 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             onToggle={v => patchFx("strass", { enabled: v })} state={strass?.enabled ? STRASS_SHAPES.find(s => s.id === (strass.shape ?? "round"))?.label : undefined}>
             {strass?.enabled ? (
               <>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <GroupLabel>Forma</GroupLabel>
-                  <Tabs tabs={STRASS_SHAPES} active={strass.shape ?? "round"}
-                    onChange={id => patchFx("strass", { enabled: true, shape: id === "round" ? undefined : id as NonNullable<CardEffects["strass"]>["shape"] })} label="Forma" />
-                </div>
+                <ChoiceTiles options={STRASS_SHAPES} value={strass.shape ?? "round"}
+                  onChange={id => patchFx("strass", { enabled: true, shape: id === "round" ? undefined : id as NonNullable<CardEffects["strass"]>["shape"] })} label="Forma" />
                 <PaletteField value={strass} auto={strassColors({ strass: { enabled: true, color: strass.color } })} autoLabel={STRASS_COLOR_LABEL[strass.color ?? "crystal"]}
                   onChange={v => patchFx("strass", { enabled: true, palette: v.palette, colors: v.colors })} />
                 <SliderRow label="Tamaño" icon="maximize" min={5} max={16} step={1} value={strass.size ?? STRASS_DEFAULT_SIZE}
@@ -345,12 +338,8 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             onToggle={v => patchFx("dust", { enabled: v })} state={dust?.enabled ? (dust.layer === "back" ? "Detrás" : "Delante") : undefined}>
             {dust?.enabled ? (
               <>
-                <MenuRow label="Dónde">
-                  <div style={{ width: 228 }}>
-                    <Tabs tabs={DUST_LAYERS} active={dust.layer ?? "front"}
-                      onChange={id => patchFx("dust", { enabled: true, layer: id === "front" ? undefined : "back" })} label="Dónde" />
-                  </div>
-                </MenuRow>
+                <ChoiceTiles options={DUST_LAYERS} value={dust.layer ?? "front"}
+                  onChange={id => patchFx("dust", { enabled: true, layer: id === "front" ? undefined : "back" })} label="Dónde" />
                 <PaletteField value={dust} auto={DUST_AUTO} autoLabel="Blanco"
                   onChange={v => patchFx("dust", { enabled: true, palette: v.palette, colors: v.colors })} />
                 <SliderRow label="Cantidad" icon="sparkles" min={0} max={1} step={0.01} value={dust.amount ?? DUST_DEFAULTS.amount}
@@ -363,9 +352,9 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             ) : null}
           </EffectRow>
         </EffectList>
-      </MenuSection>
+      </FxGroup>
 
-      <MenuSection label="Borde, sombra y brillo" icon="sun" active={count(light)} summary={names(light)}>
+      <FxGroup label="Borde, sombra y brillo" icon="sun" active={count(light)}>
         <EffectList label="Borde, sombra y brillo">
           <EffectRow id="border" label="Borde" icon="frame" preview="c-border" active={borderW > 0}
             state={borderW > 0 ? px(borderW) : "Sin borde"}>
@@ -413,11 +402,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             state={anyGlow ? (where === "both" ? "Ambos" : where === "inner" ? "Interior" : "Exterior") : undefined}>
             {anyGlow && (
               <>
-                <MenuRow label="Dónde">
-                  <div style={{ width: 228 }}>
-                    <Tabs tabs={GLOW_WHERE} active={where} onChange={setWhere} label="Dónde" />
-                  </div>
-                </MenuRow>
+                <ChoiceTiles options={GLOW_WHERE} value={where} onChange={setWhere} label="Dónde" />
                 <ColorRow label="Color" value={glow?.color ?? CARD_GLOW_DEFAULT_COLOR} onChange={v => patchGlow({ color: v })} />
                 <SliderRow label="Intensidad" icon="sun" min={EFFECT_INTENSITY_MIN} max={1} step={0.01} value={glowInt}
                   onChange={v => patchGlow({ intensity: v })} fmt={pct} />
@@ -458,10 +443,10 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             ) : null}
           </EffectRow>
         </EffectList>
-      </MenuSection>
+      </FxGroup>
 
       {/* What the card does by itself while it is on screen (cardFx.ts). */}
-      <MenuSection label="Animaciones" icon="move" active={count(motion)} summary={names(motion)}>
+      <FxGroup label="Animaciones" icon="move" active={count(motion)}>
         <EffectList label="Animaciones">
           <EffectRow id="float" label="Flotar" icon="arrow-up" preview="c-float" on={!!anim?.floating} onToggle={v => patchAnimations({ floating: v })}
             state={anim?.floating ? px(anim?.floatHeight ?? 8) : undefined}>
@@ -533,10 +518,10 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             ) : null}
           </EffectRow>
         </EffectList>
-      </MenuSection>
+      </FxGroup>
 
       {/* What answers to the visitor: the cursor, the finger, the phone's tilt. */}
-      <MenuSection label="Al tocar o pasar el cursor" icon="pointer" active={count(cursor)} summary={names(cursor)}>
+      <FxGroup label="Al tocar o pasar el cursor" icon="pointer" active={count(cursor)}>
         <EffectList label="Al tocar o pasar el cursor">
           <EffectRow id="tilt" label="Inclinar 3D" icon="move" preview="c-tilt" on={!!inter?.tilt3d} onToggle={v => patchInteractions({ tilt3d: v })}
             state={inter?.tilt3d ? `${inter?.tiltIntensity ?? PROFILE_TILT_DEFAULT}°` : undefined}>
@@ -617,10 +602,10 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             ) : null}
           </EffectRow>
         </EffectList>
-      </MenuSection>
+      </FxGroup>
 
       {/* How the card comes in on the public profile. */}
-      <MenuSection label="Entrada" icon="play" active={entranceOn ? 1 : 0} summary={entranceOn ? entranceName ?? "Activa" : "La de siempre"}>
+      <FxGroup label="Entrada" icon="play" active={entranceOn ? 1 : 0}>
         <EffectList label="Entrada">
           <EffectRow id="entrance" label="Entrada" icon="play" preview="c-enter" on={entranceOn}
             onToggle={v => patchEntrance({ enabled: v, style: entrance?.style ?? ENTRANCE_DEFAULT_STYLE })}
@@ -643,11 +628,11 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             ) : null}
           </EffectRow>
         </EffectList>
-      </MenuSection>
+      </FxGroup>
 
       {/* "Product closeout": composable analog/retro screen effects — each
           independent, own switch/intensity (CardLayers.tsx renders them). */}
-      <MenuSection label="Retro" icon="disc" active={count(retroOn)} summary={names(retroOn)}>
+      <FxGroup label="Retro" icon="disc" active={count(retroOn)}>
         <EffectList label="Retro">
           <EffectRow id="scanlines" label="Scanlines" icon="align-left" preview="c-scan" on={!!retro?.scanlines?.enabled}
             onToggle={v => patchRetro({ scanlines: { enabled: v, intensity: retro?.scanlines?.intensity } })}
@@ -686,7 +671,7 @@ export function CardEffectsSection({ borderFooter, ...props }: Props & { borderF
             ) : null}
           </EffectRow>
         </EffectList>
-      </MenuSection>
+      </FxGroup>
     </>
   );
 }

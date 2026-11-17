@@ -5,6 +5,7 @@
  * of each (the same layers the card draws — cardFoil › holoLayers).
  * Presentation only: the writes live in ProfileEffectsMenu.tsx.
  */
+import { useTryOn } from "@/lib/cardPreview";
 import React, { useId } from "react";
 import type { CardEffects, FxPaletteId } from "@/types";
 import { GradientStops, GroupLabel, useCardPalette } from "@/ui";
@@ -28,6 +29,7 @@ export function PaletteField({ value, onChange, auto, autoLabel = "Automático",
 }) {
   const id = useId();
   const cardColors = useCardPalette();
+  const tryOn = useTryOn();
   const current = value?.palette;
   const custom = cleanColors(value?.colors);
   const customColors = custom.length >= 2 ? custom : [...FX_CUSTOM_DEFAULT];
@@ -51,6 +53,7 @@ export function PaletteField({ value, onChange, auto, autoLabel = "Automático",
         {options.map(o => (
           <button key={o.id} type="button" role="radio" aria-checked={active === o.id} aria-label={o.label} title={o.label}
             className="mn-swatch" data-on={active === o.id || undefined} data-auto={o.id === "auto" || undefined}
+            {...(active === o.id ? {} : tryOn(() => pick(o.id)))}
             onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); pick(o.id); }}>
             <span className="mn-swatch__fill" style={{ backgroundImage: swatch(o.colors) }} />
             <span className="mn-swatch__name">{o.label}</span>
@@ -69,12 +72,14 @@ export function PaletteField({ value, onChange, auto, autoLabel = "Automático",
 /** The holo finishes as a grid of live thumbnails. */
 export function FinishGrid({ value, onChange, fx }: { value: HoloStyle; onChange: (s: HoloStyle) => void; fx: CardEffects }) {
   const cardColors = useCardPalette();
+  const tryOn = useTryOn();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <GroupLabel>Acabado</GroupLabel>
       <div className="mn-finishes" role="radiogroup" aria-label="Acabado">
         {HOLO_STYLES.map(s => (
           <button key={s.id} type="button" role="radio" aria-checked={value === s.id} className="mn-finish" data-on={value === s.id || undefined}
+            {...(value === s.id ? {} : tryOn(() => onChange(s.id)))}
             onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onChange(s.id); }}>
             <span className="mn-finish__pv" aria-hidden>
               <HoloSheet fx={{ holo: { ...fx.holo, enabled: true, style: s.id, intensity: 1, scope: "card", scale: 0.6 } }}

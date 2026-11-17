@@ -3,7 +3,12 @@ import { EFFECT_INTENSITY_MIN } from "@/lib/uiNumeric";
 import { isIntensityEffectVisible } from "@/lib/effectEditorDefaults";
 import type { ProfileCardData } from "@/types";
 import { uploadToStorage } from "@/lib/storage";
-import { MenuSection, MenuNote, SliderRow, ColorRow, EffectList, EffectRow, UploadField, TextInput, SwitchRow, Icon } from "@/ui";
+import { MenuSection, MenuNote, SliderRow, ColorRow, EffectList, EffectRow, UploadField, TextInput, SwitchRow, Icon, ChoiceTiles, Draw, type Choice } from "@/ui";
+
+// Menu redesign (2026-11-17): the photo shape as drawings (the slider stays for anything in between).
+const PFP_SHAPES: Choice[] = [
+  { id: "100", label: "Círculo", draw: Draw.photoShape(12) }, { id: "45", label: "Redondeada", draw: Draw.photoShape(5.4) }, { id: "0", label: "Cuadrada", draw: Draw.photoShape(0) },
+];
 import { getFontStyle } from "@/lib/fontList";
 import { getPfpSizeBounds, resolvePfpSize, pfpRadiusToPercent } from "@/lib/cardGeometry";
 import BlockStyleFields from "./BlockStyleFields";
@@ -100,6 +105,7 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
         <SliderRow label="Tamaño" icon="maximize" min={sizeMin} max={sizeMax} step={1} value={currentSize} unit="px"
           fmt={v => `${Math.round(v)} px`} onChange={v => id.setPfpSize(v)} />
 
+        <ChoiceTiles label="Forma de la foto" options={PFP_SHAPES} value={String(Math.round(pfpRadius ?? 100))} onChange={v => id.setPfpRadius(Number(v))} />
         <SliderRow label="Forma" icon="corner" min={0} max={100} step={1} value={pfpRadius ?? 100} unit="%"
           fmt={shapeLabel}
           onChange={v => id.setPfpRadius(v)} />

@@ -1,4 +1,5 @@
 "use client";
+import { captureWrite, clearCardPreview } from "@/lib/cardPreview";
 import React from "react";
 import { createPortal } from "react-dom";
 import type { ProfileCardData } from "@/types";
@@ -169,7 +170,8 @@ export function EditorHost({
       object={target.objectId}
       onSelectObject={onSelectObject}
       memory={memory}
-      onChange={patch => updateProfile(profile.id, patch)}
+      // A rehearsal (hover "probar") is kept as a preview, never saved (cardPreview.ts).
+      onChange={patch => { if (captureWrite(patch)) return; clearCardPreview(); updateProfile(profile.id, patch); }}
       onClose={onClose}
       // "Editar"; the canvas when it is gone — usePanelFocus never lets
       // focus fall to <body>.

@@ -37,6 +37,11 @@ interface MenuSectionProps {
   defaultOpen?: boolean;
 }
 
+/** Menu redesign (2026-11-17): a card's summary is shown only when it says
+ * something — "nothing is on / empty / default" phrases are dropped (the
+ * glyph already shows when something is on). */
+const QUIET_SUMMARY = /^(Ninguno activo|Ninguna activa|Ninguno|Ninguna|Vac[ií]a|Vac[ií]o|Nada cargado|Apagado|Apagada|La de siempre|Sin cuadr[ií]cula|Hereda.*|Autom[aá]tico|Todos los textos)$/;
+
 /** Iteration 0: id of the enclosing section's visible heading — the
  * fallback accessible name (aria-labelledby) for a text field that sits
  * directly in a section without its own row label. */
@@ -117,7 +122,7 @@ export function MenuSection({ label, children, changed, active, icon, summary, s
                 {modified && <span className="mn-card__dot" title="Tiene cambios" aria-hidden />}
                 {modified && <span className="mn-sr-only">, con cambios</span>}
               </span>
-              {(summary || (toggle && !on)) && (
+              {((summary && !QUIET_SUMMARY.test(summary.trim())) || (toggle && !on)) && (
                 <span className="mn-card__summary">
                   {swatch && on && <span className="mn-card__swatch" aria-hidden style={{ background: swatch }} />}
                   <span key={toggle && !on ? "off" : summary} className="mn-card__summary-text">{toggle && !on ? (offNote ?? "Hereda de la tarjeta") : summary}</span>
@@ -159,4 +164,28 @@ export function MenuSection({ label, children, changed, active, icon, summary, s
 /** DS .lg-label — a small group label (13/600, ink2). */
 export function GroupLabel({ children }: { children: React.ReactNode }) {
   return <span className="mn-label" style={{ color: uv("text-secondary") }}>{children}</span>;
+}
+
+/** Menu redesign (2026-11-17, "galería de efectos"): a group of effect tiles
+ * that is ALWAYS open — a small title (glyph + name, lit when something in it
+ * is on) over the grid; no accordion, no "Ninguno activo". Same structure as
+ * an open card (section.mn-card[data-open] + the title span) so "Buscar
+ * ajuste" finds it like any card. */
+export function FxGroup({ label, icon, active, children }: { label: string; icon?: IconName; active?: number; children: React.ReactNode }) {
+  const headingId = useId();
+  const lit = !!active && active > 0;
+  return (
+    <section className="mn-card mn-card--group" data-open="" aria-labelledby={headingId}>
+      <div className="mn-group__head">
+        <span className="mn-group__icon" data-lit={lit || undefined} aria-hidden><Icon name={icon ?? "sparkles"} size={14} /></span>
+        <span className="mn-card__title" role="heading" aria-level={3}><span id={headingId}>{label}</span></span>
+        {lit && <span className="mn-group__count" aria-label={`${active} activos`}>{active}</span>}
+      </div>
+      <SectionHeadingContext.Provider value={headingId}>
+        <InCardContext.Provider value={true}>
+          <div className="mn-card__rows">{children}</div>
+        </InCardContext.Provider>
+      </SectionHeadingContext.Provider>
+    </section>
+  );
 }
