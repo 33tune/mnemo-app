@@ -630,6 +630,7 @@ planeado acá hasta confirmarlo.
 >   "Permitir comentarios" (al instante) y el estilo mínimo `card.commentsBox` (color, opacidad = vidrio debajo de 100 %,
 >   redondez, texto, acento; sale con "Publicar"). Probado con las cuentas de prueba A/B en navegador (comentar, punto,
 >   corazón del dueño, "a @x le gustó", borrar); los comentarios de prueba se borraron.
+>   **Merge a `main` (OK del usuario, 2026-11-17):** el menú más intuitivo y los comentarios están en `main` (`c9fd75c`).
 >
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
