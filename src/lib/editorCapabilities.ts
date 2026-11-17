@@ -76,6 +76,8 @@ const logo     = at("ProfileLogoMenu.tsx");
 const stk      = at("ProfileStickersMenu.tsx");
 // Notas (2026-11-06): the note box is a widget of its own (its gear panel).
 const noteM    = at("NoteInspector.tsx");
+// Comentarios (2026-11-17): the comments panel's look (its gear panel).
+const comM     = at("CommentsInspector.tsx");
 const btns     = at("ProfileLinkButtonsMenu.tsx");
 const config   = at("ProfileConfigMenu.tsx");
 const type     = at("ProfileTypographyMenu.tsx");
@@ -103,6 +105,9 @@ const STICKERS = obj("Stickers");
 /** Notas: the note box is its own widget (its gear panel), not a card part. */
 export const NOTA_UI = "Nota (cuadro sobre la card)";
 const NOTA = `${NOTA_UI} › engranaje`;
+/** Comentarios: the comments panel's own menu (the gear on the panel). */
+export const COMENTARIOS_UI = "Comentarios (panel)";
+const COMS = `${COMENTARIOS_UI} › engranaje › Panel`;
 const BOTONES = obj("Botones");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");
@@ -189,6 +194,11 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "noteBox.fontSize": noteM(`${NOTA} › Texto › Tamaño`, "setStyle({ fontSize: v })"),
   "noteBox.color": noteM(`${NOTA} › Texto › Color`, "setStyle({ color: v })"),
   "noteBox.hidden": noteM(`${NOTA} › Mostrar la nota en mi perfil`, "setStyle({ hidden: v ? undefined : true })"),
+  "commentsBox.bg": comM(`${COMS} › Color`, "setStyle({ bg: v })"),
+  "commentsBox.opacity": comM(`${COMS} › Opacidad`, "setStyle({ opacity: v })"),
+  "commentsBox.radius": comM(`${COMS} › Redondez`, "setStyle({ radius: v })"),
+  "commentsBox.color": comM(`${COMS} › Texto`, "setStyle({ color: v })"),
+  "commentsBox.accent": comM(`${COMS} › Acento`, "setStyle({ accent: v })"),
   "noteBox.showViews": noteM(`${NOTA} › Vistas › Mostrar vistas a los visitantes`, "setStyle({ showViews: v || undefined })"),
   "logo.url": logo(`${LOGO} › Subir`, "logoCtl.setImage(publicUrl)"),
   "logo.anchorX": card(`${LIENZO} › logo`, "anchorX: latest.x"),

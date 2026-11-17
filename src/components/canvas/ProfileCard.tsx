@@ -11,6 +11,7 @@ import ResizeHandles from "./ResizeHandles";
 import type { ResizeHandle } from "@/hooks/useDragDrop";
 import { useCardInteractions, useGyroTilt } from "@/hooks/useCardInteractions";
 import { useFavorite } from "@/hooks/useFavorite";
+import { useCommentCount } from "@/hooks/useComments";
 import StatsRow from "./StatsRow";
 import { StickerLayer, StickerEditor, withPreview, type StickerPreview } from "./CardStickers";
 import { useStickerEditing } from "@/lib/stickerEditing";
@@ -305,6 +306,8 @@ function ProfileCard({
   // Favoritos (2026-11-06): the heart next to the views.
   const fav = useFavorite(profileOwner);
   const favCount = fav.count;
+  // Comentarios (2026-11-17): a bubble with the count, after the heart.
+  const commentCount = useCommentCount(profileOwner);
 
   // ── Real text measurement + the content floor (engine rewrite 2026-10-15)
   // The measurer exists only after mount (the server render and the first
@@ -317,9 +320,9 @@ function ProfileCard({
   // — nothing is dropped, also on the public page — and the growth effect
   // below persists it in the editor. space_mobile keeps its stored size.
   const minSize = useMemo(
-    () => (layout === "free" ? undefined : profileCardMinSize(card, card.w, { measure, viewCount, favCount })),
+    () => (layout === "free" ? undefined : profileCardMinSize(card, card.w, { measure, viewCount, favCount, commentCount })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout, card, measure, viewCount, favCount, fontsVersion],
+    [layout, card, measure, viewCount, favCount, commentCount, fontsVersion],
   );
   const cardH = minSize && viewportW != null ? Math.max(card.h, minSize.h) : card.h;
 
@@ -887,7 +890,7 @@ function ProfileCard({
     // only a count here; the heart to give one is by "Compartir" (a small
     // block on the card was hard to hit).
     return (
-      <StatsRow views={viewCount} fav={fav} interactive={false}
+      <StatsRow views={viewCount} fav={fav} comments={commentCount} interactive={false}
         style={{
           fontFamily: fontStyle(card.viewsFont, MONO), fontSize: typography.views.fontSize, color,
           letterSpacing: typography.views.letterSpacing,
@@ -1015,7 +1018,7 @@ function ProfileCard({
   const buttonStyle = resolveLinkButtonStyle(card.linkButtonStyle, baseColor);
   const composed = layout === "free" ? undefined
     : profileLayout(card, {
-      w: card.w, h: cardH, measure, viewCount, favCount,
+      w: card.w, h: cardH, measure, viewCount, favCount, commentCount,
       drag: drag ?? undefined,
       // Continuity while the shape of things changes under the pointer.
       prev: drag || isResizing ? lastLayoutRef.current?.rects : undefined,

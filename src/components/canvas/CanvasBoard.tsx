@@ -68,6 +68,8 @@ import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from 
 import type { RoomOp } from "./RoomInspector";
 import ShareCardDialog from "@/components/share/ShareCardDialog";
 import { HeartPill } from "./StatsRow";
+import CommentsPanel, { CommentsButton, COMMENTS_BUTTON_ID } from "./CommentsPanel";
+import { useCommentCount, useUnreadComments } from "@/hooks/useComments";
 import ShortcutsBar, { SHORTCUTS_BAR_H } from "./ShortcutsBar";
 import { useNote } from "@/hooks/useNote";
 import { noteReserve, noteBoxVisible, resolveNoteBox, noteGap, withNoteRoom } from "@/lib/noteBox";
@@ -705,7 +707,7 @@ export default function CanvasBoard({
   const inspectorCardId = profileTargetId(editorSel.target);
   const inspectorCardIdRef = useRef<string | null>(null);
   inspectorCardIdRef.current = inspectorCardId;
-  const { openProfile, openRoom, openLayers, openSearch, openNote, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
+  const { openProfile, openRoom, openLayers, openSearch, openNote, openComments, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
   /** Editor v3 Phase G: the element (card, text, image, Music) any inspector
    * is editing — focus / collapse / view-freeze logic is the same for all. */
   const inspectorTargetElId = targetId(editorSel.target);
@@ -816,8 +818,17 @@ export default function CanvasBoard({
     setShareOpen(true);
   }
   const searchOpen = editorSel.target?.kind === "search";
+  // Comentarios (2026-11-17): the panel (public profile: the bubble by the
+  // heart; editor: the bubble in the bottom bar, with a blinking dot when
+  // someone commented since I last opened it).
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const publicCommentCount = useCommentCount(!canEdit ? ownerUserId : undefined);
+  const ownCommentCount = useCommentCount(canEdit ? currentUserId : undefined);
+  const unreadComments = useUnreadComments(canEdit);
   /** Notas: the note box's panel (its gear) is open. */
   const noteOpen = editorSel.target?.kind === "note";
+  /** Comentarios (2026-11-17): the look panel of the comments panel. */
+  const commentsStyleOpen = editorSel.target?.kind === "comments";
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
     : undefined;
@@ -935,7 +946,7 @@ export default function CanvasBoard({
   // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
-  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen) && canInteract) || roomShown;
+  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen || commentsStyleOpen) && canInteract) || roomShown;
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
   const [newsOpen, setNewsOpen] = useState(false);
@@ -4284,7 +4295,8 @@ export default function CanvasBoard({
       {railShown && !tourStep && (
         <ShortcutsBar left={railW} right={inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
           search={{ open: searchOpen, panelId: SEARCH_PANEL_ID, buttonId: RAIL_SEARCH_BUTTON_ID,
-            onToggle: () => { if (searchOpen) closeInspector(); else { setMenuOpen(false); openSearch(); } } }} />
+            onToggle: () => { if (searchOpen) closeInspector(); else { setMenuOpen(false); openSearch(); } } }}
+          comments={visProfiles[0] ? { open: commentsOpen, count: ownCommentCount, unread: unreadComments > 0, onToggle: () => setCommentsOpen(o => !o) } : undefined} />
       )}
       {!canEdit && viewerLoggedIn && !mobileFit && <ShortcutsBar right={170} currentHandle={userHandle} />}
       {/* Compartir tu card (2026-11-04): on the public profile, a small
@@ -4295,6 +4307,8 @@ export default function CanvasBoard({
         {/* Favoritos (2026-11-06): the heart to give one always lives here
             (the card only shows the count). */}
         <HeartPill ownerUserId={ownerUserId} />
+        {/* Comentarios (2026-11-17): the bubble by the heart opens the panel. */}
+        <CommentsButton id={COMMENTS_BUTTON_ID} count={publicCommentCount} open={commentsOpen} onClick={() => setCommentsOpen(o => !o)} />
         <button type="button" onClick={openShare} aria-label="Compartir esta card como historia"
           style={{
             display: "flex", alignItems: "center", gap: 8, height: 44, padding: "0 16px", borderRadius: 999,
@@ -4307,6 +4321,20 @@ export default function CanvasBoard({
           Compartir
         </button>
         </div>
+      )}
+      {commentsOpen && visProfiles[0] && !shareOpen && (canEdit ? !!currentUserId : !!ownerUserId) && (
+        <CommentsPanel
+          ownerUserId={canEdit ? currentUserId : ownerUserId}
+          ownerHandle={visProfiles[0].handle || userHandle}
+          style={visProfiles[0].commentsBox}
+          count={canEdit ? ownCommentCount : publicCommentCount}
+          onClose={() => { setCommentsOpen(false); if (commentsStyleOpen) closeInspector(); document.getElementById(COMMENTS_BUTTON_ID)?.focus(); }}
+          right={canEdit && inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
+          bottom={canEdit ? (railShown ? SHORTCUTS_BAR_H : 0) : 60}
+          newTab={canEdit}
+          onSettings={canEdit ? () => { if (commentsStyleOpen) closeInspector(); else { setMenuOpen(false); openComments(visProfiles[0].id); } } : undefined}
+          settingsOpen={commentsStyleOpen}
+        />
       )}
       {shareOpen && visProfiles[0] && (() => {
         const prof = visProfiles[0];
@@ -4346,6 +4374,7 @@ export default function CanvasBoard({
             snap: gridSnapOn, onSnap: setGridSnapOn,
           }}
           noteCard={editorSel.target?.kind === "note" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
+          commentsCard={editorSel.target?.kind === "comments" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));
             const byId = new Map(elements.map(e => [e.id, e] as const));

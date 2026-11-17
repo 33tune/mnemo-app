@@ -615,6 +615,21 @@ planeado acá hasta confirmarlo.
 >     **Sliders:** glifo que muestra el valor (`SliderGlyph`), el número solo al pasar el mouse / foco.
 >   - **Ejemplos en vacío** (`ExampleStrip`): redes en Íconos y Botones, fondos de sala (`public/editor/wallpapers/`) y
 >     stickers (`public/editor/stickers/`).
+>   - Todos los íconos de la galería de Efectos se mueven (los que estaban quietos tienen su animación en editor.css).
+>
+> **Comentarios (2026-11-17, pedido del usuario):** base `supabase/migrations/20261117000000_comments.sql` (APLICADA):
+>   `comments` (150 caracteres, `owner_liked`), `post_comment` (solo con sesión; 3 cada 30 s y 30 por hora; respeta
+>   `profiles.comments_off` y baneos), `like_comment` (solo el dueño), borrar = autor o dueño (RLS), `comment_counts`,
+>   `comment_reads` + `my_unread_comments` / `mark_comments_seen` (el punto), Realtime en `comments`,
+>   `admin_delete_comment` (sin UI en /admin todavía). Se muestran el @ y la foto de la card PUBLICADA de quien comenta
+>   (`GET /api/comments?owner=&before=`, páginas de 30). Card: el bloque Visitas suma un globito + número
+>   (`StatsRow`, `statsRowWidth(..., comments)`, `commentCount` en el motor). Perfil público: botón con globito al lado del
+>   corazón (`CommentsButton`) → `CommentsPanel` (costado derecho en compu, hoja desde abajo en el celular). Editor: el
+>   globito va en la barra de abajo junto a la lupa, con un punto rosa que titila si hay comentarios nuevos desde la
+>   última vez que abrí el panel (`useUnreadComments`). Engranaje del panel → `CommentsInspector` (target `"comments"`):
+>   "Permitir comentarios" (al instante) y el estilo mínimo `card.commentsBox` (color, opacidad = vidrio debajo de 100 %,
+>   redondez, texto, acento; sale con "Publicar"). Probado con las cuentas de prueba A/B en navegador (comentar, punto,
+>   corazón del dueño, "a @x le gustó", borrar); los comentarios de prueba se borraron.
 >
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:

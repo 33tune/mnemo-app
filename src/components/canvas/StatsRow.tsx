@@ -30,8 +30,17 @@ export function HeartIcon({ size = "1em", filled }: { size?: string | number; fi
   );
 }
 
+/** Comentarios (2026-11-17): a speech bubble. */
+export function CommentIcon({ size = "1em" }: { size?: string | number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flex: "none", display: "block" }}>
+      <path d="M20.5 11.6c0 4.2-3.8 7.4-8.5 7.4-1.2 0-2.3-.2-3.3-.6L3.5 20l1.4-4.1C4 14.7 3.5 13.2 3.5 11.6 3.5 7.4 7.3 4 12 4s8.5 3.4 8.5 7.6Z" />
+    </svg>
+  );
+}
+
 /** "Iniciá sesión para dar favorito", for a few seconds at the bottom. */
-export function useLoginPrompt() {
+export function useLoginPrompt(text = "Iniciá sesión para dar favorito") {
   const [open, setOpen] = useState(false);
   const show = () => { setOpen(true); window.setTimeout(() => setOpen(false), 3800); };
   const node = open && typeof document !== "undefined" ? createPortal(
@@ -42,7 +51,7 @@ export function useLoginPrompt() {
       font: "500 14px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
       backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", whiteSpace: "nowrap",
     }}>
-      Iniciá sesión para dar favorito
+      {text}
       <a href={`/login?next=${encodeURIComponent(location.pathname)}`} style={{ color: "#0b0b0e", background: "#fff", borderRadius: 999, padding: "6px 12px", fontWeight: 600, textDecoration: "none" }}>Entrar</a>
     </div>,
     document.body,
@@ -50,9 +59,11 @@ export function useLoginPrompt() {
   return { show, node };
 }
 
-export default function StatsRow({ views, fav, interactive, style }: {
+export default function StatsRow({ views, fav, comments, interactive, style }: {
   views: number;
   fav: FavoriteState;
+  /** Comentarios (2026-11-17): the count, after the heart (only a number). */
+  comments?: number;
   /** The public profile: the heart can be tapped. */
   interactive: boolean;
   style?: React.CSSProperties;
@@ -88,6 +99,12 @@ export default function StatsRow({ views, fav, interactive, style }: {
         <span style={group} aria-label={`${fav.count} favoritos`}>
           {heart}
           <span aria-hidden>{formatViewCount(fav.count)}</span>
+        </span>
+      )}
+      {comments !== undefined && (
+        <span style={group} aria-label={`${comments} comentarios`}>
+          <CommentIcon size={icon} />
+          <span aria-hidden>{formatViewCount(comments)}</span>
         </span>
       )}
       {prompt.node}

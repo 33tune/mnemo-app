@@ -470,6 +470,9 @@ export type ProfileCardData = {
   // Notas (2026-11-06): the look of the note box above the card (the note
   // itself lives in the `notes` table, 24 h). Absent = the default look.
   noteBox?: NoteBoxStyle;
+  // Comentarios (2026-11-17): the comments panel's look (the comments live in
+  // the `comments` table; on/off in profiles.comments_off).
+  commentsBox?: CommentsBoxStyle;
   // Identity
   photo:           string;
   name:            string;
@@ -1120,4 +1123,16 @@ export interface NoteBoxStyle {
    * favorites bar the note); in the editor it stays as a faint ghost so the
    * owner can reach its gear and turn it back on. */
   hidden?: boolean;
+}
+
+/** Comentarios (2026-11-17): the look of the comments panel — minimal on
+ * purpose (roundness, colors, opacity). Goes out with "Publicar". */
+export interface CommentsBoxStyle {
+  bg?: string;
+  /** 0.3–1: below 1 the panel turns to frosted glass. */
+  opacity?: number;
+  radius?: number;
+  color?: string;
+  /** The send button and the owner's hearts. */
+  accent?: string;
 }
