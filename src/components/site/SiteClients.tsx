@@ -14,6 +14,7 @@ import { track, trackOnce } from "@/lib/track";
 
 const LandingPage = dynamic(() => import("./LandingPage"), { ssr: false });
 const AuthPage = dynamic(() => import("./AuthPage"), { ssr: false });
+import CrearPage from "./CrearPage";
 
 // The design's display faces (Archivo with its width axis, Unbounded, Funnel
 // Display, Bricolage Grotesque — the landing's and the auth page's "Tipografía").
@@ -66,6 +67,19 @@ export function AuthClient({ initialError }: { initialError?: string }) {
       <AuthPage checkHandle={checkHandle} auth={siteAuth} initialError={initialError}
         navigate={(url: string) => { router.push(url); router.refresh(); }} />
       <BetaBanner top={12} />
+    </>
+  );
+}
+
+/** /crear (2026-11-20): the page the TikTok link opens — straight to claiming a name. */
+export function CrearClient() {
+  const router = useRouter();
+  usePageChrome("#0E0C12");
+  useEffect(() => { trackOnce("landing_view"); }, []);
+  return (
+    <>
+      <Fonts />
+      <CrearPage checkHandle={checkHandle} navigate={(url: string) => { track("claim_click"); router.push(url); }} />
     </>
   );
 }
