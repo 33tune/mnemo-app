@@ -632,6 +632,12 @@ planeado acá hasta confirmarlo.
 >   corazón del dueño, "a @x le gustó", borrar); los comentarios de prueba se borraron.
 >   **Merge a `main` (OK del usuario, 2026-11-17):** el menú más intuitivo y los comentarios están en `main` (`c9fd75c`).
 >
+> **Página de destino `/crear` (2026-11-20, pedido del usuario; en `main`):** la que abre el link de TikTok (`src/app/crear/page.tsx`,
+>   `src/components/site/CrearPage.tsx`, `CrearClient` en `SiteClients.tsx`): "Tu perfil, 100 % a tu gusto", barra para reclamar
+>   el nombre arriba (va a `/login?mode=register&from=claim&handle=`), cards reales pasando, "Cambiás todo", 3 pasos (avisa que se
+>   edita desde la compu) y botón fijo abajo. `crear` es nombre reservado (`RESERVED_HANDLES`). Cuenta `landing_view` con path
+>   `/crear` y `claim_click`. La página es su propio contenedor de scroll (`position: fixed; overflow-y: auto`): el body no scrollea.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por
