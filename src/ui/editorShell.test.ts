@@ -148,7 +148,7 @@ test("Phase D review: narrow viewports get the compact editor topbar (1.4.10) wi
 
 test("Phase D review: \"Tu sala\" opens on touch devices too (room settings were reachable from + before D)", () => {
   assert.ok(BOARD.includes("const roomShown = roomOpen && canEdit;"));
-  assert.ok(BOARD.includes('{inspectorEnabled && (canInteract || roomShown || phoneEdit) && ('));
+  assert.ok(BOARD.includes('{inspectorEnabled && (canInteract || roomShown || phoneEdit) && !phonePreview && ('));
   // Phase E: Capas joins the card's inspector on the canInteract side (no touch editing).
   // Phase G: so do the text / image / Music inspectors.
   assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen || commentsStyleOpen) && canInteract) || roomShown || (phoneEdit && !!editorSel.target);"));
