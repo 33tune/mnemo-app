@@ -653,7 +653,12 @@ planeado acá hasta confirmarlo.
 >   íconos, botones) se arrastran directo con el dedo (`startPartDrag(e, key, true)`: pointer events, dividido por la
 >   escala) y al soltar se abre su parte (`onPartMoved`); `html[data-phone-edit]` saca la selección de texto, el menú de
 >   "guardar imagen" y el zoom/rebote sobre la card (los campos siguen seleccionables); la card se desliza al abrir /
->   plegar la hoja (52 % de alto); vibración corta al elegir una parte (Android); encabezado de la hoja sin la ruta. `RoomInspector` con `phone` oculta Lienzo y Cursor. Consejo de primera vez
+>   plegar la hoja (52 % de alto); vibración corta al elegir una parte (Android); encabezado de la hoja sin la ruta. **Zoom (2026-11-23, pedido del usuario: "la card
+>   se ve muy chica"):** tocar / arrastrar una parte (o elegir su chip) acerca la vista a esa parte (`phoneZoom` =
+>   punto de la sala + k veces el encuadre de la card entera, hasta 2,4×; medido del DOM, `[data-role]`); las partes de
+>   la card entera (Fondo, Efectos, Textos, Stickers), plegar la hoja o tocar fuera de la card vuelven a la card entera;
+>   botones − / + (`.mn-phonezoom`, hasta 4×). La parte que el editor abre solo al cargar no hace zoom. El punto queda
+>   siempre dentro de la card; el wallpaper acompaña con la misma transición. `RoomInspector` con `phone` oculta Lienzo y Cursor. Consejo de primera vez
 >   (`mnemo_phone_tip_v1`). Métricas: `editor_open`, `publish`, `tour_done/skip` con `{ phone: true }`. `/setup` y la
 >   pantalla "¡Es tuyo!" llevan al editor. **Rendimiento:** sin paralaje desde pantallas táctiles (un toque re-dibujaba
 >   el lienzo ~2 s: 7 → 61 fps con CPU ×6), miniaturas de la galería quietas en táctil (salvo la tocada / activa),

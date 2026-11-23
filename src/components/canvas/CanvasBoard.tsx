@@ -57,7 +57,7 @@ import { inspectorLayout, inspectorViewOffset, inspectorSheetHeight, inspectorSh
 import { useEditorSelection, profileTargetId, targetId, elementTarget, elementEditButtonId, elementInspectorId, type ElementTargetKind } from "@/lib/editorSelection";
 import { resizeMinimums } from "@/lib/resizeMath";
 import { CANVAS_TEXT_DEFAULTS } from "@/lib/canvasText";
-import { resolvePartClick, isPartRole, type PartClick, type PartRole } from "@/lib/partNavigation";
+import { resolvePartClick, isPartRole, PART_ROLES, type PartClick, type PartRole } from "@/lib/partNavigation";
 import { snapNudgeDelta } from "@/lib/gridSnap";
 import { inspectorObject, chipLabel } from "@/lib/inspectorObjects";
 import type { MeasureSpec } from "./ElementInspectorParts";
@@ -683,6 +683,11 @@ export default function CanvasBoard({
     return () => { window.removeEventListener("resize", read); probe.remove(); };
   }, [phoneEdit]);
   const phoneBarH = PHONE_BAR_H + safeTop;
+  // Editor de celular — zoom (2026-11-23, pedido del usuario): null = the
+  // whole card; else a point of the room (cx, cy) shown k times bigger than
+  // the whole-card fit. Set by tapping a part (auto) or by − / +.
+  const [phoneZoom, setPhoneZoom] = useState<{ cx: number; cy: number; k: number } | null>(null);
+  const phoneFitRef = useRef<{ s: number; areaH: number; vw: number } | null>(null);
   const phoneScreenH = viewerScreen?.h ?? viewportH;
   const phoneSheetH = !phoneEdit ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
   // Notas (2026-11-06): while the box shows (a note, or a styled empty box),
@@ -696,8 +701,17 @@ export default function CanvasBoard({
     const areaH = Math.max(120, vh - phoneBarH - phoneSheetH);
     const rect = card ? cardViewRect(card, mobileCardH && mobileCardH > 0 ? mobileCardH : card.h) : { x: 0, y: 0, w: vw, h: vh };
     const fit = mobileView(vw, areaH, rect);
-    const s = Math.min(fit.s, 1.25);
-    const tx = vw / 2 - (rect.x + rect.w / 2) * s, ty = phoneBarH + areaH / 2 - (rect.y + rect.h / 2) * s;
+    const s0 = Math.min(fit.s, 1.25);
+    phoneFitRef.current = { s: s0, areaH, vw };
+    // Zoomed: the point stays inside the card, so the view never wanders off it.
+    const z = phoneZoom && card ? {
+      k: phoneZoom.k,
+      cx: Math.max(card.x, Math.min(card.x + card.w, phoneZoom.cx)),
+      cy: Math.max(card.y, Math.min(card.y + (mobileCardH && mobileCardH > 0 ? mobileCardH : card.h), phoneZoom.cy)),
+    } : null;
+    const s = z ? s0 * z.k : s0;
+    const cx = z ? z.cx : rect.x + rect.w / 2, cy = z ? z.cy : rect.y + rect.h / 2;
+    const tx = vw / 2 - cx * s, ty = phoneBarH + areaH / 2 - cy * s;
     let roomW = vw, roomH = vh;
     for (const e of elements) {
       const b = e as { x: number; y: number; w?: number; h?: number };
@@ -3086,6 +3100,43 @@ export default function CanvasBoard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, canEdit, canInteract, phoneEdit, inSpace, canvasMode, profiles.length]);
 
+  // Editor de celular — zoom on the part being edited: tapping (or dragging) a
+  // part brings it close; the card-wide objects (Fondo, Efectos, Textos,
+  // Stickers) and a folded sheet show the whole card. Measured from the DOM
+  // (the part's real box), turned into room coordinates.
+  const [phoneFocusTick, setPhoneFocusTick] = useState(0);
+  const phoneObject = phoneEdit && editorSel.target?.kind === "profile" ? editorSel.target.objectId : null;
+  // The part the editor opens by itself on load is not a choice: no zoom until
+  // the user picks something (a tap, a drag, a chip).
+  const phoneZoomArmedRef = useRef<string | null | false>(false);
+  useEffect(() => {
+    if (!phoneEdit) return;
+    if (phoneZoomArmedRef.current === false) { if (phoneObject) phoneZoomArmedRef.current = phoneObject; if (!phoneFocusTick) return; }
+    else if (phoneZoomArmedRef.current === phoneObject && !phoneFocusTick) return;
+    phoneZoomArmedRef.current = null;
+    if (!phoneSheetOpen || !phoneObject || !(PART_ROLES as readonly string[]).includes(phoneObject)) { setPhoneZoom(null); return; }
+    let raf = 0;
+    raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => {
+      const card = visProfiles[0];
+      const cardEl = canvasWrapperRef.current?.querySelector<HTMLElement>("[data-profile-card]");
+      const partEl = cardEl?.querySelector<HTMLElement>(`[data-role="${phoneObject}"]`);
+      const fit = phoneFitRef.current;
+      if (!card || !cardEl || !partEl || !fit) { setPhoneZoom(null); return; }
+      const cr = cardEl.getBoundingClientRect(), pr = partEl.getBoundingClientRect();
+      const sc = cr.width / Math.max(1, card.w);
+      if (!(sc > 0) || pr.width === 0) { setPhoneZoom(null); return; }
+      const pad = 18;
+      const x = card.x + (pr.left - cr.left) / sc - pad, y = card.y + (pr.top - cr.top) / sc - pad;
+      const w = pr.width / sc + pad * 2, h = pr.height / sc + pad * 2;
+      // Big enough to fill the space above the sheet, never more than 2.4×.
+      const kFit = Math.min((fit.vw - 32) / w, (fit.areaH - 24) / h) / fit.s;
+      const k = Math.min(2.4, Math.max(1, kFit * 0.9));
+      setPhoneZoom(k < 1.15 ? null : { cx: x + w / 2, cy: y + h / 2, k });
+    }); });
+    return () => cancelAnimationFrame(raf);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneEdit, phoneObject, phoneSheetOpen, phoneFocusTick]);
+
   // Editor de celular: the card's inspector is always there (the sheet), from
   // the moment the card exists; it only folds to its bar.
   const phoneCardId = phoneEdit ? (visProfiles[0]?.id ?? null) : null;
@@ -3317,6 +3368,7 @@ export default function CanvasBoard({
       closePhoneTip("done");
       setPhoneSheetOpen(true);
       try { navigator.vibrate?.(8); } catch { /* no haptics */ }
+      setPhoneFocusTick(n => n + 1);
       if (!selIdsRef.current.has(id)) setSelectedIds(new Set([id]));
       if (part?.role) openProfilePart(id, part.role); else if (inspectorCardIdRef.current !== id) openProfile(id);
       return;
@@ -3345,6 +3397,12 @@ export default function CanvasBoard({
   }
 
   function onCanvasClick(e: React.MouseEvent) {
+    // Editor de celular: a tap on the room (not on the card) shows the whole card again.
+    if (phoneEdit) {
+      const t = e.target as HTMLElement | null;
+      if (t && canvasWrapperRef.current?.contains(t) && !t.closest("[data-profile-card]")) setPhoneZoom(null);
+      return;
+    }
     if (!canInteract) return;
     if(addingText){
       zCounter.current+=1;
@@ -3668,7 +3726,7 @@ export default function CanvasBoard({
               backgroundPosition: `${viewFit.tx + (wallpaperBlur > 0 ? wallpaperBlur * 2 : 0)}px ${viewFit.ty + (wallpaperBlur > 0 ? wallpaperBlur * 2 : 0)}px`,
             } : {}),
             filter: wallpaperFilter || undefined,
-            transition: "background-image 0.2s ease",
+            transition: phoneEdit ? "background-image 0.2s ease, background-position 260ms cubic-bezier(.2,.8,.2,1), background-size 260ms cubic-bezier(.2,.8,.2,1)" : "background-image 0.2s ease",
           }} />
         )}
         {wallpaperVignette > 0 && (
@@ -3691,6 +3749,22 @@ export default function CanvasBoard({
           onLogout={handleLogout}
           onComments={visProfiles[0] ? () => setCommentsOpen(o => !o) : undefined}
           unreadComments={unreadComments > 0} />
+      )}
+      {phoneEdit && !isLoading && !shareOpen && !!viewerScreen && (
+        <div data-mnemo-ui="" className="mn-phonezoom" role="group" aria-label="Zoom" style={{ bottom: phoneSheetH + 12 }}>
+          <button type="button" className="mn-gbtn" aria-label="Alejar" aria-disabled={!phoneZoom || undefined}
+            onClick={() => setPhoneZoom(z => (!z || z.k / 1.5 < 1.1 ? null : { ...z, k: z.k / 1.5 }))}>
+            <Icon name="minus" size={18} />
+          </button>
+          <button type="button" className="mn-gbtn" aria-label="Acercar" aria-disabled={(phoneZoom?.k ?? 1) >= 4 || undefined}
+            onClick={() => setPhoneZoom(z => {
+              if (z) return { ...z, k: Math.min(4, z.k * 1.5) };
+              const c = visProfiles[0];
+              return c ? { cx: c.x + c.w / 2, cy: c.y + c.h / 2, k: 1.5 } : null;
+            })}>
+            <Icon name="plus" size={18} />
+          </button>
+        </div>
       )}
       {phoneEdit && phoneTip && !isLoading && (
         <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
@@ -4072,7 +4146,7 @@ export default function CanvasBoard({
           // Phase H (D5): the open object's part gets the editor-only outline.
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}
           phoneEditor={phoneEdit}
-          onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); }) : undefined} />);
+          onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); setPhoneFocusTick(n => n + 1); }) : undefined} />);
       })}
 
 

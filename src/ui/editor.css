@@ -1835,3 +1835,13 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
 @media (pointer: coarse) {
   :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__path { display: none; }
 }
+/* Editor de celular: − / + zoom, over the card's corner above the sheet. */
+.mn-phonezoom[data-mnemo-ui] {
+  position: fixed; right: 12px; z-index: 790; display: flex; gap: 2px; padding: 3px; border-radius: 999px;
+  background: var(--ui-shell-glass); color: var(--ui-shell-glass-ink); box-shadow: var(--ui-shadow-panel);
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur);
+  transition: bottom var(--ui-motion-base) var(--ui-motion-ease);
+}
+:where([data-mnemo-ui]).mn-phonezoom .mn-gbtn { width: 40px; height: 40px; }
+@media (prefers-reduced-transparency: reduce) { .mn-phonezoom[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ui-surface-panel-opaque); } }
+@media (forced-colors: active) { .mn-phonezoom[data-mnemo-ui] { background: Canvas; border: 1px solid CanvasText; } }
