@@ -95,7 +95,7 @@ export default function CrearPage({ checkHandle, navigate }: { checkHandle: (h: 
         <h2>En 3 pasos</h2>
         <ol className="cr-steps">
           <li><b>1</b><span><strong>Reclamá tu nombre</strong> antes que otro: myland.lol/tunombre es único.</span></li>
-          <li><b>2</b><span><strong>Armá tu card</strong> con tu foto, tus redes y tu estilo. Se edita desde la compu.</span></li>
+          <li><b>2</b><span><strong>Armá tu card</strong> con tu foto, tus redes y tu estilo, desde el celular o la compu.</span></li>
           <li><b>3</b><span><strong>Poné tu link</strong> en tu bio de TikTok, Instagram o donde quieras.</span></li>
         </ol>
       </section>

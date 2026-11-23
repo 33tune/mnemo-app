@@ -638,6 +638,28 @@ planeado acá hasta confirmarlo.
 >   edita desde la compu) y botón fijo abajo. `crear` es nombre reservado (`RESERVED_HANDLES`). Cuenta `landing_view` con path
 >   `/crear` y `claim_click`. La página es su propio contenedor de scroll (`position: fixed; overflow-y: auto`): el body no scrollea.
 >
+> **Editor de celular (2026-11-23, pedido del usuario: "permiso a todo") — REEMPLAZA "Mobile = solo vista" para editar:**
+>   `/dashboard` en un celular (User-Agent) abre el MISMO `CanvasBoard` con `phoneEdit`: se edita la CARD (la sala —
+>   imágenes / textos sueltos, capas, cuadrícula— sigue siendo de la compu). Arriba `PhoneEditorBar.tsx` (Deshacer,
+>   Rehacer, Más: Fondo de la sala / Ver mi perfil / Comentarios / Compartir / Salir, y Publicar); la card encajada
+>   (`mobileView` + `cardViewRect`, como el perfil del celular, wallpaper atado a la sala) entre la barra y una hoja
+>   inferior con el inspector de la card (`EditorHost` en modo "sheet", siempre abierto; Cerrar o deslizar hacia abajo la
+>   pliega, deslizar arriba la abre). Tocar una parte de la card abre esa parte. `canInteract` queda en false (nada de
+>   drag / resize / Editar); `ProfileCard` recibe `phoneEditor` (render de editor: inspector, outline, previews, entrada;
+>   sin inclinación por dedo / giroscopio). La card nueva (sin card) se centra para una pantalla de compu (1440×900).
+>   Stickers: `StickerEditor` usa pointer events (dedo y mouse), divide por la escala de la vista y agranda las
+>   manijas en pantallas táctiles. `RoomInspector` con `phone` oculta Lienzo y Cursor. Consejo de primera vez
+>   (`mnemo_phone_tip_v1`). Métricas: `editor_open`, `publish`, `tour_done/skip` con `{ phone: true }`. `/setup` y la
+>   pantalla "¡Es tuyo!" llevan al editor. **Rendimiento:** sin paralaje desde pantallas táctiles (un toque re-dibujaba
+>   el lienzo ~2 s: 7 → 61 fps con CPU ×6), miniaturas de la galería quietas en táctil (salvo la tocada / activa),
+>   campos de 16 px (iOS no hace zoom). Medido en build de producción: holo + reflejo a 60 fps con CPU ×4. Sin QA en un
+>   iPhone / Android real.
+> **Bug de ediciones no publicadas ARREGLADO (2026-11-23):** los dos escritores de ajustes de la sala ya no tocan
+>   `updated_at` (y no escriben si nada cambió). Migración `20261123000000_canvases_server_updated_at.sql` (updated_at con
+>   la hora del servidor) escrita pero **SIN aplicar** (el conector pidió una confirmación que no llegó; aplicarla con el
+>   usuario). **Recuperación de afectados NO hecha:** distinguir ops perdidos de ops ya publicados requiere revisar
+>   perfil por perfil (con el usuario).
+
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por
@@ -670,7 +692,7 @@ planeado acá hasta confirmarlo.
 >   - Sin QA en iPhone / Safari real (no hay WebKit en el entorno): confirmar transparencia de la card con capas
 >     `will-change: transform`, giroscopio y las máscaras del borde (`mask-composite`).
 >
-> **BUG PENDIENTE (encontrado 2026-11-10, el usuario pidió NO arreglarlo todavía, solo anotarlo): ediciones no publicadas
+> **BUG (encontrado 2026-11-10; ARREGLADO el 2026-11-23, ver arriba): ediciones no publicadas
 >   se pierden al volver a abrir el editor.** La carga del editor (`CanvasBoard.tsx`, carga desde `canvas_ops`) lee solo
 >   los ops con `created_at > canvases.updated_at`. Pero el auto-guardado de ajustes de la sala (el `useEffect` de
 >   `spaceCursor/spaceMusic/spaceFont`, ~línea 1020, y `saveGlobalSettingsToSpace`, ~línea 3020) hace

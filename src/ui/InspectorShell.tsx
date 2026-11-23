@@ -134,9 +134,30 @@ export function InspectorShell({
     outline:   "none",
   };
 
+  // Sheet on a touch screen: a swipe down on its top strip (grip + header)
+  // folds it, a swipe up on the folded bar opens it — the usual phone gesture
+  // (the buttons do the same: Cerrar, the bar).
+  const swipeRef = useRef<{ y: number; t: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (!sheet || e.touches.length !== 1) return;
+    const top = rootRef.current?.getBoundingClientRect().top ?? 0;
+    // Only from the top strip: the body below scrolls.
+    swipeRef.current = e.touches[0].clientY - top < (collapsed ? 80 : 96) ? { y: e.touches[0].clientY, t: Date.now() } : null;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const s0 = swipeRef.current; swipeRef.current = null;
+    if (!s0) return;
+    const dy = (e.changedTouches[0]?.clientY ?? s0.y) - s0.y;
+    if (Date.now() - s0.t > 900) return;
+    if (!collapsed && dy > 56) onClose();
+    else if (collapsed && dy < -36) onExpand?.();
+  };
+
   return (
     <aside
       ref={rootRef}
+      onTouchStart={sheet ? onTouchStart : undefined}
+      onTouchEnd={sheet ? onTouchEnd : undefined}
       id={id}
       {...{ [EDITOR_ATTR]: "" }}
       aria-label="Inspector"
