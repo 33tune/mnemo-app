@@ -113,6 +113,8 @@ const MOBILE_CANVAS_W = 390;
 /** Editor de celular: the top bar's height (undo / redo / ver / publicar). */
 const PHONE_BAR_H = 56;
 const PHONE_TIP_KEY = "mnemo_phone_tip_v1";
+/** Editor de celular: a block dragged with the finger opens its part. */
+const BLOCK_PART: Record<string, string> = { pfp: "photo", identity: "name", location: "location", views: "views", about: "about", links: "links", buttons: "buttons" };
 
 function isSpaceCanvas(mode: CanvasMode): boolean {
   return mode === "space" || mode === "space_mobile";
@@ -646,6 +648,14 @@ export default function CanvasBoard({
     ro.observe(el);
     return () => ro.disconnect();
   }, [measureCard, viewerScreen, cardCountForMeasure]);
+  // Editor de celular: no text selection / callouts on a long press, no page
+  // zoom or bounce while dragging on the card (editor.css, html[data-phone-edit]).
+  useEffect(() => {
+    if (!phoneEdit) return;
+    const html = document.documentElement;
+    html.setAttribute("data-phone-edit", "");
+    return () => html.removeAttribute("data-phone-edit");
+  }, [phoneEdit]);
   // Editor de celular: a first-visit tip (once per browser).
   const [phoneTip, setPhoneTip] = useState(false);
   useEffect(() => {
@@ -674,7 +684,7 @@ export default function CanvasBoard({
   }, [phoneEdit]);
   const phoneBarH = PHONE_BAR_H + safeTop;
   const phoneScreenH = viewerScreen?.h ?? viewportH;
-  const phoneSheetH = !phoneEdit ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.56, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
+  const phoneSheetH = !phoneEdit ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
   // Notas (2026-11-06): while the box shows (a note, or a styled empty box),
   // the view keeps room for it above the card (on a phone and on a computer).
   const publicNote = useNote(!canEdit ? ownerUserId : undefined);
@@ -3306,6 +3316,7 @@ export default function CanvasBoard({
       e.stopPropagation();
       closePhoneTip("done");
       setPhoneSheetOpen(true);
+      try { navigator.vibrate?.(8); } catch { /* no haptics */ }
       if (!selIdsRef.current.has(id)) setSelectedIds(new Set([id]));
       if (part?.role) openProfilePart(id, part.role); else if (inspectorCardIdRef.current !== id) openProfile(id);
       return;
@@ -3683,7 +3694,7 @@ export default function CanvasBoard({
       )}
       {phoneEdit && phoneTip && !isLoading && (
         <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
-          <span>Tocá cualquier parte de tu card para editarla. Cuando te guste, <b>Publicar</b>.</span>
+          <span>Tocá una parte de tu card para editarla, o arrastrala para moverla. Cuando te guste, <b>Publicar</b>.</span>
           <button type="button" className="mn-phonetip__ok" onClick={() => closePhoneTip("skip")}>Entendido</button>
         </div>
       )}
@@ -3829,6 +3840,8 @@ export default function CanvasBoard({
         // pointer→canvas conversion reads this element's rect.
         transform: viewFit ? `translate(${viewFit.tx}px,${viewFit.ty}px) scale(${viewFit.s})` : (viewDx || viewDy) ? `translate3d(${-viewDx}px,${-viewDy}px,0)` : undefined,
         transformOrigin: "top left",
+        // Editor de celular: the card glides when the sheet opens / folds.
+        ...(phoneEdit ? { transition: "transform 260ms cubic-bezier(.2,.8,.2,1)" } : {}),
         ...(!canEdit ? { animation: "land-reveal 0.18s ease backwards" } : {}),
       }}
         onDragEnter={e => {
@@ -4058,7 +4071,8 @@ export default function CanvasBoard({
           onEditorFacts={handleEditorFacts}
           // Phase H (D5): the open object's part gets the editor-only outline.
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}
-          phoneEditor={phoneEdit} />);
+          phoneEditor={phoneEdit}
+          onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); }) : undefined} />);
       })}
 
 

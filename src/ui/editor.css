@@ -1819,3 +1819,19 @@
   :where([data-mnemo-editor]) #mnemo-inspector-title:focus-visible { outline: none; box-shadow: none; }
 }
 :where([data-mnemo-ui]) .mn-phonebar__dot { position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--ui-accent-main); }
+/* Editor de celular: a long press never selects text or pops the "save
+   image" callout; the card area never pans / zooms the page (a drag moves
+   a block). Fields stay selectable. */
+html[data-phone-edit], html[data-phone-edit] body {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
+}
+html[data-phone-edit] input, html[data-phone-edit] textarea, html[data-phone-edit] [contenteditable="true"] {
+  -webkit-user-select: text; user-select: text; -webkit-touch-callout: default;
+}
+html[data-phone-edit] [data-mnemo-canvas], html[data-phone-edit] [data-profile-card] { touch-action: none; }
+html[data-phone-edit] img { -webkit-user-drag: none; }
+/* Phone sheet: a tighter header (the route line goes; the title says it). */
+@media (pointer: coarse) {
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__path { display: none; }
+}

@@ -121,7 +121,7 @@ export const CAPAS = "Capas";
 const LEGACY_POS = "pre-composition position/scale (Stage 3 replaced it with block anchors); kept for old data";
 // Free layout engine (2026-10-15): one drag for every block (startPartDrag);
 // the drop saves every block's position in one patch (positionsPatch).
-const BLOCK_DRAG = (block: string) => card(`${LIENZO} › bloque ${block}`, "onMouseDown={down(\"" + block + "\")}", "positionsPatch(card, done, card.w, h)");
+const BLOCK_DRAG = (block: string) => card(`${LIENZO} › bloque ${block}`, "{...down(\"" + block + "\")}", "positionsPatch(card, done, card.w, h)");
 const TEXT_PER_ROLE = "per-text effects (2026-10-14): legacy card-wide value, rendered by every role without its own and split into the roles on the first edit — edited in each text's Efectos del texto";
 const ROLE_COLOR = "text color is owned by each role (its object › Color › Color — Block 1: una propiedad, un dueño)";
 

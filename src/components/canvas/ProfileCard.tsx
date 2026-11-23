@@ -239,6 +239,8 @@ interface Props {
    * pointer editing (drag / resize / Editar), and without the public view's
    * finger / gyro effects (a tap picks a part). */
   phoneEditor?:      boolean;
+  /** Phone editor: a block was dragged with the finger (its menu opens). */
+  onPartMoved?:      (key: BlockKey) => void;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -267,7 +269,7 @@ function ProfileCard({
   card: savedCard, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
-  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, phoneEditor = false,
+  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, phoneEditor = false, onPartMoved,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
   // "Probar antes de elegir": the option under the pointer in the editor, live (cardPreview.ts).
@@ -701,9 +703,12 @@ function ProfileCard({
   // helps, never blocks). Every mousemove re-renders through profileLayout,
   // which moves whatever the dragged block collides with (cardSolver.ts).
   // On mouseup ONE patch saves every block's position and the card height.
-  const startPartDrag = (e: React.MouseEvent, key: BlockKey) => {
+  const startPartDrag = (e: React.MouseEvent | React.PointerEvent, key: BlockKey, finger = false) => {
     e.stopPropagation();
-    if (!isPfpAnchorDraggable(canInteract, layout, isSel)) return;
+    if (!(finger ? phoneEditor && layout !== "free" : isPfpAnchorDraggable(canInteract, layout, isSel))) return;
+    // Phone editor: the card is drawn scaled — screen px → card px.
+    const k = finger && cardRef.current ? (cardRef.current.getBoundingClientRect().width / Math.max(1, card.w)) || 1 : 1;
+    const MOVE = finger ? "pointermove" : "mousemove", UP = finger ? "pointerup" : "mouseup";
     const l = lastLayoutRef.current;
     const start = l?.rects[key];
     if (!l || !start) return;
@@ -717,8 +722,9 @@ function ProfileCard({
     buttonsDidDragRef.current = false;
 
     const onMove = (ev: MouseEvent) => {
-      const dx = ev.clientX - sx, dy = ev.clientY - sy;
-      if (!active && Math.hypot(dx, dy) <= DRAG_SLOP) return;
+      const dx = (ev.clientX - sx) / k, dy = (ev.clientY - sy) / k;
+      if (!active && Math.hypot(ev.clientX - sx, ev.clientY - sy) <= (finger ? 8 : DRAG_SLOP)) return;
+      if (finger && ev.cancelable) ev.preventDefault();
       if (!active) {
         active = true;
         if (key === "links") linksDidDragRef.current = true;
@@ -732,16 +738,20 @@ function ProfileCard({
       setDrag({ key, base, x: Math.max(pad, Math.min(card.w - pad - start.w, s.x)), y: Math.max(pad, s.y), lineX: s.lineX, lineY: s.lineY });
     };
     const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
+      document.removeEventListener(MOVE, onMove as EventListener);
+      document.removeEventListener(UP, onUp);
+      document.removeEventListener("pointercancel", onUp);
       if (!active) return;
       const done = lastLayoutRef.current;
       const h = renderHRef.current;
       if (done) updateProfile(card.id, { ...positionsPatch(card, done, card.w, h), h });
       setDrag(null);
+      // A finger drag ends without a click: open the moved part's menu.
+      if (finger) { partDownRef.current = null; onPartMoved?.(key); }
     };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
+    document.addEventListener(MOVE, onMove as EventListener, { passive: false } as AddEventListenerOptions);
+    document.addEventListener(UP, onUp);
+    if (finger) document.addEventListener("pointercancel", onUp);
   };
 
   // ── Element renderers ─────────────────────────────────────────────────────
@@ -1116,7 +1126,10 @@ function ProfileCard({
     // moves out of its way slide (REFLOW_TRANSITION) instead of jumping.
     const motion = (key: BlockKey): string => (dragging === key ? "none" : REFLOW_TRANSITION);
     const grab = isAnchorDraggable ? (dragging ? "grabbing" : "grab") : "default";
-    const down = (key: BlockKey) => (isAnchorDraggable ? (e: React.MouseEvent) => startPartDrag(e, key) : undefined);
+    // Computer: the mouse (card selected). Phone editor: the finger, always.
+    const down = (key: BlockKey) => (phoneEditor && layout !== "free"
+      ? { onPointerDown: (e: React.PointerEvent) => startPartDrag(e, key, true) }
+      : { onMouseDown: isAnchorDraggable ? (e: React.MouseEvent) => startPartDrag(e, key) : undefined });
     // Texts wrap onto more lines instead of being cut (the engine sized the
     // rows for exactly that).
     const wrap: CSSProperties = { whiteSpace: "normal", overflowWrap: "anywhere" };
@@ -1146,7 +1159,7 @@ function ProfileCard({
             data-canvas-hot=""
             {...partProps("photo")}
             style={{ ...box(rects.pfp), transition: motion("pfp"), cursor: grab, ...partOutline("photo"), ...dragOutline("pfp") }}
-            onMouseDown={down("pfp")}
+            {...down("pfp")}
           >
             {AvatarEl({ size: rects.pfp.w, style: { width: "100%", height: "100%" } })}
           </div>
@@ -1158,7 +1171,7 @@ function ProfileCard({
               borderRadius: identityBlockStyle.radius, background: identityBlockStyle.bg,
               ...dragOutline("identity"),
             }}
-            onMouseDown={down("identity")}
+            {...down("identity")}
           >
             {card.name && row("name", NameLine({ style: wrap }))}
             {card.handle && row("handle", HandleLine({ style: wrap }))}
@@ -1173,7 +1186,7 @@ function ProfileCard({
               borderRadius: locationBlockStyle.radius, background: locationBlockStyle.bg,
               ...dragOutline("location"),
             }}
-            onMouseDown={down("location")}
+            {...down("location")}
           >
             {row("location", LocationLine({ style: wrap }))}
           </div>
@@ -1185,7 +1198,7 @@ function ProfileCard({
               borderRadius: viewsBlockStyle.radius, background: viewsBlockStyle.bg,
               ...dragOutline("views"),
             }}
-            onMouseDown={down("views")}
+            {...down("views")}
           >
             {row("views", ViewsLine({ style: wrap }))}
           </div>
@@ -1197,7 +1210,7 @@ function ProfileCard({
               borderRadius: aboutBlockStyle.radius, background: aboutBlockStyle.bg,
               ...dragOutline("about"),
             }}
-            onMouseDown={down("about")}
+            {...down("about")}
           >
             {row("about", AboutText({ style: { overflowWrap: "anywhere" } }))}
           </div>
@@ -1216,7 +1229,7 @@ function ProfileCard({
               ...partOutline("links"),
               ...dragOutline("links"),
             }}
-            onMouseDown={down("links")}
+            {...down("links")}
           >
             {contactLinks.filter(l => l.url).map(link => (
               <ContactLinkIcon
@@ -1231,7 +1244,7 @@ function ProfileCard({
             data-canvas-hot=""
             {...partProps("buttons")}
             style={{ ...box(rects.buttons), transition: motion("buttons"), cursor: grab, ...partOutline("buttons"), ...dragOutline("buttons") }}
-            onMouseDown={down("buttons")}
+            {...down("buttons")}
           >
             <LinkButtonsBlock buttons={linkButtons} style={buttonStyle} inert={menuOpen}
               didDragRef={isAnchorDraggable ? buttonsDidDragRef : undefined} />

@@ -648,7 +648,12 @@ planeado acá hasta confirmarlo.
 >   drag / resize / Editar); `ProfileCard` recibe `phoneEditor` (render de editor: inspector, outline, previews, entrada;
 >   sin inclinación por dedo / giroscopio). La card nueva (sin card) se centra para una pantalla de compu (1440×900).
 >   Stickers: `StickerEditor` usa pointer events (dedo y mouse), divide por la escala de la vista y agranda las
->   manijas en pantallas táctiles. `RoomInspector` con `phone` oculta Lienzo y Cursor. Consejo de primera vez
+>   manijas en pantallas táctiles. **Arrastrar con el dedo (2026-11-23, feedback "tosco, no se pueden arrastrar las
+>   cosas, mantener apretado selecciona texto"):** los bloques de la card (foto, nombre, ubicación, visitas, sobre mí,
+>   íconos, botones) se arrastran directo con el dedo (`startPartDrag(e, key, true)`: pointer events, dividido por la
+>   escala) y al soltar se abre su parte (`onPartMoved`); `html[data-phone-edit]` saca la selección de texto, el menú de
+>   "guardar imagen" y el zoom/rebote sobre la card (los campos siguen seleccionables); la card se desliza al abrir /
+>   plegar la hoja (52 % de alto); vibración corta al elegir una parte (Android); encabezado de la hoja sin la ruta. `RoomInspector` con `phone` oculta Lienzo y Cursor. Consejo de primera vez
 >   (`mnemo_phone_tip_v1`). Métricas: `editor_open`, `publish`, `tour_done/skip` con `{ phone: true }`. `/setup` y la
 >   pantalla "¡Es tuyo!" llevan al editor. **Rendimiento:** sin paralaje desde pantallas táctiles (un toque re-dibujaba
 >   el lienzo ~2 s: 7 → 61 fps con CPU ×6), miniaturas de la galería quietas en táctil (salvo la tocada / activa),
