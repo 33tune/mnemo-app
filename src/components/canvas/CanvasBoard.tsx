@@ -670,6 +670,9 @@ export default function CanvasBoard({
   }, []);
   // Editor de celular: the sheet (expanded / collapsed to its bar).
   const [phoneSheetOpen, setPhoneSheetOpen] = useState(true);
+  // Vista previa (2026-11-23, pedido del usuario): the card as visitors see it
+  // — no bar, no sheet, no zoom; the card behaves like on the profile.
+  const [phonePreview, setPhonePreview] = useState(false);
   // The notch / status bar (env(safe-area-inset-top)): the top bar grows by it.
   const [safeTop, setSafeTop] = useState(0);
   useEffect(() => {
@@ -682,14 +685,14 @@ export default function CanvasBoard({
     window.addEventListener("resize", read);
     return () => { window.removeEventListener("resize", read); probe.remove(); };
   }, [phoneEdit]);
-  const phoneBarH = PHONE_BAR_H + safeTop;
+  const phoneBarH = phonePreview ? 0 : PHONE_BAR_H + safeTop;
   // Editor de celular — zoom (2026-11-23, pedido del usuario): null = the
   // whole card; else a point of the room (cx, cy) shown k times bigger than
   // the whole-card fit. Set by tapping a part (auto) or by − / +.
   const [phoneZoom, setPhoneZoom] = useState<{ cx: number; cy: number; k: number } | null>(null);
   const phoneFitRef = useRef<{ s: number; areaH: number; vw: number } | null>(null);
   const phoneScreenH = viewerScreen?.h ?? viewportH;
-  const phoneSheetH = !phoneEdit ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
+  const phoneSheetH = !phoneEdit || phonePreview ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
   // Notas (2026-11-06): while the box shows (a note, or a styled empty box),
   // the view keeps room for it above the card (on a phone and on a computer).
   const publicNote = useNote(!canEdit ? ownerUserId : undefined);
@@ -704,7 +707,7 @@ export default function CanvasBoard({
     const s0 = Math.min(fit.s, 1.25);
     phoneFitRef.current = { s: s0, areaH, vw };
     // Zoomed: the point stays inside the card, so the view never wanders off it.
-    const z = phoneZoom && card ? {
+    const z = phoneZoom && card && !phonePreview ? {
       k: phoneZoom.k,
       cx: Math.max(card.x, Math.min(card.x + card.w, phoneZoom.cx)),
       cy: Math.max(card.y, Math.min(card.y + (mobileCardH && mobileCardH > 0 ? mobileCardH : card.h), phoneZoom.cy)),
@@ -3363,6 +3366,7 @@ export default function CanvasBoard({
     const sel = selIdsRef.current;
     // Editor de celular: a tap on a part of the card opens that part (no
     // selection / drag on a phone); a tap elsewhere on it opens the card.
+    if (phoneEdit && phonePreview) return; // vista previa: the card is just the card
     if (phoneEdit) {
       e.stopPropagation();
       closePhoneTip("done");
@@ -3738,8 +3742,17 @@ export default function CanvasBoard({
       </div>
       {/* Perfil público en compu: la pastilla (volver, logo, myLand, @usuario), sin la barra vieja. */}
       {!canEdit && !mobileFit && <PublicBrandPill handle={userHandle} />}
-      {phoneEdit && (
+      {phoneEdit && phonePreview && (
+        <div data-mnemo-ui="" className="mn-phoneprev">
+          <span>Vista previa</span>
+          <button type="button" className="mn-pill mn-pill--brand" onClick={() => setPhonePreview(false)}>Volver a editar</button>
+        </div>
+      )}
+      {phoneEdit && !phonePreview && (
         <PhoneEditorBar handle={userHandle}
+          onPreview={() => { setPhoneZoom(null); setPhonePreview(true); }}
+          onSearch={() => { setPhoneSheetOpen(true); openSearch(); }}
+          onFavorites={() => setPhoneSheetOpen(false)}
           canUndo={histFlags.canUndo} canRedo={histFlags.canRedo}
           onUndo={() => runHistoryRef.current("undo")} onRedo={() => runHistoryRef.current("redo")}
           publishState={publishState} onPublish={publishSpace}
@@ -3750,8 +3763,8 @@ export default function CanvasBoard({
           onComments={visProfiles[0] ? () => setCommentsOpen(o => !o) : undefined}
           unreadComments={unreadComments > 0} />
       )}
-      {phoneEdit && !isLoading && !shareOpen && !!viewerScreen && (
-        <div data-mnemo-ui="" className="mn-phonezoom" role="group" aria-label="Zoom" style={{ bottom: phoneSheetH + 12 }}>
+      {phoneEdit && !phonePreview && !isLoading && !shareOpen && !!viewerScreen && (
+        <div data-mnemo-ui="" className="mn-phonezoom" role="group" aria-label="Zoom" style={{ bottom: phoneSheetOpen ? phoneSheetH + 12 : INSPECTOR_SHEET_COLLAPSED_H + SHORTCUTS_BAR_H + 14 }}>
           <button type="button" className="mn-gbtn" aria-label="Alejar" aria-disabled={!phoneZoom || undefined}
             onClick={() => setPhoneZoom(z => (!z || z.k / 1.5 < 1.1 ? null : { ...z, k: z.k / 1.5 }))}>
             <Icon name="minus" size={18} />
@@ -3766,7 +3779,13 @@ export default function CanvasBoard({
           </button>
         </div>
       )}
-      {phoneEdit && phoneTip && !isLoading && (
+      {phoneEdit && !phoneSheetOpen && !phonePreview && !isLoading && !shareOpen && (
+        <ShortcutsBar bottom={INSPECTOR_SHEET_COLLAPSED_H + 10} currentHandle={userHandle}
+          search={{ open: searchOpen, panelId: SEARCH_PANEL_ID, buttonId: RAIL_SEARCH_BUTTON_ID,
+            onToggle: () => { setPhoneSheetOpen(true); openSearch(); } }}
+          comments={visProfiles[0] ? { open: commentsOpen, count: ownCommentCount, unread: unreadComments > 0, onToggle: () => setCommentsOpen(o => !o) } : undefined} />
+      )}
+      {phoneEdit && phoneTip && !phonePreview && !isLoading && (
         <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
           <span>Tocá una parte de tu card para editarla, o arrastrala para moverla. Cuando te guste, <b>Publicar</b>.</span>
           <button type="button" className="mn-phonetip__ok" onClick={() => closePhoneTip("skip")}>Entendido</button>
@@ -4145,7 +4164,7 @@ export default function CanvasBoard({
           onEditorFacts={handleEditorFacts}
           // Phase H (D5): the open object's part gets the editor-only outline.
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}
-          phoneEditor={phoneEdit}
+          phoneEditor={phoneEdit && !phonePreview}
           onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); setPhoneFocusTick(n => n + 1); }) : undefined} />);
       })}
 
@@ -4553,7 +4572,7 @@ export default function CanvasBoard({
           />
         );
       })()}
-      {inspectorEnabled && (canInteract || roomShown || phoneEdit) && (
+      {inspectorEnabled && (canInteract || roomShown || phoneEdit) && !phonePreview && (
         <EditorHost
           target={editorSel.target}
           // Only a card that is actually rendered (same set ProfileCard maps over).

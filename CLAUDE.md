@@ -658,7 +658,10 @@ planeado acá hasta confirmarlo.
 >   punto de la sala + k veces el encuadre de la card entera, hasta 2,4×; medido del DOM, `[data-role]`); las partes de
 >   la card entera (Fondo, Efectos, Textos, Stickers), plegar la hoja o tocar fuera de la card vuelven a la card entera;
 >   botones − / + (`.mn-phonezoom`, hasta 4×). La parte que el editor abre solo al cargar no hace zoom. El punto queda
->   siempre dentro de la card; el wallpaper acompaña con la misma transición. `RoomInspector` con `phone` oculta Lienzo y Cursor. Consejo de primera vez
+>   siempre dentro de la card; el wallpaper acompaña con la misma transición. **Vista previa, Buscar y Favoritos (2026-11-23):**
+>   ojo en la barra = vista previa (sin barra, hoja ni zoom; la card como en el perfil: entrada, dedo, giroscopio,
+>   links; pastilla "Volver a editar"); Más › Buscar cards abre `SearchPanel` en la hoja; Más › Tus favoritos pliega la
+>   hoja y con la hoja plegada aparece `ShortcutsBar` (lupa, comentarios, favoritos; prop `bottom`) sobre la barra. `RoomInspector` con `phone` oculta Lienzo y Cursor. Consejo de primera vez
 >   (`mnemo_phone_tip_v1`). Métricas: `editor_open`, `publish`, `tour_done/skip` con `{ phone: true }`. `/setup` y la
 >   pantalla "¡Es tuyo!" llevan al editor. **Rendimiento:** sin paralaje desde pantallas táctiles (un toque re-dibujaba
 >   el lienzo ~2 s: 7 → 61 fps con CPU ×6), miniaturas de la galería quietas en táctil (salvo la tocada / activa),

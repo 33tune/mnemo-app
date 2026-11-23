@@ -1845,3 +1845,22 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
 :where([data-mnemo-ui]).mn-phonezoom .mn-gbtn { width: 40px; height: 40px; }
 @media (prefers-reduced-transparency: reduce) { .mn-phonezoom[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ui-surface-panel-opaque); } }
 @media (forced-colors: active) { .mn-phonezoom[data-mnemo-ui] { background: Canvas; border: 1px solid CanvasText; } }
+/* Phone bar on narrow screens: the handle goes first, Publicar gets tighter. */
+@media (max-width: 440px) {
+  :where([data-mnemo-ui]) .mn-phonebar__handle { display: none; }
+}
+@media (max-width: 380px) {
+  :where([data-mnemo-ui]) .mn-phonebar__actions .mn-gbtn { width: 40px; }
+  :where([data-mnemo-ui]) .mn-phonebar__actions .mn-pill { min-width: 0; padding: 0 14px; }
+}
+/* Vista previa: the way back to editing, floating over the card. */
+.mn-phoneprev[data-mnemo-ui] {
+  position: fixed; left: 50%; transform: translateX(-50%); top: calc(12px + env(safe-area-inset-top, 0px)); z-index: 801;
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 6px 0 16px; border-radius: 999px;
+  background: var(--ui-shell-glass); color: var(--ui-shell-glass-ink); box-shadow: var(--ui-shadow-panel);
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur);
+  font: 600 14px var(--ui-font-sans); white-space: nowrap;
+}
+.mn-phoneprev[data-mnemo-ui] .mn-pill { min-width: 0; height: 34px; padding: 0 14px; }
+@media (prefers-reduced-transparency: reduce) { .mn-phoneprev[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ui-surface-panel-opaque); } }
+@media (forced-colors: active) { .mn-phoneprev[data-mnemo-ui] { background: Canvas; border: 1px solid CanvasText; } }

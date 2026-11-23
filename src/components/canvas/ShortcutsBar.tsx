@@ -163,10 +163,12 @@ function SearchPopover({ onClose, center }: { onClose: () => void; center: strin
  * blinking dot when someone commented since I last opened the panel. */
 export interface BarComments { open: boolean; count: number; unread: boolean; onToggle: () => void }
 
-export default function ShortcutsBar({ left = 0, right = 0, currentHandle, search, comments }: {
+export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, currentHandle, search, comments }: {
   /** Space taken on each side (the editor's rail, the profile's buttons). */
   left?: number;
   right?: number;
+  /** Distance from the bottom (the phone editor lifts it over the folded sheet). */
+  bottom?: number;
   currentHandle?: string;
   search?: BarSearch;
   comments?: BarComments;
@@ -206,7 +208,7 @@ export default function ShortcutsBar({ left = 0, right = 0, currentHandle, searc
   return (
     <>
       <nav data-mnemo-ui="" data-export-skip="" aria-label="Favoritos"
-        style={{ position: "fixed", left: center, transform: "translateX(-50%)", bottom: 12, zIndex: 2147480900,
+        style={{ position: "fixed", left: center, transform: "translateX(-50%)", bottom, zIndex: 2147480900,
           maxWidth: `calc(100vw - ${left + right + 48}px)`, display: "flex", alignItems: "flex-end", pointerEvents: "none" }}>
         <div style={{ ...glass, position: "absolute", left: 0, right: 0, bottom: 0, height: 64, borderRadius: 22, pointerEvents: "none" }} />
         <div style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: 6, padding: "0 10px 5px", minWidth: 0 }}>
@@ -222,7 +224,7 @@ export default function ShortcutsBar({ left = 0, right = 0, currentHandle, searc
                 onMenu={(x, cx, cy) => setMenu({ s: x, x: cx, y: cy })} />)}
             </div>
           ) : (
-            <span style={{ position: "relative", height: 54, display: "flex", alignItems: "center", gap: 8, padding: "0 6px", font: "500 13px system-ui, -apple-system, 'Segoe UI', sans-serif", opacity: 0.75, whiteSpace: "nowrap" }}>
+            <span style={{ position: "relative", height: 54, display: "flex", alignItems: "center", gap: 8, padding: "0 6px", font: "500 13px system-ui, -apple-system, 'Segoe UI', sans-serif", opacity: 0.75, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
               <HeartIcon size={15} /> Dale favorito a una card y aparece acá
             </span>
           )}

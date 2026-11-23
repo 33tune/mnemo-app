@@ -15,7 +15,7 @@ const MORE_ID = "mnemo-phone-more";
  * Salir) and Publicar. 44px targets; respects the notch (safe-area).
  */
 export default function PhoneEditorBar({
-  handle, canUndo, canRedo, onUndo, onRedo, publishState, onPublish, onShare, onRoom, roomOpen, onLogout, onComments, unreadComments,
+  handle, canUndo, canRedo, onUndo, onRedo, publishState, onPublish, onShare, onRoom, roomOpen, onLogout, onComments, unreadComments, onPreview, onSearch, onFavorites,
 }: {
   handle: string;
   canUndo: boolean; canRedo: boolean;
@@ -29,6 +29,12 @@ export default function PhoneEditorBar({
   /** Comentarios: opens the panel; a dot when someone commented since last time. */
   onComments?: () => void;
   unreadComments?: boolean;
+  /** Vista previa: the card as visitors see it (no editing chrome). */
+  onPreview: () => void;
+  /** Buscar cards (the search sheet). */
+  onSearch: () => void;
+  /** Tus favoritos: folds the sheet, the favorites bar shows under the card. */
+  onFavorites: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
@@ -61,6 +67,9 @@ export default function PhoneEditorBar({
           onClick={() => { if (canRedo) onRedo(); }}>
           <Icon name="redo" size={18} />
         </button>
+        <button type="button" className="mn-gbtn" aria-label="Vista previa" onClick={onPreview}>
+          <Icon name="eye" size={18} />
+        </button>
         <button ref={moreRef} type="button" className="mn-gbtn" aria-label="Más opciones"
           aria-expanded={open} aria-controls={open ? MORE_ID : undefined} onClick={() => setOpen(o => !o)}>
           <Icon name="more" size={18} />
@@ -74,6 +83,12 @@ export default function PhoneEditorBar({
         {open && (
           <div ref={menuRef} id={MORE_ID} role="group" aria-label="Más opciones" className="mn-glassmenu mn-glassmenu--more"
             onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); setOpen(false); moreRef.current?.focus(); } }}>
+            <button type="button" className="mn-glassmenu__item" onClick={run(onSearch)}>
+              <Icon name="search" size={16} /><span>Buscar cards</span>
+            </button>
+            <button type="button" className="mn-glassmenu__item" onClick={run(onFavorites)}>
+              <Icon name="star" size={16} /><span>Tus favoritos</span>
+            </button>
             <button type="button" className="mn-glassmenu__item" aria-pressed={roomOpen} onClick={run(onRoom)}>
               <Icon name="room" size={16} /><span>Fondo de la sala</span>
             </button>
