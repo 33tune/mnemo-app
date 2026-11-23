@@ -1751,3 +1751,71 @@
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-example:focus-visible { outline: none; box-shadow: var(--ui-shadow-ring); }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-example img { width: 100%; height: 100%; object-fit: contain; display: block; }
 :where([data-mnemo-editor], [data-mnemo-ui]) .mn-examples[data-wide] .mn-example img { object-fit: cover; }
+
+/* Editor de celular (2026-11-23): the phone editor's top bar — one glass
+   strip under the notch; the card is fitted below it, the sheet under that. */
+.mn-phonebar[data-mnemo-ui] {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 800; box-sizing: border-box;
+  height: calc(56px + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 8px 0 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--ui-shell-glass); color: var(--ui-shell-glass-ink);
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur);
+}
+:where([data-mnemo-ui]) .mn-phonebar__brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+:where([data-mnemo-ui]) .mn-phonebar__brand img { border-radius: 8px; flex-shrink: 0; }
+:where([data-mnemo-ui]) .mn-phonebar__handle { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where([data-mnemo-ui]) .mn-phonebar__actions { position: relative; display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+:where([data-mnemo-ui]) .mn-phonebar__actions .mn-gbtn { width: 44px; height: 44px; }
+:where([data-mnemo-ui]) .mn-phonebar__actions .mn-pill { margin-left: 4px; }
+:where([data-mnemo-ui]) .mn-phonebar .mn-capsule__status { position: static; }
+@media (prefers-reduced-transparency: reduce) {
+  .mn-phonebar[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ui-surface-panel-opaque); }
+}
+@media (forced-colors: active) {
+  .mn-phonebar[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: Canvas; border-bottom: 1px solid CanvasText; }
+}
+/* No dragging files on a phone: the drop zone's "o soltalo acá" goes. */
+@media (pointer: coarse) { :where([data-mnemo-editor], [data-mnemo-ui]) .mn-drop-hint { display: none; } }
+/* Phones (2026-11-23): dozens of looping previews at once drop a low-end
+   phone to single-digit fps — they stay still there; the tile being touched
+   or the one that is on plays. */
+@media (pointer: coarse) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile__pv * { animation-play-state: paused !important; }
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:active .mn-tile__pv,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:active .mn-tile__pv *,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile[aria-pressed="true"] .mn-tile__pv,
+  :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile[aria-pressed="true"] .mn-tile__pv * { animation-play-state: running !important; }
+}
+/* iOS zooms the page into any field under 16px when it gets focus — that
+   would throw the phone editor's layout off; fields are 16px on a phone. */
+@media (pointer: coarse) {
+  :where([data-mnemo-editor], [data-mnemo-ui]) input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  :where([data-mnemo-editor], [data-mnemo-ui]) textarea,
+  :where([data-mnemo-editor], [data-mnemo-ui]) select { font-size: max(16px, 1em) !important; }
+}
+/* Editor de celular: the first-visit tip under the top bar. */
+.mn-phonetip[data-mnemo-ui] {
+  position: fixed; left: 12px; right: 12px; z-index: 801; box-sizing: border-box;
+  display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; border-radius: 18px;
+  background: var(--ui-surface-panel); color: var(--ui-text-primary); font: 500 14px/1.35 var(--ui-font-sans);
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur); box-shadow: var(--ui-shadow-panel);
+  animation: mn-phonetip-in 260ms var(--ui-motion-ease) both;
+}
+.mn-phonetip[data-mnemo-ui] span { flex: 1; min-width: 0; }
+.mn-phonetip[data-mnemo-ui] .mn-phonetip__ok {
+  flex-shrink: 0; min-height: 40px; padding: 0 14px; border: none; border-radius: 999px; cursor: pointer;
+  background: var(--ui-accent-main); color: var(--ui-accent-ink); font: 600 14px var(--ui-font-sans);
+}
+@keyframes mn-phonetip-in { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .mn-phonetip[data-mnemo-ui] { animation: none; } }
+/* Narrow phones (≤ 360px): seven part names in a row are tight — smaller. */
+@media (max-width: 360px) {
+  :where([data-mnemo-editor]) .mn-part__label { font-size: 9px; letter-spacing: -0.03em; }
+}
+/* Phones: the inspector's title gets focus when it opens (for screen
+   readers); no ring for that on a touch screen. */
+@media (pointer: coarse) {
+  :where([data-mnemo-editor]) #mnemo-inspector-title:focus-visible { outline: none; box-shadow: none; }
+}
+:where([data-mnemo-ui]) .mn-phonebar__dot { position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--ui-accent-main); }

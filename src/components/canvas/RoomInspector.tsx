@@ -55,6 +55,8 @@ interface RoomInspectorProps {
   /** Editor v3 Phase I: Lienzo › Ajustar a la cuadrícula (local preference). */
   snap: boolean;
   onSnap: (on: boolean) => void;
+  /** Editor de celular: no Lienzo (grid / snap are about dragging) nor cursor. */
+  phone?: boolean;
   // Shell
   onClose: () => void;
   returnFocusTo: () => HTMLElement | null;
@@ -159,11 +161,11 @@ export default function RoomInspector(p: RoomInspectorProps) {
           {/* The user's own font, written in itself (canvas content). */}
           <UploadField kind="font" value={p.spaceFont ? p.spaceFont.name : null} name={p.spaceFont?.name} label="Fuente global" caption="Fuente propia"
             accept=".woff2,.woff,.ttf,.otf" onPick={() => p.pickFont()} onRemove={() => enqueue({ type: "set_space_font", value: undefined })} />
-          <UploadField kind="cursor" value={p.spaceCursor?.url || null} name="cursor.png" label="Cursor" caption="Cursor PNG" accept="image/png"
-            onPick={() => p.pickCursor()} onRemove={() => enqueue({ type: "set_space_cursor", value: undefined })} />
+          {!p.phone && <UploadField kind="cursor" value={p.spaceCursor?.url || null} name="cursor.png" label="Cursor" caption="Cursor PNG" accept="image/png"
+            onPick={() => p.pickCursor()} onRemove={() => enqueue({ type: "set_space_cursor", value: undefined })} />}
         </MenuSection>
 
-        <MenuSection label="Lienzo" icon="frame" summary={[p.grid ? "Cuadrícula" : "Sin cuadrícula", p.snap && "ajuste"].filter(Boolean).join(" · ")}>
+        {!p.phone && <MenuSection label="Lienzo" icon="frame" summary={[p.grid ? "Cuadrícula" : "Sin cuadrícula", p.snap && "ajuste"].filter(Boolean).join(" · ")}>
           <SwitchRow label="Mostrar cuadrícula" icon="frame" value={p.grid} onChange={v => p.onGrid(v)} hintId="mnemo-room-grid-note" />
           <MenuNote id="mnemo-room-grid-note">Solo se ve mientras editás; nunca en tu perfil.</MenuNote>
           {/* Editor v3 Phase I (review I-V/I-R): Mayús counts WHILE dragging —
@@ -171,7 +173,7 @@ export default function RoomInspector(p: RoomInspectorProps) {
           <SwitchRow label="Ajustar a la cuadrícula" icon="move" value={p.snap} onChange={v => p.onSnap(v)} hintId="mnemo-room-snap-note" />
           <MenuNote id="mnemo-room-snap-note">Mientras arrastrás, mantené Mayús para hacerlo libre. La tarjeta queda centrada.</MenuNote>
           {p.snap && !p.grid && <MenuNote tone="warn">La cuadrícula está oculta</MenuNote>}
-        </MenuSection>
+        </MenuSection>}
 
         <MenuSection label="Apariencia del editor" icon="sun" summary={THEME_LABEL[theme]}>
           <ThemePicker theme={theme} onChange={setTheme} />

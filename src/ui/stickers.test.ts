@@ -21,7 +21,7 @@ test("they live inside the card's tilt / hover / floating wrappers (they move wi
 });
 
 test("edit mode: only in the editor, from Tarjeta › Stickers › Editar; the card holds still meanwhile", () => {
-  assert.ok(CARD.includes("const editingStickers = !!canInteract && stickerEdit.cardId === card.id;"));
+  assert.ok(CARD.includes("const editingStickers = editing && stickerEdit.cardId === card.id;"));
   assert.ok(CARD.includes("{editingStickers && ("));
   assert.ok(CARD.includes("floating: false"), "floating paused while editing");
   assert.ok(CARD.includes("if (editingStickers) return;"), "no tilt / hover while editing");

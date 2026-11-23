@@ -34,6 +34,7 @@ import { WidgetBoundary } from "@/components/error/WidgetBoundary";
 import { trackRender } from "@/lib/perfDebug";
 import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
 import NewsDialog, { NEWS_KEY } from "./NewsDialog";
+import PhoneEditorBar from "./PhoneEditorBar";
 import PublicBrandPill from "./PublicBrandPill";
 import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -109,6 +110,9 @@ const GLOBAL_SETTING_OF_OP: Record<string, "spaceMusic" | "spaceCursor" | undefi
   set_space_music: "spaceMusic", set_space_cursor: "spaceCursor",
 };
 const MOBILE_CANVAS_W = 390;
+/** Editor de celular: the top bar's height (undo / redo / ver / publicar). */
+const PHONE_BAR_H = 56;
+const PHONE_TIP_KEY = "mnemo_phone_tip_v1";
 
 function isSpaceCanvas(mode: CanvasMode): boolean {
   return mode === "space" || mode === "space_mobile";
@@ -443,6 +447,7 @@ export default function CanvasBoard({
   initialState,
   ownerUserId,
   mobileFit,
+  phoneEdit: phoneEditProp = false,
 }: {
   userHandle?: string;
   canEdit?: boolean;
@@ -452,7 +457,12 @@ export default function CanvasBoard({
   /** Phones (public view only): show this crop of the room around the card
    * (mobileFit.ts) instead of the whole room. */
   mobileFit?: Pick<MobileFit, "card">;
+  /** Editor de celular (2026-11-23): the owner edits their CARD from a phone —
+   * the card fitted above a bottom sheet with the card's inspector; the room
+   * is shown (as the phone profile shows it) but never edited here. */
+  phoneEdit?: boolean;
 }) {
+  const phoneEdit = canEdit && phoneEditProp;
   const [wallpaper,            setWallpaper]            = useState("");
   const [wallpaperLoaded,      setWallpaperLoaded]      = useState(true);
   const [wallpaperBlur,        setWallpaperBlur]        = useState(0);
@@ -594,7 +604,7 @@ export default function CanvasBoard({
   const isMobile     = useIsMobile();
   const isReadOnly   = !canEdit;
   // Block pointer interactions on touch-only devices — drag/resize/rotate require mouse
-  const canInteract  = canEdit && !isMobile;
+  const canInteract  = canEdit && !isMobile && !phoneEdit;
   const [isDragOver,  setIsDragOver]  = useState(false);
 
   // Mobile canvas uses a fixed 390px logical width; desktop uses the live viewport width
@@ -611,17 +621,23 @@ export default function CanvasBoard({
   // values — so the view stays hidden until then.
   const [viewerScreen, setViewerScreen] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    if (canEdit) return;
-    const measure = () => setViewerScreen({ w: window.innerWidth, h: window.innerHeight });
+    if (canEdit && !phoneEdit) return;
+    // Editor de celular: the on-screen keyboard shrinks innerHeight — keep the
+    // layout (card + sheet) where it was while a field is being typed in.
+    const typing = () => { const a = document.activeElement as HTMLElement | null; return !!a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable); };
+    const measure = () => setViewerScreen(prev => (phoneEdit && prev && prev.w === window.innerWidth && window.innerHeight < prev.h && typing())
+      ? prev : { w: window.innerWidth, h: window.innerHeight });
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [canEdit]);
+  }, [canEdit, phoneEdit]);
   // Phones: the card as it is really drawn there (its content may need more
   // than the stored h) — measured, so nothing of it or its stickers is cut.
   const [mobileCardH, setMobileCardH] = useState<number | null>(null);
+  const measureCard = !!mobileFit || phoneEdit;
+  const cardCountForMeasure = elements.filter(e => e.elementType === "profile").length;
   useEffect(() => {
-    if (!mobileFit || !viewerScreen) return;
+    if (!measureCard || !viewerScreen) return;
     const el = canvasWrapperRef.current?.querySelector<HTMLElement>("[data-profile-card]");
     if (!el) { setMobileCardH(-1); return; }
     const read = () => setMobileCardH(el.offsetHeight);
@@ -629,11 +645,57 @@ export default function CanvasBoard({
     const ro = new ResizeObserver(read);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [mobileFit, viewerScreen]);
+  }, [measureCard, viewerScreen, cardCountForMeasure]);
+  // Editor de celular: a first-visit tip (once per browser).
+  const [phoneTip, setPhoneTip] = useState(false);
+  useEffect(() => {
+    if (!phoneEdit) return;
+    try { if (!localStorage.getItem(PHONE_TIP_KEY)) setPhoneTip(true); } catch { /* storage blocked: no tip */ }
+  }, [phoneEdit]);
+  const closePhoneTip = useCallback((how: "done" | "skip") => {
+    setPhoneTip(t => {
+      if (t) { try { localStorage.setItem(PHONE_TIP_KEY, "1"); } catch { /* ignore */ } track(how === "done" ? "tour_done" : "tour_skip", { phone: true }); }
+      return false;
+    });
+  }, []);
+  // Editor de celular: the sheet (expanded / collapsed to its bar).
+  const [phoneSheetOpen, setPhoneSheetOpen] = useState(true);
+  // The notch / status bar (env(safe-area-inset-top)): the top bar grows by it.
+  const [safeTop, setSafeTop] = useState(0);
+  useEffect(() => {
+    if (!phoneEdit) return;
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;height:env(safe-area-inset-top,0px)";
+    document.body.appendChild(probe);
+    const read = () => setSafeTop(Math.round(probe.getBoundingClientRect().height));
+    read();
+    window.addEventListener("resize", read);
+    return () => { window.removeEventListener("resize", read); probe.remove(); };
+  }, [phoneEdit]);
+  const phoneBarH = PHONE_BAR_H + safeTop;
+  const phoneScreenH = viewerScreen?.h ?? viewportH;
+  const phoneSheetH = !phoneEdit ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.56, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
   // Notas (2026-11-06): while the box shows (a note, or a styled empty box),
   // the view keeps room for it above the card (on a phone and on a computer).
   const publicNote = useNote(!canEdit ? ownerUserId : undefined);
-  const viewFit = !canEdit ? (() => {
+  const viewFit = phoneEdit ? (() => {
+    // Editor de celular: the card (and its stickers) fitted between the top
+    // bar and the sheet — the same geometry the phone profile uses.
+    const vw = viewerScreen?.w ?? viewportW, vh = viewerScreen?.h ?? viewportH;
+    const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
+    const areaH = Math.max(120, vh - phoneBarH - phoneSheetH);
+    const rect = card ? cardViewRect(card, mobileCardH && mobileCardH > 0 ? mobileCardH : card.h) : { x: 0, y: 0, w: vw, h: vh };
+    const fit = mobileView(vw, areaH, rect);
+    const s = Math.min(fit.s, 1.25);
+    const tx = vw / 2 - (rect.x + rect.w / 2) * s, ty = phoneBarH + areaH / 2 - (rect.y + rect.h / 2) * s;
+    let roomW = vw, roomH = vh;
+    for (const e of elements) {
+      const b = e as { x: number; y: number; w?: number; h?: number };
+      roomW = Math.max(roomW, b.x + (b.w ?? 200));
+      roomH = Math.max(roomH, b.y + (b.h ?? 200));
+    }
+    return { ready: !!viewerScreen && (!card || mobileCardH != null), vw, vh, s, tx, ty, roomW, roomH };
+  })() : !canEdit ? (() => {
     const vw = viewerScreen?.w ?? 1440, vh = viewerScreen?.h ?? 900;
     const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
     const noteH = card && noteBoxVisible(!!publicNote.note, card.noteBox) ? noteReserve(resolveNoteBox(card.noteBox), noteGap(card)) : 0;
@@ -660,13 +722,13 @@ export default function CanvasBoard({
   // image's own size to scale it with the view.
   const [wallpaperSize, setWallpaperSize] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    if (canEdit || !wallpaper) { setWallpaperSize(null); return; }
+    if ((canEdit && !phoneEdit) || !wallpaper) { setWallpaperSize(null); return; }
     let live = true;
     const im = new Image();
     im.onload = () => { if (live && im.naturalWidth > 0) setWallpaperSize({ w: im.naturalWidth, h: im.naturalHeight }); };
     im.src = wallpaper;
     return () => { live = false; };
-  }, [canEdit, wallpaper]);
+  }, [canEdit, phoneEdit, wallpaper]);
   // The effective canvas width for edit mode and animation center calculations
   const viewerW = viewFit ? viewFit.roomW : effectiveW;
 
@@ -794,7 +856,7 @@ export default function CanvasBoard({
   const inspectorEnabled = canEdit;
   // space_mobile edits a fixed 390px logical canvas (legacy, untouched): the
   // inspector opens there too, but never moves that canvas.
-  const viewOffsetEnabled = canEdit && canvasMode !== "space_mobile";
+  const viewOffsetEnabled = canEdit && canvasMode !== "space_mobile" && !phoneEdit;
   const inspLayout = inspectorLayout({
     viewportW, inspectorW: UIT.ui.size.inspectorW, sheetBreakpoint: UIT.ui.breakpoint.inspectorSheet,
   });
@@ -937,16 +999,18 @@ export default function CanvasBoard({
       window.removeEventListener("pointercancel", up, true);
     };
   }, [viewOffsetEnabled]);
-  const inspectorHostLayout = {
-    mode: inspLayout.mode, width: inspLayout.width, height: inspView.sheetH, collapsed: inspectorCollapsed,
-  };
+  const inspectorHostLayout = phoneEdit
+    // Editor de celular: always the bottom sheet, its own height (the card's
+    // view is fitted above it), collapsed only by its own close button.
+    ? { mode: "sheet" as const, width: viewportW, height: phoneSheetH, collapsed: !phoneSheetOpen }
+    : { mode: inspLayout.mode, width: inspLayout.width, height: inspView.sheetH, collapsed: inspectorCollapsed };
   // The FAB ("+"/trash) and its menus are fixed to the bottom-right corner,
   // under the inspector: they move LEFT by the dock's width, or UP by the
   // sheet's height, while it's open.
   // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
-  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen || commentsStyleOpen) && canInteract) || roomShown;
+  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen || commentsStyleOpen) && canInteract) || roomShown || (phoneEdit && !!editorSel.target);
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
   const [newsOpen, setNewsOpen] = useState(false);
@@ -1047,8 +1111,13 @@ export default function CanvasBoard({
           .maybeSingle();
         if (!canvas) return;
         const prev = (canvas.data ?? {}) as import("@/types").CanvasState;
+        // Nothing changed (e.g. the values that were just loaded): don't write.
+        if (JSON.stringify([prev.spaceMusic ?? null, prev.spaceFont ?? null, prev.spaceCursor ?? null]) === JSON.stringify([music ?? null, font ?? null, cursor ?? null])) return;
         const merged: import("@/types").CanvasState = { ...prev, spaceMusic: music, spaceFont: font, spaceCursor: cursor };
-        await supabase.from("canvases").update({ data: merged, updated_at: new Date().toISOString() }).eq("id", canvas.id);
+        // Never touch updated_at here: the editor loads only the ops newer than
+        // updated_at, so bumping it without folding those ops into data would
+        // drop every unpublished edit on the next load.
+        await supabase.from("canvases").update({ data: merged }).eq("id", canvas.id);
       } catch { /* non-blocking */ }
     }, 800);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1149,7 +1218,7 @@ export default function CanvasBoard({
   useEffect(() => {
     if (!authResolved || !canEdit) return;
     markVisit(true);
-    trackOnce("editor_open");
+    trackOnce("editor_open", phoneEdit ? { phone: true } : undefined);
     try {
       if (!localStorage.getItem(TOUR_KEY)) {
         setTourStep("card");
@@ -1169,6 +1238,8 @@ export default function CanvasBoard({
   // rest is not drawn, so never downloaded.
   const phoneArea = mobileFit
     ? (viewFit?.ready ? phoneScreenRect(viewFit.vw, viewFit.vh, viewFit) : mobileFit.card)
+    // Editor de celular: what the screen shows (before measuring: nothing but the card).
+    : phoneEdit ? (viewFit?.ready ? phoneScreenRect(viewFit.vw, viewFit.vh, viewFit) : { x: 0, y: 0, w: 0, h: 0 })
     : null;
   const phoneAreaKey = phoneArea ? `${Math.round(phoneArea.x)},${Math.round(phoneArea.y)},${Math.round(phoneArea.w)},${Math.round(phoneArea.h)}` : "";
   const visImages    = useMemo(() => (inSpace ? images.filter(i => i.isPublic) : images).filter(img => img.src && (img.src.startsWith("http") || img.src.startsWith("blob:")))
@@ -2338,7 +2409,7 @@ export default function CanvasBoard({
 
       if (!error) {
         publishedRef.current = state;
-        track("publish");
+        track("publish", phoneEdit ? { phone: true } : undefined);
         setPublishState("success");
         setTimeout(() => {
           setPublishState(s => (s === "success" ? "idle" : s));
@@ -2953,7 +3024,7 @@ export default function CanvasBoard({
    * the card always exists (user decision 2026-10-21), so it is created as
    * soon as an editable MyLand finishes loading without one. */
   function addProfile() {
-    if (!canInteract) return;
+    if (!canInteract && !phoneEdit) return;
     if (profiles.length > 0) return;
     zCounter.current += 1;
     // The Presentation Card is the singleton anchor of the profile — it always
@@ -2973,6 +3044,9 @@ export default function CanvasBoard({
     // onward. space_mobile keeps its own fixed py=160, untouched.
     const { x: px, y: py } = canvasMode === "space_mobile"
       ? { x: effectiveW / 2 - w / 2, y: 160 }
+      // Editor de celular: centered for a typical computer screen (the phone's
+      // own size would leave it in a corner of the room on a computer).
+      : phoneEdit ? centerCardPosition(1440, 900, w, h, 44)
       : centerCardPosition(effectiveW, effectiveH, w, h, 44);
     const p: ProfileCardData = {
       id: crypto.randomUUID(), x: px, y: py,
@@ -2995,12 +3069,21 @@ export default function CanvasBoard({
   // that exists but has not arrived yet is never duplicated.
   const ensuredCardRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isLoading || fullyLoadedModeRef.current !== canvasMode || !canEdit || !canInteract || !inSpace) return;
+    if (isLoading || fullyLoadedModeRef.current !== canvasMode || !canEdit || (!canInteract && !phoneEdit) || !inSpace) return;
     if (profiles.length > 0 || ensuredCardRef.current === canvasMode) return;
     ensuredCardRef.current = canvasMode;
     addProfile();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, canEdit, canInteract, inSpace, canvasMode, profiles.length]);
+  }, [isLoading, canEdit, canInteract, phoneEdit, inSpace, canvasMode, profiles.length]);
+
+  // Editor de celular: the card's inspector is always there (the sheet), from
+  // the moment the card exists; it only folds to its bar.
+  const phoneCardId = phoneEdit ? (visProfiles[0]?.id ?? null) : null;
+  useEffect(() => {
+    if (!phoneEdit || isLoading || !phoneCardId || shareOpen) return;
+    if (!editorSel.target) { setSelectedIds(new Set([phoneCardId])); openProfile(phoneCardId); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneEdit, isLoading, phoneCardId, shareOpen, editorSel.target]);
 
   function addGuestbook() {
     if (!canInteract) return;
@@ -3041,7 +3124,8 @@ export default function CanvasBoard({
         .maybeSingle();
       if (!canvas) return;
       const merged = { ...((canvas.data ?? {}) as import("@/types").CanvasState), ...patch };
-      await supabase.from("canvases").update({ data: merged, updated_at: new Date().toISOString() }).eq("id", canvas.id);
+      // No updated_at: see the auto-save above (ops newer than it would be skipped on load).
+      await supabase.from("canvases").update({ data: merged }).eq("id", canvas.id);
     } catch { /* non-blocking */ }
   }
 
@@ -3216,6 +3300,16 @@ export default function CanvasBoard({
     // Review H-R MENOR-1: the CURRENT selection (ProfileCard's memo can hold
     // an older closure of this handler).
     const sel = selIdsRef.current;
+    // Editor de celular: a tap on a part of the card opens that part (no
+    // selection / drag on a phone); a tap elsewhere on it opens the card.
+    if (phoneEdit) {
+      e.stopPropagation();
+      closePhoneTip("done");
+      setPhoneSheetOpen(true);
+      if (!selIdsRef.current.has(id)) setSelectedIds(new Set([id]));
+      if (part?.role) openProfilePart(id, part.role); else if (inspectorCardIdRef.current !== id) openProfile(id);
+      return;
+    }
     const role = resolvePartClick({ click: part, canInteract: !!canInteract, shiftKey: e.shiftKey, soleSelected: sel.size === 1 && sel.has(id) });
     if (role || (canInteract && part?.moved && part.wasSelected)) {
       e.stopPropagation();
@@ -3230,7 +3324,10 @@ export default function CanvasBoard({
 
   function onGlobalMouseMove(e: React.MouseEvent) {
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-    handleMouseMoveParallax(e);
+    // Touch screens (2026-11-23): a tap fires a mousemove, and the parallax
+    // easing then re-rendered the whole canvas for ~2 s (7 fps on a low-end
+    // phone) — no parallax from a finger.
+    if (!isMobile && !phoneEdit) handleMouseMoveParallax(e);
     if(creatingCard&&drawingRect){const cc=toCanvasCoords(e.clientX,e.clientY);setDrawingRect(p=>p?{...p,currentX:cc.x,currentY:cc.y}:null);return;}
     if(selRect&&!dragging&&!resizing&&!rotating){const sc=toCanvasCoords(e.clientX,e.clientY);setSelRect(p=>p?{...p,currentX:sc.x,currentY:sc.y}:null);return;}
     handleDragMove(e);
@@ -3572,7 +3669,25 @@ export default function CanvasBoard({
       </div>
       {/* Perfil público en compu: la pastilla (volver, logo, myLand, @usuario), sin la barra vieja. */}
       {!canEdit && !mobileFit && <PublicBrandPill handle={userHandle} />}
-      {canEdit && !mobileFit && <Topbar
+      {phoneEdit && (
+        <PhoneEditorBar handle={userHandle}
+          canUndo={histFlags.canUndo} canRedo={histFlags.canRedo}
+          onUndo={() => runHistoryRef.current("undo")} onRedo={() => runHistoryRef.current("redo")}
+          publishState={publishState} onPublish={publishSpace}
+          onShare={visProfiles.length ? openShare : undefined}
+          onRoom={() => { setPhoneSheetOpen(true); if (roomOpen) { const c = visProfiles[0]; if (c) { setSelectedIds(new Set([c.id])); openProfile(c.id); } } else openRoom(); }}
+          roomOpen={roomOpen}
+          onLogout={handleLogout}
+          onComments={visProfiles[0] ? () => setCommentsOpen(o => !o) : undefined}
+          unreadComments={unreadComments > 0} />
+      )}
+      {phoneEdit && phoneTip && !isLoading && (
+        <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
+          <span>Tocá cualquier parte de tu card para editarla. Cuando te guste, <b>Publicar</b>.</span>
+          <button type="button" className="mn-phonetip__ok" onClick={() => closePhoneTip("skip")}>Entendido</button>
+        </div>
+      )}
+      {canEdit && !mobileFit && !phoneEdit && <Topbar
         wallpaper={wallpaper}
         handle={userHandle}
         onLogout={canEdit ? handleLogout : undefined}
@@ -3942,7 +4057,8 @@ export default function CanvasBoard({
           onEditActivate={handleEditActivate}
           onEditorFacts={handleEditorFacts}
           // Phase H (D5): the open object's part gets the editor-only outline.
-          activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined} />);
+          activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}
+          phoneEditor={phoneEdit} />);
       })}
 
 
@@ -4349,7 +4465,7 @@ export default function CanvasBoard({
           />
         );
       })()}
-      {inspectorEnabled && (canInteract || roomShown) && (
+      {inspectorEnabled && (canInteract || roomShown || phoneEdit) && (
         <EditorHost
           target={editorSel.target}
           // Only a card that is actually rendered (same set ProfileCard maps over).
@@ -4359,7 +4475,7 @@ export default function CanvasBoard({
           // Phase D: the floating dock starts under the editor topbar.
           // Liquid glass (L5): with the capsules (no full bar) it floats 16px
           // from the top; the narrow layout keeps the compact bar above it.
-          top={editorShell ? (sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin) : CANVAS_TOP_OFFSET}
+          top={phoneEdit ? phoneBarH : editorShell ? (sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin) : CANVAS_TOP_OFFSET}
           layout={inspectorHostLayout}
           room={{
             bgColor, wallpaper, wallpaperBlur, wallpaperBrightness, wallpaperVignette, spaceMusic, spaceFont, spaceCursor,
@@ -4372,6 +4488,7 @@ export default function CanvasBoard({
             pickCursor: () => spaceCursorRef.current?.click(),
             grid: gridOn, onGrid: setGridOn,
             snap: gridSnapOn, onSnap: setGridSnapOn,
+            phone: phoneEdit,
           }}
           noteCard={editorSel.target?.kind === "note" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
           commentsCard={editorSel.target?.kind === "comments" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
@@ -4450,15 +4567,17 @@ export default function CanvasBoard({
           memory={editorSel.memory}
           onSelectObject={setInspectorObject}
           updateProfile={updateProfile}
-          onClose={handleInspectorClose}
-          onExpand={expandInspector}
+          // Editor de celular: "Cerrar" folds the sheet to its bar (the card
+          // grows); Tu sala closes back to the card's inspector.
+          onClose={phoneEdit ? () => { if (editorSel.target?.kind === "profile") setPhoneSheetOpen(false); else { const c = visProfiles[0]; if (c) { setSelectedIds(new Set([c.id])); openProfile(c.id); } else closeInspector(); } } : handleInspectorClose}
+          onExpand={phoneEdit ? () => setPhoneSheetOpen(true) : expandInspector}
         />
       )}
 
       {/* ── Trash FAB ── */}
       {/* Phase D: with the rail, only the trash shows here (during a drag);
           "+" lives in the rail. Narrow viewports keep the floating "+". */}
-      {!isReadOnly && (!fabHidden || isActive) && (!railShown || isActive) && (
+      {!isReadOnly && !phoneEdit && (!fabHidden || isActive) && (!railShown || isActive) && (
       <div ref={trashRef} style={{position:"fixed",bottom:20+fabLift,right:20+fabShift,zIndex:1000}}>
         {isActive?(
           <div style={{width:38,height:38,borderRadius:"50%",border:overTrash?"1px solid rgba(255,80,60,0.5)":"1px solid rgba(255,255,255,0.08)",background:overTrash?"rgba(255,50,30,0.15)":"rgba(10,10,12,0.9)",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)"}}>
@@ -4477,7 +4596,7 @@ export default function CanvasBoard({
       </div>
       )}
 
-      {!isReadOnly && menuOpen && !fabHidden && (
+      {!isReadOnly && !phoneEdit && menuOpen && !fabHidden && (
         // Block 2: restyled with the editor system (data-mnemo-ui = editor.css
         // styling scope only — NOT an editor root for editorGuards). Same
         // items, same handlers; Block 4 moves/reworks this chrome.
@@ -4543,7 +4662,7 @@ export default function CanvasBoard({
       )}
 
       {/* ── Mobile notice — canvas editing requires desktop ── */}
-      {canEdit && isMobile && (
+      {canEdit && isMobile && !phoneEdit && (
         <div style={{
           position:    "fixed",
           bottom:      20,

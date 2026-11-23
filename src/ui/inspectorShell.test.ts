@@ -184,7 +184,7 @@ test("Phase B review fixes: collapse only when the sheet hides the focus; FAB hi
   assert.ok(BOARD.includes('(inspectorCollapseReq === "focus" || (inspectorCollapseReq === "card" && inspView.covered))'));
   // B-UX-1: FAB + its menus hidden while the sheet is expanded (the trash still shows during a drag).
   assert.ok(BOARD.includes("const fabHidden = inspectorShown && sheetMode && !inspectorCollapsed;"));
-  assert.ok(BOARD.includes('{!isReadOnly && (!fabHidden || isActive) && ('));
+  assert.ok(BOARD.includes('{!isReadOnly && !phoneEdit && (!fabHidden || isActive) && ('));
   assert.equal((BOARD.match(/menuOpen && !fabHidden/g) ?? []).length, 1, "Phase D: the MyLand submenu moved to Tu sala");
   assert.ok(BOARD.includes("if (fabHidden) setMenuOpen(false);"), "hidden menus are closed, not left open");
   assert.ok(!BOARD.includes("mnemo-myland-settings"), "Phase D: the MyLand panel left the + menu (Tu sala)");

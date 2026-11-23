@@ -148,10 +148,10 @@ test("Phase D review: narrow viewports get the compact editor topbar (1.4.10) wi
 
 test("Phase D review: \"Tu sala\" opens on touch devices too (room settings were reachable from + before D)", () => {
   assert.ok(BOARD.includes("const roomShown = roomOpen && canEdit;"));
-  assert.ok(BOARD.includes('{inspectorEnabled && (canInteract || roomShown) && ('));
+  assert.ok(BOARD.includes('{inspectorEnabled && (canInteract || roomShown || phoneEdit) && ('));
   // Phase E: Capas joins the card's inspector on the canInteract side (no touch editing).
   // Phase G: so do the text / image / Music inspectors.
-  assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen || commentsStyleOpen) && canInteract) || roomShown;"));
+  assert.ok(BOARD.includes("const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen || commentsStyleOpen) && canInteract) || roomShown || (phoneEdit && !!editorSel.target);"));
 });
 
 test("Phase D review: object chrome clears the 60px topbar and the rail (placement only, geometry keeps 44)", () => {
@@ -177,7 +177,7 @@ test("Liquid glass L5: floating rail capsule, dock 16px from the top, Agregar me
   assert.equal(T.ui.size.railW, 16 + 56, "margin + capsule (44 + 2 x 6)");
   assert.ok(T.ui.size.railW + 16 + getFreeformCardBounds().maxW + 16 + T.ui.size.inspectorW + T.ui.size.dockMargin <= T.ui.breakpoint.inspectorSheet);
   assert.ok(RAIL.includes('className="mn-rail__ind"') && RAIL.includes("translateY(${active * RAIL_STEP}px)"));
-  assert.ok(BOARD.includes("top={editorShell ? (sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin) : CANVAS_TOP_OFFSET}"));
+  assert.ok(BOARD.includes("top={phoneEdit ? phoneBarH : editorShell ? (sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin) : CANVAS_TOP_OFFSET}"));
   for (const k of ['label:"Texto"', 'label:"Imagen"', 'className="mn-addmenu__well"']) assert.ok(BOARD.includes(k), k);
   // Music players are out of the app (2026-10-27): only the room's own music.
   assert.ok(!BOARD.includes('label:"Music"'), "no Music in Agregar");

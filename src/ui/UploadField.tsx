@@ -91,7 +91,7 @@ export function UploadField({ kind, value, name, caption, label, accept, onFile,
           onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); pick(); }}>
           <span className="mn-drop__ico" aria-hidden><Icon name="upload" size={18} /></span>
           <span className="mn-drop__label">{label}</span>
-          {onFile && <span>o soltalo acá</span>}
+          {onFile && <span className="mn-drop-hint">o soltalo acá</span>}
         </button>
       )}
     </div>

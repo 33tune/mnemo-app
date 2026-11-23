@@ -73,7 +73,7 @@ test("D5: the outline is editor-only (menuOpen = inspector open AND canInteract)
   assert.ok(CARD.includes("menuOpen && activePart === role"));
   // Review H-V M1: the dash rides on a dark + light ring (>= 3:1 on any background).
   assert.ok(CARD.includes("outlineOffset: 4, boxShadow: UIT.ui.chrome.partRing"));
-  assert.ok(CARD.includes("const menuOpen = inspectorOpen && !!canInteract;"));
+  assert.ok(CARD.includes("const editing = !!canInteract || phoneEditor;") && CARD.includes("const menuOpen = inspectorOpen && editing;"));
   assert.ok(CARD.includes("prev.activePart        === next.activePart"));
   assert.ok(BOARD.includes('activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}'));
   for (const f of ["src/app/[handle]/page.tsx", "src/lib/mobileFit.ts"]) {

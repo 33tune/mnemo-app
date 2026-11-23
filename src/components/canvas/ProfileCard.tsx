@@ -234,6 +234,11 @@ interface Props {
   /** Editor v3 Phase H (D5): the inspector's object while it is open — its
    * part gets the editor-only dashed outline. Never set in the public view. */
   activePart?:       ObjectId;
+  /** Editor de celular (2026-11-23): edited from a phone — the editor's
+   * render (inspector open, previews, the active part's outline) without the
+   * pointer editing (drag / resize / Editar), and without the public view's
+   * finger / gyro effects (a tap picks a part). */
+  phoneEditor?:      boolean;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -262,14 +267,16 @@ function ProfileCard({
   card: savedCard, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
-  inspectorOpen = false, onEditActivate, onEditorFacts, activePart,
+  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, phoneEditor = false,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
   // "Probar antes de elegir": the option under the pointer in the editor, live (cardPreview.ts).
-  const card = useCardPreview(savedCard, !!canInteract);
+  // Editor render (computer or phone); pointer editing stays canInteract.
+  const editing = !!canInteract || phoneEditor;
+  const card = useCardPreview(savedCard, editing);
 
   // Menu redesign Phase 2: "menu open" = this card's inspector is open.
-  const menuOpen = inspectorOpen && !!canInteract;
+  const menuOpen = inspectorOpen && editing;
   // Editor v3 Phase H: where the press started and whether the card was
   // selected then (click 2) — read by the click (partNavigation.ts). Capture
   // phase, so the block drags' own mousedown handlers are not involved.
@@ -373,7 +380,7 @@ function ProfileCard({
   // While it is on, the card holds still (no floating / tilt / hover scale)
   // so the handles sit exactly on the stickers.
   const stickerEdit = useStickerEditing();
-  const editingStickers = !!canInteract && stickerEdit.cardId === card.id;
+  const editingStickers = editing && stickerEdit.cardId === card.id;
   const [stickerPreview, setStickerPreview] = useState<StickerPreview | null>(null);
   const layerEffects: CardEffects = editingStickers && effectiveEffects.animations?.floating
     ? { ...effectiveEffects, animations: { ...effectiveEffects.animations, floating: false } }
@@ -383,10 +390,10 @@ function ProfileCard({
   const { onMouseMove: onInteractMove, onMouseEnter: onInteractEnter, onMouseLeave: onInteractLeave } = interactions;
   // Public view on a phone (2026-10-28): the finger and the phone's own tilt
   // drive the same effects as the cursor — only those the card has turned on.
-  const touchFx = !canInteract && (interactions.tiltOn || interactions.lightOn
+  const touchFx = !canInteract && !phoneEditor && (interactions.tiltOn || interactions.lightOn
     || !!effectiveEffects.interactions?.spotlight || !!effectiveEffects.interactions?.hoverGlow
     || (effectiveEffects.interactions?.hoverScale ?? 1) !== 1);
-  useGyroTilt(!canInteract && (interactions.tiltOn || interactions.gyroLight), interactions);
+  useGyroTilt(!canInteract && !phoneEditor && (interactions.tiltOn || interactions.gyroLight), interactions);
 
   // Entrada (2026-11-04, cardFoil.ts): the card's own entrance on the public
   // profile (replaces the default reveal); in the editor, "Ver entrada"
@@ -399,20 +406,20 @@ function ProfileCard({
   const fxColorsOfCard = useMemo(() => fxCardColors(card, effectiveEffects), [JSON.stringify(fxCardColors(card, effectiveEffects))]);
   const [entrancePreview, setEntrancePreview] = useState(0);
   useEffect(() => {
-    if (!canInteract) return;
+    if (!editing) return;
     // Back to 0 first, so a second "Ver entrada" restarts the animation.
     let t: ReturnType<typeof setTimeout> | undefined;
     const on = () => { setEntrancePreview(0); clearTimeout(t); t = setTimeout(() => setEntrancePreview(Date.now()), 40); };
     window.addEventListener(ENTRANCE_PREVIEW_EVENT, on);
     return () => { window.removeEventListener(ENTRANCE_PREVIEW_EVENT, on); clearTimeout(t); };
-  }, [canInteract]);
+  }, [editing]);
   useEffect(() => {
     if (!entrancePreview) return;
     const t = setTimeout(() => setEntrancePreview(0), (entranceDuration(effectiveEffects) + 1.6) * 1000 + 200);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entrancePreview]);
-  const entering = !canInteract || entrancePreview > 0;
+  const entering = !editing || entrancePreview > 0;
   const ownEntrance = entering ? entranceAnimation(effectiveEffects, ENTER_DELAY_MS) : undefined;
   useFoilKeyframes(!!ownEntrance);
   // Block 1 (panel <-> card pointer isolation): the config menu is portaled
@@ -1266,7 +1273,7 @@ function ProfileCard({
         onMouseMove={handleInteractMove}
         onMouseOver={handleInteractOver}
         onMouseLeave={handleInteractLeave}
-        onPointerDown={!canInteract && interactions.pressOn ? e => interactions.press(e.clientX, e.clientY) : undefined}
+        onPointerDown={!editing && interactions.pressOn ? e => interactions.press(e.clientX, e.clientY) : undefined}
         onTouchStart={touchFx ? interactions.onTouchStart : undefined}
         onTouchMove={touchFx ? interactions.onTouchMove : undefined}
         onTouchEnd={touchFx ? interactions.onTouchEnd : undefined}
@@ -1370,7 +1377,8 @@ function areProfilePropsEqual(prev: Props, next: Props): boolean {
     // card's own render. onEditActivate / onEditorFacts are stable.
     prev.inspectorOpen     === next.inspectorOpen &&
     // Phase H: the active part's editor outline.
-    prev.activePart        === next.activePart
+    prev.activePart        === next.activePart &&
+    prev.phoneEditor       === next.phoneEditor
   );
 }
 export default memo(ProfileCard, areProfilePropsEqual);

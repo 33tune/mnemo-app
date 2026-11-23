@@ -2,15 +2,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import CanvasBoard from "@/components/canvas/CanvasBoard";
-import { MobileClaimed } from "@/components/site/MobileClaimed";
 import { isMobileUserAgent } from "@/lib/deviceGate";
 import { ensureProfile } from "@/server/ensureProfile";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  // Phones can sign up and claim a name, but the editor is for computers
-  // (deviceGate.ts): there they see "¡Es tuyo! … entrá desde una compu".
+  // Phones get the phone editor (2026-11-23): the card is edited from the
+  // phone; the room (free images / texts) stays a computer thing.
   const phone = isMobileUserAgent((await headers()).get("user-agent"));
   if (!user) redirect("/login");
 
@@ -21,7 +20,5 @@ export default async function DashboardPage() {
   // No profile or setup not finished — send to setup.
   // Treat null/undefined onboarding_completed as completed for backward compat.
   if (!profile || profile.onboarding_completed === false) redirect("/setup");
-  if (phone) return <MobileClaimed handle={profile.handle ?? ""} />;
-
-  return <CanvasBoard userHandle={profile.handle ?? ""} />;
+  return <CanvasBoard userHandle={profile.handle ?? ""} phoneEdit={phone} />;
 }

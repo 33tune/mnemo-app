@@ -1,6 +1,6 @@
 "use client";
 /**
- * Phones: the card is built on a computer (2026-10-26). These screens reuse
+ * Phones (2026-11-23: they edit their card too, /dashboard is the phone editor). These screens reuse
  * the Auth v4 look (title, glass panel, button and theme variables) on the
  * .ml-site styles. Not screens of the Claude Design file.
  *  - MobileClaimed (2026-10-27): /setup and /dashboard on a phone, once the
@@ -50,10 +50,10 @@ export function MobileClaimed({ handle }: { handle: string }) {
         myland.lol/<span style={{ color: "var(--ml-accent)" }}>{handle}</span>
       </p>
       <p style={{ margin: 0, font: "500 15px/1.5 var(--font-sans)", color: "var(--ml-ink-2)" }}>
-        Ahora entrá a <b style={{ color: "var(--ml-ink)" }}>myland.lol</b> desde una compu para armar tu tarjeta y tu sala. Desde el celular solo se ven los perfiles.
+        Ahora armá tu card desde acá: foto, letra, colores, efectos y links. La sala completa (imágenes y textos sueltos) se arma desde una compu.
       </p>
-      <a href={`/${handle}`} style={{ ...primary, marginTop: 6 }}>Ver mi perfil</a>
-      <a href="/" style={secondary}>Volver al inicio</a>
+      <a href="/dashboard" style={{ ...primary, marginTop: 6 }}>Armar mi card</a>
+      <a href={`/${handle}`} style={secondary}>Ver mi perfil</a>
       <ShortcutsRow />
     </Shell>
   );

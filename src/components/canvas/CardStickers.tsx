@@ -49,7 +49,7 @@ export function StickerLayer({ stickers, cardW, cardH, level }: {
 }
 
 type Gesture =
-  | { kind: "move"; ids: string[]; start: { x: number; y: number }; from: Map<string, Rect> }
+  | { kind: "move"; ids: string[]; start: { x: number; y: number }; from: Map<string, Rect>; k: number }
   | { kind: "scale"; id: string; center: { x: number; y: number }; startDist: number; from: Rect; aspect: number }
   | { kind: "rotate"; id: string; center: { x: number; y: number }; startAngle: number; from: number };
 
@@ -101,14 +101,16 @@ export function StickerEditor({ stickers, cardW, cardH, onCommit, onPreview }: {
 
   // Pointer gestures (window listeners while a gesture runs).
   useEffect(() => {
-    function move(e: MouseEvent) {
+    function move(e: PointerEvent) {
       const g = gestureRef.current;
       if (!g) return;
+      if (e.cancelable) e.preventDefault();
       const { stickers: list, cardW: w, cardH: h, setDraft } = live.current;
       const ar = stickerArea(w, h);
       const byId = new Map(list.map(s => [s.id, s]));
       if (g.kind === "move") {
-        let dx = e.clientX - g.start.x, dy = e.clientY - g.start.y;
+        // Screen px → card px (the phone editor shows the card scaled).
+        let dx = (e.clientX - g.start.x) / g.k, dy = (e.clientY - g.start.y) / g.k;
         // The whole group stays inside the area.
         for (const r of g.from.values()) {
           dx = Math.min(Math.max(dx, ar.x - r.x), ar.x + ar.w - r.x - r.w);
@@ -138,9 +140,11 @@ export function StickerEditor({ stickers, cardW, cardH, onCommit, onPreview }: {
       if (d && d.size) commit(d);
       live.current.setDraft(null);
     }
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+    // Pointer events: the mouse on a computer and the finger on a phone.
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -182,13 +186,18 @@ export function StickerEditor({ stickers, cardW, cardH, onCommit, onPreview }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Screen px per card px (1 on a computer; the phone editor scales the card). */
+  function zoom() {
+    const b = boxRef.current?.getBoundingClientRect();
+    return b && area.w > 0 && b.width > 0 ? b.width / area.w : 1;
+  }
   /** Screen point of a card-relative point. */
   function screen(x: number, y: number) {
-    const b = boxRef.current?.getBoundingClientRect();
-    return { x: (b?.left ?? 0) + (x - area.x), y: (b?.top ?? 0) + (y - area.y) };
+    const b = boxRef.current?.getBoundingClientRect(); const k = zoom();
+    return { x: (b?.left ?? 0) + (x - area.x) * k, y: (b?.top ?? 0) + (y - area.y) * k };
   }
 
-  function startMove(e: React.MouseEvent, st: CardSticker) {
+  function startMove(e: React.PointerEvent, st: CardSticker) {
     e.preventDefault(); e.stopPropagation();
     let ids: string[];
     if (e.shiftKey) {
@@ -203,15 +212,15 @@ export function StickerEditor({ stickers, cardW, cardH, onCommit, onPreview }: {
     }
     const from = new Map<string, Rect>();
     for (const s of stickers) if (ids.includes(s.id)) from.set(s.id, stickerRect(s, cardW, cardH));
-    gestureRef.current = { kind: "move", ids, start: { x: e.clientX, y: e.clientY }, from };
+    gestureRef.current = { kind: "move", ids, start: { x: e.clientX, y: e.clientY }, from, k: zoom() };
   }
-  function startScale(e: React.MouseEvent, st: CardSticker) {
+  function startScale(e: React.PointerEvent, st: CardSticker) {
     e.preventDefault(); e.stopPropagation();
     const r = stickerRect(st, cardW, cardH);
     const center = screen(r.x + r.w / 2, r.y + r.h / 2);
     gestureRef.current = { kind: "scale", id: st.id, center, startDist: Math.hypot(e.clientX - center.x, e.clientY - center.y), from: r, aspect: st.aspect };
   }
-  function startRotate(e: React.MouseEvent, st: CardSticker) {
+  function startRotate(e: React.PointerEvent, st: CardSticker) {
     e.preventDefault(); e.stopPropagation();
     const r = stickerRect(st, cardW, cardH);
     const center = screen(r.x + r.w / 2, r.y + r.h / 2);
@@ -222,16 +231,22 @@ export function StickerEditor({ stickers, cardW, cardH, onCommit, onPreview }: {
   }
 
   const single = selected.size === 1 ? visible.find(s => selected.has(s.id)) : undefined;
+  // Bigger handles for a finger (and on the phone editor's scaled-down card).
+  const coarse = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
+  const hk = coarse ? 2.2 : 1;
   const RING = "0 0 0 1px rgba(0,0,0,.55), 0 0 0 2.5px #fff";
 
   return (
     <div ref={boxRef} data-mnemo-ui="" data-mnemo-sticker-editor=""
       role="group" aria-label="Editando stickers (Enter o Esc para aplicar)"
-      onMouseDown={e => { e.stopPropagation(); if (e.target === e.currentTarget) stickerEditing.select([]); }}
+      onPointerDown={e => { e.stopPropagation(); if (e.target === e.currentTarget) stickerEditing.select([]); }}
+      onMouseDown={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
       style={{
         position: "absolute", left: area.x, top: area.y, width: area.w, height: area.h, zIndex: 60,
         outline: "1.5px dashed rgba(255,255,255,.7)", outlineOffset: 0, borderRadius: 14,
+        // A finger dragging here moves a sticker, never the page.
+        touchAction: "none",
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,.35)", cursor: "default",
       }}>
       <div aria-hidden style={{
@@ -244,22 +259,22 @@ export function StickerEditor({ stickers, cardW, cardH, onCommit, onPreview }: {
         const r = { ...g.r, x: g.r.x - area.x, y: g.r.y - area.y };
         const isSel = selected.has(st.id);
         return (
-          <div key={st.id} data-sticker-id={st.id} onMouseDown={e => startMove(e, st)}
+          <div key={st.id} data-sticker-id={st.id} onPointerDown={e => startMove(e, st)}
             style={{ ...pos(r, g.rotation), cursor: "move", boxShadow: isSel ? RING : "0 0 0 1px rgba(255,255,255,.45)", borderRadius: 2 }}>
             {single?.id === st.id && (
               <>
                 {(["nw", "ne", "sw", "se"] as const).map(c => (
-                  <span key={c} onMouseDown={e => startScale(e, st)} aria-hidden
+                  <span key={c} onPointerDown={e => startScale(e, st)} aria-hidden data-sticker-handle=""
                     style={{
-                      position: "absolute", width: 12, height: 12, borderRadius: 3, background: "#fff",
+                      position: "absolute", width: 12 * hk, height: 12 * hk, borderRadius: 3 * hk, background: "#fff",
                       boxShadow: "0 0 0 1px rgba(0,0,0,.5)", cursor: c === "nw" || c === "se" ? "nwse-resize" : "nesw-resize",
-                      left: c.includes("w") ? -6 : undefined, right: c.includes("e") ? -6 : undefined,
-                      top: c.includes("n") ? -6 : undefined, bottom: c.includes("s") ? -6 : undefined,
+                      left: c.includes("w") ? -6 * hk : undefined, right: c.includes("e") ? -6 * hk : undefined,
+                      top: c.includes("n") ? -6 * hk : undefined, bottom: c.includes("s") ? -6 * hk : undefined,
                     }} />
                 ))}
-                <span onMouseDown={e => startRotate(e, st)} aria-hidden title="Rotar (Mayús: de a 15°)"
+                <span onPointerDown={e => startRotate(e, st)} aria-hidden title="Rotar (Mayús: de a 15°)"
                   style={{
-                    position: "absolute", left: "50%", top: -28, width: 14, height: 14, marginLeft: -7, borderRadius: 999,
+                    position: "absolute", left: "50%", top: -28 * hk, width: 14 * hk, height: 14 * hk, marginLeft: -7 * hk, borderRadius: 999,
                     background: "#fff", boxShadow: "0 0 0 1px rgba(0,0,0,.5)", cursor: "grab",
                   }} />
               </>
