@@ -673,6 +673,14 @@ planeado acá hasta confirmarlo.
 >   usuario). **Recuperación de afectados NO hecha:** distinguir ops perdidos de ops ya publicados requiere revisar
 >   perfil por perfil (con el usuario).
 
+> **Nuevos que editan y se van (2026-11-24, análisis + arreglos):** gente real del celular editaba 2–10 min y se iba
+>   sin publicar: los efectos "no hacían nada" (fondo al 5,5 %, degradé negro, borde de 0 px). Ahora el primer color de
+>   fondo sale opaco (`visibleBgColor`), el degradé nuevo arranca rosa → violeta (`GRADIENT_DEFAULT`), y cambiar color u
+>   opacidad del borde de la foto con 0 px le da 2 px. **Guía para publicar** (`PublishHint.tsx`): solo a quien nunca
+>   publicó, una vez por navegador (`mnemo_publish_hint_v1`), tras 3 ediciones y ~20 s: globo bajo Publicar (que late).
+>   `/auth/callback` sin sesión (link del mail abierto en otro navegador) → `/login` dice "si recién confirmaste tu email,
+>   ya está listo: entrá".
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por

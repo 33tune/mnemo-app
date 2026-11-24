@@ -1864,3 +1864,25 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
 .mn-phoneprev[data-mnemo-ui] .mn-pill { min-width: 0; height: 34px; padding: 0 14px; }
 @media (prefers-reduced-transparency: reduce) { .mn-phoneprev[data-mnemo-ui] { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--ui-surface-panel-opaque); } }
 @media (forced-colors: active) { .mn-phoneprev[data-mnemo-ui] { background: Canvas; border: 1px solid CanvasText; } }
+/* First publish guide (PublishHint.tsx): a bubble under Publicar, which pulses. */
+.mn-pubhint[data-mnemo-ui] {
+  position: fixed; z-index: 1300; width: min(320px, calc(100vw - 20px)); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 12px; border-radius: 18px;
+  background: var(--ui-surface-panel); color: var(--ui-text-primary); font: 400 14px/1.4 var(--ui-font-sans);
+  -webkit-backdrop-filter: var(--ui-material-blur); backdrop-filter: var(--ui-material-blur); box-shadow: var(--ui-shadow-panel);
+  animation: mn-phonetip-in 260ms var(--ui-motion-ease) both;
+}
+.mn-pubhint[data-mnemo-ui] strong { font-weight: 700; font-size: 15px; }
+.mn-pubhint[data-mnemo-ui] b { font-weight: 600; }
+.mn-pubhint[data-mnemo-ui] .mn-pubhint__arrow {
+  position: absolute; top: -7px; width: 14px; height: 14px; transform: rotate(45deg); border-radius: 3px; background: var(--ui-surface-panel);
+}
+.mn-pubhint[data-mnemo-ui] .mn-pubhint__row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.mn-pubhint[data-mnemo-ui] button {
+  min-height: 40px; padding: 0 16px; border: none; border-radius: 999px; cursor: pointer; font: 600 14px var(--ui-font-sans);
+}
+.mn-pubhint[data-mnemo-ui] .mn-pubhint__later { background: transparent; color: var(--ui-text-secondary); }
+.mn-pubhint[data-mnemo-ui] .mn-pubhint__go { background: var(--ui-accent-main); color: var(--ui-accent-ink); }
+html[data-publish-hint] [data-tour="publish"][data-state="pending"] { animation: mn-pubhint-pulse 1.4s ease-in-out infinite; }
+@keyframes mn-pubhint-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-accent-main) 60%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--ui-accent-main) 0%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .mn-pubhint[data-mnemo-ui] { animation: none; } html[data-publish-hint] [data-tour="publish"][data-state="pending"] { animation: none; outline: 2px solid var(--ui-accent-main); } }

@@ -35,6 +35,7 @@ import { trackRender } from "@/lib/perfDebug";
 import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
 import NewsDialog, { NEWS_KEY } from "./NewsDialog";
 import PhoneEditorBar from "./PhoneEditorBar";
+import PublishHint, { publishHintSeen, markPublishHintSeen } from "./PublishHint";
 import PublicBrandPill from "./PublicBrandPill";
 import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -580,6 +581,10 @@ export default function CanvasBoard({
   // The room's last published snapshot (publishedState.ts): kept on every
   // save of the "space" row so visitors only ever see what was published.
   const publishedRef = useRef<CanvasState | null>(null);
+  // First publish guide (PublishHint.tsx): edits made in this visit.
+  const [editCount, setEditCount] = useState(0);
+  const firstEditAtRef = useRef(0);
+  const [pubHintOpen, setPubHintOpen] = useState(false);
   // ── Mode switching ───────────────────────────────────────────────────────────
   const canvasModeRef  = useRef<CanvasMode>("space");
   // ── Ops queue ────────────────────────────────────────────────────────────────
@@ -1041,6 +1046,15 @@ export default function CanvasBoard({
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
   const [newsOpen, setNewsOpen] = useState(false);
+  // First publish guide: someone who never published, a few edits and ~20 s
+  // into editing, Publicar still lit — once per browser.
+  useEffect(() => {
+    if (pubHintOpen || !canEdit || phonePreview || tourStep || publishState !== "pending" || editCount < 3) return;
+    if (publishedRef.current || publishHintSeen()) return;
+    const wait = Math.max(0, firstEditAtRef.current + 20000 - Date.now());
+    const id = window.setTimeout(() => { if (!publishedRef.current && !publishHintSeen()) setPubHintOpen(true); }, wait);
+    return () => window.clearTimeout(id);
+  }, [pubHintOpen, canEdit, phonePreview, tourStep, publishState, editCount]);
   const cardSelected = elements.some(el => el.elementType === "profile" && selectedIds.has(el.id));
   useEffect(() => {
     if (tourStep === "card" && (cardSelected || inspectorProfile)) setTourStep("part");
@@ -2035,6 +2049,8 @@ export default function CanvasBoard({
     opsQueueRef.current.push(...persistedOps);
     if (isSpaceCanvas(canvasModeRef.current)) {
       setPublishState(s => (s === "publishing" ? s : "pending"));
+      if (firstEditAtRef.current === 0) firstEditAtRef.current = Date.now();
+      setEditCount(c => c + 1);
     }
     markActive(op.type === "update_profile" || isSpaceCanvas(canvasModeRef.current));
 
@@ -2437,6 +2453,7 @@ export default function CanvasBoard({
       if (!error) {
         publishedRef.current = state;
         track("publish", phoneEdit ? { phone: true } : undefined);
+        markPublishHintSeen(); setPubHintOpen(false);
         setPublishState("success");
         setTimeout(() => {
           setPublishState(s => (s === "success" ? "idle" : s));
@@ -4799,6 +4816,12 @@ export default function CanvasBoard({
       {tourStep && railShown && (
         <EditorTour step={tourStep} onSkip={() => { track("tour_skip", { step: tourStep }); endTour(); }}
           onNext={() => (tourStep === "add" ? setTourStep("publish") : (track("tour_done"), endTour()))} />
+      )}
+
+      {/* ── First publish guide (once, PublishHint.tsx) ── */}
+      {pubHintOpen && !phonePreview && !tourStep && publishState === "pending" && (
+        <PublishHint handle={userHandle} onPublish={() => { void publishSpace(); }}
+          onLater={() => { markPublishHintSeen(); setPubHintOpen(false); }} />
       )}
 
       {/* ── Novedades (once per browser, NewsDialog.tsx) ── */}

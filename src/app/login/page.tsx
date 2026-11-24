@@ -12,5 +12,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   // to build the card on a computer.
   if (await currentUserFast()) redirect("/dashboard");
   const { error } = await searchParams;
-  return <AuthClient initialError={error ? "No pudimos iniciar tu sesión. Probá de nuevo." : undefined} />;
+  const msg = error === "confirmed" ? "Si recién confirmaste tu email, ya está listo: entrá con tu email y contraseña."
+    : error ? "No pudimos iniciar tu sesión. Probá de nuevo." : undefined;
+  return <AuthClient initialError={msg} />;
 }

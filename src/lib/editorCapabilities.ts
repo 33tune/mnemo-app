@@ -301,7 +301,7 @@ const TOCAR_G = `${EFECTOS} › Al tocar o pasar el cursor`;
 const ENTRADA_G = `${EFECTOS} › Entrada`;
 
 export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
-  "bg.color": bgMenu(`${FONDO} › Color › Color`, "patchBg({ color: v })"),
+  "bg.color": bgMenu(`${FONDO} › Color › Color`, "patchBg({ color: visibleBgColor(v"),
   "bg.image": bgMenu(`${FONDO} › Imagen`, "bgCtl.setImage(src, bgMode)"),
   "bg.imageMode": bgMenu(`${FONDO} › Imagen (detectado al subir)`, "bgCtl.setImage(src, bgMode)"),
   "bg.opacity": bgMenu(`${FONDO} › Color › Opacidad`, "patchBg({ opacity: v })"),
@@ -341,9 +341,9 @@ export const PROFILE_EFFECT_CAPS: Record<EffectLeaf, Capability> = {
   "text.stroke.color": by("effects.textRoles.name.stroke.color", TEXT_PER_ROLE),
   "text.stroke.width": by("effects.textRoles.name.stroke.width", TEXT_PER_ROLE),
   "text.blur": by("effects.textRoles.name.blur", TEXT_PER_ROLE),
-  "pfp.border.color": pfp(`${FOTO} › Borde › Color`, "patchPfpBorder({ color: v })"),
+  "pfp.border.color": pfp(`${FOTO} › Borde › Color`, "{ color: v, width: 2 }"),
   "pfp.border.width": pfp(`${FOTO} › Borde › Grosor`, "patchPfpBorder({ width: v })"),
-  "pfp.border.opacity": pfp(`${FOTO} › Borde › Opacidad`, "patchPfpBorder({ opacity: v })"),
+  "pfp.border.opacity": pfp(`${FOTO} › Borde › Opacidad`, "{ opacity: v, width: 2 }"),
   "pfp.shadow.color": pfp(`${FOTO} › Sombra › Color`, "patchPfpShadow({ color: v })"),
   "pfp.shadow.intensity": pfp(`${FOTO} › Sombra › Activar · Intensidad`, 'id.setPfpEffect("pfp.shadow", on)', "patchPfpShadow({ intensity: v })"),
   "pfp.glow.color": pfp(`${FOTO} › Brillo › Color`, "patchPfpGlow({ color: v })"),

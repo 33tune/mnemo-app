@@ -5,6 +5,7 @@ import { isGifSrc } from "@/lib/storage/uploadRules";
 import { detectBgModeFromFile } from "@/lib/bgStyle";
 import { SliderRow, ColorRow, MenuSection, EffectList, EffectRow, UploadField } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
+import { parseColor, formatColor } from "@/lib/colorModel";
 import { CARD_BG_DEFAULT_COLOR } from "@/lib/effectEditorDefaults";
 import { backgroundController } from "@/lib/objectControllers";
 
@@ -32,6 +33,16 @@ interface Props {
 // opacity and the derived "glass when no color and no image" default
 // included) but patches only the raw field the user touched. The gradient
 // toggle pauses instead of deleting ("apagar no borra", effectPause.ts).
+/** The default card fill is white at 5.5 %: a color picked from there kept
+ * that alpha and the card stayed see-through ("I chose red and nothing
+ * happened", 2026-11-24). The first pick from the default comes out solid;
+ * a color the owner already set keeps its own alpha. */
+export function visibleBgColor(next: string, stored: string | undefined): string {
+  if (stored) return next;
+  const c = parseColor(next);
+  return c && c.a < 0.2 ? formatColor({ ...c, a: 1 }, false) : next;
+}
+
 export default function ProfileBackgroundMenu({ effective, raw, onChange }: Props) {
   const bg   = effective.bg;
   const grad = effective.gradient;
@@ -61,7 +72,7 @@ export default function ProfileBackgroundMenu({ effective, raw, onChange }: Prop
         changed={[raw?.bg?.color, raw?.bg?.opacity].filter(v => v !== undefined).length}
         onReset={() => patchBg({ color: undefined, opacity: undefined })}>
         <ColorRow
-          label="Color" value={color} onChange={v => patchBg({ color: v })} keepAlpha
+          label="Color" value={color} onChange={v => patchBg({ color: visibleBgColor(v, raw?.bg?.color) })} keepAlpha
           clearable={!!raw?.bg?.color} onClear={() => patchBg({ color: undefined })}
           state={raw?.bg?.color ? "modified" : undefined} onReset={() => patchBg({ color: undefined })}
         />

@@ -117,13 +117,13 @@ export default function ProfileIdentityMenu({ card, cardW, cardH, pad, baseColor
           <EffectRow id="border" label="Borde" icon="frame" preview="c-border" active={pfpBorder.width > 0}
             state={pfpBorder.width > 0 ? `${String(pfpBorder.width).replace(".", ",")} px` : "Sin borde"}>
             <ColorRow
-              label="Color" value={pfpBorder.color} onChange={v => patchPfpBorder({ color: v })}
+              label="Color" value={pfpBorder.color} onChange={v => patchPfpBorder(pfpBorder.width > 0 ? { color: v } : { color: v, width: 2 })}
               clearable={!!pfpFx?.border?.color} onClear={() => patchPfpBorder({ color: undefined })}
             />
             <SliderRow label="Grosor" icon="frame" min={0} max={6} step={0.5} value={pfpBorder.width}
               onChange={v => patchPfpBorder({ width: v })} fmt={v => `${String(v).replace(".", ",")} px`} unit="px" />
             <SliderRow label="Opacidad" icon="eye" min={0} max={1} step={0.01} value={pfpBorder.opacity}
-              onChange={v => patchPfpBorder({ opacity: v })} fmt={v => `${Math.round(v * 100)}%`} />
+              onChange={v => patchPfpBorder(pfpBorder.width > 0 ? { opacity: v } : { opacity: v, width: 2 })} fmt={v => `${Math.round(v * 100)}%`} />
           </EffectRow>
 
           <EffectRow id="shadow" label="Sombra" icon="moon" preview="c-shadow" on={shadowOn} onToggle={setPfpShadowOn}

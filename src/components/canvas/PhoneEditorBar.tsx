@@ -75,7 +75,7 @@ export default function PhoneEditorBar({
           <Icon name="more" size={18} />
           {unreadComments && <span className="mn-phonebar__dot" aria-hidden="true" />}
         </button>
-        <button type="button" className="mn-pill mn-pill--brand" data-state={publishState}
+        <button type="button" className="mn-pill mn-pill--brand" data-state={publishState} data-tour="publish"
           onClick={dirty ? onPublish : undefined} aria-disabled={!dirty || undefined} aria-live="polite">
           {publishState === "success" && <Icon name="check" size={15} />}
           {PUBLISH_LABEL[publishState]}

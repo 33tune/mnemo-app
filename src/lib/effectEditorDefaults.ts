@@ -200,7 +200,10 @@ export function glowFlagPatch(glow: CardEffects["glow"], flag: "outer" | "inner"
 }
 
 /** Default gradient the editors start from (ProfileCard Fondo + Music). */
-export const GRADIENT_DEFAULT: NonNullable<CardEffects["gradient"]> = { from: "#0f0f0f", to: "#1a1a2e", angle: 135, opacity: 0.6 };
+// Vivid on purpose (2026-11-24): the old #0f0f0f → #1a1a2e at 60 % looked
+// like nothing happened when switched on. Only NEW gradients start here — a
+// stored gradient keeps its own colors.
+export const GRADIENT_DEFAULT: NonNullable<CardEffects["gradient"]> = { from: "#ff3f97", to: "#6a36e0", angle: 135, opacity: 0.85 };
 
 // ── Menu redesign, Phase 1 (Cimientos): role typography defaults ───────────
 // Moved out of ProfileTypographyMenu.tsx / RoleTypographyFields.tsx, where

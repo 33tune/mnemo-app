@@ -18,7 +18,10 @@ export async function GET(request: Request) {
   const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
 
   if (exchangeErr) {
-    return NextResponse.redirect(`${origin}/login?error=auth`);
+    // Most often a confirmation link opened in another browser / mail app
+    // (2026-11-24): Supabase has already confirmed the email, there is just
+    // no session here. /login says so and asks them to sign in.
+    return NextResponse.redirect(`${origin}/login?mode=login&error=confirmed`);
   }
 
   const { data: { user } } = await supabase.auth.getUser();
