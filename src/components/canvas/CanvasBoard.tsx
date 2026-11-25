@@ -1303,7 +1303,7 @@ export default function CanvasBoard({
   // Tarjeta › Muro (the card turns there, live). Dragging it in the editor moves it.
   const flipFromCard = useCallback(() => {
     const c = visProfiles[0];
-    if (canEdit && !phonePreview && c) { if (phoneEdit) setPhoneSheetOpen(true); openProfilePart(c.id, "wall" as PartRole); return; }
+    if (canEdit && !phonePreview && c) { if (phoneEdit) setPhoneSheetOpen(true); setSelectedIds(new Set([c.id])); openProfilePart(c.id, "wall" as PartRole); return; }
     toggleWall();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canEdit, phonePreview, phoneEdit, toggleWall, visProfiles]);

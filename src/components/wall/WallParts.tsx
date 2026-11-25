@@ -17,7 +17,7 @@ import {
   type PostAuthor, type PostStyle, type WallPost, type PostFx,
 } from "@/lib/wall";
 import { usePostStyle, type WallState } from "@/hooks/useWall";
-import { PostText, FX_LABEL } from "./PostText";
+import { PostText, FX_LABEL, useCss as usePostCss } from "./PostText";
 
 export const UI_FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
@@ -49,7 +49,7 @@ export const roundBtn: React.CSSProperties = {
 export function Avatar({ a, size = 30, ink, round }: { a: Pick<PostAuthor, "photo" | "handle" | "pfpRadius" | "bg" | "nameColor">; size?: number; ink?: string; round?: boolean }) {
   return (
     <span aria-hidden style={{ width: size, height: size, flex: "none", borderRadius: round ? "50%" : a.pfpRadius, overflow: "hidden", display: "grid", placeItems: "center",
-      background: a.bg, color: a.nameColor, font: `700 ${Math.round(size * 0.42)}px ${UI_FONT}`, boxShadow: ink ? `0 0 0 1px ${hexAlpha(ink, 0.18)}` : undefined }}>
+      background: a.bg, color: a.nameColor, font: `700 ${Math.round(size * 0.42)}px ${UI_FONT}`, textDecoration: "none", boxShadow: ink ? `0 0 0 1px ${hexAlpha(ink, 0.18)}` : undefined }}>
       {a.photo ? <img src={a.photo} alt="" width={size} height={size} draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (a.handle || "?").slice(0, 1).toUpperCase()}
     </span>
   );
@@ -200,11 +200,11 @@ function FontPicker({ value, onPick, sample }: { value: string; onPick: (f: stri
       <div role="listbox" aria-label="Fuente" style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2, overscrollBehavior: "contain" }}>
         {list.map(f => (
           <button key={f.key} type="button" role="option" aria-selected={f.key === value} onClick={() => onPick(f.key)}
-            style={{ textAlign: "left", padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer", color: "#fff",
+            style={{ flex: "none", display: "block", width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer", color: "#fff",
               background: f.key === value ? "rgba(255,255,255,.14)" : "transparent", fontFamily: f.style, fontSize: 17, lineHeight: 1.2,
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {sample || f.label}
-            <span style={{ display: "block", font: `500 11px ${UI_FONT}`, color: "rgba(255,255,255,.5)", marginTop: 2 }}>{f.label}</span>
+            <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", padding: "2px 0" }}>{sample || f.label}</span>
+            {sample && <span style={{ display: "block", font: `500 11px ${UI_FONT}`, color: "rgba(255,255,255,.5)", marginTop: 2 }}>{f.label}</span>}
           </button>
         ))}
       </div>
@@ -253,6 +253,7 @@ export function Composer({ ink, accent, onSend, placeholder, replyTo, onCancelRe
   onCancelReply?: () => void;
   autoFocus?: boolean;
 }) {
+  usePostCss();
   const ps = usePostStyle();
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
@@ -295,13 +296,14 @@ export function Composer({ ink, accent, onSend, placeholder, replyTo, onCancelRe
       )}
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
         <div style={{ flex: 1, position: "relative", minWidth: 0 }}>
-          <textarea ref={input} value={text} rows={1} placeholder={placeholder} aria-label={placeholder}
+          <textarea ref={input} value={text} rows={1} placeholder={placeholder} aria-label={placeholder} className="mnw-ta"
             onFocus={() => setOpen(true)}
             onChange={e => { setText(e.target.value.replace(/\n{3,}/g, "\n\n")); setErr(null); }}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !("ontouchstart" in window)) { e.preventDefault(); send(); } }}
             style={{ width: "100%", boxSizing: "border-box", resize: "none", minHeight: 42, maxHeight: 120, padding: "10px 14px", paddingRight: len > POST_MAX - 40 ? 44 : 14,
               borderRadius: 18, borderTopLeftRadius: 6, border: `1px solid ${hexAlpha(ink, bubbleNeedsEdge(st.bg, wallBg) ? 0.35 : 0.14)}`, background: st.bg, color: st.color,
-              fontFamily: postFontFamily(st.font), fontSize: Math.max(16, st.size), lineHeight: 1.3, outline: "none", fieldSizing: "content" } as React.CSSProperties} />
+              fontFamily: postFontFamily(st.font), fontSize: Math.max(16, st.size), lineHeight: 1.3, outline: "none", fieldSizing: "content",
+              ["--ph" as string]: hexAlpha(st.color, 0.5) } as React.CSSProperties} />
           {len > POST_MAX - 40 && (
             <span aria-live="polite" style={{ position: "absolute", right: 12, bottom: 12, fontSize: 11, fontWeight: 700, color: len > POST_MAX ? "#ff453a" : hexAlpha(st.color, 0.6), pointerEvents: "none" }}>
               {POST_MAX - len}

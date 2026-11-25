@@ -32,7 +32,14 @@ const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefe
 export function turn(el: HTMLElement, from: number, to: number, ms: number, easing: string, keep: boolean): Animation | null {
   const kf = [{ transform: `perspective(1600px) rotateY(${from}deg)` }, { transform: `perspective(1600px) rotateY(${to}deg)` }];
   try {
-    return el.animate(kf, { duration: ms, easing, fill: keep ? "forwards" : "none", composite: "add" } as KeyframeAnimationOptions);
+    const a = el.animate(kf, { duration: ms, easing, fill: keep ? "forwards" : "none", composite: "add" } as KeyframeAnimationOptions);
+    // Turned away = gone (its edge never peeks out); the fade rides on the same animation's lifetime.
+    if (keep && Math.abs(to) === 90) {
+      const fade = el.animate([{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.85 }, { opacity: 0, offset: 1 }], { duration: ms, fill: "forwards" });
+      const cancel = a.cancel.bind(a);
+      a.cancel = () => { fade.cancel(); cancel(); };
+    }
+    return a;
   } catch {
     return el.animate([{ opacity: from === 0 ? 1 : 0 }, { opacity: to === 0 ? 1 : 0 }], { duration: ms, easing, fill: keep ? "forwards" : "none" });
   }
@@ -45,8 +52,8 @@ export function backEffects(card: ProfileCardData): CardEffects {
   const fx = getProfileCardEffects(card);
   const base: CardEffects = look.fx ? { ...fx } : { bg: fx.bg, gradient: fx.gradient, border: { ...fx.border, width: 0 } };
   const bg = look.ownBg
-    ? { ...base.bg, color: s?.bg ?? base.bg?.color, image: look.bgImage ?? undefined, ...(typeof s?.opacity === "number" ? { opacity: s.opacity } : {}) }
-    : { ...base.bg, ...(typeof s?.opacity === "number" ? { opacity: s.opacity } : {}) };
+    ? { ...base.bg, color: s?.bg ?? base.bg?.color, image: look.bgImage ?? undefined, imageMode: "cover" as const, ...(typeof s?.opacity === "number" ? { opacity: s.opacity } : {}) }
+    : { ...base.bg, ...(base.bg?.image ? { imageMode: "cover" as const } : {}), ...(typeof s?.opacity === "number" ? { opacity: s.opacity } : {}) };
   return {
     ...base,
     bg,

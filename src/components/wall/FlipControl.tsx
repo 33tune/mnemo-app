@@ -16,8 +16,8 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 export function flipButtonOf(s?: CommentsBoxStyle) {
   const b = s?.button;
   return {
-    x: clamp(typeof b?.x === "number" ? b.x : FLIP_BTN_DEFAULT.x, 0, 1),
-    y: clamp(typeof b?.y === "number" ? b.y : FLIP_BTN_DEFAULT.y, 0, 1),
+    x: clamp(typeof b?.x === "number" ? b.x : FLIP_BTN_DEFAULT.x, 0.08, 0.92),
+    y: clamp(typeof b?.y === "number" ? b.y : FLIP_BTN_DEFAULT.y, 0.08, 0.92),
     size: clamp(typeof b?.size === "number" ? b.size : FLIP_BTN_DEFAULT.size, 22, 56),
     color: b?.color && /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : null,
   };
@@ -34,6 +34,8 @@ export default function FlipControl({ style, onFlip, count, light, onMove }: {
   const b = flipButtonOf(style);
   const ref = useRef<HTMLButtonElement>(null);
   const drag = useRef<{ x0: number; y0: number; moved: boolean; rect: DOMRect } | null>(null);
+  /** When a drag just ended: the click the browser may fire right after it is not a tap. */
+  const dragEnd = useRef(0);
   const ink = b.color ? (luma(b.color) > 0.6 ? "#111114" : "#ffffff") : light ? "#111114" : "#ffffff";
   const fill = b.color ?? (light ? "rgba(255,255,255,0.6)" : "rgba(14,14,18,0.5)");
   const icon = Math.round(b.size * 0.52);
@@ -51,8 +53,8 @@ export default function FlipControl({ style, onFlip, count, light, onMove }: {
     if (!d || !onMove) return;
     if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 5) return;
     d.moved = true;
-    const x = clamp((e.clientX - d.rect.left) / d.rect.width, 0.04, 0.96);
-    const y = clamp((e.clientY - d.rect.top) / d.rect.height, 0.04, 0.96);
+    const x = clamp((e.clientX - d.rect.left) / d.rect.width, 0.08, 0.92);
+    const y = clamp((e.clientY - d.rect.top) / d.rect.height, 0.08, 0.92);
     if (ref.current) { ref.current.style.left = `${x * 100}%`; ref.current.style.top = `${y * 100}%`; }
   };
   const up = (e: React.PointerEvent) => {
@@ -60,10 +62,10 @@ export default function FlipControl({ style, onFlip, count, light, onMove }: {
     drag.current = null;
     if (d?.moved && onMove) {
       e.stopPropagation();
-      const x = clamp((e.clientX - d.rect.left) / d.rect.width, 0.04, 0.96);
-      const y = clamp((e.clientY - d.rect.top) / d.rect.height, 0.04, 0.96);
+      const x = clamp((e.clientX - d.rect.left) / d.rect.width, 0.08, 0.92);
+      const y = clamp((e.clientY - d.rect.top) / d.rect.height, 0.08, 0.92);
       onMove(Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000);
-      (ref.current as HTMLButtonElement & { _skipClick?: boolean })._skipClick = true;
+      dragEnd.current = Date.now();
     }
   };
 
@@ -74,8 +76,7 @@ export default function FlipControl({ style, onFlip, count, light, onMove }: {
       onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
       onClick={e => {
         e.stopPropagation(); e.preventDefault();
-        const el = ref.current as (HTMLButtonElement & { _skipClick?: boolean }) | null;
-        if (el?._skipClick) { el._skipClick = false; return; }
+        if (Date.now() - dragEnd.current < 300) return;
         onFlip();
       }}
       style={{ position: "absolute", left: `${b.x * 100}%`, top: `${b.y * 100}%`, transform: "translate(-50%, -50%)",

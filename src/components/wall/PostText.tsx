@@ -15,10 +15,11 @@ const CSS = `
 @keyframes mnw-wave{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-.16em) rotate(-4deg)}75%{transform:translateY(.12em) rotate(4deg)}}
 @keyframes mnw-shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-1px,1px)}40%{transform:translate(1px,-1px)}60%{transform:translate(-1px,0)}80%{transform:translate(1px,1px)}}
 .mnw-l{display:inline-block;white-space:pre}
+.mnw-ta::placeholder{color:var(--ph);opacity:1}
 @media (prefers-reduced-motion: reduce){[data-mnw-fx],[data-mnw-fx] .mnw-l{animation:none!important}}
 `;
 let injected = false;
-function useCss() {
+export function useCss() {
   if (injected || typeof document === "undefined") return;
   injected = true;
   const s = document.createElement("style");
