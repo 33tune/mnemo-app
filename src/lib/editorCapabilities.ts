@@ -76,7 +76,7 @@ const logo     = at("ProfileLogoMenu.tsx");
 const stk      = at("ProfileStickersMenu.tsx");
 // Notas (2026-11-06): the note box is a widget of its own (its gear panel).
 // Comentarios (2026-11-17): the comments panel's look (its gear panel).
-const comM     = at("CommentsInspector.tsx");
+const comM     = at("ProfileWallMenu.tsx");
 const btns     = at("ProfileLinkButtonsMenu.tsx");
 const config   = at("ProfileConfigMenu.tsx");
 const type     = at("ProfileTypographyMenu.tsx");
@@ -102,8 +102,9 @@ const BIO = obj("Bio"), SOBRE_MI = obj("Sobre mí"), VISITAS = obj("Visitas"), F
 const FONDO = obj("Fondo de la card");
 const STICKERS = obj("Stickers");
 /** Muro: the back of the card — its own menu (the gear on the wall). */
+/** Muro: a card part (Tarjeta › Muro); kept as an export for the tests' skip list. */
 export const COMENTARIOS_UI = "Muro (dorso de la card)";
-const COMS = `${COMENTARIOS_UI} › engranaje`;
+const COMS = obj("Muro");
 const BOTONES = obj("Botones");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");
@@ -192,10 +193,17 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "noteBox.hidden": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
   "commentsBox.hidden": comM(`${COMS} › Mostrar el muro`, "setStyle({ hidden: v ? undefined : true })"),
   "commentsBox.bg": comM(`${COMS} › Color`, "setStyle({ bg: v })"),
-  "commentsBox.opacity": comM(`${COMS} › Opacidad`, "setStyle({ opacity: v })"),
+  "commentsBox.opacity": comM(`${COMS} › Opacidad`, "setStyle({ opacity: v >= 0.999"),
   "commentsBox.radius": comM(`${COMS} › Redondez`, "setStyle({ radius: v })"),
   "commentsBox.color": comM(`${COMS} › Texto`, "setStyle({ color: v })"),
   "commentsBox.accent": comM(`${COMS} › Acento`, "setStyle({ accent: v })"),
+  "commentsBox.bgImage": comM(`${COMS} › Fondo › Imagen`, "setStyle({ bgImage: publicUrl })"),
+  "commentsBox.font": comM(`${COMS} › Fuente del muro`, "setStyle({ font: v })"),
+  "commentsBox.fx": comM(`${COMS} › Efectos de la card`, "setStyle({ fx: v ? undefined : false })"),
+  "commentsBox.button.x": route(`${COMENTARIOS_UI} › botón sobre la card (arrastrarlo)`, ev("CanvasBoard.tsx", "onMove={flipMove}")),
+  "commentsBox.button.y": route(`${COMENTARIOS_UI} › botón sobre la card (arrastrarlo)`, ev("CanvasBoard.tsx", "onMove={flipMove}")),
+  "commentsBox.button.size": comM(`${COMS} › Botón › Tamaño`, "setButton({ size:"),
+  "commentsBox.button.color": comM(`${COMS} › Botón › Color`, "setButton({ color: v })"),
   "noteBox.showViews": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
   "logo.url": logo(`${LOGO} › Subir`, "logoCtl.setImage(publicUrl)"),
   "logo.anchorX": card(`${LIENZO} › logo`, "anchorX: latest.x"),

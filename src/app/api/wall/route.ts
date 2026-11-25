@@ -13,15 +13,17 @@ export async function GET(req: Request) {
   const parent = url.searchParams.get("parent") ?? "";
   const before = url.searchParams.get("before");
   const supabase = await createClient();
-  const cols = "id, profile_user_id, author_user_id, parent_id, body, style, created_at";
+  const cols = "id, profile_user_id, author_user_id, parent_id, body, style, created_at, pinned";
   if (UUID.test(parent)) {
     const { data } = await supabase.from("comments").select(cols).eq("parent_id", parent).order("created_at", { ascending: true }).limit(100);
     return NextResponse.json({ posts: await hydratePosts(supabase, (data ?? []) as Row[]) }, { headers: { "Cache-Control": "private, no-store" } });
   }
   if (!UUID.test(owner)) return NextResponse.json({ error: "bad_owner" }, { status: 400 });
-  let q = supabase.from("comments").select(cols).eq("profile_user_id", owner).is("parent_id", null)
-    .order("created_at", { ascending: false }).limit(WALL_PAGE + 1);
-  if (before && !Number.isNaN(Date.parse(before))) q = q.lt("created_at", before);
+  // The pinned post goes first on the first page; later pages skip it.
+  const later = !!before && !Number.isNaN(Date.parse(before));
+  let q = supabase.from("comments").select(cols).eq("profile_user_id", owner).is("parent_id", null);
+  q = later ? q.eq("pinned", false).lt("created_at", before!) : q.order("pinned", { ascending: false });
+  q = q.order("created_at", { ascending: false }).limit(WALL_PAGE + 1);
   const [{ data: rows }, { data: prof }] = await Promise.all([
     q, supabase.from("profiles").select("comments_off").eq("user_id", owner).maybeSingle(),
   ]);

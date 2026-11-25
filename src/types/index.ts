@@ -1131,7 +1131,16 @@ export interface NoteBoxStyle {
 export interface CommentsBoxStyle {
   /** The owner turned the wall off: no flip button, no wall. */
   hidden?: boolean;
+  /** Own wall background (else the card's: color, gradient, image). */
   bg?: string;
+  bgImage?: string;
+  /** The wall's own font (its names, times, tabs). */
+  font?: string;
+  /** false = the back without the card's effects (border, glow, holo, retro, motion…). */
+  fx?: boolean;
+  /** The flip button on the card: where (fraction of the card's width / height,
+   * its center), size in px and color. */
+  button?: { x?: number; y?: number; size?: number; color?: string };
   /** 0.3–1: below 1 the panel turns to frosted glass. */
   opacity?: number;
   radius?: number;

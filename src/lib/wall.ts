@@ -9,7 +9,10 @@ import { CANVAS_FONTS, getFontStyle } from "@/lib/fontList";
 export const POST_MAX = 280;
 export const WALL_PAGE = 20;
 
-export interface PostStyle { font?: string; color?: string; bg?: string; size?: 12 | 15 | 18 }
+/** Text animations a post can have (names stored as is; same list as clean_post_style). */
+export type PostFx = "glow" | "shimmer" | "rainbow" | "bounce" | "wave" | "shake";
+export const POST_FX: readonly PostFx[] = ["glow", "shimmer", "rainbow", "bounce", "wave", "shake"];
+export interface PostStyle { font?: string; color?: string; bg?: string; size?: 12 | 15 | 18; fx?: PostFx }
 export interface PostAuthor { id: string; handle: string; name: string; photo: string | null; pfpRadius: string; bg: string; nameColor: string }
 export interface WallPost {
   id: string;
@@ -23,6 +26,7 @@ export interface WallPost {
   likes: number;
   replies: number;
   liked: boolean;
+  pinned?: boolean;
 }
 export interface ActivityItem { kind: "wall" | "reply" | "like"; postId: string; wallHandle: string; body: string; at: string; actor: PostAuthor }
 
@@ -32,7 +36,8 @@ export const POST_FONTS = ["DM Sans", "Poppins", "Space Mono", "Playfair Display
 export const POST_COLORS = ["#ffffff", "#111114", "#ff4f94", "#ff3b30", "#ff9f0a", "#ffd60a", "#c6ff3a", "#34c759", "#5ac8fa", "#3d5afe", "#af52de", "#8e8e93"];
 export const POST_BGS = ["#16141c", "#000000", "#ffffff", "#ffe1ee", "#3a0a1a", "#3b0000", "#3a2600", "#13300f", "#0a2a3a", "#0d1440", "#2a0a3a", "#2c2c2e"];
 export const POST_SIZES = [12, 15, 18] as const;
-export const DEFAULT_POST_STYLE: Required<PostStyle> = { font: "DM Sans", color: "#ffffff", bg: "#16141c", size: 15 };
+export const DEFAULT_POST_STYLE: Required<Omit<PostStyle, "fx">> = { font: "DM Sans", color: "#ffffff", bg: "#16141c", size: 15 };
+export type ResolvedPostStyle = Required<Omit<PostStyle, "fx">> & { fx?: PostFx };
 
 const HEX = /^#[0-9a-f]{6}$/i;
 /** Only what the database accepts (same rules as clean_post_style). */
@@ -42,22 +47,51 @@ export function cleanPostStyle(s?: PostStyle | null): PostStyle {
   if (s?.color && HEX.test(s.color)) out.color = s.color;
   if (s?.bg && HEX.test(s.bg)) out.bg = s.bg;
   if (s?.size === 12 || s?.size === 15 || s?.size === 18) out.size = s.size;
+  if (s?.fx && (POST_FX as readonly string[]).includes(s.fx)) out.fx = s.fx;
   return out;
 }
 /** A post's look: its own style, else what the author's card suggests, else defaults. */
-export function resolvePostStyle(s: PostStyle | null | undefined, author?: Pick<PostAuthor, "bg" | "nameColor">): Required<PostStyle> {
+export function resolvePostStyle(s: PostStyle | null | undefined, author?: Pick<PostAuthor, "bg" | "nameColor">): ResolvedPostStyle {
   const c = cleanPostStyle(s);
+  const bg = c.bg ?? (author?.bg && HEX.test(author.bg) ? author.bg : DEFAULT_POST_STYLE.bg);
+  const color = c.color ?? (author?.nameColor && HEX.test(author.nameColor) ? author.nameColor : DEFAULT_POST_STYLE.color);
   return {
     font: c.font ?? DEFAULT_POST_STYLE.font,
-    color: c.color ?? (author?.nameColor && HEX.test(author.nameColor) ? author.nameColor : DEFAULT_POST_STYLE.color),
-    bg: c.bg ?? (author?.bg && HEX.test(author.bg) ? author.bg : DEFAULT_POST_STYLE.bg),
+    // Contraste automático: text that would not read on its bubble turns black or white.
+    color: readableOn(color, bg),
+    bg,
     size: c.size ?? DEFAULT_POST_STYLE.size,
+    ...(c.fx ? { fx: c.fx } : {}),
   };
+}
+
+// ── Contrast (WCAG relative luminance) ───────────────────────────────────────
+function lum(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+export function contrast(a: string, b: string): number {
+  if (!HEX.test(a) || !HEX.test(b)) return 21;
+  const x = lum(a), y = lum(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+/** The color itself when it reads on `bg` (≥ 3:1), else black or white — whichever reads better. */
+export function readableOn(color: string, bg: string): string {
+  if (contrast(color, bg) >= 3) return color;
+  return contrast("#ffffff", bg) >= contrast("#111114", bg) ? "#ffffff" : "#111114";
+}
+/** A bubble that melts into the wall gets a thin outline. */
+export function bubbleNeedsEdge(bubble: string, wall: string): boolean {
+  return contrast(bubble, wall) < 1.35;
 }
 export function postFontFamily(font: string): string { return getFontStyle(font); }
 export function sameStyle(a: PostStyle, b: PostStyle): boolean {
   const x = cleanPostStyle(a), y = cleanPostStyle(b);
-  return x.font === y.font && x.color === y.color && x.bg === y.bg && x.size === y.size;
+  return x.font === y.font && x.color === y.color && x.bg === y.bg && x.size === y.size && x.fx === y.fx;
 }
 /** Readable text on a color (for icons over a post's bubble). */
 export function inkOn(hex: string): string {
@@ -84,7 +118,10 @@ import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { cardBaseColor } from "@/lib/cardColors";
 import { COMMENTS_DEFAULTS, COMMENTS_OPACITY, COMMENTS_RADIUS } from "@/lib/comments";
 
-export interface WallLook { bg: string; opacity: number; radius: number; color: string; accent: string; bgImage: string | null }
+export interface WallLook { bg: string; opacity: number; radius: number; color: string; accent: string; bgImage: string | null; font: string; ownBg: boolean; fx: boolean }
+/** The wall's fixed size (design px): the same for every card, small or wide. */
+export const WALL_W = 380;
+export const WALL_H = 600;
 
 const toHex = (c: unknown): string | null => {
   if (typeof c !== "string") return null;
@@ -104,13 +141,17 @@ export function resolveWallLook(card: ProfileCardData): WallLook {
   const cardBg = toHex(fx.bg?.color);
   const cardRad = typeof fx.border?.radius === "number" ? fx.border.radius : card.borderRadius;
   const img = typeof fx.bg?.image === "string" && /^https?:\/\//.test(fx.bg.image) ? fx.bg.image : null;
+  const ownBg = !!(s?.bg && HEX.test(s.bg)) || !!s?.bgImage;
   return {
+    ownBg,
+    fx: s?.fx !== false,
+    font: s?.font && /^[A-Za-z0-9 ]{1,40}$/.test(s.font) ? s.font : "DM Sans",
     bg: (s?.bg && HEX.test(s.bg) ? s.bg : null) ?? cardBg ?? COMMENTS_DEFAULTS.bg,
     opacity: clampN(typeof s?.opacity === "number" ? s.opacity : 0.94, COMMENTS_OPACITY.min, COMMENTS_OPACITY.max),
     radius: clampN(typeof s?.radius === "number" ? s.radius : typeof cardRad === "number" ? cardRad : COMMENTS_DEFAULTS.radius, COMMENTS_RADIUS.min, COMMENTS_RADIUS.max),
     color: (s?.color && HEX.test(s.color) ? s.color : null) ?? toHex(cardBaseColor(card, fx)) ?? COMMENTS_DEFAULTS.color,
     accent: (s?.accent && HEX.test(s.accent) ? s.accent : null) ?? COMMENTS_DEFAULTS.accent,
-    bgImage: s?.bg ? null : img,
+    bgImage: s?.bgImage && /^https?:\/\//.test(s.bgImage) ? s.bgImage : s?.bg ? null : img,
   };
 }
 export const wallShown = (card?: ProfileCardData | null): boolean => !!card && !card.commentsBox?.hidden;

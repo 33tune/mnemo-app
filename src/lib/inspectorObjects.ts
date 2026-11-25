@@ -18,7 +18,7 @@ import { effectState } from "./effectBinding";
 import { isCardGlowFlagVisible } from "./effectEditorDefaults";
 import { getProfileCardEffects } from "./profileCardEffects";
 
-export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers";
+export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers" | "wall";
 
 export type ObjectKind = "role" | "block" | "card" | "all";
 /** Review r2: the list is a MAP of the card in three fixed clusters —
@@ -178,6 +178,9 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
         ? { text: "Stickers", thumb: list[list.length - 1].src, spoken: list.length === 1 ? "1 sticker" : `${list.length} stickers` }
         : { text: "Stickers", placeholder: true, emptyThumb: true };
     } },
+  // Muro v2 (2026-11-26): the back of the card — opening it turns the card in the editor.
+  { id: "wall", caption: "Muro", placeholder: "Muro", kind: "card", group: "card",
+    chip: ({ card }) => card.commentsBox?.hidden ? { text: "Muro", placeholder: true, spoken: "oculto" } : { text: "Muro", spoken: "visible" } },
   { id: "allText", caption: "Todos los textos", shortCaption: "Textos", placeholder: "Aa", kind: "all", group: "card",
     chip: ({ baseColor, effective }) => ({ text: "Textos", sampleColor: baseColor, swatch: backgroundSwatch(effective), spoken: "" }) },
 ];
@@ -239,6 +242,7 @@ export function objectModified(id: ObjectId, card: ProfileCardData): boolean {
       return differs(rest, base) || differs({ color: border?.color, width: border?.width, opacity: border?.opacity }, base.border);
     }
     case "stickers": return (card.stickers?.length ?? 0) > 0;
+    case "wall":     return set(card.commentsBox);
     case "allText": return set(card.textColor) || set(card.textAlign) || set(card.monoLineHeight) || set(fx?.text);
     default:        return false;
   }
@@ -291,7 +295,7 @@ export function chipAccessibleName(obj: InspectorObject, data: ChipData, platfor
 export type PartGroupId = "card" | "profile" | "content";
 export interface PartGroup { id: PartGroupId; label: string; parts: readonly ObjectId[] }
 export const PART_GROUPS: readonly PartGroup[] = [
-  { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText", "stickers"] },
+  { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText", "stickers", "wall"] },
   { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio", "about"] },
   { id: "content", label: "Contenido", parts: ["links", "buttons", "logo", "views"] },
 ];
@@ -342,6 +346,7 @@ export const OBJECT_FILES: Record<ObjectId, readonly string[]> = {
   cardFx:     [EFFECTS],
   allText:    [TYPOGRAPHY],
   stickers:   [`${C}ProfileStickersMenu.tsx`],
+  wall:       [`${C}ProfileWallMenu.tsx`],
 };
 export const CHILD_FILES: Record<string, readonly string[]> = {
   [TYPOGRAPHY]: [`${C}RoleTypographyFields.tsx`],

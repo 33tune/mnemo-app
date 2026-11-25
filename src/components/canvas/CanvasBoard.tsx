@@ -72,8 +72,8 @@ import { HeartPill } from "./StatsRow";
 import { useCommentCount } from "@/hooks/useComments";
 import { useUnreadActivity } from "@/hooks/useWall";
 import WallPanel from "@/components/wall/WallPanel";
-import FlipControl, { flipVariantFromUrl, type FlipVariant } from "@/components/wall/FlipControl";
-import MyCardDock from "@/components/wall/MyPhone";
+import FlipControl from "@/components/wall/FlipControl";
+import AvatarDock from "@/components/wall/AvatarDock";
 import { wallShown } from "@/lib/wall";
 import { cardIsLight } from "@/lib/cardColors";
 import ShortcutsBar, { SHORTCUTS_BAR_H } from "./ShortcutsBar";
@@ -916,16 +916,15 @@ export default function CanvasBoard({
   // card at the bottom-left: Feed, Mi muro, Avisos).
   const [wallOpen, setWallOpen] = useState(false);
   const [wallClosing, setWallClosing] = useState(false);
-  const [phoneOpen, setPhoneOpen] = useState(false);
-  const [flipVariant, setFlipVariant] = useState<FlipVariant>("button");
-  useEffect(() => { setFlipVariant(flipVariantFromUrl()); }, []);
+  const [wallTab, setWallTab] = useState<"wall" | "feed" | "news">("wall");
   const wallOwnerId = canEdit ? currentUserId : ownerUserId;
   const wallCount = useCommentCount(wallOwnerId || undefined);
   const unreadActivity = useUnreadActivity(canEdit && phoneEdit);
-  const openWall = useCallback(() => { setWallClosing(false); setWallOpen(true); }, []);
+  const openWall = useCallback((tab: "wall" | "feed" | "news" = "wall") => { setWallTab(tab); setWallClosing(false); setWallOpen(true); }, []);
   const toggleWall = useCallback(() => { if (wallOpen) setWallClosing(true); else openWall(); }, [wallOpen, openWall]);
-  /** The wall's own menu (its gear) is open. */
-  const commentsStyleOpen = editorSel.target?.kind === "comments";
+  /** Muro v2: the editor's Tarjeta › Muro part is open — the card shows its back while you edit it. */
+  const wallPartOpen = canEdit && !phonePreview && editorSel.target?.kind === "profile" && editorSel.target.objectId === "wall";
+  const commentsStyleOpen = false;
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
     : undefined;
@@ -1300,13 +1299,34 @@ export default function CanvasBoard({
     [inSpace, texts, phoneAreaKey]);
   const visGalleries = useMemo(() => inSpace ? galleries.filter(g => g.isPublic)          : galleries,    [inSpace, galleries]);
   const visProfiles  = useMemo(() => inSpace ? profiles.filter(p => p.isPublic)           : profiles,     [inSpace, profiles]);
+  // Muro v2: on the public card the button turns it; in the editor it opens
+  // Tarjeta › Muro (the card turns there, live). Dragging it in the editor moves it.
+  const flipFromCard = useCallback(() => {
+    const c = visProfiles[0];
+    if (canEdit && !phonePreview && c) { if (phoneEdit) setPhoneSheetOpen(true); openProfilePart(c.id, "wall" as PartRole); return; }
+    toggleWall();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canEdit, phonePreview, phoneEdit, toggleWall, visProfiles]);
+  const flipMove = useMemo(() => (canEdit && !phonePreview ? (x: number, y: number) => {
+    const c = visProfiles[0];
+    if (!c) return;
+    updateProfile(c.id, { commentsBox: { ...c.commentsBox, button: { ...c.commentsBox?.button, x, y } } });
+  } : undefined), [canEdit, phonePreview, visProfiles]);
+  // The Muro part opens / closes the back while it is the part being edited.
+  const wallPartWas = useRef(false);
+  useEffect(() => {
+    if (wallPartOpen && !wallPartWas.current) openWall("wall");
+    if (!wallPartOpen && wallPartWas.current) setWallClosing(true);
+    wallPartWas.current = wallPartOpen;
+  }, [wallPartOpen, openWall]);
   // Muro (2026-11-25): the control on the card that turns it to its wall.
   const wallCard = visProfiles[0] as ProfileCardData | undefined;
   const wallOn = wallShown(wallCard) && !!wallOwnerId;
   const wallCardLight = useMemo(() => (wallCard ? cardIsLight(wallCard) : false), [wallCard]);
   const flipNode = useMemo(
-    () => (wallOn ? <FlipControl variant={flipVariant} onFlip={toggleWall} count={wallCount} light={wallCardLight} /> : null),
-    [wallOn, flipVariant, toggleWall, wallCount, wallCardLight],
+    () => (wallOn ? <FlipControl style={wallCard?.commentsBox} onFlip={flipFromCard} count={wallCount} light={wallCardLight}
+      onMove={flipMove} /> : null),
+    [wallOn, wallCard?.commentsBox, flipFromCard, wallCount, wallCardLight, flipMove],
   );
   // ?muro=1 opens the card already turned (links from the Feed and Avisos).
   const muroParamDone = useRef(false);
@@ -1314,7 +1334,8 @@ export default function CanvasBoard({
     if (muroParamDone.current || isLoading || !wallOn || !wallCard) return;
     if (typeof window === "undefined" || new URLSearchParams(location.search).get("muro") !== "1") { muroParamDone.current = true; return; }
     muroParamDone.current = true;
-    const t = window.setTimeout(openWall, 900);
+    const tabQ = new URLSearchParams(location.search).get("tab");
+    const t = window.setTimeout(() => openWall(tabQ === "news" || tabQ === "feed" ? tabQ : "wall"), 900);
     return () => window.clearTimeout(t);
   }, [isLoading, wallOn, wallCard, openWall]);
   // A sideways swipe on the card (touch) turns it.
@@ -1328,7 +1349,7 @@ export default function CanvasBoard({
       const t = e.changedTouches[0];
       if (!start || !t) return;
       const dx = t.clientX - start.x, dy = t.clientY - start.y;
-      if (Math.abs(dx) > 70 && Math.abs(dy) < 45 && Date.now() - start.t < 700) openWall();
+      if (Math.abs(dx) > 70 && Math.abs(dy) < 45 && Date.now() - start.t < 700) openWall("wall");
       start = null;
     };
     el.addEventListener("touchstart", down, { passive: true });
@@ -3848,7 +3869,7 @@ export default function CanvasBoard({
           onRoom={() => { setPhoneSheetOpen(true); if (roomOpen) { const c = visProfiles[0]; if (c) { setSelectedIds(new Set([c.id])); openProfile(c.id); } } else openRoom(); }}
           roomOpen={roomOpen}
           onLogout={handleLogout}
-          onComments={() => setPhoneOpen(o => !o)}
+          onComments={() => { setPhoneSheetOpen(false); openWall(unreadActivity > 0 ? "news" : "wall"); }}
           unreadComments={unreadActivity > 0} />
       )}
       {phoneEdit && !phonePreview && !isLoading && !shareOpen && !!viewerScreen && (
@@ -4594,12 +4615,10 @@ export default function CanvasBoard({
       )}
       {!canEdit && viewerLoggedIn && !mobileFit && <ShortcutsBar left={72} right={170} currentHandle={userHandle} />}
       {/* Muro (2026-11-25): tu card en miniatura (bottom-left, everywhere) → tu celular. */}
-      {!shareOpen && !tourStep && !(phoneEdit && phonePreview) && (
+      {!shareOpen && !tourStep && !phoneEdit && (
         canEdit
-          ? (phoneEdit
-              ? <MyCardDock hideDock inEditor bottom={phoneSheetOpen ? phoneSheetH + 8 : INSPECTOR_SHEET_COLLAPSED_H + 8} open={phoneOpen} onOpenChange={setPhoneOpen} />
-              : railShown && <MyCardDock inEditor bottom={64} open={phoneOpen} onOpenChange={setPhoneOpen} />)
-          : <MyCardDock open={phoneOpen} onOpenChange={setPhoneOpen} />
+          ? railShown && <AvatarDock bottom={64} onHome={unread => openWall(unread ? "news" : "wall")} />
+          : <AvatarDock />
       )}
       {/* Compartir tu card (2026-11-04): on the public profile, a small
           button; in the editor, the top bar's share button. */}
@@ -4629,11 +4648,12 @@ export default function CanvasBoard({
           ownerHandle={(visProfiles[0].handle || userHandle || "").replace(/^@/, "")}
           getCard={() => document.querySelector<HTMLElement>(`[data-profile-card][data-card-id="${visProfiles[0].id}"]`)}
           closing={wallClosing}
-          onClosed={() => { setWallOpen(false); setWallClosing(false); if (commentsStyleOpen) closeInspector(); }}
+          editing={wallPartOpen}
+          startTab={wallTab}
+          onClosed={() => { setWallOpen(false); setWallClosing(false); }}
           right={canEdit && inspectorShown && !phoneEdit ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
           newTab={canEdit}
-          onSettings={canEdit ? () => { if (commentsStyleOpen) closeInspector(); else { setMenuOpen(false); if (phoneEdit) setPhoneSheetOpen(true); openComments(visProfiles[0].id); } } : undefined}
-          settingsOpen={commentsStyleOpen}
+          bottom={phoneEdit ? (phoneSheetOpen ? phoneSheetH : INSPECTOR_SHEET_COLLAPSED_H) : 0}
         />
       )}
       {shareOpen && visProfiles[0] && (() => {
@@ -4674,7 +4694,6 @@ export default function CanvasBoard({
             snap: gridSnapOn, onSnap: setGridSnapOn,
             phone: phoneEdit,
           }}
-          commentsCard={editorSel.target?.kind === "comments" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));
             const byId = new Map(elements.map(e => [e.id, e] as const));

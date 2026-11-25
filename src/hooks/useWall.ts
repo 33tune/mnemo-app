@@ -56,6 +56,7 @@ export interface WallState {
   remove: (id: string) => void;
   report: (id: string) => Promise<boolean>;
   block: (authorId: string) => Promise<boolean>;
+  pin: (id: string, on: boolean) => void;
 }
 
 const patchPost = (list: WallPost[], id: string, f: (p: WallPost) => WallPost) => list.map(p => (p.id === id ? f(p) : p));
@@ -162,9 +163,18 @@ export function useWall(owner: string | undefined, open: boolean): WallState {
     return ok;
   }, [owner, isOwner]);
 
+  const pin = useCallback((id: string, on: boolean) => {
+    if (!isOwner) return;
+    setPosts(prev => {
+      const next = prev.map(p => ({ ...p, pinned: p.id === id ? on : on ? false : p.pinned }));
+      return [...next.filter(p => p.pinned), ...next.filter(p => !p.pinned)];
+    });
+    createClient().rpc("pin_post", { p_id: id, p_on: on }).then(({ error }) => { if (error) reload(); });
+  }, [isOwner, reload]);
+
   return {
     posts, loaded, more, off, viewer, isOwner, canWrite: !!viewer && (isOwner || !off), replies,
-    loadMore, loadReplies, post, like, remove, report, block,
+    loadMore, loadReplies, post, like, remove, report, block, pin,
   };
 }
 

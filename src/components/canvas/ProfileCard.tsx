@@ -1319,7 +1319,7 @@ function ProfileCard({
           borderRadius={rad}
           back={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="back" />}
           front={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="front" />}
-          over={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="over" />}
+          over={<><StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="over" />{flipControl}</>}
         >
           <div style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden" }}>
             {/* bg overlay tint for image cards */}
@@ -1343,8 +1343,6 @@ function ProfileCard({
             {renderLogo()}
           </div>
         </CardLayers>
-
-        {flipControl}
 
         {/* ── "Editar" opener (Iteration 0) ── A real <button> (was a 20px
             div at the nw corner that covered the nw resize handle and left

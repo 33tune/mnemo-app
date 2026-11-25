@@ -13,8 +13,6 @@ import ProfileInspector from "./ProfileInspector";
 import RoomInspector from "./RoomInspector";
 import LayersPanel from "./LayersPanel";
 import SearchPanel from "./SearchPanel";
-import CommentsInspector from "./CommentsInspector";
-const COMMENTS_STYLE_PANEL_ID = "mnemo-wall-style";
 import TextInspector from "./TextInspector";
 import ImageInspector from "./ImageInspector";
 import MusicInspector from "./MusicInspector";
@@ -71,7 +69,6 @@ interface EditorHostProps {
   /** "Capas" (target kind "layers"): the stacking list + writers. */
   layers?:   LayersProps;
   /** Comentarios: the card whose comments panel's look is edited. */
-  commentsCard?: ProfileCardData;
   /** Editor v3 Phase G: the element inspectors (target kinds "text" /
    * "image" / "music"); each is given only while its element is the target. */
   text?:     TextProps;
@@ -95,7 +92,7 @@ interface EditorHostProps {
 // ProfileCard no longer mounts it. Phase B hosted the ProfileCard inspector;
 // Tu sala (D), Capas (E) and Texto / Imagen / Música (G) joined it.
 export function EditorHost({
-  target, profile, facts, room, layers, commentsCard, text, image, music, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
+  target, profile, facts, room, layers, text, image, music, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
 }: EditorHostProps) {
   if (typeof document === "undefined") return null;
   // Editor v3 Phase D: "Tu sala" — the inspector with nothing selected.
@@ -123,17 +120,6 @@ export function EditorHost({
     return createPortal(
       <SearchPanel id={SEARCH_PANEL_ID} onClose={onClose}
         returnFocusTo={() => document.getElementById(RAIL_SEARCH_BUTTON_ID)}
-        top={top} width={layout.width} mode={layout.mode} height={layout.height}
-        collapsed={layout.collapsed} onExpand={onExpand} />,
-      document.body,
-    );
-  }
-  // Comentarios: the comments panel's look (its gear).
-  if (target?.kind === "comments") {
-    if (!commentsCard || commentsCard.id !== target.cardId) return null;
-    return createPortal(
-      <CommentsInspector card={commentsCard} onChange={patch => updateProfile(commentsCard.id, patch)} id={COMMENTS_STYLE_PANEL_ID} onClose={onClose}
-        returnFocusTo={() => document.querySelector<HTMLElement>("[data-wall-panel]")}
         top={top} width={layout.width} mode={layout.mode} height={layout.height}
         collapsed={layout.collapsed} onExpand={onExpand} />,
       document.body,
