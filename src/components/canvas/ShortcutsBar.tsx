@@ -11,7 +11,6 @@
  * (2026-11-06: no mute bell, no fold chevron.) In the editor and on other
  * people's profiles while signed in.
  */
-import { CommentsButton, COMMENTS_BUTTON_ID } from "./CommentsPanel";
 import React, { useEffect, useRef, useState } from "react";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { barShortcuts, changedSince, readSeenSigs, writeSeenSigs, type Shortcut } from "@/lib/shortcuts";
@@ -140,11 +139,7 @@ function SearchPopover({ onClose, center }: { onClose: () => void; center: strin
   );
 }
 
-/** Comentarios (2026-11-17): the editor's bubble (my comments), with a
- * blinking dot when someone commented since I last opened the panel. */
-export interface BarComments { open: boolean; count: number; unread: boolean; onToggle: () => void }
-
-export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, currentHandle, search, comments }: {
+export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, currentHandle, search }: {
   /** Space taken on each side (the editor's rail, the profile's buttons). */
   left?: number;
   right?: number;
@@ -152,7 +147,6 @@ export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, current
   bottom?: number;
   currentHandle?: string;
   search?: BarSearch;
-  comments?: BarComments;
 }) {
   const sc = useShortcuts(true);
   const [menu, setMenu] = useState<{ s: Shortcut; x: number; y: number } | null>(null);
@@ -195,7 +189,6 @@ export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, current
         <div style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: 6, padding: "0 10px 5px", minWidth: 0 }}>
           <div style={{ paddingBottom: 7, flex: "none", pointerEvents: "auto", display: "flex", gap: 6 }}>
             <SearchButton search={barSearch} />
-            {comments && <CommentsButton id={COMMENTS_BUTTON_ID} size={40} count={comments.count} unread={comments.unread} open={comments.open} onClick={comments.onToggle} />}
           </div>
           <span aria-hidden style={{ width: 1, height: 30, background: "rgba(255,255,255,.14)", margin: "0 4px 12px", flex: "none" }} />
           {items.length ? (

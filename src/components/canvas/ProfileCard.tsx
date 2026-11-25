@@ -241,6 +241,9 @@ interface Props {
   phoneEditor?:      boolean;
   /** Phone editor: a block was dragged with the finger (its menu opens). */
   onPartMoved?:      (key: BlockKey) => void;
+  /** Muro (2026-11-25): the control that turns the card to its wall — drawn
+   * inside the card so it moves (and turns) with it. */
+  flipControl?:      React.ReactNode;
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -269,7 +272,7 @@ function ProfileCard({
   card: savedCard, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
-  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, phoneEditor = false, onPartMoved,
+  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, phoneEditor = false, onPartMoved, flipControl,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
   // "Probar antes de elegir": the option under the pointer in the editor, live (cardPreview.ts).
@@ -1341,6 +1344,8 @@ function ProfileCard({
           </div>
         </CardLayers>
 
+        {flipControl}
+
         {/* ── "Editar" opener (Iteration 0) ── A real <button> (was a 20px
             div at the nw corner that covered the nw resize handle and left
             focus on <body>, so Esc + Backspace deleted the card). Placed by
@@ -1398,7 +1403,8 @@ function areProfilePropsEqual(prev: Props, next: Props): boolean {
     prev.inspectorOpen     === next.inspectorOpen &&
     // Phase H: the active part's editor outline.
     prev.activePart        === next.activePart &&
-    prev.phoneEditor       === next.phoneEditor
+    prev.phoneEditor       === next.phoneEditor &&
+    prev.flipControl       === next.flipControl
   );
 }
 export default memo(ProfileCard, areProfilePropsEqual);

@@ -26,7 +26,7 @@ export default function PhoneEditorBar({
   onRoom: () => void;
   roomOpen: boolean;
   onLogout: () => Promise<void>;
-  /** Comentarios: opens the panel; a dot when someone commented since last time. */
+  /** Muro: opens "tu celular" (Feed, Mi muro, Avisos); a dot when there are new notices. */
   onComments?: () => void;
   unreadComments?: boolean;
   /** Vista previa: the card as visitors see it (no editing chrome). */
@@ -97,7 +97,7 @@ export default function PhoneEditorBar({
             </a>
             {onComments && (
               <button type="button" className="mn-glassmenu__item" onClick={run(onComments)}>
-                <Icon name="text" size={16} /><span>Comentarios{unreadComments ? " · nuevos" : ""}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><rect x="6.5" y="2.5" width="11" height="19" rx="2.6" /><path d="M10.5 18.2h3" /></svg><span>Tu celular{unreadComments ? " · nuevos" : ""}</span>
               </button>
             )}
             {onShare && (

@@ -208,3 +208,11 @@ begin
 end $$;
 revoke execute on function public.admin_post_reports() from public, anon;
 grant execute on function public.admin_post_reports() to authenticated;
+
+-- El número del muro en la card cuenta posts, no respuestas (APLICADO).
+create or replace function public.comment_counts(targets uuid[])
+returns table(profile_user_id uuid, n bigint) language sql stable security definer set search_path to 'public' as $$
+  select c.profile_user_id, count(*) from public.comments c
+  where c.profile_user_id = any(targets) and c.parent_id is null and not public.is_banned(c.author_user_id)
+  group by c.profile_user_id;
+$$;

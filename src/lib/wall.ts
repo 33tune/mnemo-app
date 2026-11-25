@@ -89,8 +89,10 @@ export interface WallLook { bg: string; opacity: number; radius: number; color: 
 const toHex = (c: unknown): string | null => {
   if (typeof c !== "string") return null;
   if (HEX.test(c)) return c;
-  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(c);
+  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?/i.exec(c);
   if (!m) return null;
+  // A see-through card (glass, 5 % white…) says nothing about a solid wall.
+  if (m[4] !== undefined && parseFloat(m[4]) < 0.5) return null;
   return "#" + [m[1], m[2], m[3]].map(v => Math.max(0, Math.min(255, +v)).toString(16).padStart(2, "0")).join("");
 };
 const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));

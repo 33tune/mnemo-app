@@ -14,7 +14,7 @@ import RoomInspector from "./RoomInspector";
 import LayersPanel from "./LayersPanel";
 import SearchPanel from "./SearchPanel";
 import CommentsInspector from "./CommentsInspector";
-import { COMMENTS_STYLE_PANEL_ID, COMMENTS_BUTTON_ID } from "./CommentsPanel";
+const COMMENTS_STYLE_PANEL_ID = "mnemo-wall-style";
 import TextInspector from "./TextInspector";
 import ImageInspector from "./ImageInspector";
 import MusicInspector from "./MusicInspector";
@@ -133,7 +133,7 @@ export function EditorHost({
     if (!commentsCard || commentsCard.id !== target.cardId) return null;
     return createPortal(
       <CommentsInspector card={commentsCard} onChange={patch => updateProfile(commentsCard.id, patch)} id={COMMENTS_STYLE_PANEL_ID} onClose={onClose}
-        returnFocusTo={() => document.getElementById(COMMENTS_BUTTON_ID)}
+        returnFocusTo={() => document.querySelector<HTMLElement>("[data-wall-panel]")}
         top={top} width={layout.width} mode={layout.mode} height={layout.height}
         collapsed={layout.collapsed} onExpand={onExpand} />,
       document.body,
