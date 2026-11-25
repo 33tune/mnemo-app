@@ -12,7 +12,7 @@ import {
   countActiveCardEffects, objectForRoute, filesMountedBy, inspectorObject, type ObjectId,
 } from "./inspectorObjects";
 import { createSelectionMemory as createInspectorSession } from "./editorSelection";
-import { capabilityMatrix, P, LIENZO, CAPAS, NOTA_UI, COMENTARIOS_UI } from "./editorCapabilities";
+import { capabilityMatrix, P, LIENZO, CAPAS, COMENTARIOS_UI } from "./editorCapabilities";
 import { getProfileCardEffects } from "./profileCardEffects";
 import { cardBaseColor } from "./cardColors";
 import { stripComments } from "./sourceScan";
@@ -193,7 +193,7 @@ test("every ProfileCard route names an inspector object whose files hold its evi
       continue;
     }
     // Phase E: Capas is room level, like the canvas (not an inspector object).
-    if (cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith(NOTA_UI) || cap.ui.startsWith(COMENTARIOS_UI)) continue;
+    if (cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith(COMENTARIOS_UI)) continue;
     const o = objectForRoute(cap.ui, P);
     if (!o) { bad.push(`${path}: "${cap.ui}" names no object`); continue; }
     const files = filesMountedBy(o.id);
@@ -254,7 +254,7 @@ function unitsOf(id: ObjectId): Set<string> {
 test("r2: every route's evidence sits in a SECTION its object mounts (textAlign under Nombre or border.color under Fondo would fail)", () => {
   const bad: string[] = [];
   for (const { owner, path, cap } of capabilityMatrix()) {
-    if (owner !== "profile" || cap.kind !== "route" || cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith(NOTA_UI) || cap.ui.startsWith(COMENTARIOS_UI)) continue;
+    if (owner !== "profile" || cap.kind !== "route" || cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith(COMENTARIOS_UI)) continue;
     const o = objectForRoute(cap.ui, P)!;
     const units = unitsOf(o.id);
     for (const [file, text] of cap.evidence) {

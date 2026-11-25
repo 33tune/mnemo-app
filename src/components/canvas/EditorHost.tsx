@@ -13,9 +13,7 @@ import ProfileInspector from "./ProfileInspector";
 import RoomInspector from "./RoomInspector";
 import LayersPanel from "./LayersPanel";
 import SearchPanel from "./SearchPanel";
-import NoteInspector from "./NoteInspector";
 import CommentsInspector from "./CommentsInspector";
-import { NOTE_PANEL_ID, NOTE_GEAR_ID } from "./NoteBox";
 import { COMMENTS_STYLE_PANEL_ID, COMMENTS_BUTTON_ID } from "./CommentsPanel";
 import TextInspector from "./TextInspector";
 import ImageInspector from "./ImageInspector";
@@ -72,8 +70,6 @@ interface EditorHostProps {
   room?:     RoomProps;
   /** "Capas" (target kind "layers"): the stacking list + writers. */
   layers?:   LayersProps;
-  /** Notas: the card whose note box's panel is open (target kind "note"). */
-  noteCard?: ProfileCardData;
   /** Comentarios: the card whose comments panel's look is edited. */
   commentsCard?: ProfileCardData;
   /** Editor v3 Phase G: the element inspectors (target kinds "text" /
@@ -99,7 +95,7 @@ interface EditorHostProps {
 // ProfileCard no longer mounts it. Phase B hosted the ProfileCard inspector;
 // Tu sala (D), Capas (E) and Texto / Imagen / Música (G) joined it.
 export function EditorHost({
-  target, profile, facts, room, layers, noteCard, commentsCard, text, image, music, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
+  target, profile, facts, room, layers, commentsCard, text, image, music, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
 }: EditorHostProps) {
   if (typeof document === "undefined") return null;
   // Editor v3 Phase D: "Tu sala" — the inspector with nothing selected.
@@ -127,17 +123,6 @@ export function EditorHost({
     return createPortal(
       <SearchPanel id={SEARCH_PANEL_ID} onClose={onClose}
         returnFocusTo={() => document.getElementById(RAIL_SEARCH_BUTTON_ID)}
-        top={top} width={layout.width} mode={layout.mode} height={layout.height}
-        collapsed={layout.collapsed} onExpand={onExpand} />,
-      document.body,
-    );
-  }
-  // Notas: the note box's panel (its gear).
-  if (target?.kind === "note") {
-    if (!noteCard || noteCard.id !== target.cardId) return null;
-    return createPortal(
-      <NoteInspector card={noteCard} onChange={patch => updateProfile(noteCard.id, patch)} id={NOTE_PANEL_ID} onClose={onClose}
-        returnFocusTo={() => document.getElementById(NOTE_GEAR_ID)}
         top={top} width={layout.width} mode={layout.mode} height={layout.height}
         collapsed={layout.collapsed} onExpand={onExpand} />,
       document.body,

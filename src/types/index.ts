@@ -1101,7 +1101,7 @@ export type PublishState = "idle" | "pending" | "publishing" | "success";
 
 export type PresenceState = "ACTIVE NOW" | "EDITING SPACE" | "AWAY" | "OFFLINE";
 
-/** The note box's look (lib/noteBox.ts has the defaults and ranges). */
+/** The note box's look — notes were removed 2026-11-25; kept only for saved data. */
 export interface NoteBoxStyle {
   /** Legacy (first day): one size factor; replaced by w / h, no longer drawn. */
   scale?: number;
@@ -1125,9 +1125,12 @@ export interface NoteBoxStyle {
   hidden?: boolean;
 }
 
-/** Comentarios (2026-11-17): the look of the comments panel — minimal on
- * purpose (roundness, colors, opacity). Goes out with "Publicar". */
+/** Comentarios (2026-11-17) → Muro (2026-11-25): the look of the wall (the
+ * back of the card). Unset fields follow the card itself (its background,
+ * corners and text color). */
 export interface CommentsBoxStyle {
+  /** The owner turned the wall off: no flip button, no wall. */
+  hidden?: boolean;
   bg?: string;
   /** 0.3–1: below 1 the panel turns to frosted glass. */
   opacity?: number;

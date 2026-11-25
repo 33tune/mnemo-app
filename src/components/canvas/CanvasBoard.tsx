@@ -72,9 +72,6 @@ import { HeartPill } from "./StatsRow";
 import CommentsPanel, { CommentsButton, COMMENTS_BUTTON_ID } from "./CommentsPanel";
 import { useCommentCount, useUnreadComments } from "@/hooks/useComments";
 import ShortcutsBar, { SHORTCUTS_BAR_H } from "./ShortcutsBar";
-import { useNote } from "@/hooks/useNote";
-import { noteReserve, noteBoxVisible, resolveNoteBox, noteGap, withNoteRoom } from "@/lib/noteBox";
-import NoteBox from "./NoteBox";
 import { track, trackOnce, markVisit } from "@/lib/track";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
@@ -701,9 +698,6 @@ export default function CanvasBoard({
   const phoneFitRef = useRef<{ s: number; areaH: number; vw: number } | null>(null);
   const phoneScreenH = viewerScreen?.h ?? viewportH;
   const phoneSheetH = !phoneEdit || phonePreview ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
-  // Notas (2026-11-06): while the box shows (a note, or a styled empty box),
-  // the view keeps room for it above the card (on a phone and on a computer).
-  const publicNote = useNote(!canEdit ? ownerUserId : undefined);
   const viewFit = phoneEdit ? (() => {
     // Editor de celular: the card (and its stickers) fitted between the top
     // bar and the sheet — the same geometry the phone profile uses.
@@ -733,11 +727,8 @@ export default function CanvasBoard({
   })() : !canEdit ? (() => {
     const vw = viewerScreen?.w ?? 1440, vh = viewerScreen?.h ?? 900;
     const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
-    const noteH = card && noteBoxVisible(!!publicNote.note, card.noteBox) ? noteReserve(resolveNoteBox(card.noteBox), noteGap(card)) : 0;
-    // The card stays the CENTER (the core); the note's room is mirrored below
-    // it, so the box fits above without pushing the card down.
-    const cardH = card ? (mobileFit && mobileCardH && mobileCardH > 0 ? mobileCardH : card.h) : 0;
-    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => withNoteRoom(r, cardH, noteH);
+    // Notas removed (2026-11-25): the card alone is framed.
+    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => r;
     const fit = mobileFit
       ? mobileView(vw, vh, withNote(card && mobileCardH && mobileCardH > 0 ? cardViewRect(card, mobileCardH) : mobileFit.card))
       // No top bar on the public profile any more (the pill floats): the whole height is the room's.
@@ -804,7 +795,7 @@ export default function CanvasBoard({
   const inspectorCardId = profileTargetId(editorSel.target);
   const inspectorCardIdRef = useRef<string | null>(null);
   inspectorCardIdRef.current = inspectorCardId;
-  const { openProfile, openRoom, openLayers, openSearch, openNote, openComments, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
+  const { openProfile, openRoom, openLayers, openSearch, openComments, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
   /** Editor v3 Phase G: the element (card, text, image, Music) any inspector
    * is editing — focus / collapse / view-freeze logic is the same for all. */
   const inspectorTargetElId = targetId(editorSel.target);
@@ -923,7 +914,6 @@ export default function CanvasBoard({
   const ownCommentCount = useCommentCount(canEdit ? currentUserId : undefined);
   const unreadComments = useUnreadComments(canEdit);
   /** Notas: the note box's panel (its gear) is open. */
-  const noteOpen = editorSel.target?.kind === "note";
   /** Comentarios (2026-11-17): the look panel of the comments panel. */
   const commentsStyleOpen = editorSel.target?.kind === "comments";
   const inspectorProfile = inspectorCardId && inspectorEnabled
@@ -952,7 +942,7 @@ export default function CanvasBoard({
     // "Tu sala" moves nothing (it is about the whole room); as a sheet it
     // takes the max share of the viewport.
     // Phase E: Capas, like Tu sala, is about the whole room — nothing moves.
-    if ((roomOpen || layersOpen || searchOpen || noteOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
+    if ((roomOpen || layersOpen || searchOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
     if (!inspectorBox) return { dx: 0, dy: 0, sheetH: 0, covered: false };
     // Phase G (review G-R MAYOR 1): a free element moves — the smallest
     // shift that uncovers it, KEPT while it still shows it (moving it, its
@@ -1045,7 +1035,7 @@ export default function CanvasBoard({
   // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
-  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen || commentsStyleOpen) && canInteract) || roomShown || (phoneEdit && !!editorSel.target);
+  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || commentsStyleOpen) && canInteract) || roomShown || (phoneEdit && !!editorSel.target);
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
   const [newsOpen, setNewsOpen] = useState(false);
@@ -4055,22 +4045,6 @@ export default function CanvasBoard({
       {drawRectVis&&drawRectVis.w>0&&(<div style={{position:"absolute",left:drawRectVis.x,top:drawRectVis.y,width:drawRectVis.w,height:drawRectVis.h,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.02)",borderRadius:4,pointerEvents:"none",zIndex:600}} />)}
       {selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
-      {/* ── NOTE BOX ── (Notas v2: a widget of its own above the card; its surface under
-          everything in the room, its text / tap area over everything — NoteBox.tsx) */}
-      {(() => {
-        const prof = visProfiles.find(p => p.isPublic) ?? visProfiles[0];
-        if (!prof || canvasMode === "space_mobile") return null;
-        const ps = getParallaxStyle(prof.layer, prof.depth);
-        return (
-          <NoteBox key={`note-${prof.id}`} card={prof} ownerUserId={ownerUserId ?? currentUserId ?? undefined} editor={canEdit && canInteract}
-            panelOpen={editorSel.target?.kind === "note" && editorSel.target.cardId === prof.id}
-            onSelect={() => { if (editorSel.target?.kind !== "note") setSelectedIds(new Set()); }}
-            onSettings={() => { if (editorSel.target?.kind === "note") closeInspector(); else { setMenuOpen(false); openNote(prof.id); } }}
-            parallaxTransform={ps.transform as string}
-            entryDelayMs={!canEdit ? 320 : undefined} />
-        );
-      })()}
-
       {/* ── IMAGES ── */}
       {visImages.map((img,i)=>{
         const isSel=selectedIds.has(img.id);
@@ -4650,7 +4624,6 @@ export default function CanvasBoard({
             snap: gridSnapOn, onSnap: setGridSnapOn,
             phone: phoneEdit,
           }}
-          noteCard={editorSel.target?.kind === "note" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
           commentsCard={editorSel.target?.kind === "comments" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));

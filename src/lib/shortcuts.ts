@@ -4,7 +4,6 @@
  * then how often I visit them (last 60 days), then the newest favorite.
  * Hidden ones are left out of the bar (still listed when editing it).
  */
-import type { NoteBoxStyle } from "@/types";
 
 export interface Shortcut {
   userId: string;
@@ -18,9 +17,6 @@ export interface Shortcut {
   hidden: boolean;
   visits: number;
   favoritedAt: string;
-  note: { id: string; body: string; created_at: string; expires_at: string } | null;
-  noteSeen: boolean;
-  noteStyle?: NoteBoxStyle;
   /** A short signature of their PUBLISHED card / room: when it changes, they
    * published changes (the bar's pink dot, compared with what I last saw). */
   sig?: string;
@@ -50,7 +46,7 @@ export function changedSince(list: Shortcut[], seen: Record<string, string>): { 
 export const SHORTCUTS_MAX = 50;
 
 export function sortShortcuts(list: Shortcut[]): Shortcut[] {
-  const rank = (s: Shortcut) => (s.pinned ? 0 : s.note && !s.noteSeen ? 1 : 2);
+  const rank = (s: Shortcut) => (s.pinned ? 0 : 2);
   return [...list].sort((a, b) =>
     rank(a) - rank(b)
     || b.visits - a.visits
