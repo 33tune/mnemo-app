@@ -693,6 +693,31 @@ planeado acá hasta confirmarlo.
 >   **Pendiente del usuario:** pegar la plantilla "Confirm signup" en Supabase (con `{{ .Token }}` y el link a
 >   `/auth/confirm`); sin eso el mail sigue trayendo solo el link viejo.
 >
+> **MURO (2026-11-25, pedido del usuario) — en la rama de prueba `feature/muro`, NO en `main`.** Reemplaza las Notas y
+>   los Comentarios:
+>   - **Notas ELIMINADAS** (cuadro arriba de la card, su panel, `useNote`, `noteBox.ts`, globos de nota en la barra de
+>     favoritos). `card.noteBox` queda en el tipo por datos guardados (capacidad `retired`). Las tablas `notes`,
+>     `note_views`, `note_alerts` no se borraron.
+>   - **La card se da vuelta y su dorso es el MURO** (`src/components/wall/WallPanel.tsx`): la card gira sobre sí
+>     (WAAPI `rotateY`, `composite: "add"`) y a los 90° aparece el muro con SU tamaño (≤ 400×640, centrado en la card)
+>     terminando el giro. Se abre con el botón con ícono de celular en la esquina de la card o con una **pestaña** que
+>     sale del borde derecho (`FlipControl.tsx`; `?flip=tab` / `?flip=button`, se recuerda en el dispositivo — el
+>     usuario elige cuál queda), deslizando la card de costado en el celular, o con `?muro=1` (links del Feed / Avisos).
+>   - Posts de hasta 280 caracteres, respuestas de un nivel, likes de cualquiera; cada post con el **estilo de quien lo
+>     escribe** (fuente, color, globo, tamaño 12/15/18) elegido al tocar para escribir (previews, sin palabras) y
+>     recordado (`profiles.post_style`: último + recientes). Moderación: borrar (autor o dueño), reportar, bloquear de
+>     mi muro (`wall_blocks`); los reportes en `/admin` › Reportes (borrar post).
+>   - **Tu card en miniatura** abajo a la izquierda en todos lados (`MyPhone.tsx` › `MyCardDock`; sin sesión, el logo →
+>     `/`) → **tu celular**: Feed (posts de las cards a las que les di corazón), Mi muro y Avisos (posts en mi muro,
+>     respuestas, likes; punto con número). En el editor de celular se abre desde Más › Tu celular.
+>   - Configuración (engranaje del muro, `CommentsInspector.tsx`, target `"comments"`): Mostrar el muro
+>     (`commentsBox.hidden`), Quién escribe (Todos / Solo yo = `profiles.comments_off`, al instante) y Aspecto
+>     (fondo, opacidad, redondez, texto, acento; sin valor propio sigue a la card: `resolveWallLook`).
+>   - Base: `supabase/migrations/20261125000000_wall.sql` (APLICADA en producción, compatible con `main`).
+>     APIs: `/api/wall`, `/api/feed`, `/api/activity`, `/api/me`. `/api/comments` y `CommentsPanel` se borraron.
+>   - NO va todavía (decisión del usuario): GIFs, Top 8, "feed vivo" (estrenos de cards, sugerencias).
+>   - Sin QA en iPhone real (giro 3D sobre cards con vidrio, swipe).
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por
