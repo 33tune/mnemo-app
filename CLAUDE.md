@@ -718,6 +718,27 @@ planeado acá hasta confirmarlo.
 >   - NO va todavía (decisión del usuario): GIFs, Top 8, "feed vivo" (estrenos de cards, sugerencias).
 >   - Sin QA en iPhone real (giro 3D sobre cards con vidrio, swipe).
 >
+> **MURO v2 (2026-11-26, feedback del usuario) — REEMPLAZA del bloque anterior: el panel aparte, "tu celular",
+>   la mini card de abajo y la pestaña del costado.** Sigue en `feature/muro`, NO en `main`.
+>   - **Dorso = la card de verdad:** `WallPanel.tsx` dibuja el muro dentro de `CardLayers` con los efectos de la card
+>     (`backEffects`: borde, brillo, holo, retro, flotación, inclinación propia con `useCardInteractions`), tamaño FIJO
+>     para todas (`WALL_W×WALL_H` = 380×600, solo se achica para entrar en la pantalla; sin opción "igual que la card",
+>     decisión del usuario). La card se gira y se desvanece al llegar a 90° (no asoma el canto).
+>   - **Pestañas del dorso:** Muro (público); en TU card además Feed y Avisos (solo vos). Feed = solo lo que cada
+>     persona publica en SU propio muro (`my_feed` con `author = profile`).
+>   - **Botón en la card** (`FlipControl.tsx`): va en el slot `over` de `CardLayers` (se inclina y flota con la card);
+>     en el editor se arrastra (`commentsBox.button.x/y`, fracciones del centro, 8–92 %) y un toque abre Tarjeta ›
+>     Muro; tamaño y color en el menú.
+>   - **Tarjeta › Muro en el editor** (`ProfileWallMenu.tsx`, ObjectId `"wall"`): abrir la parte da vuelta la card en
+>     vivo. Mostrar el muro · Quién escribe · Fondo (Como la card / Propio: color, imagen/GIF) · Opacidad · Redondez ·
+>     Efectos de la card (on/off) · Fuente, texto, acento · Botón. `CommentsInspector` / target "comments" ya no se usan.
+>   - **Posts:** contraste automático (`readableOn`, borde si el globo se pierde en el fondo), animación del texto
+>     (`style.fx`: brillo, destello, arcoíris, rebote, ola, temblor; `PostText.tsx`), fijar uno arriba (`pin_post`),
+>     doble toque = me gusta. Escritor: barra compacta (fuente con buscador, color, globo, tamaño, animación,
+>     recientes). Base: `supabase/migrations/20261126000000_wall_v2.sql` (APLICADA).
+>   - **Abajo a la izquierda:** tu foto redonda (`AvatarDock.tsx`) → tu home (con avisos, abre Avisos); "+" publica en tu
+>     muro desde cualquier lado; en el editor la foto da vuelta tu card.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por
