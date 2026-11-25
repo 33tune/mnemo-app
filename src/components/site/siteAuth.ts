@@ -94,6 +94,23 @@ const actions = {
     return { next: returnPath() };
   },
 
+  /** The 6-digit code from the confirmation email (2026-11-25): confirms the
+   * account and signs in HERE, in the same tab — the link in the mail often
+   * opens in another browser (TikTok's in-app one → Gmail/Chrome) with no
+   * session there. /dashboard creates the profile from the claimed name. */
+  async verifyCode({ email, code }: { email: string; code: string }): Promise<Result> {
+    const sb = createClient();
+    let { error } = await sb.auth.verifyOtp({ email, token: code, type: "email" });
+    if (error) ({ error } = await sb.auth.verifyOtp({ email, token: code, type: "signup" }));
+    if (error) {
+      const m = error.message.toLowerCase();
+      if (m.includes("expired") || m.includes("invalid")) return { error: "Ese código no es correcto o ya venció.", kind: "" };
+      return friendly(error.message);
+    }
+    track("login_done", { code: true });
+    return { next: returnPath() };
+  },
+
   /** "¿Te la olvidaste?": the email's link signs in and opens /reset-password. */
   async reset({ email }: { email: string }): Promise<Result> {
     const { error } = await createClient().auth.resetPasswordForEmail(email, { redirectTo: callback("/reset-password") });
@@ -123,6 +140,7 @@ export const siteAuth = {
   register: guard(actions.register),
   login: guard(actions.login),
   reset: guard(actions.reset),
+  verifyCode: guard(actions.verifyCode),
   google: () => within(actions.google().catch(() => SLOW.error!), 20000, SLOW.error!),
   resend: (mode: string, email: string) => within(actions.resend(mode, email).catch(() => SLOW.error!), 20000, SLOW.error!),
 };

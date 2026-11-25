@@ -781,6 +781,13 @@ function ProfileCard({
         }}>
           {card.photo ? (
             <img src={card.photo} data-lm={photoDepth} style={{ width: "100%", height: "100%", objectFit: "cover", ...(photoDepth ? { willChange: "transform" as const } : {}) }} draggable={false} />
+          ) : editing ? (
+            // Editor, no photo yet (2026-11-25): a camera that breathes — a slot asking to be filled.
+            <div className="mnemo-empty-slot" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width={size * 0.36} height={size * 0.36} viewBox="0 0 24 24" fill="none" stroke={faintColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 8h3l1.6-2h6.8L17 8h3v11H4z" /><circle cx="12" cy="13.2" r="3.4" />
+              </svg>
+            </div>
           ) : (
             <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width={size * 0.34} height={size * 0.34} viewBox="0 0 24 24" fill="none" stroke={faintColor} strokeWidth="1.5" strokeLinecap="round">
@@ -810,7 +817,7 @@ function ProfileCard({
     if (!nameLetterAnim) {
       return (
         <div style={{ ...baseStyle, color: resolvedColors.name, ...nameEffectStyle, ...style }}>
-          {card.name}
+          {card.name || (editing ? <span style={{ opacity: .32, whiteSpace: "nowrap" }}>tu nombre</span> : null)}
         </div>
       );
     }
@@ -970,7 +977,7 @@ function ProfileCard({
         alignItems: "center", padding: `${pad}px`, gap, zIndex: 3, overflow: "hidden",
       }}>
         {AvatarEl({})}
-        {card.name && NameLine({ style: { textAlign: "center", marginTop: variant === "minimal" ? 2 : 4 } })}
+        {(card.name || editing) && NameLine({ style: { textAlign: "center", marginTop: variant === "minimal" ? 2 : 4 } })}
         {card.handle && HandleLine({ style: { marginTop: -2 } })}
         {card.status && DescriptorLine({ style: { textAlign: "center" } })}
         {card.location && LocationLine({ style: { textAlign: "center" } })}
@@ -989,7 +996,7 @@ function ProfileCard({
       }}>
         {AvatarEl({ style: { flexShrink: 0 } })}
         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
-          {card.name && NameLine({})}
+          {(card.name || editing) && NameLine({})}
           {card.handle && HandleLine({})}
           {card.status && DescriptorLine({})}
           {card.location && LocationLine({})}
@@ -1006,7 +1013,7 @@ function ProfileCard({
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 3 }}>
         {FreeWrap({ elemKey: "photo", children: AvatarEl({}) })}
-        {card.name && FreeWrap({ elemKey: "name", children: NameLine({ style: { whiteSpace: "nowrap" } }) })}
+        {(card.name || editing) && FreeWrap({ elemKey: "name", children: NameLine({ style: { whiteSpace: "nowrap" } }) })}
         {card.handle && FreeWrap({ elemKey: "handle", children: HandleLine({ style: { whiteSpace: "nowrap" } }) })}
         {card.status && FreeWrap({ elemKey: "descriptor", children: DescriptorLine({ style: { whiteSpace: "nowrap" } }) })}
         {card.location && FreeWrap({ elemKey: "location", children: LocationLine({ style: { whiteSpace: "nowrap" } }) })}
@@ -1034,7 +1041,7 @@ function ProfileCard({
   const linkButtons = (card.linkButtons ?? []).filter(b => b.url);
   const buttonStyle = resolveLinkButtonStyle(card.linkButtonStyle, baseColor);
   const composed = layout === "free" ? undefined
-    : profileLayout(card, {
+    : profileLayout(editing && !card.name ? { ...card, name: "tu nombre" } : card, {
       w: card.w, h: cardH, measure, viewCount, favCount, commentCount,
       drag: drag ?? undefined,
       // Continuity while the shape of things changes under the pointer.
@@ -1173,7 +1180,7 @@ function ProfileCard({
             }}
             {...down("identity")}
           >
-            {card.name && row("name", NameLine({ style: wrap }))}
+            {(card.name || editing) && row("name", NameLine({ style: wrap }))}
             {card.handle && row("handle", HandleLine({ style: wrap }))}
             {card.status && row("descriptor", DescriptorLine({ style: wrap }))}
             {card.bio && row("bio", BioText({ style: { overflowWrap: "anywhere" } }))}

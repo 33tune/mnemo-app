@@ -681,6 +681,18 @@ planeado acá hasta confirmarlo.
 >   `/auth/callback` sin sesión (link del mail abierto en otro navegador) → `/login` dice "si recién confirmaste tu email,
 >   ya está listo: entrá".
 >
+> **Guardado automático, código por mail y card que se toca (2026-11-25, pedido del usuario) — REEMPLAZA "Publicar" y
+>   la guía `PublishHint` (borrada):** cada cambio sale en vivo ~2,5 s después del último (`publishSpace` con `dirtyRef` /
+>   `publishingRef`; también al ocultar la pestaña o salir). El botón pasó a un estado ("Guardando…" / "En vivo",
+>   `.mn-pill--live`); tocarlo con cambios pendientes publica ya. `track("publish")` una vez por visita (`auto: true`).
+>   **Celular:** la card vacía invita a tocarla (cámara que respira `.mnemo-empty-slot`, "tu nombre" en gris; solo en el
+>   editor, el layout mide el texto de muestra); tocar la foto vacía abre la galería del teléfono y la sube; tocar el
+>   nombre vacío abre el teclado en el campo. La hoja arranca en Tarjeta › Efectos la primera vez de cada visita.
+>   **Registro:** la pantalla "Revisá tu email" pide el **código de 6 números** (`siteAuth.verifyCode` → `verifyOtp`,
+>   entra en la misma pestaña); `/auth/confirm?token_hash=…&type=email` confirma desde cualquier navegador.
+>   **Pendiente del usuario:** pegar la plantilla "Confirm signup" en Supabase (con `{{ .Token }}` y el link a
+>   `/auth/confirm`); sin eso el mail sigue trayendo solo el link viejo.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por

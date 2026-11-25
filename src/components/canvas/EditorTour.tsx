@@ -21,7 +21,7 @@ const COPY: Record<TourStep, { title: string; body?: string; button?: string }> 
   card: { title: "Tocá tu tarjeta para empezar a editarla" },
   part: { title: "Tocá cualquier ELEMENTO dentro de la TARJETA para abrir su menú de edición", body: "Tu foto, tu nombre, los links… cada cosa tiene su menú." },
   add: { title: "Con la A o el + agregás imágenes y textos a tu sala", body: "Podés arrastrarlos, girarlos y acomodarlos donde quieras.", button: "Siguiente" },
-  publish: { title: "Cuando termines, tocá Publicar", body: "Así tus cambios se ven en tu link.", button: "Listo" },
+  publish: { title: "Todo se guarda solo", body: "Cada cambio aparece en tu link al instante.", button: "Listo" },
 };
 
 const TARGET: Record<TourStep, string> = {

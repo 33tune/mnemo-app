@@ -342,7 +342,7 @@ function LogoutBtn({ onClick }: { onClick: () => Promise<void> }) {
 // existing public profile) and Publicar with the existing states — no
 // unpublished-change count (out of scope, the design's own fallback).
 const PUBLISH_LABEL: Record<PublishState, string> = {
-  idle: "Publicado", pending: "Publicar", publishing: "Publicando…", success: "Publicado",
+  idle: "En vivo", pending: "Guardando…", publishing: "Guardando…", success: "En vivo",
 };
 
 function EditorTopbar({ editor, tabs, publishState, onPublish, onLogout }: {
@@ -434,7 +434,7 @@ function EditorTopbar({ editor, tabs, publishState, onPublish, onLogout }: {
           <Icon name="more" size={17} />
         </button>
         {publishState !== undefined && (
-          <button type="button" className="mn-pill mn-pill--brand" data-state={publishState} data-tour="publish"
+          <button type="button" className="mn-pill mn-pill--live" data-state={publishState} data-tour="publish"
             onClick={publishState === "pending" ? onPublish : undefined}
             aria-disabled={publishState !== "pending" || undefined}
             aria-live="polite">
@@ -518,7 +518,7 @@ function CompactEditorTopbar({ editor, tabs, publishState, onPublish, onLogout }
           <Icon name="undo" size={18} />
         </button>
         {publishState !== undefined && (
-          <button type="button" className="mn-topbar__publish mn-topbar__publish--touch" data-state={publishState} data-tour="publish"
+          <button type="button" className="mn-pill mn-pill--live" data-state={publishState} data-tour="publish"
             onClick={publishState === "pending" ? onPublish : undefined}
             aria-disabled={publishState !== "pending" || undefined}
             aria-live="polite">

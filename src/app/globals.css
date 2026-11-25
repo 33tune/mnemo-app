@@ -82,4 +82,7 @@ input::placeholder, textarea::placeholder { color: var(--text-ghost); }
   pointer-events: none;
   z-index: 9998;
   opacity: 1;
-}
+}/* Editor: an empty photo slot breathes (ProfileCard, 2026-11-25). */
+.mnemo-empty-slot { animation: mnemo-empty-breathe 2.2s ease-in-out infinite; }
+@keyframes mnemo-empty-breathe { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .mnemo-empty-slot { animation: none; } }

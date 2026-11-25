@@ -5,7 +5,7 @@ import { T, Icon } from "@/ui";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
 
 const PUBLISH_LABEL: Record<PublishState, string> = {
-  idle: "Publicado", pending: "Publicar", publishing: "Publicando…", success: "Publicado",
+  idle: "En vivo", pending: "Guardando…", publishing: "Guardando…", success: "En vivo",
 };
 const MORE_ID = "mnemo-phone-more";
 
@@ -75,7 +75,7 @@ export default function PhoneEditorBar({
           <Icon name="more" size={18} />
           {unreadComments && <span className="mn-phonebar__dot" aria-hidden="true" />}
         </button>
-        <button type="button" className="mn-pill mn-pill--brand" data-state={publishState} data-tour="publish"
+        <button type="button" className="mn-pill mn-pill--live" data-state={publishState} data-tour="publish"
           onClick={dirty ? onPublish : undefined} aria-disabled={!dirty || undefined} aria-live="polite">
           {publishState === "success" && <Icon name="check" size={15} />}
           {PUBLISH_LABEL[publishState]}

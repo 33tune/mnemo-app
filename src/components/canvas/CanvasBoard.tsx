@@ -35,7 +35,6 @@ import { trackRender } from "@/lib/perfDebug";
 import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
 import NewsDialog, { NEWS_KEY } from "./NewsDialog";
 import PhoneEditorBar from "./PhoneEditorBar";
-import PublishHint, { publishHintSeen, markPublishHintSeen } from "./PublishHint";
 import PublicBrandPill from "./PublicBrandPill";
 import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -581,10 +580,14 @@ export default function CanvasBoard({
   // The room's last published snapshot (publishedState.ts): kept on every
   // save of the "space" row so visitors only ever see what was published.
   const publishedRef = useRef<CanvasState | null>(null);
-  // First publish guide (PublishHint.tsx): edits made in this visit.
+  // Auto-publish (2026-11-25): every edit goes live ~2.5 s after the last one.
+  // editCount restarts the wait on each edit; dirtyRef catches edits made while
+  // a publish is in flight (they go out in the next one).
   const [editCount, setEditCount] = useState(0);
-  const firstEditAtRef = useRef(0);
-  const [pubHintOpen, setPubHintOpen] = useState(false);
+  const dirtyRef = useRef(false);
+  const publishingRef = useRef(false);
+  const firstPublishTrackedRef = useRef(false);
+  const publishSpaceRef = useRef<() => Promise<void>>(async () => {});
   // ── Mode switching ───────────────────────────────────────────────────────────
   const canvasModeRef  = useRef<CanvasMode>("space");
   // ── Ops queue ────────────────────────────────────────────────────────────────
@@ -1046,15 +1049,20 @@ export default function CanvasBoard({
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
   const [newsOpen, setNewsOpen] = useState(false);
-  // First publish guide: someone who never published, a few edits and ~20 s
-  // into editing, Publicar still lit — once per browser.
+  // Auto-publish: ~2.5 s after the last edit (and right away when the tab is
+  // hidden or the page is left), whatever is pending goes live.
   useEffect(() => {
-    if (pubHintOpen || !canEdit || phonePreview || tourStep || publishState !== "pending" || editCount < 3) return;
-    if (publishedRef.current || publishHintSeen()) return;
-    const wait = Math.max(0, firstEditAtRef.current + 20000 - Date.now());
-    const id = window.setTimeout(() => { if (!publishedRef.current && !publishHintSeen()) setPubHintOpen(true); }, wait);
+    if (!canEdit || publishState !== "pending" || !isSpaceCanvas(canvasMode)) return;
+    const id = window.setTimeout(() => { void publishSpaceRef.current(); }, 2500);
     return () => window.clearTimeout(id);
-  }, [pubHintOpen, canEdit, phonePreview, tourStep, publishState, editCount]);
+  }, [canEdit, publishState, editCount, canvasMode]);
+  useEffect(() => {
+    if (!canEdit) return;
+    const now = () => { if (document.visibilityState === "hidden" && dirtyRef.current) void publishSpaceRef.current(); };
+    const leave = () => { if (dirtyRef.current) void publishSpaceRef.current(); };
+    document.addEventListener("visibilitychange", now); window.addEventListener("pagehide", leave);
+    return () => { document.removeEventListener("visibilitychange", now); window.removeEventListener("pagehide", leave); };
+  }, [canEdit]);
   const cardSelected = elements.some(el => el.elementType === "profile" && selectedIds.has(el.id));
   useEffect(() => {
     if (tourStep === "card" && (cardSelected || inspectorProfile)) setTourStep("part");
@@ -2048,8 +2056,8 @@ export default function CanvasBoard({
     }
     opsQueueRef.current.push(...persistedOps);
     if (isSpaceCanvas(canvasModeRef.current)) {
+      dirtyRef.current = true;
       setPublishState(s => (s === "publishing" ? s : "pending"));
-      if (firstEditAtRef.current === 0) firstEditAtRef.current = Date.now();
       setEditCount(c => c + 1);
     }
     markActive(op.type === "update_profile" || isSpaceCanvas(canvasModeRef.current));
@@ -2427,8 +2435,8 @@ export default function CanvasBoard({
   }
 
   async function publishSpace() {
-    if (publishState !== "pending" || !canvasIdRef.current) return;
-
+    if (!canvasIdRef.current || publishingRef.current || !dirtyRef.current) return;
+    publishingRef.current = true; dirtyRef.current = false;
     setPublishState("publishing");
 
     try {
@@ -2452,20 +2460,23 @@ export default function CanvasBoard({
 
       if (!error) {
         publishedRef.current = state;
-        track("publish", phoneEdit ? { phone: true } : undefined);
-        markPublishHintSeen(); setPubHintOpen(false);
-        setPublishState("success");
-        setTimeout(() => {
-          setPublishState(s => (s === "success" ? "idle" : s));
-        }, 1500);
+        if (!firstPublishTrackedRef.current) { firstPublishTrackedRef.current = true; track("publish", phoneEdit ? { phone: true, auto: true } : { auto: true }); }
+        if (dirtyRef.current) setPublishState("pending");
+        else {
+          setPublishState("success");
+          setTimeout(() => { setPublishState(s => (s === "success" ? "idle" : s)); }, 1500);
+        }
       } else {
-        setPublishState("pending");
+        dirtyRef.current = true; setPublishState("pending");
       }
     } catch (e) {
       console.error("[PUBLISH ERROR]", e);
-      setPublishState("pending");
+      dirtyRef.current = true; setPublishState("pending");
+    } finally {
+      publishingRef.current = false;
     }
   }
+  publishSpaceRef.current = publishSpace;
 
   // Carga (inicial y al cambiar de modo) con flush no-bloqueante y session guard
   useEffect(() => {
@@ -2794,7 +2805,8 @@ export default function CanvasBoard({
       hasLoadedRef.current = true;
       fullyLoadedModeRef.current = canvasModeRef.current;
       // Changes visitors don't see yet (from an earlier session) light Publicar.
-      setPublishState(canvasModeRef.current === "space" && hasUnpublishedChanges(canvasRow?.data, opsRows?.length ?? 0) ? "pending" : "idle");
+      { const unpublished = canvasModeRef.current === "space" && hasUnpublishedChanges(canvasRow?.data, opsRows?.length ?? 0);
+        dirtyRef.current = unpublished; setPublishState(unpublished ? "pending" : "idle"); }
       setIsLoading(false);
     }
 
@@ -2980,6 +2992,15 @@ export default function CanvasBoard({
   function updateText(id: string, patch: Partial<CanvasText>) { enqueueOp({ type: "update_text", id, patch }); }
   function updateGallery(id: string, patch: Partial<CanvasGallery>) { enqueueOp({ type: "update_gallery", id, patch }); }
   function updateProfile(id: string, patch: Partial<ProfileCardData>) { enqueueOp({ type: "update_profile", id, patch }); }
+  // Phone: the gallery that a tap on an empty photo opens (handleProfileClick).
+  const phonePhotoInputRef = useRef<HTMLInputElement>(null);
+  const phonePhotoCardRef = useRef<string | null>(null);
+  async function onPhonePhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; const id = phonePhotoCardRef.current; e.target.value = "";
+    if (!f || !id) return;
+    try { const { publicUrl } = await uploadToStorage(f); updateProfile(id, { photo: publicUrl }); }
+    catch (err) { console.error("[phone photo]", err); }
+  }
   function updateMedia(id: string, patch: Partial<CanvasMedia>) { enqueueOp({ type: "update_media", id, patch }); }
   function updateGuestbook(id: string, patch: Partial<GuestbookCardData>) { enqueueOp({ type: "update_guestbook", id, patch }); }
   function updateSocialCard(id: string, patch: Partial<SocialCardData>) { enqueueOp({ type: "update_social", id, patch }); }
@@ -3162,9 +3183,15 @@ export default function CanvasBoard({
   const phoneCardId = phoneEdit ? (visProfiles[0]?.id ?? null) : null;
   useEffect(() => {
     if (!phoneEdit || isLoading || !phoneCardId || shareOpen) return;
-    if (!editorSel.target) { setSelectedIds(new Set([phoneCardId])); openProfile(phoneCardId); }
+    if (!editorSel.target) {
+      // First open in this visit: the sheet starts on the effects gallery (what
+      // impresses), not on a text form; the empty photo / name ask on the card.
+      if (!phoneFirstOpenRef.current) { phoneFirstOpenRef.current = true; editorSel.memory.setActiveObject(phoneCardId, "cardFx"); }
+      setSelectedIds(new Set([phoneCardId])); openProfile(phoneCardId);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phoneEdit, isLoading, phoneCardId, shareOpen, editorSel.target]);
+  const phoneFirstOpenRef = useRef(false);
 
   function addGuestbook() {
     if (!canInteract) return;
@@ -3392,6 +3419,14 @@ export default function CanvasBoard({
       setPhoneFocusTick(n => n + 1);
       if (!selIdsRef.current.has(id)) setSelectedIds(new Set([id]));
       if (part?.role) openProfilePart(id, part.role); else if (inspectorCardIdRef.current !== id) openProfile(id);
+      // Empty parts act right away (2026-11-25): no photo → the phone's gallery
+      // opens (same tap = a user gesture); no name → the keyboard comes up in
+      // the Nombre field. With content, a tap only selects the part.
+      const prof = elements.find(el => el.id === id && el.elementType === "profile") as ProfileCardData | undefined;
+      if (part?.role === "photo" && prof && !prof.photo) { phonePhotoCardRef.current = id; phonePhotoInputRef.current?.click(); }
+      if (part?.role === "name" && prof && !prof.name) window.setTimeout(() => {
+        const f = document.querySelector<HTMLInputElement>('[data-mnemo-editor] input[type="text"], [data-mnemo-editor] textarea'); f?.focus();
+      }, 320);
       return;
     }
     const role = resolvePartClick({ click: part, canInteract: !!canInteract, shiftKey: e.shiftKey, soleSelected: sel.size === 1 && sel.has(id) });
@@ -3765,6 +3800,7 @@ export default function CanvasBoard({
           <button type="button" className="mn-pill mn-pill--brand" onClick={() => setPhonePreview(false)}>Volver a editar</button>
         </div>
       )}
+      {phoneEdit && <input ref={phonePhotoInputRef} type="file" accept="image/*" hidden onChange={onPhonePhotoPicked} />}
       {phoneEdit && !phonePreview && (
         <PhoneEditorBar handle={userHandle}
           onPreview={() => { setPhoneZoom(null); setPhonePreview(true); }}
@@ -3804,7 +3840,7 @@ export default function CanvasBoard({
       )}
       {phoneEdit && phoneTip && !phonePreview && !isLoading && (
         <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
-          <span>Tocá una parte de tu card para editarla, o arrastrala para moverla. Cuando te guste, <b>Publicar</b>.</span>
+          <span>Tocá una parte de tu card para editarla, o arrastrala para moverla. Todo se guarda solo.</span>
           <button type="button" className="mn-phonetip__ok" onClick={() => closePhoneTip("skip")}>Entendido</button>
         </div>
       )}
@@ -4816,12 +4852,6 @@ export default function CanvasBoard({
       {tourStep && railShown && (
         <EditorTour step={tourStep} onSkip={() => { track("tour_skip", { step: tourStep }); endTour(); }}
           onNext={() => (tourStep === "add" ? setTourStep("publish") : (track("tour_done"), endTour()))} />
-      )}
-
-      {/* ── First publish guide (once, PublishHint.tsx) ── */}
-      {pubHintOpen && !phonePreview && !tourStep && publishState === "pending" && (
-        <PublishHint handle={userHandle} onPublish={() => { void publishSpace(); }}
-          onLater={() => { markPublishHintSeen(); setPubHintOpen(false); }} />
       )}
 
       {/* ── Novedades (once per browser, NewsDialog.tsx) ── */}
