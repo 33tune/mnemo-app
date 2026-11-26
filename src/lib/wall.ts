@@ -162,18 +162,24 @@ export function wallOwnBg(card: ProfileCardData): Pick<CardEffects, "bg" | "grad
 }
 
 /** What the back renders: the card's effects, none, or its own — and the card's background or its own. */
-export function wallBackEffects(card: ProfileCardData): CardEffects {
+export function wallBackEffects(card: ProfileCardData, o: { lite?: boolean } = {}): CardEffects {
   const { bgMode, fxMode } = wallModes(card);
   const cardFx = getProfileCardEffects(card);
   const { bg: _b, gradient: _g, entrance: _e, ...ownRest } = card.wallEffects ?? {};
   const base: CardEffects = fxMode === "card" ? { ...cardFx } : fxMode === "own" ? { ...ownRest } : { border: { width: 0 } };
   const bgPart = bgMode === "own" ? wallOwnBg(card) : { bg: cardFx.bg, gradient: cardFx.gradient };
   const look = resolveWallLook(card);
+  // Phones (lite): the same look without the heavy layers (holo, glitter,
+  // strass, dust, aura, retro, motion, floating, tilt) — iPhones reload the
+  // page when a second full set of them is drawn next to the card.
+  const kept: CardEffects = o.lite
+    ? { border: base.border, shadow: base.shadow, glow: base.glow ? { ...base.glow, animation: undefined } : undefined, edge: base.edge }
+    : base;
   return {
-    ...base,
-    bg: { ...bgPart.bg, ...(bgPart.bg?.image ? { imageMode: "cover" as const } : {}) },
+    ...kept,
+    bg: { ...bgPart.bg, ...(bgPart.bg?.image ? { imageMode: "cover" as const } : {}), ...(o.lite ? { blur: 0, glass: false } : {}) },
     gradient: bgPart.gradient,
-    border: { ...base.border, radius: look.radius },
+    border: { ...kept.border, radius: look.radius },
     entrance: undefined,
   };
 }

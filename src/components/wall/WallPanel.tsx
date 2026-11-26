@@ -81,7 +81,9 @@ export default function WallPanel(p: WallPanelProps) {
   const [phase, setPhase] = useState<"in" | "shown" | "out">("in");
   const closingRef = useRef(false);
 
-  const fx = useMemo(() => backEffects(p.card), [p.card]);
+  // Phones get the light back (see wallBackEffects) and no tilt by finger.
+  const [lite] = useState(() => typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 700));
+  const fx = useMemo(() => backEffects(p.card, { lite }), [p.card, lite]);
   const light = useMemo(() => cardIsLight({ ...p.card, effects: fx } as ProfileCardData, fx), [p.card, fx]);
   const colors = useMemo(() => fxCardColors(p.card, getProfileCardEffects(p.card)), [p.card]);
   const ix = useCardInteractions(fx, face as React.RefObject<HTMLElement | null>, true);
@@ -112,6 +114,8 @@ export default function WallPanel(p: WallPanelProps) {
     const el = p.getCard();
     const ms = reduced() ? 1 : TURN_MS;
     cardAnim.current = el ? turn(el, 0, 90, ms, "cubic-bezier(.55,0,.9,.45)", true) : null;
+    // Turned away = asleep: no animations, nothing drawn (frees the GPU on phones).
+    if (el) window.setTimeout(() => { if (!closingRef.current) { el.setAttribute("data-fx-paused", ""); el.style.visibility = "hidden"; } }, ms + 20);
     const t = window.setTimeout(() => {
       setPhase("shown");
       if (shell.current) turn(shell.current, -90, 0, reduced() ? 1 : TURN_MS + 60, "cubic-bezier(.12,.6,.3,1)", false);
@@ -120,7 +124,12 @@ export default function WallPanel(p: WallPanelProps) {
     return () => { window.clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => () => { cardAnim.current?.cancel(); }, []);
+  useEffect(() => () => {
+    cardAnim.current?.cancel();
+    const el = p.getCard();
+    if (el) { el.style.visibility = ""; el.removeAttribute("data-fx-paused"); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const close = () => {
     if (closingRef.current) return;
@@ -130,6 +139,7 @@ export default function WallPanel(p: WallPanelProps) {
     const a = shell.current ? turn(shell.current, 0, -90, ms, "cubic-bezier(.55,0,.9,.45)", true) : null;
     const back = () => {
       const el = p.getCard();
+      if (el) { el.style.visibility = ""; el.removeAttribute("data-fx-paused"); }
       cardAnim.current?.cancel();
       cardAnim.current = null;
       if (el) turn(el, 90, 0, reduced() ? 1 : TURN_MS + 60, "cubic-bezier(.12,.6,.3,1)", false);

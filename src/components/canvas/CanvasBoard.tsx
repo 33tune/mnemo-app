@@ -678,7 +678,7 @@ export default function CanvasBoard({
     });
   }, []);
   // Editor de celular: the sheet (expanded / collapsed to its bar).
-  const [phoneSheetOpen, setPhoneSheetOpen] = useState(true);
+  const [phoneSheetOpen, setPhoneSheetOpen] = useState(false);
   // Vista previa (2026-11-23, pedido del usuario): the card as visitors see it
   // — no bar, no sheet, no zoom; the card behaves like on the profile.
   const [phonePreview, setPhonePreview] = useState(false);

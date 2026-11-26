@@ -11,7 +11,7 @@
  */
 import React from "react";
 import type { CardEffects, CommentsBoxStyle, ProfileCardData, WallButtonIcon } from "@/types";
-import { SliderRow, ColorRow, SwitchRow, MenuRow, Tabs, ChoiceTiles, UploadField, FontField, MenuNote } from "@/ui";
+import { SliderRow, ColorRow, SwitchRow, GroupLabel, Tabs, ChoiceTiles, UploadField, FontField, MenuNote } from "@/ui";
 import { useWallSettings } from "@/hooks/useWall";
 import { uploadToStorage } from "@/lib/storage";
 import { CANVAS_FONTS } from "@/lib/fontList";
@@ -46,10 +46,11 @@ export function WallMainSection(p: SectionProps) {
     <div style={stack}>
       <SwitchRow label="Mostrar el muro" icon="eye" value={!raw?.hidden} onChange={v => setStyle({ hidden: v ? undefined : true })} />
       {!raw?.hidden && (
-        <MenuRow label="Quién puede escribir">
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <GroupLabel>Quién puede escribir</GroupLabel>
           <Tabs label="Quién puede escribir" variant="pill" active={w.off ? "me" : "all"} onChange={id => w.setOff(id === "me")}
             tabs={[{ id: "all", label: "Todos" }, { id: "me", label: "Solo yo" }]} />
-        </MenuRow>
+        </div>
       )}
     </div>
   );
@@ -150,10 +151,11 @@ export function WallButtonSection(p: SectionProps) {
       )}
       <UploadField kind="avatar" value={b.image} label="Tu imagen" caption="Imagen" accept="image/*,image/gif" compact
         onFile={onImage} onRemove={() => setButton({ image: undefined })} />
-      <MenuRow label="Forma">
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <GroupLabel>Forma</GroupLabel>
         <Tabs label="Forma del botón" variant="pill" active={b.shape} onChange={id => setButton({ shape: id === "circle" ? undefined : "none" })}
           tabs={[{ id: "circle", label: "Círculo" }, { id: "none", label: "Suelto" }]} />
-      </MenuRow>
+      </div>
       <SliderRow label="Tamaño" icon="maximize" min={24} max={64} step={1} value={wallButtonSize(p.card)} fmt={v => `${Math.round(v)} px`}
         defaultValue={34} onChange={v => setButton({ size: v === 34 ? undefined : v })} />
       <ColorRow label="Color" value={b.color ?? "#16141c"} onChange={v => setButton({ color: v })}
