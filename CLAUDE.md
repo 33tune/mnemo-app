@@ -739,6 +739,21 @@ planeado acá hasta confirmarlo.
 >   - **Abajo a la izquierda:** tu foto redonda (`AvatarDock.tsx`) → tu home (con avisos, abre Avisos); "+" publica en tu
 >     muro desde cualquier lado; en el editor la foto da vuelta tu card.
 >
+> **MURO v3 (2026-11-26, feedback del usuario; en `main`) — REEMPLAZA de v2 la parte Tarjeta › Muro y el botón por fracción:**
+>   - **Pestaña propia Muro** en el selector de partes (Tarjeta · Perfil · Contenido · Muro; la activa con nombre, las otras
+>     solo ícono): partes Muro (mostrar, quién puede escribir), Fondo (Como la card / Propio = el menú de fondo de la card
+>     sobre `card.wallEffects`), Efectos (Como la card / Ninguno / Propios = la galería de efectos sobre `card.wallEffects`;
+>     `commentsBox.fxMode`), Textos y Botón. `ProfileWallMenu.tsx` (`Wall*Section`); ObjectIds `wallMain/wallBg/wallFx/
+>     wallText/wallButton`. Elegir una parte del Muro muestra el dorso; Botón y las otras pestañas, el frente; cerrar el
+>     menú no gira; el botón de la card SOLO gira (nunca abre el menú); el dorso siempre tiene "Volver al frente".
+>   - **Botón = bloque del motor** (`wallAnchorX/Y`): `profileLayout` lo ubica DESPUÉS del motor en espacio libre
+>     (`placeInFreeSpace`) — nunca mueve otro bloque (barrido de las 27 cards publicadas: 0 cambios); se arrastra como los
+>     demás (`startPartDrag(e, "wall")`, imanes). Ícono estándar "feed" + 3 más, o la imagen del dueño, Círculo / Suelto,
+>     tamaño 24–64, color (`commentsBox.button`).
+>   - **Celular:** el dorso usa efectos livianos (`wallBackEffects(card, { lite })`: sin holo / glitter / strass / retro /
+>     movimiento) y la card de adelante se duerme mientras se ve el muro (pausa + `visibility: hidden`): Safari recargaba
+>     la página en `drakovin`. La hoja del editor de celular arranca plegada. Sin "tu nombre" de muestra en la card vacía.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por

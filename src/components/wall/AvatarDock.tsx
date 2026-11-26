@@ -47,7 +47,7 @@ export default function AvatarDock(p: AvatarDockProps) {
           </button>
         ) : (
           <a href={homeHref} aria-label={`Ir a mi card${unread ? `, ${unread} nuevos` : ""}`} title={`@${me.handle}`}
-            style={{ display: "block", width: 46, height: 46, borderRadius: 99, boxShadow: "0 0 0 2px rgba(255,255,255,.85), 0 8px 24px rgba(0,0,0,.35)" }}>
+            style={{ display: "block", width: 46, height: 46, borderRadius: 99, textDecoration: "none", boxShadow: "0 0 0 2px rgba(255,255,255,.85), 0 8px 24px rgba(0,0,0,.35)" }}>
             <Avatar a={me} size={46} round />
           </a>
         )}
