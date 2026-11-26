@@ -754,8 +754,8 @@ planeado acá hasta confirmarlo.
 >     movimiento) y la card de adelante se duerme mientras se ve el muro (pausa + `visibility: hidden`): Safari recargaba
 >     la página en `drakovin`. La hoja del editor de celular arranca plegada. Sin "tu nombre" de muestra en la card vacía.
 >
-> **Explorar, avisos de favoritos y celular con pestañas (2026-11-26, pedido del usuario; rama
->   `claude/adoring-edison-j7pzhk`, NO en `main` hasta su OK):**
+> **Explorar, avisos de favoritos y celular con pestañas (2026-11-26, pedido del usuario; en `main` con su OK, desde la rama
+>   `claude/adoring-edison-j7pzhk`):**
 >   - **Explorar** reemplaza la barra de accesos directos (`ShortcutsBar` ya no se monta; queda `SHORTCUTS_BAR_H`): botón
 >     "Explorar" abajo (`ExploreButton`, con hasta 3 fotos de favoritos y punto rosa si alguno cambió) → panel
 >     (`ExplorePanel.tsx`: dock a la derecha en la compu, pantalla completa en el celular): buscar, Tus favoritos (anillo =
