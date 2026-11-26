@@ -29,11 +29,11 @@ export default function PhoneEditorBar({
   /** Muro: opens "tu celular" (Feed, Mi muro, Avisos); a dot when there are new notices. */
   onComments?: () => void;
   unreadComments?: boolean;
-  /** Vista previa: the card as visitors see it (no editing chrome). */
+  /** Inicio (2026-11-26): the room as visitors see it — the phone's Inicio tab. */
   onPreview: () => void;
-  /** Buscar cards (the search sheet). */
+  /** Explorar (2026-11-26): the Explorar tab (search + favorites + community). */
   onSearch: () => void;
-  /** Tus favoritos: folds the sheet, the favorites bar shows under the card. */
+  /** Kept for callers; Explorar now holds the favorites. */
   onFavorites: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -67,7 +67,7 @@ export default function PhoneEditorBar({
           onClick={() => { if (canRedo) onRedo(); }}>
           <Icon name="redo" size={18} />
         </button>
-        <button type="button" className="mn-gbtn" aria-label="Vista previa" onClick={onPreview}>
+        <button type="button" className="mn-gbtn" aria-label="Listo: ver mi sala" title="Ver mi sala" onClick={onPreview}>
           <Icon name="eye" size={18} />
         </button>
         <button ref={moreRef} type="button" className="mn-gbtn" aria-label="Más opciones"
@@ -84,10 +84,7 @@ export default function PhoneEditorBar({
           <div ref={menuRef} id={MORE_ID} role="group" aria-label="Más opciones" className="mn-glassmenu mn-glassmenu--more"
             onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); setOpen(false); moreRef.current?.focus(); } }}>
             <button type="button" className="mn-glassmenu__item" onClick={run(onSearch)}>
-              <Icon name="search" size={16} /><span>Buscar cards</span>
-            </button>
-            <button type="button" className="mn-glassmenu__item" onClick={run(onFavorites)}>
-              <Icon name="star" size={16} /><span>Tus favoritos</span>
+              <Icon name="search" size={16} /><span>Explorar</span>
             </button>
             <button type="button" className="mn-glassmenu__item" aria-pressed={roomOpen} onClick={run(onRoom)}>
               <Icon name="room" size={16} /><span>Fondo de la sala</span>

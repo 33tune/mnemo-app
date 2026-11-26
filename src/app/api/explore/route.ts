@@ -82,6 +82,7 @@ export async function GET(req: Request) {
     items: page.map(c => ({
       userId: c.userId, handle: c.handle, name: (c.card.name || c.handle).slice(0, 60),
       isNew: Date.parse(c.createdAt) > newCut, favorite: favSet.has(c.userId), card: cardForThumb(c.card),
+      room: { wallpaper: typeof c.state.wallpaper === "string" && /^https?:\/\//.test(c.state.wallpaper) ? c.state.wallpaper : "", bgColor: typeof c.state.bgColor === "string" ? c.state.bgColor : "" },
     })),
     more: offset + limit < ranked.length,
   }, { headers: { "Cache-Control": "private, max-age=30" } });

@@ -75,7 +75,10 @@ import WallPanel from "@/components/wall/WallPanel";
 import AvatarDock from "@/components/wall/AvatarDock";
 import { wallShown } from "@/lib/wall";
 import { cardIsLight } from "@/lib/cardColors";
-import ShortcutsBar, { SHORTCUTS_BAR_H } from "./ShortcutsBar";
+import { SHORTCUTS_BAR_H } from "./ShortcutsBar";
+import ExplorePanel, { ExploreButton } from "@/components/explore/ExplorePanel";
+import PhoneTabs, { PhoneHome, PHONE_TABS_H, type PhoneTab } from "@/components/explore/PhoneTabs";
+import { isFinished as cardIsFinished } from "@/lib/explore";
 import { track, trackOnce, markVisit } from "@/lib/track";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
@@ -681,7 +684,13 @@ export default function CanvasBoard({
   const [phoneSheetOpen, setPhoneSheetOpen] = useState(false);
   // Vista previa (2026-11-23, pedido del usuario): the card as visitors see it
   // — no bar, no sheet, no zoom; the card behaves like on the profile.
-  const [phonePreview, setPhonePreview] = useState(false);
+  // Celular (2026-11-26): three tabs — Inicio (the room as visitors see it,
+  // the old "vista previa"), Explorar and Editar (the card editor).
+  const [phoneTab, setPhoneTab] = useState<PhoneTab>("editar");
+  const phonePreview = phoneEdit && phoneTab !== "editar";
+  const setPhonePreview = useCallback((v: boolean) => setPhoneTab(v ? "inicio" : "editar"), []);
+  // Explorar (2026-11-26): the panel that replaced the favorites bar.
+  const [exploreOpen, setExploreOpen] = useState(false);
   // The notch / status bar (env(safe-area-inset-top)): the top bar grows by it.
   const [safeTop, setSafeTop] = useState(0);
   useEffect(() => {
@@ -1300,6 +1309,14 @@ export default function CanvasBoard({
     [inSpace, texts, phoneAreaKey]);
   const visGalleries = useMemo(() => inSpace ? galleries.filter(g => g.isPublic)          : galleries,    [inSpace, galleries]);
   const visProfiles  = useMemo(() => inSpace ? profiles.filter(p => p.isPublic)           : profiles,     [inSpace, profiles]);
+  // Celular (2026-11-26): a finished card opens on Inicio (your room); an
+  // unfinished one goes straight to the editor. Decided once per visit.
+  const phoneTabDecided = useRef(false);
+  useEffect(() => {
+    if (!phoneEdit || isLoading || phoneTabDecided.current || !visProfiles.length) return;
+    phoneTabDecided.current = true;
+    if (cardIsFinished(visProfiles[0], { images, texts, wallpaper } as unknown as CanvasState)) setPhoneTab("inicio");
+  }, [phoneEdit, isLoading, visProfiles, images, texts, wallpaper]);
   // Muro v3: the button only turns the card (it never opens the menu).
   // In the editor the Muro tab shows the back by itself (Botón shows the
   // front); going to another tab shows the front; closing the menu changes nothing.
@@ -3840,18 +3857,20 @@ export default function CanvasBoard({
       </div>
       {/* Perfil público en compu: la pastilla (volver, logo, myLand, @usuario), sin la barra vieja. */}
       {!canEdit && !mobileFit && <PublicBrandPill handle={userHandle} />}
-      {phoneEdit && phonePreview && (
-        <div data-mnemo-ui="" className="mn-phoneprev">
-          <span>Vista previa</span>
-          <button type="button" className="mn-pill mn-pill--brand" onClick={() => setPhonePreview(false)}>Volver a editar</button>
-        </div>
+      {phoneEdit && phoneTab === "inicio" && !shareOpen && !wallOpen && !isLoading && (
+        <PhoneHome handle={(userHandle || "").replace(/^@/, "")} onShare={visProfiles.length ? openShare : undefined}
+          onNotices={() => openWall("news")} unread={unreadActivity} />
+      )}
+      {phoneEdit && phoneTab === "explorar" && <ExplorePanel mode="screen" bottom={PHONE_TABS_H} />}
+      {phoneEdit && phoneTab !== "editar" && !shareOpen && !isLoading && !wallOpen && (
+        <PhoneTabs tab={phoneTab} onTab={t => { setPhoneZoom(null); if (t !== "editar") setWallOpen(false); setPhoneTab(t); }} />
       )}
       {phoneEdit && <input ref={phonePhotoInputRef} type="file" accept="image/*" hidden onChange={onPhonePhotoPicked} />}
       {phoneEdit && !phonePreview && (
         <PhoneEditorBar handle={userHandle}
           onPreview={() => { setPhoneZoom(null); setPhonePreview(true); }}
-          onSearch={() => { setPhoneSheetOpen(true); openSearch(); }}
-          onFavorites={() => setPhoneSheetOpen(false)}
+          onSearch={() => setPhoneTab("explorar")}
+          onFavorites={() => setPhoneTab("explorar")}
           canUndo={histFlags.canUndo} canRedo={histFlags.canRedo}
           onUndo={() => runHistoryRef.current("undo")} onRedo={() => runHistoryRef.current("redo")}
           publishState={publishState} onPublish={publishSpace}
@@ -3877,11 +3896,6 @@ export default function CanvasBoard({
             <Icon name="plus" size={18} />
           </button>
         </div>
-      )}
-      {phoneEdit && !phoneSheetOpen && !phonePreview && !isLoading && !shareOpen && (
-        <ShortcutsBar bottom={INSPECTOR_SHEET_COLLAPSED_H + 10} currentHandle={userHandle}
-          search={{ open: searchOpen, panelId: SEARCH_PANEL_ID, buttonId: RAIL_SEARCH_BUTTON_ID,
-            onToggle: () => { setPhoneSheetOpen(true); openSearch(); } }} />
       )}
       {phoneEdit && phoneTip && !phonePreview && !isLoading && (
         <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
@@ -4599,11 +4613,19 @@ export default function CanvasBoard({
           in the editor (beside the rail, clear of the dock) and on other
           people's profiles while signed in (computer). */}
       {railShown && !tourStep && (
-        <ShortcutsBar left={railW + 60} right={inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
-          search={{ open: searchOpen, panelId: SEARCH_PANEL_ID, buttonId: RAIL_SEARCH_BUTTON_ID,
-            onToggle: () => { if (searchOpen) closeInspector(); else { setMenuOpen(false); openSearch(); } } }} />
+        <ExploreButton open={exploreOpen} left={railW + 60} right={exploreOpen ? 414 : inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
+          onToggle={() => setExploreOpen(o => { if (!o) { closeInspector(); setMenuOpen(false); } return !o; })} />
       )}
-      {!canEdit && viewerLoggedIn && !mobileFit && <ShortcutsBar left={72} right={170} currentHandle={userHandle} />}
+      {railShown && !tourStep && exploreOpen && (
+        <ExplorePanel mode="dock" top={sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin} onClose={() => setExploreOpen(false)} />
+      )}
+      {!canEdit && !shareOpen && !wallOpen && visProfiles.length > 0 && (
+        mobileFit
+          ? <ExploreButton compact open={exploreOpen} onToggle={() => setExploreOpen(o => !o)}
+              at={{ left: 70, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }} />
+          : <ExploreButton open={exploreOpen} left={72} right={exploreOpen ? 414 : 170} onToggle={() => setExploreOpen(o => !o)} />
+      )}
+      {!canEdit && exploreOpen && (mobileFit ? <ExplorePanel mode="screen" onClose={() => setExploreOpen(false)} /> : <ExplorePanel mode="dock" onClose={() => setExploreOpen(false)} />)}
       {/* Muro (2026-11-25): tu card en miniatura (bottom-left, everywhere) → tu celular. */}
       {!shareOpen && !tourStep && !phoneEdit && (
         canEdit
