@@ -72,7 +72,7 @@ class AuthPage extends React.Component<any, any> {
     const base = { email: "vos@email.com", pass: "myland2026!", handle: this.state.handle || "tu-nombre", hStatus: "ok", loading: false, error: "", sent: false, success: false, intro: false };
     if (p === "Cargando") this.setState({ ...base, loading: true });
     if (p === "Error") this.setState({ ...base, error: this.state.mode === "login" ? "Email o contraseña incorrectos." : "Ese email ya tiene una cuenta.", errorKind: this.state.mode === "login" ? "creds" : "exists" });
-    if (p === "Email enviado") this.setState({ ...base, sent: true, resendIn: 30 });
+    if (p === "Email enviado") this.setState({ ...base, sent: true, resendIn: 60 });
     if (p === "Sin conexión") this.setState({ ...base, error: "No pudimos conectarnos. Revisá tu internet y probá de nuevo.", errorKind: "network" });
   }
   playIntro() {
@@ -112,8 +112,8 @@ class AuthPage extends React.Component<any, any> {
     if (false) this.t = setTimeout(() => {
       const em = this.state.email.toLowerCase();
       if (!navigator.onLine) return this.fail("No pudimos conectarnos. Revisá tu internet y probá de nuevo.", "network");
-      if (s.mode === "register") { if (em.startsWith("usado")) return this.fail("Ese email ya tiene una cuenta.", "exists"); return this.setState({ loading: false, sent: true, resendIn: 30 }, () => this.tick()); }
-      if (s.mode === "reset") return this.setState({ loading: false, sent: true, resendIn: 30 }, () => this.tick());
+      if (s.mode === "register") { if (em.startsWith("usado")) return this.fail("Ese email ya tiene una cuenta.", "exists"); return this.setState({ loading: false, sent: true, resendIn: 60 }, () => this.tick()); }
+      if (s.mode === "reset") return this.setState({ loading: false, sent: true, resendIn: 60 }, () => this.tick());
       if (em.includes("error") || this.state.pass === "error") return this.fail("Email o contraseña incorrectos.", "creds");
       this.setState({ loading: false, success: true });
     }, 1500);
@@ -174,6 +174,10 @@ class AuthPage extends React.Component<any, any> {
     this.threeLoading = false;
   }
   fail(msg, kind) { this.setState({ loading: false, error: msg, errorKind: kind }, () => this.shake()); }
+  // Resends cost emails (free plan: 100 a day): at most 2 per address per day, each one waiting longer.
+  resendKey() { return "ml-resends:" + (this.state.email || "").trim().toLowerCase() + ":" + new Date().toISOString().slice(0, 10); }
+  resendsLeft() { try { return 2 - Number(localStorage.getItem(this.resendKey()) || 0); } catch (e) { return 2; } }
+  countResend() { let n = 1; try { n = Number(localStorage.getItem(this.resendKey()) || 0) + 1; localStorage.setItem(this.resendKey(), String(n)); } catch (e) { /* private mode: only the wait applies */ } return n; }
   tick() { clearInterval(this.ri); this.ri = setInterval(() => this.setState(s => { if (s.resendIn <= 1) clearInterval(this.ri); return { resendIn: Math.max(0, s.resendIn - 1) }; }), 1000); }
   renderVals() {
     const s = this.state, reg = s.mode === "register", login = s.mode === "login", reset = s.mode === "reset", m = s.mobile;
@@ -219,8 +223,8 @@ class AuthPage extends React.Component<any, any> {
       onCode: e => { const v = String(e.target.value || "").replace(/\D/g, "").slice(0, 10); this.setState({ code: v, codeErr: "" }); if (v.length === 6) this.verifyCode(v); },
       submitCode: e => { if (e && e.preventDefault) e.preventDefault(); this.verifyCode(this.state.code || ""); },
       sentEmail: s.email || "vos@email.com",
-      resend: () => { if (this.state.resendIn > 0) return; this.props.auth.resend(this.state.mode, this.state.email).then(err => err ? this.setState({ sent: false, error: err, errorKind: "network" }) : this.setState({ resendIn: 30 }, () => this.tick())); }, resendDisabled: s.resendIn > 0,
-      resendLabel: s.resendIn > 0 ? "Reenviar en " + s.resendIn + " s" : "Reenviar", resendColor: s.resendIn > 0 ? "var(--ml-ink-3)" : "var(--ml-ink)",
+      resend: () => { if (this.state.resendIn > 0 || this.resendsLeft() <= 0) return; this.props.auth.resend(this.state.mode, this.state.email).then(err => { if (err) return this.setState({ sent: false, error: err, errorKind: "network" }); const used = this.countResend(); this.setState({ resendIn: 60 + used * 60 }, () => this.tick()); }); }, resendDisabled: s.resendIn > 0 || this.resendsLeft() <= 0,
+      resendLabel: this.resendsLeft() <= 0 ? "Revisá spam o promociones" : s.resendIn > 0 ? "Reenviar en " + s.resendIn + " s" : "Reenviar", resendColor: s.resendIn > 0 || this.resendsLeft() <= 0 ? "var(--ml-ink-3)" : "var(--ml-ink)",
       backToForm: () => this.setState({ sent: false }),
       intro: s.intro, success: s.success, okRef: this.okRef, cols: !m,
       cardCls: m ? "" : "lg-glass", cardPad: m ? "0" : "36px 34px",
@@ -256,7 +260,7 @@ class AuthPage extends React.Component<any, any> {
     if (typeof navigator !== "undefined" && !navigator.onLine) return this.fail("No pudimos conectarnos. Revisá tu internet y probá de nuevo.", "network");
     const r = await this.props.auth[mode]({ email: s.email.toLowerCase(), pass: s.pass, handle: s.handle });
     if (r.error) return this.fail(r.error, r.kind || "network");
-    if (r.sent) return this.setState({ loading: false, sent: true, resendIn: 30 }, () => this.tick());
+    if (r.sent) return this.setState({ loading: false, sent: true, resendIn: 60 }, () => this.tick());
     this.setState({ loading: false, success: true });
     clearTimeout(this.goT);
     this.goT = setTimeout(() => this.props.navigate(r.next || "/dashboard"), 1500);
