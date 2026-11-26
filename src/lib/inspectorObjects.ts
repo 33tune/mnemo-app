@@ -18,7 +18,8 @@ import { effectState } from "./effectBinding";
 import { isCardGlowFlagVisible } from "./effectEditorDefaults";
 import { getProfileCardEffects } from "./profileCardEffects";
 
-export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers";
+export type ObjectId = TextRole | "photo" | "links" | "buttons" | "logo" | "cardBg" | "cardFx" | "allText" | "stickers"
+  | "wallMain" | "wallBg" | "wallFx" | "wallText" | "wallButton";
 
 export type ObjectKind = "role" | "block" | "card" | "all";
 /** Review r2: the list is a MAP of the card in three fixed clusters —
@@ -180,6 +181,17 @@ export const INSPECTOR_OBJECTS: readonly InspectorObject[] = [
     } },
   { id: "allText", caption: "Todos los textos", shortCaption: "Textos", placeholder: "Aa", kind: "all", group: "card",
     chip: ({ baseColor, effective }) => ({ text: "Textos", sampleColor: baseColor, swatch: backgroundSwatch(effective), spoken: "" }) },
+  // Muro v3 (2026-11-26): the back of the card.
+  { id: "wallMain", caption: "Muro", placeholder: "Muro", kind: "card", group: "card",
+    chip: ({ card }) => card.commentsBox?.hidden ? { text: "Muro", placeholder: true, spoken: "oculto" } : { text: "Muro", spoken: "visible" } },
+  { id: "wallBg", caption: "Fondo del muro", shortCaption: "Fondo", placeholder: "Fondo", kind: "card", group: "card",
+    chip: ({ card }) => ({ text: "Fondo", spoken: card.commentsBox?.bgMode === "own" ? "propio" : "como la card" }) },
+  { id: "wallFx", caption: "Efectos del muro", shortCaption: "Efectos", placeholder: "Efectos", kind: "card", group: "card",
+    chip: ({ card }) => ({ text: "Efectos", spoken: card.commentsBox?.fxMode === "own" ? "propios" : card.commentsBox?.fxMode === "none" ? "ninguno" : "como la card" }) },
+  { id: "wallText", caption: "Textos del muro", shortCaption: "Textos", placeholder: "Aa", kind: "card", group: "card",
+    chip: () => ({ text: "Textos", spoken: "" }) },
+  { id: "wallButton", caption: "Botón del muro", shortCaption: "Botón", placeholder: "Botón", kind: "card", group: "card",
+    chip: ({ card }) => card.commentsBox?.button?.image ? { text: "Botón", thumb: card.commentsBox.button.image, spoken: "imagen" } : { text: "Botón", spoken: "ícono" } },
 ];
 
 export const OBJECT_IDS: readonly ObjectId[] = INSPECTOR_OBJECTS.map(o => o.id);
@@ -239,6 +251,11 @@ export function objectModified(id: ObjectId, card: ProfileCardData): boolean {
       return differs(rest, base) || differs({ color: border?.color, width: border?.width, opacity: border?.opacity }, base.border);
     }
     case "stickers": return (card.stickers?.length ?? 0) > 0;
+    case "wallMain": return set(card.commentsBox?.hidden);
+    case "wallBg":   return set(card.commentsBox?.bgMode) || set(card.commentsBox?.radius) || set(card.wallEffects?.bg) || set(card.wallEffects?.gradient);
+    case "wallFx":   return set(card.commentsBox?.fxMode);
+    case "wallText": return set(card.commentsBox?.font) || set(card.commentsBox?.color) || set(card.commentsBox?.accent);
+    case "wallButton": return set(card.commentsBox?.button) || set(card.wallAnchorX);
     case "allText": return set(card.textColor) || set(card.textAlign) || set(card.monoLineHeight) || set(fx?.text);
     default:        return false;
   }
@@ -288,12 +305,14 @@ export function chipAccessibleName(obj: InspectorObject, data: ChipData, platfor
  * picker shows the active part's group as a segmented control and that
  * group's parts — with their names — under it; every part is one click
  * away from its group. */
-export type PartGroupId = "card" | "profile" | "content";
+export type PartGroupId = "card" | "profile" | "content" | "wall";
 export interface PartGroup { id: PartGroupId; label: string; parts: readonly ObjectId[] }
 export const PART_GROUPS: readonly PartGroup[] = [
   { id: "card",    label: "Tarjeta",   parts: ["cardBg", "cardFx", "allText", "stickers"] },
   { id: "profile", label: "Perfil",    parts: ["photo", "name", "handle", "descriptor", "location", "bio", "about"] },
   { id: "content", label: "Contenido", parts: ["links", "buttons", "logo", "views"] },
+  // Muro v3 (2026-11-26): the back of the card. Its parts (except Botón, which lives on the front) show the back.
+  { id: "wall",    label: "Muro",      parts: ["wallMain", "wallBg", "wallFx", "wallText", "wallButton"] },
 ];
 export function partGroupOf(id: ObjectId): PartGroup {
   return PART_GROUPS.find(g => g.parts.includes(id)) ?? PART_GROUPS[0];
@@ -342,12 +361,18 @@ export const OBJECT_FILES: Record<ObjectId, readonly string[]> = {
   cardFx:     [EFFECTS],
   allText:    [TYPOGRAPHY],
   stickers:   [`${C}ProfileStickersMenu.tsx`],
+  wallMain:   [`${C}ProfileWallMenu.tsx`],
+  wallBg:     [`${C}ProfileWallMenu.tsx`],
+  wallFx:     [`${C}ProfileWallMenu.tsx`],
+  wallText:   [`${C}ProfileWallMenu.tsx`],
+  wallButton: [`${C}ProfileWallMenu.tsx`],
 };
 export const CHILD_FILES: Record<string, readonly string[]> = {
   [TYPOGRAPHY]: [`${C}RoleTypographyFields.tsx`],
   [IDENTITY]: [`${C}BlockStyleFields.tsx`],
   [METADATA]: [`${C}BlockStyleFields.tsx`],
   [`${C}ProfileContactLinksMenu.tsx`]: [`${C}BlockStyleFields.tsx`],
+  [`${C}ProfileWallMenu.tsx`]: [`${C}ProfileBackgroundMenu.tsx`, EFFECTS],
 };
 
 /** Every file whose controls the object's sections render (direct + children). */

@@ -69,12 +69,13 @@ import { CanvasGrid, useGridPreference, useGridSnapPreference, GRID_STEP } from 
 import type { RoomOp } from "./RoomInspector";
 import ShareCardDialog from "@/components/share/ShareCardDialog";
 import { HeartPill } from "./StatsRow";
-import CommentsPanel, { CommentsButton, COMMENTS_BUTTON_ID } from "./CommentsPanel";
-import { useCommentCount, useUnreadComments } from "@/hooks/useComments";
+import { useCommentCount } from "@/hooks/useComments";
+import { useUnreadActivity } from "@/hooks/useWall";
+import WallPanel from "@/components/wall/WallPanel";
+import AvatarDock from "@/components/wall/AvatarDock";
+import { wallShown } from "@/lib/wall";
+import { cardIsLight } from "@/lib/cardColors";
 import ShortcutsBar, { SHORTCUTS_BAR_H } from "./ShortcutsBar";
-import { useNote } from "@/hooks/useNote";
-import { noteReserve, noteBoxVisible, resolveNoteBox, noteGap, withNoteRoom } from "@/lib/noteBox";
-import NoteBox from "./NoteBox";
 import { track, trackOnce, markVisit } from "@/lib/track";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
@@ -114,7 +115,7 @@ const MOBILE_CANVAS_W = 390;
 const PHONE_BAR_H = 56;
 const PHONE_TIP_KEY = "mnemo_phone_tip_v1";
 /** Editor de celular: a block dragged with the finger opens its part. */
-const BLOCK_PART: Record<string, string> = { pfp: "photo", identity: "name", location: "location", views: "views", about: "about", links: "links", buttons: "buttons" };
+const BLOCK_PART: Record<string, string> = { pfp: "photo", identity: "name", location: "location", views: "views", about: "about", links: "links", buttons: "buttons", wall: "wallButton" };
 
 function isSpaceCanvas(mode: CanvasMode): boolean {
   return mode === "space" || mode === "space_mobile";
@@ -677,7 +678,7 @@ export default function CanvasBoard({
     });
   }, []);
   // Editor de celular: the sheet (expanded / collapsed to its bar).
-  const [phoneSheetOpen, setPhoneSheetOpen] = useState(true);
+  const [phoneSheetOpen, setPhoneSheetOpen] = useState(false);
   // Vista previa (2026-11-23, pedido del usuario): the card as visitors see it
   // — no bar, no sheet, no zoom; the card behaves like on the profile.
   const [phonePreview, setPhonePreview] = useState(false);
@@ -701,9 +702,6 @@ export default function CanvasBoard({
   const phoneFitRef = useRef<{ s: number; areaH: number; vw: number } | null>(null);
   const phoneScreenH = viewerScreen?.h ?? viewportH;
   const phoneSheetH = !phoneEdit || phonePreview ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
-  // Notas (2026-11-06): while the box shows (a note, or a styled empty box),
-  // the view keeps room for it above the card (on a phone and on a computer).
-  const publicNote = useNote(!canEdit ? ownerUserId : undefined);
   const viewFit = phoneEdit ? (() => {
     // Editor de celular: the card (and its stickers) fitted between the top
     // bar and the sheet — the same geometry the phone profile uses.
@@ -733,11 +731,8 @@ export default function CanvasBoard({
   })() : !canEdit ? (() => {
     const vw = viewerScreen?.w ?? 1440, vh = viewerScreen?.h ?? 900;
     const card = elements.find(e => e.elementType === "profile" && e.isPublic) as ProfileCardData | undefined;
-    const noteH = card && noteBoxVisible(!!publicNote.note, card.noteBox) ? noteReserve(resolveNoteBox(card.noteBox), noteGap(card)) : 0;
-    // The card stays the CENTER (the core); the note's room is mirrored below
-    // it, so the box fits above without pushing the card down.
-    const cardH = card ? (mobileFit && mobileCardH && mobileCardH > 0 ? mobileCardH : card.h) : 0;
-    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => withNoteRoom(r, cardH, noteH);
+    // Notas removed (2026-11-25): the card alone is framed.
+    const withNote = <R extends { x: number; y: number; w: number; h: number }>(r: R): R => r;
     const fit = mobileFit
       ? mobileView(vw, vh, withNote(card && mobileCardH && mobileCardH > 0 ? cardViewRect(card, mobileCardH) : mobileFit.card))
       // No top bar on the public profile any more (the pill floats): the whole height is the room's.
@@ -804,7 +799,7 @@ export default function CanvasBoard({
   const inspectorCardId = profileTargetId(editorSel.target);
   const inspectorCardIdRef = useRef<string | null>(null);
   inspectorCardIdRef.current = inspectorCardId;
-  const { openProfile, openRoom, openLayers, openSearch, openNote, openComments, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
+  const { openProfile, openRoom, openLayers, openSearch, openComments, openElement, closeInspector, setObject: setInspectorObject } = editorSel;
   /** Editor v3 Phase G: the element (card, text, image, Music) any inspector
    * is editing — focus / collapse / view-freeze logic is the same for all. */
   const inspectorTargetElId = targetId(editorSel.target);
@@ -915,17 +910,22 @@ export default function CanvasBoard({
     setShareOpen(true);
   }
   const searchOpen = editorSel.target?.kind === "search";
-  // Comentarios (2026-11-17): the panel (public profile: the bubble by the
-  // heart; editor: the bubble in the bottom bar, with a blinking dot when
-  // someone commented since I last opened it).
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const publicCommentCount = useCommentCount(!canEdit ? ownerUserId : undefined);
-  const ownCommentCount = useCommentCount(canEdit ? currentUserId : undefined);
-  const unreadComments = useUnreadComments(canEdit);
-  /** Notas: the note box's panel (its gear) is open. */
-  const noteOpen = editorSel.target?.kind === "note";
-  /** Comentarios (2026-11-17): the look panel of the comments panel. */
-  const commentsStyleOpen = editorSel.target?.kind === "comments";
+  // Muro (2026-11-25): the card turns to its wall (the button / tab on the
+  // card, a sideways swipe on a phone, or ?muro=1), and "tu celular" (the mini
+  // card at the bottom-left: Feed, Mi muro, Avisos).
+  const [wallOpen, setWallOpen] = useState(false);
+  const [wallClosing, setWallClosing] = useState(false);
+  const [wallTab, setWallTab] = useState<"wall" | "feed" | "news">("wall");
+  const wallOwnerId = canEdit ? currentUserId : ownerUserId;
+  const wallCount = useCommentCount(wallOwnerId || undefined);
+  const unreadActivity = useUnreadActivity(canEdit && phoneEdit);
+  const openWall = useCallback((tab: "wall" | "feed" | "news" = "wall") => { setWallTab(tab); setWallClosing(false); setWallOpen(true); }, []);
+  const toggleWall = useCallback(() => { if (wallOpen) setWallClosing(true); else openWall(); }, [wallOpen, openWall]);
+  /** Muro v2: the editor's Tarjeta › Muro part is open — the card shows its back while you edit it. */
+  const editingObject = canEdit && !phonePreview && editorSel.target?.kind === "profile" ? editorSel.target.objectId : null;
+  /** Muro v3: a part of the Muro tab is open (Botón lives on the front; the rest show the back). */
+  const wallPartOpen = !!editingObject && editingObject.startsWith("wall") && editingObject !== "wallButton";
+  const commentsStyleOpen = false;
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
     : undefined;
@@ -952,7 +952,7 @@ export default function CanvasBoard({
     // "Tu sala" moves nothing (it is about the whole room); as a sheet it
     // takes the max share of the viewport.
     // Phase E: Capas, like Tu sala, is about the whole room — nothing moves.
-    if ((roomOpen || layersOpen || searchOpen || noteOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
+    if ((roomOpen || layersOpen || searchOpen) && sheetMode) return { dx: 0, dy: 0, sheetH: inspectorSheetHeight({ viewportH, topOffset: UIT.ui.size.editorTopbarH, boxH: 0 }), covered: false };
     if (!inspectorBox) return { dx: 0, dy: 0, sheetH: 0, covered: false };
     // Phase G (review G-R MAYOR 1): a free element moves — the smallest
     // shift that uncovers it, KEPT while it still shows it (moving it, its
@@ -1045,7 +1045,7 @@ export default function CanvasBoard({
   // Review D-R1: "Tu sala" also opens on touch devices (no canvas editing
   // there, but the room settings were reachable from "+" before Phase D).
   const roomShown = roomOpen && canEdit;
-  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || noteOpen || commentsStyleOpen) && canInteract) || roomShown || (phoneEdit && !!editorSel.target);
+  const inspectorShown = ((!!inspectorProfile || !!inspectorElement || layersOpen || searchOpen || commentsStyleOpen) && canInteract) || roomShown || (phoneEdit && !!editorSel.target);
   // First-visit tour (EditorTour.tsx): its step follows what the user does.
   const [tourStep, setTourStep] = useState<TourStep | null>(null);
   const [newsOpen, setNewsOpen] = useState(false);
@@ -1300,6 +1300,52 @@ export default function CanvasBoard({
     [inSpace, texts, phoneAreaKey]);
   const visGalleries = useMemo(() => inSpace ? galleries.filter(g => g.isPublic)          : galleries,    [inSpace, galleries]);
   const visProfiles  = useMemo(() => inSpace ? profiles.filter(p => p.isPublic)           : profiles,     [inSpace, profiles]);
+  // Muro v3: the button only turns the card (it never opens the menu).
+  // In the editor the Muro tab shows the back by itself (Botón shows the
+  // front); going to another tab shows the front; closing the menu changes nothing.
+  const lastEditingObject = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = lastEditingObject.current;
+    lastEditingObject.current = editingObject;
+    if (!editingObject || editingObject === prev) return;
+    if (wallPartOpen) { if (!wallOpen) openWall("wall"); }
+    else if (wallOpen) setWallClosing(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingObject]);
+  const wallCard = visProfiles[0] as ProfileCardData | undefined;
+  const wallOn = wallShown(wallCard) && !!wallOwnerId;
+  const wallButtonProp = useMemo(
+    () => (wallOn ? { onFlip: toggleWall, active: editingObject === "wallButton" } : undefined),
+    [wallOn, toggleWall, editingObject],
+  );
+  // ?muro=1 opens the card already turned (links from the Feed and Avisos).
+  const muroParamDone = useRef(false);
+  useEffect(() => {
+    if (muroParamDone.current || isLoading || !wallOn || !wallCard) return;
+    if (typeof window === "undefined" || new URLSearchParams(location.search).get("muro") !== "1") { muroParamDone.current = true; return; }
+    muroParamDone.current = true;
+    const tabQ = new URLSearchParams(location.search).get("tab");
+    const t = window.setTimeout(() => openWall(tabQ === "news" || tabQ === "feed" ? tabQ : "wall"), 900);
+    return () => window.clearTimeout(t);
+  }, [isLoading, wallOn, wallCard, openWall]);
+  // A sideways swipe on the card (touch) turns it.
+  useEffect(() => {
+    if (!wallOn || !wallCard || (canEdit && !phonePreview)) return;
+    const el = document.querySelector<HTMLElement>(`[data-profile-card][data-card-id="${wallCard.id}"]`);
+    if (!el) return;
+    let start: { x: number; y: number; t: number } | null = null;
+    const down = (e: TouchEvent) => { const t = e.touches[0]; start = e.touches.length === 1 && t ? { x: t.clientX, y: t.clientY, t: Date.now() } : null; };
+    const up = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (!start || !t) return;
+      const dx = t.clientX - start.x, dy = t.clientY - start.y;
+      if (Math.abs(dx) > 70 && Math.abs(dy) < 45 && Date.now() - start.t < 700) openWall("wall");
+      start = null;
+    };
+    el.addEventListener("touchstart", down, { passive: true });
+    el.addEventListener("touchend", up, { passive: true });
+    return () => { el.removeEventListener("touchstart", down); el.removeEventListener("touchend", up); };
+  }, [wallOn, wallCard, canEdit, phonePreview, openWall, isLoading]);
   const visMedias      = useMemo(() => inSpace ? medias.filter(m => m.isPublic)             : medias,       [inSpace, medias]);
   const visGuestbooks  = useMemo(() => inSpace ? guestbooks.filter(g => g.isPublic)         : guestbooks,   [inSpace, guestbooks]);
   const visSocialCards = useMemo(() => inSpace ? socialCards.filter(c => c.isPublic)        : socialCards,  [inSpace, socialCards]);
@@ -3813,8 +3859,8 @@ export default function CanvasBoard({
           onRoom={() => { setPhoneSheetOpen(true); if (roomOpen) { const c = visProfiles[0]; if (c) { setSelectedIds(new Set([c.id])); openProfile(c.id); } } else openRoom(); }}
           roomOpen={roomOpen}
           onLogout={handleLogout}
-          onComments={visProfiles[0] ? () => setCommentsOpen(o => !o) : undefined}
-          unreadComments={unreadComments > 0} />
+          onComments={() => { setPhoneSheetOpen(false); openWall(unreadActivity > 0 ? "news" : "wall"); }}
+          unreadComments={unreadActivity > 0} />
       )}
       {phoneEdit && !phonePreview && !isLoading && !shareOpen && !!viewerScreen && (
         <div data-mnemo-ui="" className="mn-phonezoom" role="group" aria-label="Zoom" style={{ bottom: phoneSheetOpen ? phoneSheetH + 12 : INSPECTOR_SHEET_COLLAPSED_H + SHORTCUTS_BAR_H + 14 }}>
@@ -3835,8 +3881,7 @@ export default function CanvasBoard({
       {phoneEdit && !phoneSheetOpen && !phonePreview && !isLoading && !shareOpen && (
         <ShortcutsBar bottom={INSPECTOR_SHEET_COLLAPSED_H + 10} currentHandle={userHandle}
           search={{ open: searchOpen, panelId: SEARCH_PANEL_ID, buttonId: RAIL_SEARCH_BUTTON_ID,
-            onToggle: () => { setPhoneSheetOpen(true); openSearch(); } }}
-          comments={visProfiles[0] ? { open: commentsOpen, count: ownCommentCount, unread: unreadComments > 0, onToggle: () => setCommentsOpen(o => !o) } : undefined} />
+            onToggle: () => { setPhoneSheetOpen(true); openSearch(); } }} />
       )}
       {phoneEdit && phoneTip && !phonePreview && !isLoading && (
         <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
@@ -4055,22 +4100,6 @@ export default function CanvasBoard({
       {drawRectVis&&drawRectVis.w>0&&(<div style={{position:"absolute",left:drawRectVis.x,top:drawRectVis.y,width:drawRectVis.w,height:drawRectVis.h,border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.02)",borderRadius:4,pointerEvents:"none",zIndex:600}} />)}
       {selRectVis&&selRectVis.w>5&&selRectVis.h>5&&(<div style={{position:"absolute",left:selRectVis.x,top:selRectVis.y,width:selRectVis.w,height:selRectVis.h,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.02)",borderRadius:3,pointerEvents:"none",zIndex:600}} />)}
 
-      {/* ── NOTE BOX ── (Notas v2: a widget of its own above the card; its surface under
-          everything in the room, its text / tap area over everything — NoteBox.tsx) */}
-      {(() => {
-        const prof = visProfiles.find(p => p.isPublic) ?? visProfiles[0];
-        if (!prof || canvasMode === "space_mobile") return null;
-        const ps = getParallaxStyle(prof.layer, prof.depth);
-        return (
-          <NoteBox key={`note-${prof.id}`} card={prof} ownerUserId={ownerUserId ?? currentUserId ?? undefined} editor={canEdit && canInteract}
-            panelOpen={editorSel.target?.kind === "note" && editorSel.target.cardId === prof.id}
-            onSelect={() => { if (editorSel.target?.kind !== "note") setSelectedIds(new Set()); }}
-            onSettings={() => { if (editorSel.target?.kind === "note") closeInspector(); else { setMenuOpen(false); openNote(prof.id); } }}
-            parallaxTransform={ps.transform as string}
-            entryDelayMs={!canEdit ? 320 : undefined} />
-        );
-      })()}
-
       {/* ── IMAGES ── */}
       {visImages.map((img,i)=>{
         const isSel=selectedIds.has(img.id);
@@ -4218,6 +4247,7 @@ export default function CanvasBoard({
           // Phase H (D5): the open object's part gets the editor-only outline.
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}
           phoneEditor={phoneEdit && !phonePreview}
+          wallButton={i === 0 ? wallButtonProp : undefined}
           onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); setPhoneFocusTick(n => n + 1); }) : undefined} />);
       })}
 
@@ -4569,12 +4599,17 @@ export default function CanvasBoard({
           in the editor (beside the rail, clear of the dock) and on other
           people's profiles while signed in (computer). */}
       {railShown && !tourStep && (
-        <ShortcutsBar left={railW} right={inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
+        <ShortcutsBar left={railW + 60} right={inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
           search={{ open: searchOpen, panelId: SEARCH_PANEL_ID, buttonId: RAIL_SEARCH_BUTTON_ID,
-            onToggle: () => { if (searchOpen) closeInspector(); else { setMenuOpen(false); openSearch(); } } }}
-          comments={visProfiles[0] ? { open: commentsOpen, count: ownCommentCount, unread: unreadComments > 0, onToggle: () => setCommentsOpen(o => !o) } : undefined} />
+            onToggle: () => { if (searchOpen) closeInspector(); else { setMenuOpen(false); openSearch(); } } }} />
       )}
-      {!canEdit && viewerLoggedIn && !mobileFit && <ShortcutsBar right={170} currentHandle={userHandle} />}
+      {!canEdit && viewerLoggedIn && !mobileFit && <ShortcutsBar left={72} right={170} currentHandle={userHandle} />}
+      {/* Muro (2026-11-25): tu card en miniatura (bottom-left, everywhere) → tu celular. */}
+      {!shareOpen && !tourStep && !phoneEdit && (
+        canEdit
+          ? railShown && <AvatarDock bottom={64} onHome={unread => openWall(unread ? "news" : "wall")} />
+          : <AvatarDock />
+      )}
       {/* Compartir tu card (2026-11-04): on the public profile, a small
           button; in the editor, the top bar's share button. */}
       {!canEdit && visProfiles.length > 0 && !shareOpen && (
@@ -4583,8 +4618,6 @@ export default function CanvasBoard({
         {/* Favoritos (2026-11-06): the heart to give one always lives here
             (the card only shows the count). */}
         <HeartPill ownerUserId={ownerUserId} />
-        {/* Comentarios (2026-11-17): the bubble by the heart opens the panel. */}
-        <CommentsButton id={COMMENTS_BUTTON_ID} count={publicCommentCount} open={commentsOpen} onClick={() => setCommentsOpen(o => !o)} />
         <button type="button" onClick={openShare} aria-label="Compartir esta card como historia"
           style={{
             display: "flex", alignItems: "center", gap: 8, height: 44, padding: "0 16px", borderRadius: 999,
@@ -4598,18 +4631,19 @@ export default function CanvasBoard({
         </button>
         </div>
       )}
-      {commentsOpen && visProfiles[0] && !shareOpen && (canEdit ? !!currentUserId : !!ownerUserId) && (
-        <CommentsPanel
-          ownerUserId={canEdit ? currentUserId : ownerUserId}
-          ownerHandle={visProfiles[0].handle || userHandle}
-          style={visProfiles[0].commentsBox}
-          count={canEdit ? ownCommentCount : publicCommentCount}
-          onClose={() => { setCommentsOpen(false); if (commentsStyleOpen) closeInspector(); document.getElementById(COMMENTS_BUTTON_ID)?.focus(); }}
-          right={canEdit && inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
-          bottom={canEdit ? (railShown ? SHORTCUTS_BAR_H : 0) : 60}
+      {wallOpen && visProfiles[0] && !shareOpen && !!wallOwnerId && (
+        <WallPanel
+          card={visProfiles[0]}
+          ownerUserId={wallOwnerId}
+          ownerHandle={(visProfiles[0].handle || userHandle || "").replace(/^@/, "")}
+          getCard={() => document.querySelector<HTMLElement>(`[data-profile-card][data-card-id="${visProfiles[0].id}"]`)}
+          closing={wallClosing}
+          editing={wallPartOpen}
+          startTab={wallTab}
+          onClosed={() => { setWallOpen(false); setWallClosing(false); }}
+          right={canEdit && inspectorShown && !phoneEdit ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
           newTab={canEdit}
-          onSettings={canEdit ? () => { if (commentsStyleOpen) closeInspector(); else { setMenuOpen(false); openComments(visProfiles[0].id); } } : undefined}
-          settingsOpen={commentsStyleOpen}
+          bottom={phoneEdit ? (phoneSheetOpen ? phoneSheetH : INSPECTOR_SHEET_COLLAPSED_H) : 0}
         />
       )}
       {shareOpen && visProfiles[0] && (() => {
@@ -4650,8 +4684,6 @@ export default function CanvasBoard({
             snap: gridSnapOn, onSnap: setGridSnapOn,
             phone: phoneEdit,
           }}
-          noteCard={editorSel.target?.kind === "note" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
-          commentsCard={editorSel.target?.kind === "comments" ? visProfiles.find(p => p.id === (editorSel.target as { cardId: string }).cardId) : undefined}
           layers={layersOpen ? (() => {
             const items = toLayerItems(elements.filter(e => visibleIds.has(e.id)));
             const byId = new Map(elements.map(e => [e.id, e] as const));

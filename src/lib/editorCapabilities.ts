@@ -51,7 +51,7 @@ export type LeafPaths<T, P extends string = ""> = {
 export type EffectLeaf = LeafPaths<Omit<CardEffects, "paused" | "textRoles">>;
 export type RoleEffectLeaf = LeafPaths<RoleTextEffect>;
 /** effects/blockStyle have their own maps; `music` is one deprecated blob. */
-export type ProfileFieldPath = LeafPaths<Omit<ProfileCardData, "effects" | "blockStyle" | "blockStylePaused" | "music">> | "music";
+export type ProfileFieldPath = LeafPaths<Omit<ProfileCardData, "effects" | "blockStyle" | "blockStylePaused" | "music" | "wallEffects">> | "music" | "wallEffects";
 export type MusicFieldPath = LeafPaths<Omit<MusicCardData, "effects">>;
 /** Editor v3 Phase G: free texts and images (their inspectors in the dock). */
 export type TextFieldPath = LeafPaths<CanvasText>;
@@ -75,9 +75,8 @@ const links    = at("ProfileContactLinksMenu.tsx");
 const logo     = at("ProfileLogoMenu.tsx");
 const stk      = at("ProfileStickersMenu.tsx");
 // Notas (2026-11-06): the note box is a widget of its own (its gear panel).
-const noteM    = at("NoteInspector.tsx");
 // Comentarios (2026-11-17): the comments panel's look (its gear panel).
-const comM     = at("CommentsInspector.tsx");
+const comM     = at("ProfileWallMenu.tsx");
 const btns     = at("ProfileLinkButtonsMenu.tsx");
 const config   = at("ProfileConfigMenu.tsx");
 const type     = at("ProfileTypographyMenu.tsx");
@@ -102,12 +101,10 @@ const NOMBRE = obj("Nombre"), USUARIO = obj("@usuario"), FRASE = obj("Frase"), U
 const BIO = obj("Bio"), SOBRE_MI = obj("Sobre mí"), VISITAS = obj("Visitas"), FOTO_OBJ = obj("Foto"), LINKS = obj("Links"), LOGO = obj("Logo");
 const FONDO = obj("Fondo de la card");
 const STICKERS = obj("Stickers");
-/** Notas: the note box is its own widget (its gear panel), not a card part. */
-export const NOTA_UI = "Nota (cuadro sobre la card)";
-const NOTA = `${NOTA_UI} › engranaje`;
-/** Comentarios: the comments panel's own menu (the gear on the panel). */
-export const COMENTARIOS_UI = "Comentarios (panel)";
-const COMS = `${COMENTARIOS_UI} › engranaje › Panel`;
+/** Muro: the back of the card — its own menu (the gear on the wall). */
+/** Muro: a card part (Tarjeta › Muro); kept as an export for the tests' skip list. */
+export const COMENTARIOS_UI = "Muro (dorso de la card)";
+const COMS = obj("Muro");
 const BOTONES = obj("Botones");
 const EFECTOS = obj("Efectos de la card");
 const TODOS = obj("Todos los textos");
@@ -184,22 +181,36 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   stickers: stk(`${STICKERS} › Agregar sticker · Capas · Editar`, "onChange({ stickers: next })"),
   // Notas (2026-11-06): the note box's look (the note itself is not card data).
   "noteBox.scale": retired("first-day single size factor, replaced by Ancho / Alto (noteBox.w / h); no longer drawn"),
-  "noteBox.w": noteM(`${NOTA} › Cuadro › Ancho`, "setStyle({ w: v })"),
-  "noteBox.h": noteM(`${NOTA} › Cuadro › Alto`, "setStyle({ h: v })"),
-  "noteBox.gap": noteM(`${NOTA} › Cuadro › Separación`, "setStyle({ gap: v })"),
-  "noteBox.bg": noteM(`${NOTA} › Cuadro › Color`, "setStyle({ bg: v })"),
-  "noteBox.radius": noteM(`${NOTA} › Cuadro › Redondez`, "setStyle({ radius: v })"),
-  "noteBox.opacity": noteM(`${NOTA} › Cuadro › Opacidad`, "setStyle({ opacity: v })"),
-  "noteBox.font": noteM(`${NOTA} › Texto › Fuente`, "setStyle({ font: v })"),
-  "noteBox.fontSize": noteM(`${NOTA} › Texto › Tamaño`, "setStyle({ fontSize: v })"),
-  "noteBox.color": noteM(`${NOTA} › Texto › Color`, "setStyle({ color: v })"),
-  "noteBox.hidden": noteM(`${NOTA} › Mostrar la nota en mi perfil`, "setStyle({ hidden: v ? undefined : true })"),
-  "commentsBox.bg": comM(`${COMS} › Color`, "setStyle({ bg: v })"),
-  "commentsBox.opacity": comM(`${COMS} › Opacidad`, "setStyle({ opacity: v })"),
-  "commentsBox.radius": comM(`${COMS} › Redondez`, "setStyle({ radius: v })"),
-  "commentsBox.color": comM(`${COMS} › Texto`, "setStyle({ color: v })"),
-  "commentsBox.accent": comM(`${COMS} › Acento`, "setStyle({ accent: v })"),
-  "noteBox.showViews": noteM(`${NOTA} › Vistas › Mostrar vistas a los visitantes`, "setStyle({ showViews: v || undefined })"),
+  "noteBox.w": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.h": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.gap": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.bg": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.radius": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.opacity": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.font": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.fontSize": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.color": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "noteBox.hidden": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
+  "commentsBox.hidden": comM(`${COMS} › Mostrar el muro`, "setStyle({ hidden: v ? undefined : true })"),
+  "commentsBox.bgMode": comM(`${obj("Fondo del muro")} › Como la card / Propio`, "setStyle({ bgMode: id as"),
+  "commentsBox.fxMode": comM(`${obj("Efectos del muro")} › Como la card / Ninguno / Propios`, "setStyle({ fxMode: id as"),
+  "commentsBox.bg": retired("Muro 2026-11-25: replaced by wallEffects.bg (still read as the own background)"),
+  "commentsBox.bgImage": retired("Muro 2026-11-25: replaced by wallEffects.bg.image (still read)"),
+  "commentsBox.opacity": retired("Muro 2026-11-25: replaced by wallEffects.bg.opacity (still read)"),
+  "commentsBox.fx": retired("Muro v2: replaced by commentsBox.fxMode (false still reads as none)"),
+  "commentsBox.radius": comM(`${obj("Fondo del muro")} › Redondez`, "setStyle({ radius: v })"),
+  "commentsBox.font": comM(`${obj("Textos del muro")} › Fuente del muro`, "setStyle({ font: v })"),
+  "commentsBox.color": comM(`${obj("Textos del muro")} › Texto`, "setStyle({ color: v })"),
+  "commentsBox.accent": comM(`${obj("Textos del muro")} › Acento`, "setStyle({ accent: v })"),
+  "commentsBox.button.icon": comM(`${obj("Botón del muro")} › Ícono`, "setButton({ icon: id ==="),
+  "commentsBox.button.image": comM(`${obj("Botón del muro")} › Tu imagen`, "setButton({ image: publicUrl })"),
+  "commentsBox.button.shape": comM(`${obj("Botón del muro")} › Forma`, "setButton({ shape: id ==="),
+  "commentsBox.button.size": comM(`${obj("Botón del muro")} › Tamaño`, "setButton({ size: v ==="),
+  "commentsBox.button.color": comM(`${obj("Botón del muro")} › Color`, "setButton({ color: v })"),
+  wallAnchorX: route(`${COMENTARIOS_UI} › botón sobre la card (arrastrarlo)`, ev("ProfileCard.tsx", 'startPartDrag(e, "wall")')),
+  wallAnchorY: route(`${COMENTARIOS_UI} › botón sobre la card (arrastrarlo)`, ev("ProfileCard.tsx", 'startPartDrag(e, "wall", true)')),
+  wallEffects: comM(`${obj("Efectos del muro")} › Propios (galería de efectos) · ${obj("Fondo del muro")} › Propio`, "setWallEffects({ ...patch, bg: own.bg"),
+  "noteBox.showViews": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
   "logo.url": logo(`${LOGO} › Subir`, "logoCtl.setImage(publicUrl)"),
   "logo.anchorX": card(`${LIENZO} › logo`, "anchorX: latest.x"),
   "logo.anchorY": card(`${LIENZO} › logo`, "anchorY: latest.y"),

@@ -419,6 +419,12 @@ export type ProfileCardData = {
   aboutAnchorY?:    number;
   buttonsAnchorX?:  number;
   buttonsAnchorY?:  number;
+  /** Muro v3 (2026-11-26): the wall button is a block of the free engine too. */
+  wallAnchorX?:     number;
+  wallAnchorY?:     number;
+  /** Muro v3: the back's OWN background and effects (same shape as `effects`),
+   * used when commentsBox.bgMode / fxMode say "own". */
+  wallEffects?:     CardEffects;
   /** Free layout engine (2026-10-15): 2 = every block's position is saved
    * (the anchors above, pfp included) — set by the first drag that ends.
    * Absent: the starting arrangement (profileCardLayout.ts). */
@@ -1101,7 +1107,7 @@ export type PublishState = "idle" | "pending" | "publishing" | "success";
 
 export type PresenceState = "ACTIVE NOW" | "EDITING SPACE" | "AWAY" | "OFFLINE";
 
-/** The note box's look (lib/noteBox.ts has the defaults and ranges). */
+/** The note box's look — notes were removed 2026-11-25; kept only for saved data. */
 export interface NoteBoxStyle {
   /** Legacy (first day): one size factor; replaced by w / h, no longer drawn. */
   scale?: number;
@@ -1125,10 +1131,27 @@ export interface NoteBoxStyle {
   hidden?: boolean;
 }
 
-/** Comentarios (2026-11-17): the look of the comments panel — minimal on
- * purpose (roundness, colors, opacity). Goes out with "Publicar". */
+/** Comentarios (2026-11-17) → Muro (2026-11-25): the look of the wall (the
+ * back of the card). Unset fields follow the card itself (its background,
+ * corners and text color). */
+export type WallButtonIcon = "feed" | "stack" | "bubble" | "pencil";
 export interface CommentsBoxStyle {
+  /** The owner turned the wall off: no flip button, no wall. */
+  hidden?: boolean;
+  /** Background of the back: the card's, or its own (card.wallEffects.bg / gradient). */
+  bgMode?: "card" | "own";
+  /** Effects of the back: the card's, none, or its own (card.wallEffects). */
+  fxMode?: "card" | "none" | "own";
+  /** Own wall background (else the card's: color, gradient, image). */
   bg?: string;
+  bgImage?: string;
+  /** The wall's own font (its names, times, tabs). */
+  font?: string;
+  /** false = the back without the card's effects (border, glow, holo, retro, motion…). */
+  fx?: boolean;
+  /** The button on the card that turns it (a block of the free engine:
+   * wallAnchorX/Y): size, color, its icon or the owner's own image, shape. */
+  button?: { size?: number; color?: string; icon?: WallButtonIcon; image?: string; shape?: "circle" | "none" };
   /** 0.3–1: below 1 the panel turns to frosted glass. */
   opacity?: number;
   radius?: number;

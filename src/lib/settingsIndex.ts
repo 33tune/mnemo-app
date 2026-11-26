@@ -83,6 +83,23 @@ export const SETTINGS_INDEX: Readonly<Record<SearchObject, readonly SettingsCard
     ["Distribución", "spacing", ["Ancho", "Separación"]],
     ["Al pasar el cursor", "pointer", ["Elevar", "Brillo", "Invertir"]],
   ],
+  wallMain: [
+    ["Mostrar el muro", null, []],
+    ["Quién puede escribir", "quote", ["Todos", "Solo yo"]],
+  ],
+  wallBg: [
+    ["Fondo del muro", null, ["Como la card", "Propio"]],
+    ["Forma", "corner", ["Redondez"]],
+  ],
+  wallFx: [
+    ["Efectos del muro", null, ["Como la card", "Ninguno", "Propios"]],
+  ],
+  wallText: [
+    ["Fuente del muro", null, ["Texto", "Acento"]],
+  ],
+  wallButton: [
+    ["Tu imagen", null, ["Ícono", "Forma", "Tamaño", "Color"]],
+  ],
   stickers: [
     ["Stickers", null, ["Agregar sticker", "Editar", "Aplicar"]],
     ["Capas", "layers", ["Tarjeta"]],

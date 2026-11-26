@@ -349,6 +349,7 @@ export function profileBlocks(card: ProfileCardData, o: ProfileLayoutOptions = {
   return { specs, text, identityRows, identityRoles, pad, avatarSize, align };
 }
 
+
 // ── Desired positions ────────────────────────────────────────────────────────
 
 type AnchorKeys = { x: keyof ProfileCardData; y: keyof ProfileCardData };
@@ -360,6 +361,7 @@ export const ANCHOR_FIELDS: Record<BlockKey, AnchorKeys> = {
   about: { x: "aboutAnchorX", y: "aboutAnchorY" },
   links: { x: "linksAnchorX", y: "linksAnchorY" },
   buttons: { x: "buttonsAnchorX", y: "buttonsAnchorY" },
+  wall: { x: "wallAnchorX", y: "wallAnchorY" },
 };
 const STACK: BlockKey[] = ["pfp", "identity", "location", "views", "about", "links", "buttons"];
 
@@ -497,7 +499,16 @@ export function profileLayout(card: ProfileCardData, o: ProfileLayoutOptions & {
   const b = profileBlocks(card, { ...o, w: W, h: H });
   // Growing is allowed while dragging (the card follows the push downward);
   // at rest the card is already at least its minimum, so nothing grows.
-  const solved = solveLayout(solveInput(card, b, W, H, o.drag, o.prev, o.drag ? getFreeformCardBounds().maxH : undefined));
+  // The wall button (Muro v3) is placed AFTER the engine, in free space:
+  // it never moves another block; dragging it only moves it.
+  const wallDrag = o.drag?.key === "wall" ? o.drag : undefined;
+  const drag = wallDrag ? undefined : o.drag;
+  const solved = solveLayout(solveInput(card, b, W, H, drag, o.prev, drag ? getFreeformCardBounds().maxH : undefined));
+  if (!card.commentsBox?.hidden) {
+    const size = wallButtonSize(card);
+    const want = wallDrag ? { x: wallDrag.x, y: wallDrag.y } : wallDesired(card, size, W, H, b.pad);
+    solved.rects = { ...solved.rects, wall: placeInFreeSpace(want, size, Object.values(solved.rects) as Rect[], W, Math.max(H, solved.neededH), b.pad) };
+  }
   const rows: ProfileLayout["rows"] = {};
   const place = (key: BlockKey, roles: TextRole[]) => {
     const r = solved.rects[key];
@@ -510,6 +521,42 @@ export function profileLayout(card: ProfileCardData, o: ProfileLayoutOptions & {
   if (b.text.rows.views) place("views", ["views"]);
   if (b.text.rows.about) place("about", ["about"]);
   return { rects: solved.rects, fits: solved.fits, neededH: solved.neededH, rows, blocks: b };
+}
+
+// ── The wall button (Muro v3) ────────────────────────────────────────────────
+
+/** The wall button's side (px): the owner's size, else 34. */
+export function wallButtonSize(card: Pick<ProfileCardData, "commentsBox">): number {
+  const v = card.commentsBox?.button?.size;
+  return typeof v === "number" ? Math.max(24, Math.min(64, Math.round(v))) : 34;
+}
+
+/** Its saved place (anchors), else the top-right corner. */
+function wallDesired(card: ProfileCardData, size: number, W: number, H: number, pad: number): { x: number; y: number } {
+  const a = anchorOf(card, "wall");
+  if (a) { const r = anchorToRect(a.x, a.y, size, size, W, H, pad); return { x: r.x, y: r.y }; }
+  return { x: Math.max(pad, W - pad - size), y: pad };
+}
+
+const WALL_GAP = 6;
+/** The nearest spot to `want` (inside the padded card) that touches no block;
+ * `want` itself when nothing is free. */
+export function placeInFreeSpace(want: { x: number; y: number }, size: number, blocks: Rect[], W: number, H: number, pad: number): Rect {
+  const minX = pad, maxX = Math.max(pad, W - pad - size), minY = pad, maxY = Math.max(pad, H - pad - size);
+  const clampX = (x: number) => Math.max(minX, Math.min(maxX, x)), clampY = (y: number) => Math.max(minY, Math.min(maxY, y));
+  const free = (x: number, y: number) => blocks.every(r =>
+    x + size + WALL_GAP <= r.x || r.x + r.w + WALL_GAP <= x || y + size + WALL_GAP <= r.y || r.y + r.h + WALL_GAP <= y);
+  const x0 = clampX(want.x), y0 = clampY(want.y);
+  if (free(x0, y0)) return { x: x0, y: y0, w: size, h: size };
+  let best: { x: number; y: number; d: number } | undefined;
+  const step = 4;
+  for (let y = minY; y <= maxY; y += step) {
+    for (let x = minX; x <= maxX; x += step) {
+      const d = (x - x0) ** 2 + (y - y0) ** 2;
+      if ((!best || d < best.d) && free(x, y)) best = { x, y, d };
+    }
+  }
+  return best ? { x: best.x, y: best.y, w: size, h: size } : { x: x0, y: y0, w: size, h: size };
 }
 
 // ── Minimum size ─────────────────────────────────────────────────────────────

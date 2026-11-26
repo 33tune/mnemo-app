@@ -693,6 +693,67 @@ planeado acá hasta confirmarlo.
 >   **Pendiente del usuario:** pegar la plantilla "Confirm signup" en Supabase (con `{{ .Token }}` y el link a
 >   `/auth/confirm`); sin eso el mail sigue trayendo solo el link viejo.
 >
+> **MURO (2026-11-25, pedido del usuario) — en la rama de prueba `feature/muro`, NO en `main`.** Reemplaza las Notas y
+>   los Comentarios:
+>   - **Notas ELIMINADAS** (cuadro arriba de la card, su panel, `useNote`, `noteBox.ts`, globos de nota en la barra de
+>     favoritos). `card.noteBox` queda en el tipo por datos guardados (capacidad `retired`). Las tablas `notes`,
+>     `note_views`, `note_alerts` no se borraron.
+>   - **La card se da vuelta y su dorso es el MURO** (`src/components/wall/WallPanel.tsx`): la card gira sobre sí
+>     (WAAPI `rotateY`, `composite: "add"`) y a los 90° aparece el muro con SU tamaño (≤ 400×640, centrado en la card)
+>     terminando el giro. Se abre con el botón con ícono de celular en la esquina de la card o con una **pestaña** que
+>     sale del borde derecho (`FlipControl.tsx`; `?flip=tab` / `?flip=button`, se recuerda en el dispositivo — el
+>     usuario elige cuál queda), deslizando la card de costado en el celular, o con `?muro=1` (links del Feed / Avisos).
+>   - Posts de hasta 280 caracteres, respuestas de un nivel, likes de cualquiera; cada post con el **estilo de quien lo
+>     escribe** (fuente, color, globo, tamaño 12/15/18) elegido al tocar para escribir (previews, sin palabras) y
+>     recordado (`profiles.post_style`: último + recientes). Moderación: borrar (autor o dueño), reportar, bloquear de
+>     mi muro (`wall_blocks`); los reportes en `/admin` › Reportes (borrar post).
+>   - **Tu card en miniatura** abajo a la izquierda en todos lados (`MyPhone.tsx` › `MyCardDock`; sin sesión, el logo →
+>     `/`) → **tu celular**: Feed (posts de las cards a las que les di corazón), Mi muro y Avisos (posts en mi muro,
+>     respuestas, likes; punto con número). En el editor de celular se abre desde Más › Tu celular.
+>   - Configuración (engranaje del muro, `CommentsInspector.tsx`, target `"comments"`): Mostrar el muro
+>     (`commentsBox.hidden`), Quién escribe (Todos / Solo yo = `profiles.comments_off`, al instante) y Aspecto
+>     (fondo, opacidad, redondez, texto, acento; sin valor propio sigue a la card: `resolveWallLook`).
+>   - Base: `supabase/migrations/20261125000000_wall.sql` (APLICADA en producción, compatible con `main`).
+>     APIs: `/api/wall`, `/api/feed`, `/api/activity`, `/api/me`. `/api/comments` y `CommentsPanel` se borraron.
+>   - NO va todavía (decisión del usuario): GIFs, Top 8, "feed vivo" (estrenos de cards, sugerencias).
+>   - Sin QA en iPhone real (giro 3D sobre cards con vidrio, swipe).
+>
+> **MURO v2 (2026-11-26, feedback del usuario) — REEMPLAZA del bloque anterior: el panel aparte, "tu celular",
+>   la mini card de abajo y la pestaña del costado.** Sigue en `feature/muro`, NO en `main`.
+>   - **Dorso = la card de verdad:** `WallPanel.tsx` dibuja el muro dentro de `CardLayers` con los efectos de la card
+>     (`backEffects`: borde, brillo, holo, retro, flotación, inclinación propia con `useCardInteractions`), tamaño FIJO
+>     para todas (`WALL_W×WALL_H` = 380×600, solo se achica para entrar en la pantalla; sin opción "igual que la card",
+>     decisión del usuario). La card se gira y se desvanece al llegar a 90° (no asoma el canto).
+>   - **Pestañas del dorso:** Muro (público); en TU card además Feed y Avisos (solo vos). Feed = solo lo que cada
+>     persona publica en SU propio muro (`my_feed` con `author = profile`).
+>   - **Botón en la card** (`FlipControl.tsx`): va en el slot `over` de `CardLayers` (se inclina y flota con la card);
+>     en el editor se arrastra (`commentsBox.button.x/y`, fracciones del centro, 8–92 %) y un toque abre Tarjeta ›
+>     Muro; tamaño y color en el menú.
+>   - **Tarjeta › Muro en el editor** (`ProfileWallMenu.tsx`, ObjectId `"wall"`): abrir la parte da vuelta la card en
+>     vivo. Mostrar el muro · Quién escribe · Fondo (Como la card / Propio: color, imagen/GIF) · Opacidad · Redondez ·
+>     Efectos de la card (on/off) · Fuente, texto, acento · Botón. `CommentsInspector` / target "comments" ya no se usan.
+>   - **Posts:** contraste automático (`readableOn`, borde si el globo se pierde en el fondo), animación del texto
+>     (`style.fx`: brillo, destello, arcoíris, rebote, ola, temblor; `PostText.tsx`), fijar uno arriba (`pin_post`),
+>     doble toque = me gusta. Escritor: barra compacta (fuente con buscador, color, globo, tamaño, animación,
+>     recientes). Base: `supabase/migrations/20261126000000_wall_v2.sql` (APLICADA).
+>   - **Abajo a la izquierda:** tu foto redonda (`AvatarDock.tsx`) → tu home (con avisos, abre Avisos); "+" publica en tu
+>     muro desde cualquier lado; en el editor la foto da vuelta tu card.
+>
+> **MURO v3 (2026-11-26, feedback del usuario; en `main`) — REEMPLAZA de v2 la parte Tarjeta › Muro y el botón por fracción:**
+>   - **Pestaña propia Muro** en el selector de partes (Tarjeta · Perfil · Contenido · Muro; la activa con nombre, las otras
+>     solo ícono): partes Muro (mostrar, quién puede escribir), Fondo (Como la card / Propio = el menú de fondo de la card
+>     sobre `card.wallEffects`), Efectos (Como la card / Ninguno / Propios = la galería de efectos sobre `card.wallEffects`;
+>     `commentsBox.fxMode`), Textos y Botón. `ProfileWallMenu.tsx` (`Wall*Section`); ObjectIds `wallMain/wallBg/wallFx/
+>     wallText/wallButton`. Elegir una parte del Muro muestra el dorso; Botón y las otras pestañas, el frente; cerrar el
+>     menú no gira; el botón de la card SOLO gira (nunca abre el menú); el dorso siempre tiene "Volver al frente".
+>   - **Botón = bloque del motor** (`wallAnchorX/Y`): `profileLayout` lo ubica DESPUÉS del motor en espacio libre
+>     (`placeInFreeSpace`) — nunca mueve otro bloque (barrido de las 27 cards publicadas: 0 cambios); se arrastra como los
+>     demás (`startPartDrag(e, "wall")`, imanes). Ícono estándar "feed" + 3 más, o la imagen del dueño, Círculo / Suelto,
+>     tamaño 24–64, color (`commentsBox.button`).
+>   - **Celular:** el dorso usa efectos livianos (`wallBackEffects(card, { lite })`: sin holo / glitter / strass / retro /
+>     movimiento) y la card de adelante se duerme mientras se ve el muro (pausa + `visibility: hidden`): Safari recargaba
+>     la página en `drakovin`. La hoja del editor de celular arranca plegada. Sin "tu nombre" de muestra en la card vacía.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por

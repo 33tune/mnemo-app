@@ -12,7 +12,7 @@ import {
   countActiveCardEffects, objectForRoute, filesMountedBy, inspectorObject, type ObjectId,
 } from "./inspectorObjects";
 import { createSelectionMemory as createInspectorSession } from "./editorSelection";
-import { capabilityMatrix, P, LIENZO, CAPAS, NOTA_UI, COMENTARIOS_UI } from "./editorCapabilities";
+import { capabilityMatrix, P, LIENZO, CAPAS, COMENTARIOS_UI } from "./editorCapabilities";
 import { getProfileCardEffects } from "./profileCardEffects";
 import { cardBaseColor } from "./cardColors";
 import { stripComments } from "./sourceScan";
@@ -35,7 +35,7 @@ const chip = (id: ObjectId, c: ProfileCardData, viewCount?: number) => inspector
 test("objects: order and captions of design-direction.md §B", () => {
   assert.deepEqual(INSPECTOR_OBJECTS.map(o => o.caption), [
     "Nombre", "@usuario", "Frase", "Ubicación", "Bio", "Sobre mí", "Visitas", "Foto", "Links", "Botones", "Logo",
-    "Fondo de la card", "Efectos de la card", "Stickers", "Todos los textos",
+    "Fondo de la card", "Efectos de la card", "Stickers", "Todos los textos", "Muro", "Fondo del muro", "Efectos del muro", "Textos del muro", "Botón del muro",
   ]);
   assert.equal(new Set(OBJECT_IDS).size, OBJECT_IDS.length);
   assert.equal(DEFAULT_OBJECT, "name");
@@ -193,7 +193,7 @@ test("every ProfileCard route names an inspector object whose files hold its evi
       continue;
     }
     // Phase E: Capas is room level, like the canvas (not an inspector object).
-    if (cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith(NOTA_UI) || cap.ui.startsWith(COMENTARIOS_UI)) continue;
+    if (cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith(COMENTARIOS_UI)) continue;
     const o = objectForRoute(cap.ui, P);
     if (!o) { bad.push(`${path}: "${cap.ui}" names no object`); continue; }
     const files = filesMountedBy(o.id);
@@ -254,7 +254,7 @@ function unitsOf(id: ObjectId): Set<string> {
 test("r2: every route's evidence sits in a SECTION its object mounts (textAlign under Nombre or border.color under Fondo would fail)", () => {
   const bad: string[] = [];
   for (const { owner, path, cap } of capabilityMatrix()) {
-    if (owner !== "profile" || cap.kind !== "route" || cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith(NOTA_UI) || cap.ui.startsWith(COMENTARIOS_UI)) continue;
+    if (owner !== "profile" || cap.kind !== "route" || cap.ui.startsWith(LIENZO) || cap.ui.startsWith(CAPAS) || cap.ui.startsWith(COMENTARIOS_UI)) continue;
     const o = objectForRoute(cap.ui, P)!;
     const units = unitsOf(o.id);
     for (const [file, text] of cap.evidence) {
@@ -277,7 +277,7 @@ test("r2: the unit check catches a mis-routed control", () => {
 
 test("r2: clusters — texts · blocks · card, contiguous and in that order", () => {
   const groups = INSPECTOR_OBJECTS.map(o => o.group);
-  assert.deepEqual(groups, ["text", "text", "text", "text", "text", "text", "text", "block", "block", "block", "block", "card", "card", "card", "card"]);
+  assert.deepEqual(groups, ["text", "text", "text", "text", "text", "text", "text", "block", "block", "block", "block", "card", "card", "card", "card", "card", "card", "card", "card", "card"]);
 });
 
 test("r2 (WCAG 2.5.3): every chip's accessible name contains its visible text", () => {

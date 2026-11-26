@@ -383,6 +383,8 @@ function Reports() {
   if (!rows) return <Box><span style={{ color: C.dim }}>Cargando…</span></Box>;
   return (
     <div style={{ display: "grid", gap: 8 }}>
+      <PostReports />
+      <h3 style={{ margin: "10px 0 0", fontSize: 14 }}>Errores reportados</h3>
       {rows.length === 0 && <Box><span style={{ color: C.dim }}>No hay reportes.</span></Box>}
       {rows.map(r => (
         <Box key={r.id}>
@@ -395,6 +397,35 @@ function Reports() {
         </Box>
       ))}
     </div>
+  );
+}
+
+/** Muro (2026-11-25): posts someone reported — the admin deletes them. */
+type PostReport = { id: string; comment_id: string | null; body: string; author_handle: string | null; wall_handle: string | null; reporter_handle: string | null; created_at: string; still_there: boolean };
+function PostReports() {
+  const [rows, setRows] = useState<PostReport[] | null>(null);
+  const load = () => createClient().rpc("admin_post_reports").then(({ data }) => setRows((data ?? []) as PostReport[]));
+  useEffect(() => { load(); }, []);
+  if (!rows) return null;
+  return (
+    <>
+      <h3 style={{ margin: 0, fontSize: 14 }}>Posts reportados</h3>
+      {rows.length === 0 && <Box><span style={{ color: C.dim }}>Ninguno.</span></Box>}
+      {rows.map(r => (
+        <Box key={r.id}>
+          <div style={{ display: "flex", gap: 10, color: C.dim, fontSize: 12.5, flexWrap: "wrap" }}>
+            <span>{fmtD(r.created_at)}</span>
+            <span>de @{r.author_handle ?? "?"} en el muro de @{r.wall_handle ?? "?"}</span>
+            <span>reportó @{r.reporter_handle ?? "?"}</span>
+          </div>
+          <div style={{ marginTop: 8, whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.45, opacity: r.still_there ? 1 : 0.5 }}>{r.body}</div>
+          {r.still_there && r.comment_id ? (
+            <button type="button" onClick={() => { if (confirm("¿Borrar este post?")) createClient().rpc("admin_delete_comment", { p_id: r.comment_id }).then(load); }}
+              style={{ marginTop: 8, padding: "5px 12px", borderRadius: 8, border: `1px solid ${C.red}`, background: "transparent", color: C.red, cursor: "pointer" }}>Borrar post</button>
+          ) : <div style={{ marginTop: 6, color: C.dim, fontSize: 12 }}>Ya no está.</div>}
+        </Box>
+      ))}
+    </>
   );
 }
 

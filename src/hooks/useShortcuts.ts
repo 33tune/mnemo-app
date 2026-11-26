@@ -66,30 +66,10 @@ export function useShortcuts(enabled: boolean) {
   useEffect(() => {
     if (!enabled || !me) return;
     reload();
-    // Sound needs one touch on the page first.
-    const unlock = () => { ensureAudio(); };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
-    const sb = createClient();
-    const ch = sb.channel(`note-alerts-${me}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "note_alerts", filter: `user_id=eq.${me}` }, () => {
-        if (!mutedRef.current && !document.hidden) playChime();
-        reload();
-      })
-      .subscribe();
     const onFocus = () => reload();
     window.addEventListener("focus", onFocus);
-    const onSeen = (e: Event) => {
-      const id = (e as CustomEvent<string>).detail;
-      setList(l => l?.map(x => (x.note?.id === id ? { ...x, noteSeen: true } : x)) ?? l);
-    };
-    window.addEventListener("mnemo:note-seen", onSeen);
     return () => {
-      sb.removeChannel(ch);
       window.removeEventListener("focus", onFocus);
-      window.removeEventListener("mnemo:note-seen", onSeen);
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
     };
   }, [enabled, me, reload]);
 

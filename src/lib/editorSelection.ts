@@ -26,7 +26,7 @@
 import { useCallback, useMemo, useReducer, type SetStateAction } from "react";
 import { DEFAULT_OBJECT, OBJECT_IDS, type ObjectId } from "./inspectorObjects";
 
-export type EditorTargetKind = "room" | "layers" | "search" | "note" | "comments" | "profile" | "text" | "image" | "music";
+export type EditorTargetKind = "room" | "layers" | "search" | "comments" | "profile" | "text" | "image" | "music";
 
 export type EditorTarget =
   | { kind: "room" }
@@ -35,10 +35,6 @@ export type EditorTarget =
   | { kind: "layers" }
   /** Buscar (rail, 2026-11-03): find other cards; survives any selection too. */
   | { kind: "search" }
-  /** Notas (2026-11-06): the note box's own panel (its gear) — a widget of
-   * its own above the card, not a part of the card. Lives with nothing
-   * selected (a tap on the box clears the selection), like Tu sala. */
-  | { kind: "note"; cardId: string }
   /** Comentarios (2026-11-17): the look of the comments panel (its gear).
    * Survives any selection, like Capas. */
   | { kind: "comments"; cardId: string }
@@ -60,7 +56,7 @@ export type EditorSelectionAction =
 export const INITIAL_EDITOR_SELECTION: EditorSelectionState = { selectedIds: new Set(), target: null };
 
 export function targetId(target: EditorTarget | null): string | null {
-  return target && target.kind !== "room" && target.kind !== "layers" && target.kind !== "search" && target.kind !== "note" && target.kind !== "comments" ? target.id : null;
+  return target && target.kind !== "room" && target.kind !== "layers" && target.kind !== "search" && target.kind !== "comments" ? target.id : null;
 }
 
 /** The ProfileCard inspector's id ("Editar"'s aria-controls) and the
@@ -88,7 +84,7 @@ export function profileTargetId(target: EditorTarget | null): string | null {
  * target needs its element selected; "room" (Tu sala) needs an empty one. */
 function targetSurvives(target: EditorTarget, selectedIds: Set<string>): boolean {
   if (target.kind === "layers" || target.kind === "search" || target.kind === "comments") return true;
-  return target.kind === "room" || target.kind === "note" ? selectedIds.size === 0 : selectedIds.has(target.id);
+  return target.kind === "room" ? selectedIds.size === 0 : selectedIds.has(target.id);
 }
 
 export function editorSelectionReducer(state: EditorSelectionState, action: EditorSelectionAction): EditorSelectionState {
@@ -158,7 +154,6 @@ export interface EditorSelection {
   /** Editor v3 Phase E: opens Capas (the selection stays as it is). */
   openLayers: () => void;
   openSearch: () => void;
-  openNote: (cardId: string) => void;
   /** Comentarios: the comments panel's look menu. */
   openComments: (cardId: string) => void;
   /** Editor v3 Phase G: opens the inspector of a selected text / image /
@@ -183,10 +178,6 @@ export function useEditorSelection(memory: SelectionMemory = selectionMemory): E
   }, []);
   const openLayers = useCallback(() => dispatch({ type: "open", target: { kind: "layers" } }), []);
   const openSearch = useCallback(() => dispatch({ type: "open", target: { kind: "search" } }), []);
-  const openNote = useCallback((cardId: string) => {
-    dispatch({ type: "select", ids: new Set() });
-    dispatch({ type: "open", target: { kind: "note", cardId } });
-  }, []);
   const openComments = useCallback((cardId: string) => dispatch({ type: "open", target: { kind: "comments", cardId } }), []);
   const openElement = useCallback((kind: ElementTargetKind, id: string) => dispatch({ type: "open", target: { kind, id } }), []);
   const closeInspector = useCallback(() => dispatch({ type: "close" }), []);
@@ -197,6 +188,6 @@ export function useEditorSelection(memory: SelectionMemory = selectionMemory): E
   }, [memory, profileId]);
   return useMemo(() => ({
     selectedIds: state.selectedIds, target: state.target,
-    setSelectedIds, openProfile, openRoom, openLayers, openSearch, openNote, openComments, openElement, closeInspector, setObject, memory,
-  }), [state, setSelectedIds, openProfile, openRoom, openLayers, openSearch, openNote, openComments, openElement, closeInspector, setObject, memory]);
+    setSelectedIds, openProfile, openRoom, openLayers, openSearch, openComments, openElement, closeInspector, setObject, memory,
+  }), [state, setSelectedIds, openProfile, openRoom, openLayers, openSearch, openComments, openElement, closeInspector, setObject, memory]);
 }

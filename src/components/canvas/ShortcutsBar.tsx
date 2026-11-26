@@ -11,18 +11,14 @@
  * (2026-11-06: no mute bell, no fold chevron.) In the editor and on other
  * people's profiles while signed in.
  */
-import { CommentsButton, COMMENTS_BUTTON_ID } from "./CommentsPanel";
 import React, { useEffect, useRef, useState } from "react";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { barShortcuts, changedSince, readSeenSigs, writeSeenSigs, type Shortcut } from "@/lib/shortcuts";
 import { cleanSearchQuery, type SearchHit } from "@/lib/userSearch";
-import { resolveNoteBox, noteSurface, noteText } from "@/lib/noteBox";
 import { HeartIcon } from "./StatsRow";
 
 export const SHORTCUTS_BAR_H = 76;
 const AVATAR = 46;
-/** An item with a note is as wide as its bubble (so the row never cuts it). */
-const NOTE_ITEM_W = 84;
 
 const glass: React.CSSProperties = {
   background: "var(--ui-shell-glass, rgba(22,20,28,.82))", color: "var(--ui-shell-glass-ink, #fff)",
@@ -34,36 +30,20 @@ const iconBtn: React.CSSProperties = {
   background: "var(--ui-shell-glass-btn, rgba(255,255,255,.08))", color: "inherit", cursor: "pointer", padding: 0,
 };
 
-function Bubble({ s }: { s: Shortcut }) {
-  if (!s.note) return null;
-  const st = resolveNoteBox(s.noteStyle);
-  return (
-    <div aria-hidden style={{
-      position: "absolute", left: "50%", bottom: AVATAR + 4, transform: "translateX(-50%)", width: NOTE_ITEM_W - 4,
-      ...noteSurface(st), borderRadius: Math.min(st.radius, 12), padding: "4px 7px", boxSizing: "border-box", pointerEvents: "none",
-    }}>
-      <div style={{ ...noteText(st, 10.5), textAlign: "center", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-        {s.note.body}
-      </div>
-    </div>
-  );
-}
-
 function Avatar({ s, current, onMenu, changed, onOpen }: { s: Shortcut; current: boolean; onMenu: (s: Shortcut, x: number, y: number) => void; changed?: boolean; onOpen?: (s: Shortcut) => void }) {
-  const unseen = !!s.note && !s.noteSeen;
+  const unseen = false;
   const press = useRef<number | null>(null);
   return (
-    <a href={`/${s.handle}`} title={s.note ? `@${s.handle}: ${s.note.body}` : `@${s.handle}`}
-      aria-label={`${s.name} (@${s.handle})${s.note ? `, nota: ${s.note.body}` : ""}${changed ? ", tiene cambios nuevos" : ""}${s.pinned ? ", fijado" : ""}`}
+    <a href={`/${s.handle}`} title={`@${s.handle}`}
+      aria-label={`${s.name} (@${s.handle})${changed ? ", tiene cambios nuevos" : ""}${s.pinned ? ", fijado" : ""}`}
       onClick={() => onOpen?.(s)}
       aria-current={current ? "page" : undefined}
       draggable={false}
       onContextMenu={e => { e.preventDefault(); onMenu(s, e.clientX, e.clientY); }}
       onTouchStart={e => { const t = e.touches[0]; press.current = window.setTimeout(() => { press.current = null; onMenu(s, t.clientX, t.clientY); }, 520); }}
       onTouchEnd={e => { if (press.current) { clearTimeout(press.current); press.current = null; } else e.preventDefault(); }}
-      style={{ position: "relative", flex: "none", width: s.note ? NOTE_ITEM_W : AVATAR + 8, height: AVATAR + 8, display: "grid", placeItems: "center",
+      style={{ position: "relative", flex: "none", width: AVATAR + 8, height: AVATAR + 8, display: "grid", placeItems: "center",
         textDecoration: "none", alignSelf: "flex-end", pointerEvents: "auto" }}>
-      <Bubble s={s} />
       <span style={{
         width: AVATAR + 6, height: AVATAR + 6, borderRadius: s.pfpRadius, display: "grid", placeItems: "center",
         background: unseen ? "conic-gradient(from 210deg, #ff3d8b, #ffb03b, #ff3d8b, #8a5cff, #ff3d8b)" : current ? "rgba(255,255,255,.6)" : "transparent",
@@ -80,7 +60,7 @@ function Avatar({ s, current, onMenu, changed, onOpen }: { s: Shortcut; current:
         </span>
       </span>
       {changed && (
-        <span aria-hidden style={{ position: "absolute", right: s.note ? (NOTE_ITEM_W - AVATAR) / 2 - 1 : 1, top: 2, width: 12, height: 12, borderRadius: 99,
+        <span aria-hidden style={{ position: "absolute", right: 1, top: 2, width: 12, height: 12, borderRadius: 99,
           background: "#ff4fa3", boxShadow: "0 0 0 2px rgba(14,12,18,.92)" }} />
       )}
       {s.pinned && (
@@ -159,11 +139,7 @@ function SearchPopover({ onClose, center }: { onClose: () => void; center: strin
   );
 }
 
-/** Comentarios (2026-11-17): the editor's bubble (my comments), with a
- * blinking dot when someone commented since I last opened the panel. */
-export interface BarComments { open: boolean; count: number; unread: boolean; onToggle: () => void }
-
-export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, currentHandle, search, comments }: {
+export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, currentHandle, search }: {
   /** Space taken on each side (the editor's rail, the profile's buttons). */
   left?: number;
   right?: number;
@@ -171,7 +147,6 @@ export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, current
   bottom?: number;
   currentHandle?: string;
   search?: BarSearch;
-  comments?: BarComments;
 }) {
   const sc = useShortcuts(true);
   const [menu, setMenu] = useState<{ s: Shortcut; x: number; y: number } | null>(null);
@@ -214,7 +189,6 @@ export default function ShortcutsBar({ left = 0, right = 0, bottom = 12, current
         <div style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: 6, padding: "0 10px 5px", minWidth: 0 }}>
           <div style={{ paddingBottom: 7, flex: "none", pointerEvents: "auto", display: "flex", gap: 6 }}>
             <SearchButton search={barSearch} />
-            {comments && <CommentsButton id={COMMENTS_BUTTON_ID} size={40} count={comments.count} unread={comments.unread} open={comments.open} onClick={comments.onToggle} />}
           </div>
           <span aria-hidden style={{ width: 1, height: 30, background: "rgba(255,255,255,.14)", margin: "0 4px 12px", flex: "none" }} />
           {items.length ? (

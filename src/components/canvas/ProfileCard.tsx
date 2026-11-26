@@ -18,11 +18,12 @@ import { useStickerEditing } from "@/lib/stickerEditing";
 import { isEventFromNode } from "@/lib/editorGuards";
 import { resolveOpenerSpot } from "@/lib/openerPlacement";
 import { CanvasChromeButton } from "./CanvasChromeButton";
+import FlipControl from "@/components/wall/FlipControl";
 import CardLayers from "./CardLayers";
 import { profileEditButtonId, profileInspectorId } from "@/lib/editorSelection";
 import type { ProfileEditorFacts } from "./EditorHost";
 import { resolveLinkButtonStyle } from "@/lib/linkButtons";
-import { profileLayout, profileCardMinSize, positionsPatch, formatViewCount, type TextMeasurer, type DragState, type ProfileLayout, type BlockKey, type Rect } from "@/lib/profileCardLayout";
+import { profileLayout, profileCardMinSize, positionsPatch, formatViewCount, wallButtonSize, type TextMeasurer, type DragState, type ProfileLayout, type BlockKey, type Rect } from "@/lib/profileCardLayout";
 import { guidesFor, snapRect, type SnapState } from "@/lib/cardSolver";
 import { getTextMeasurer, useFontsVersion } from "@/lib/textMeasure";
 import { LinkButtonsBlock } from "./LinkButtonsBlock";
@@ -241,6 +242,10 @@ interface Props {
   phoneEditor?:      boolean;
   /** Phone editor: a block was dragged with the finger (its menu opens). */
   onPartMoved?:      (key: BlockKey) => void;
+  /** Muro v3 (2026-11-26): the button that turns the card to its wall — a
+   * block of the free engine, drawn inside the card's layers (it tilts and
+   * floats with it); dragged like the other blocks in the editor. */
+  wallButton?:       { onFlip: () => void; active?: boolean };
 }
 
 // ── Free-mode position state ──────────────────────────────────────────────────
@@ -269,7 +274,7 @@ function ProfileCard({
   card: savedCard, isSel, draggingId, parallaxTransform,
   onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
-  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, phoneEditor = false, onPartMoved,
+  inspectorOpen = false, onEditActivate, onEditorFacts, activePart, phoneEditor = false, onPartMoved, wallButton,
 }: Props) {
   if (process.env.NODE_ENV !== "production") trackRender("ProfileCard");
   // "Probar antes de elegir": the option under the pointer in the editor, live (cardPreview.ts).
@@ -373,6 +378,8 @@ function ProfileCard({
   const linksDidDragRef = useRef(false);
   /** Same as linksDidDragRef, for the link buttons' <a>s. */
   const buttonsDidDragRef = useRef(false);
+  /** The wall button was just dragged: its closing click is not a tap. */
+  const wallDidDragRef = useRef(false);
 
   // ── Variant / effects ──
   const variant: ProfileCardVariant = (card.variant as ProfileCardVariant) ?? "classic";
@@ -729,6 +736,7 @@ function ProfileCard({
         active = true;
         if (key === "links") linksDidDragRef.current = true;
         if (key === "buttons") buttonsDidDragRef.current = true;
+        if (key === "wall") wallDidDragRef.current = true;
       }
       const pad = l.blocks.pad;
       const x = Math.max(pad, Math.min(card.w - pad - start.w, start.x + dx));
@@ -817,7 +825,7 @@ function ProfileCard({
     if (!nameLetterAnim) {
       return (
         <div style={{ ...baseStyle, color: resolvedColors.name, ...nameEffectStyle, ...style }}>
-          {card.name || (editing ? <span style={{ opacity: .32, whiteSpace: "nowrap" }}>tu nombre</span> : null)}
+          {card.name}
         </div>
       );
     }
@@ -1041,7 +1049,7 @@ function ProfileCard({
   const linkButtons = (card.linkButtons ?? []).filter(b => b.url);
   const buttonStyle = resolveLinkButtonStyle(card.linkButtonStyle, baseColor);
   const composed = layout === "free" ? undefined
-    : profileLayout(editing && !card.name ? { ...card, name: "tu nombre" } : card, {
+    : profileLayout(card, {
       w: card.w, h: cardH, measure, viewCount, favCount, commentCount,
       drag: drag ?? undefined,
       // Continuity while the shape of things changes under the pointer.
@@ -1270,6 +1278,19 @@ function ProfileCard({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  // Muro v3: the wall button at the engine's place (a legacy "free" card: the top-right corner).
+  const wallRect = composed?.rects.wall ?? (card.commentsBox?.hidden ? undefined
+    : { x: card.w - 20 - wallButtonSize(card), y: 20, w: wallButtonSize(card), h: wallButtonSize(card) });
+  const wallDraggable = layout !== "free" && (phoneEditor || isPfpAnchorDraggable(canInteract, layout, isSel));
+  const wallButtonEl = wallButton && wallRect ? (
+    <FlipControl style={card.commentsBox} rect={wallRect} light={isLight} active={wallButton.active}
+      editing={wallDraggable}
+      down={wallDraggable ? (phoneEditor
+        ? { onPointerDown: e => startPartDrag(e, "wall", true), onMouseDown: e => e.stopPropagation() }
+        : { onMouseDown: e => startPartDrag(e, "wall") }) : { onMouseDown: e => e.stopPropagation(), onPointerDown: e => e.stopPropagation() }}
+      onFlip={() => { if (wallDidDragRef.current) { wallDidDragRef.current = false; return; } wallButton.onFlip(); }} />
+  ) : null;
+
   const shownStickers = withPreview(card.stickers ?? [], editingStickers ? stickerPreview : null, card.w, renderH);
 
   return (
@@ -1316,7 +1337,7 @@ function ProfileCard({
           borderRadius={rad}
           back={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="back" />}
           front={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="front" />}
-          over={<StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="over" />}
+          over={<><StickerLayer stickers={shownStickers} cardW={card.w} cardH={renderH} level="over" />{wallButtonEl}</>}
         >
           <div style={{ position: "absolute", inset: 0, borderRadius: rad, overflow: "hidden" }}>
             {/* bg overlay tint for image cards */}
@@ -1398,7 +1419,8 @@ function areProfilePropsEqual(prev: Props, next: Props): boolean {
     prev.inspectorOpen     === next.inspectorOpen &&
     // Phase H: the active part's editor outline.
     prev.activePart        === next.activePart &&
-    prev.phoneEditor       === next.phoneEditor
+    prev.phoneEditor       === next.phoneEditor &&
+    prev.wallButton        === next.wallButton
   );
 }
 export default memo(ProfileCard, areProfilePropsEqual);

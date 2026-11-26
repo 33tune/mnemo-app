@@ -23,6 +23,7 @@ const platformLabel = (url: string) => PLATFORM_LABELS[detectPlatform(url)];
 const PART_ICON: Record<ObjectId, IconName> = {
   photo: "user", name: "text", handle: "at", descriptor: "quote", location: "pin", bio: "align-left", about: "about", views: "eye",
   links: "link", buttons: "align-justify", logo: "shapes", cardBg: "palette", cardFx: "sparkles", allText: "case", stickers: "star",
+  wallMain: "posts", wallBg: "palette", wallFx: "sparkles", wallText: "case", wallButton: "move",
 };
 export const partIcon = (id: ObjectId): IconName => PART_ICON[id];
 
@@ -66,7 +67,8 @@ export function ObjectList({ active, onSelect, ctx, panelId, sheet }: ObjectList
   return (
     <div className="mn-partpicker" data-sheet={sheet || undefined}>
       <Tabs label="Grupo de partes" active={group.id} onChange={selectGroup}
-        tabs={PART_GROUPS.map(g => ({ id: g.id, label: g.label, icon: GROUP_ICON[g.id], withText: true }))} />
+        // Four groups: the active one shows its name, the others only their icon (fits 320 px, like iOS).
+        tabs={PART_GROUPS.map(g => ({ id: g.id, label: g.label, icon: GROUP_ICON[g.id], withText: g.id === group.id }))} />
       <div role="tablist" aria-label={`Partes: ${group.label}`} aria-orientation="horizontal" onKeyDown={onKeyDown} className="mn-parts">
         {group.parts.map(p => {
           const o = inspectorObject(p);
@@ -109,4 +111,4 @@ export function ObjectList({ active, onSelect, ctx, panelId, sheet }: ObjectList
   );
 }
 
-const GROUP_ICON: Record<PartGroupId, IconName> = { card: "card", profile: "user", content: "shapes" };
+const GROUP_ICON: Record<PartGroupId, IconName> = { card: "card", profile: "user", content: "shapes", wall: "posts" };

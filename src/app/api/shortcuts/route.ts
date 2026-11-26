@@ -21,19 +21,14 @@ export async function GET() {
   const targets = (favs ?? []).map(f => f.target_user_id as string);
   if (!targets.length) return NextResponse.json({ shortcuts: [] });
 
-  const [{ data: profiles }, { data: rooms }, { data: notes }, { data: visits }] = await Promise.all([
+  const [{ data: profiles }, { data: rooms }, { data: visits }] = await Promise.all([
     supabase.from("profiles").select("user_id, handle, display_name, onboarding_completed").in("user_id", targets),
     supabase.from("canvases").select("user_id, data, created_at").in("user_id", targets).eq("type", "space").order("created_at", { ascending: true }),
-    supabase.from("notes").select("id, user_id, body, created_at, expires_at").in("user_id", targets).gt("expires_at", new Date().toISOString()),
     supabase.rpc("my_visit_counts", { targets }),
   ]);
-  const noteIds = (notes ?? []).map(n => n.id as string);
-  const { data: seen } = noteIds.length ? await supabase.rpc("my_seen_notes", { p_notes: noteIds }) : { data: [] };
-  const seenSet = new Set(((seen as unknown[]) ?? []).map(x => (typeof x === "string" ? x : (x as { my_seen_notes?: string }).my_seen_notes ?? String(x))));
   const roomOf = new Map<string, unknown>();
   for (const r of rooms ?? []) if (!roomOf.has(r.user_id as string)) roomOf.set(r.user_id as string, r.data);
   const visitsOf = new Map<string, number>(((visits as { profile_user_id: string; n: number }[]) ?? []).map(v => [v.profile_user_id, Number(v.n)]));
-  const noteOf = new Map((notes ?? []).map(n => [n.user_id as string, n]));
   const favOf = new Map((favs ?? []).map(f => [f.target_user_id as string, f]));
 
   const out: Shortcut[] = [];
@@ -46,15 +41,11 @@ export async function GET() {
     const card = state ? ((state.profiles ?? []).find(c => c.isPublic) ?? (state.profiles ?? [])[0]) as ProfileCardData | undefined : undefined;
     const photo = typeof card?.photo === "string" && /^https?:\/\//.test(card.photo) ? card.photo : null;
     const f = favOf.get(p.user_id as string)!;
-    const n = noteOf.get(p.user_id as string);
     out.push({
       userId: p.user_id as string, handle,
       name: (og?.name || (p.display_name as string | null) || handle).slice(0, 60),
       photo, pfpRadius: og?.pfpRadius ?? "50%", bg: og?.bg ?? "#17151c", nameColor: og?.nameColor ?? "#f6f3f8",
       pinned: !!f.pinned, hidden: !!f.hidden, visits: visitsOf.get(p.user_id as string) ?? 0, favoritedAt: f.created_at as string,
-      note: n && !card?.noteBox?.hidden ? { id: n.id as string, body: n.body as string, created_at: n.created_at as string, expires_at: n.expires_at as string } : null,
-      noteSeen: n ? seenSet.has(n.id as string) : false,
-      noteStyle: card?.noteBox,
       sig: state ? createHash("sha1").update(JSON.stringify(state)).digest("base64url").slice(0, 16) : undefined,
     });
   }

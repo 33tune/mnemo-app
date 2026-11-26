@@ -31,7 +31,7 @@
  * Pure: sizes come from BlockSpec (the caller measures the real text).
  */
 
-export type BlockKey = "pfp" | "identity" | "location" | "views" | "about" | "links" | "buttons";
+export type BlockKey = "pfp" | "identity" | "location" | "views" | "about" | "links" | "buttons" | "wall";
 
 export interface Rect { x: number; y: number; w: number; h: number }
 
