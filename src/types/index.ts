@@ -419,6 +419,12 @@ export type ProfileCardData = {
   aboutAnchorY?:    number;
   buttonsAnchorX?:  number;
   buttonsAnchorY?:  number;
+  /** Muro v3 (2026-11-26): the wall button is a block of the free engine too. */
+  wallAnchorX?:     number;
+  wallAnchorY?:     number;
+  /** Muro v3: the back's OWN background and effects (same shape as `effects`),
+   * used when commentsBox.bgMode / fxMode say "own". */
+  wallEffects?:     CardEffects;
   /** Free layout engine (2026-10-15): 2 = every block's position is saved
    * (the anchors above, pfp included) — set by the first drag that ends.
    * Absent: the starting arrangement (profileCardLayout.ts). */
@@ -1128,9 +1134,14 @@ export interface NoteBoxStyle {
 /** Comentarios (2026-11-17) → Muro (2026-11-25): the look of the wall (the
  * back of the card). Unset fields follow the card itself (its background,
  * corners and text color). */
+export type WallButtonIcon = "feed" | "stack" | "bubble" | "pencil";
 export interface CommentsBoxStyle {
   /** The owner turned the wall off: no flip button, no wall. */
   hidden?: boolean;
+  /** Background of the back: the card's, or its own (card.wallEffects.bg / gradient). */
+  bgMode?: "card" | "own";
+  /** Effects of the back: the card's, none, or its own (card.wallEffects). */
+  fxMode?: "card" | "none" | "own";
   /** Own wall background (else the card's: color, gradient, image). */
   bg?: string;
   bgImage?: string;
@@ -1138,9 +1149,9 @@ export interface CommentsBoxStyle {
   font?: string;
   /** false = the back without the card's effects (border, glow, holo, retro, motion…). */
   fx?: boolean;
-  /** The flip button on the card: where (fraction of the card's width / height,
-   * its center), size in px and color. */
-  button?: { x?: number; y?: number; size?: number; color?: string };
+  /** The button on the card that turns it (a block of the free engine:
+   * wallAnchorX/Y): size, color, its icon or the owner's own image, shape. */
+  button?: { size?: number; color?: string; icon?: WallButtonIcon; image?: string; shape?: "circle" | "none" };
   /** 0.3–1: below 1 the panel turns to frosted glass. */
   opacity?: number;
   radius?: number;

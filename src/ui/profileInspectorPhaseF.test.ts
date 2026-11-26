@@ -46,9 +46,10 @@ test("part picker: groups (Tarjeta / Perfil / Contenido), every part of the grou
   assert.ok(LIST.includes("{group.parts.map(p => {"), "only the active group's parts; never a scrolling row");
   assert.ok(LIST.includes("onSelect(lastInGroup.current[g.id] ?? g.parts[0]);"), "a group opens its last used part");
   assert.deepEqual(PART_GROUPS.map(g => [g.label, g.parts]), [
-    ["Tarjeta", ["cardBg", "cardFx", "allText", "stickers", "wall"]],
+    ["Tarjeta", ["cardBg", "cardFx", "allText", "stickers"]],
     ["Perfil", ["photo", "name", "handle", "descriptor", "location", "bio", "about"]],
     ["Contenido", ["links", "buttons", "logo", "views"]],
+    ["Muro", ["wallMain", "wallBg", "wallFx", "wallText", "wallButton"]],
   ]);
   assert.equal(new Set(PART_ORDER).size, INSPECTOR_OBJECTS.length, "every part is in exactly one group");
   assert.ok(PART_GROUPS.every(g => g.parts.length <= 7), "a group fits the 7-column row");

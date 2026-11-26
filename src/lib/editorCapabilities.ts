@@ -51,7 +51,7 @@ export type LeafPaths<T, P extends string = ""> = {
 export type EffectLeaf = LeafPaths<Omit<CardEffects, "paused" | "textRoles">>;
 export type RoleEffectLeaf = LeafPaths<RoleTextEffect>;
 /** effects/blockStyle have their own maps; `music` is one deprecated blob. */
-export type ProfileFieldPath = LeafPaths<Omit<ProfileCardData, "effects" | "blockStyle" | "blockStylePaused" | "music">> | "music";
+export type ProfileFieldPath = LeafPaths<Omit<ProfileCardData, "effects" | "blockStyle" | "blockStylePaused" | "music" | "wallEffects">> | "music" | "wallEffects";
 export type MusicFieldPath = LeafPaths<Omit<MusicCardData, "effects">>;
 /** Editor v3 Phase G: free texts and images (their inspectors in the dock). */
 export type TextFieldPath = LeafPaths<CanvasText>;
@@ -192,18 +192,24 @@ export const PROFILE_CARD_CAPS: Record<ProfileFieldPath, Capability> = {
   "noteBox.color": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
   "noteBox.hidden": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
   "commentsBox.hidden": comM(`${COMS} › Mostrar el muro`, "setStyle({ hidden: v ? undefined : true })"),
-  "commentsBox.bg": comM(`${COMS} › Color`, "setStyle({ bg: v })"),
-  "commentsBox.opacity": comM(`${COMS} › Opacidad`, "setStyle({ opacity: v >= 0.999"),
-  "commentsBox.radius": comM(`${COMS} › Redondez`, "setStyle({ radius: v })"),
-  "commentsBox.color": comM(`${COMS} › Texto`, "setStyle({ color: v })"),
-  "commentsBox.accent": comM(`${COMS} › Acento`, "setStyle({ accent: v })"),
-  "commentsBox.bgImage": comM(`${COMS} › Fondo › Imagen`, "setStyle({ bgImage: publicUrl })"),
-  "commentsBox.font": comM(`${COMS} › Fuente del muro`, "setStyle({ font: v })"),
-  "commentsBox.fx": comM(`${COMS} › Efectos de la card`, "setStyle({ fx: v ? undefined : false })"),
-  "commentsBox.button.x": route(`${COMENTARIOS_UI} › botón sobre la card (arrastrarlo)`, ev("CanvasBoard.tsx", "onMove={flipMove}")),
-  "commentsBox.button.y": route(`${COMENTARIOS_UI} › botón sobre la card (arrastrarlo)`, ev("CanvasBoard.tsx", "onMove={flipMove}")),
-  "commentsBox.button.size": comM(`${COMS} › Botón › Tamaño`, "setButton({ size:"),
-  "commentsBox.button.color": comM(`${COMS} › Botón › Color`, "setButton({ color: v })"),
+  "commentsBox.bgMode": comM(`${obj("Fondo del muro")} › Como la card / Propio`, "setStyle({ bgMode: id as"),
+  "commentsBox.fxMode": comM(`${obj("Efectos del muro")} › Como la card / Ninguno / Propios`, "setStyle({ fxMode: id as"),
+  "commentsBox.bg": retired("Muro 2026-11-25: replaced by wallEffects.bg (still read as the own background)"),
+  "commentsBox.bgImage": retired("Muro 2026-11-25: replaced by wallEffects.bg.image (still read)"),
+  "commentsBox.opacity": retired("Muro 2026-11-25: replaced by wallEffects.bg.opacity (still read)"),
+  "commentsBox.fx": retired("Muro v2: replaced by commentsBox.fxMode (false still reads as none)"),
+  "commentsBox.radius": comM(`${obj("Fondo del muro")} › Redondez`, "setStyle({ radius: v })"),
+  "commentsBox.font": comM(`${obj("Textos del muro")} › Fuente del muro`, "setStyle({ font: v })"),
+  "commentsBox.color": comM(`${obj("Textos del muro")} › Texto`, "setStyle({ color: v })"),
+  "commentsBox.accent": comM(`${obj("Textos del muro")} › Acento`, "setStyle({ accent: v })"),
+  "commentsBox.button.icon": comM(`${obj("Botón del muro")} › Ícono`, "setButton({ icon: id ==="),
+  "commentsBox.button.image": comM(`${obj("Botón del muro")} › Tu imagen`, "setButton({ image: publicUrl })"),
+  "commentsBox.button.shape": comM(`${obj("Botón del muro")} › Forma`, "setButton({ shape: id ==="),
+  "commentsBox.button.size": comM(`${obj("Botón del muro")} › Tamaño`, "setButton({ size: v ==="),
+  "commentsBox.button.color": comM(`${obj("Botón del muro")} › Color`, "setButton({ color: v })"),
+  wallAnchorX: route(`${COMENTARIOS_UI} › botón sobre la card (arrastrarlo)`, ev("ProfileCard.tsx", 'startPartDrag(e, "wall")')),
+  wallAnchorY: route(`${COMENTARIOS_UI} › botón sobre la card (arrastrarlo)`, ev("ProfileCard.tsx", 'startPartDrag(e, "wall", true)')),
+  wallEffects: comM(`${obj("Efectos del muro")} › Propios (galería de efectos) · ${obj("Fondo del muro")} › Propio`, "setWallEffects({ ...patch, bg: own.bg"),
   "noteBox.showViews": retired("Notas removed 2026-11-25 (replaced by the Muro)"),
   "logo.url": logo(`${LOGO} › Subir`, "logoCtl.setImage(publicUrl)"),
   "logo.anchorX": card(`${LIENZO} › logo`, "anchorX: latest.x"),

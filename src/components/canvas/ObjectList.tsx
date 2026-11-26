@@ -22,7 +22,8 @@ const platformLabel = (url: string) => PLATFORM_LABELS[detectPlatform(url)];
 /** Each part's glyph (design menu-schema.js OBJECTS[*].icon). */
 const PART_ICON: Record<ObjectId, IconName> = {
   photo: "user", name: "text", handle: "at", descriptor: "quote", location: "pin", bio: "align-left", about: "about", views: "eye",
-  links: "link", buttons: "align-justify", logo: "shapes", cardBg: "palette", cardFx: "sparkles", allText: "case", stickers: "star", wall: "quote",
+  links: "link", buttons: "align-justify", logo: "shapes", cardBg: "palette", cardFx: "sparkles", allText: "case", stickers: "star",
+  wallMain: "posts", wallBg: "palette", wallFx: "sparkles", wallText: "case", wallButton: "move",
 };
 export const partIcon = (id: ObjectId): IconName => PART_ICON[id];
 
@@ -109,4 +110,4 @@ export function ObjectList({ active, onSelect, ctx, panelId, sheet }: ObjectList
   );
 }
 
-const GROUP_ICON: Record<PartGroupId, IconName> = { card: "card", profile: "user", content: "shapes" };
+const GROUP_ICON: Record<PartGroupId, IconName> = { card: "card", profile: "user", content: "shapes", wall: "posts" };

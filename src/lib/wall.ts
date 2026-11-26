@@ -113,12 +113,19 @@ export function wallError(msg: string | undefined): string {
 }
 
 // ── The wall's look (the back of the card) ───────────────────────────────────
-import type { ProfileCardData } from "@/types";
+import type { CardEffects, ProfileCardData } from "@/types";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { cardBaseColor } from "@/lib/cardColors";
-import { COMMENTS_DEFAULTS, COMMENTS_OPACITY, COMMENTS_RADIUS } from "@/lib/comments";
+import { COMMENTS_DEFAULTS, COMMENTS_RADIUS } from "@/lib/comments";
 
-export interface WallLook { bg: string; opacity: number; radius: number; color: string; accent: string; bgImage: string | null; font: string; ownBg: boolean; fx: boolean }
+export type WallBgMode = "card" | "own";
+export type WallFxMode = "card" | "none" | "own";
+export interface WallLook {
+  bgMode: WallBgMode; fxMode: WallFxMode;
+  /** The back's background color (for contrast: texts and bubbles). */
+  bg: string; bgImage: string | null;
+  radius: number; color: string; accent: string; font: string;
+}
 /** The wall's fixed size (design px): the same for every card, small or wide. */
 export const WALL_W = 380;
 export const WALL_H = 600;
@@ -133,25 +140,60 @@ const toHex = (c: unknown): string | null => {
   return "#" + [m[1], m[2], m[3]].map(v => Math.max(0, Math.min(255, +v)).toString(16).padStart(2, "0")).join("");
 };
 const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const httpImg = (v: unknown) => (typeof v === "string" && /^https?:\/\//.test(v) ? v : null);
 
-/** The owner's choices (card.commentsBox) first, else what the card itself looks like. */
+/** The modes, also reading what the first wall (2026-11-25) stored. */
+export function wallModes(card: ProfileCardData): { bgMode: WallBgMode; fxMode: WallFxMode } {
+  const s = card.commentsBox;
+  return {
+    bgMode: s?.bgMode ?? (s?.bg || s?.bgImage ? "own" : "card"),
+    fxMode: s?.fxMode ?? (s?.fx === false ? "none" : "card"),
+  };
+}
+
+/** The back's own background (wallEffects), with the first wall's fields underneath. */
+export function wallOwnBg(card: ProfileCardData): Pick<CardEffects, "bg" | "gradient"> {
+  const own = card.wallEffects, s = card.commentsBox;
+  return {
+    bg: { ...(s?.bg ? { color: s.bg } : {}), ...(s?.bgImage ? { image: s.bgImage, imageMode: "cover" as const } : {}),
+      ...(typeof s?.opacity === "number" ? { opacity: s.opacity } : {}), ...own?.bg },
+    gradient: own?.gradient,
+  };
+}
+
+/** What the back renders: the card's effects, none, or its own — and the card's background or its own. */
+export function wallBackEffects(card: ProfileCardData): CardEffects {
+  const { bgMode, fxMode } = wallModes(card);
+  const cardFx = getProfileCardEffects(card);
+  const { bg: _b, gradient: _g, entrance: _e, ...ownRest } = card.wallEffects ?? {};
+  const base: CardEffects = fxMode === "card" ? { ...cardFx } : fxMode === "own" ? { ...ownRest } : { border: { width: 0 } };
+  const bgPart = bgMode === "own" ? wallOwnBg(card) : { bg: cardFx.bg, gradient: cardFx.gradient };
+  const look = resolveWallLook(card);
+  return {
+    ...base,
+    bg: { ...bgPart.bg, ...(bgPart.bg?.image ? { imageMode: "cover" as const } : {}) },
+    gradient: bgPart.gradient,
+    border: { ...base.border, radius: look.radius },
+    entrance: undefined,
+  };
+}
+
+/** The owner's choices first, else what the card itself looks like. */
 export function resolveWallLook(card: ProfileCardData): WallLook {
   const s = card.commentsBox;
+  const { bgMode, fxMode } = wallModes(card);
   const fx = getProfileCardEffects(card);
-  const cardBg = toHex(fx.bg?.color);
+  const bgSrc = bgMode === "own" ? wallOwnBg(card) : { bg: fx.bg, gradient: fx.gradient };
+  const gradFirst = bgSrc.gradient?.from;
   const cardRad = typeof fx.border?.radius === "number" ? fx.border.radius : card.borderRadius;
-  const img = typeof fx.bg?.image === "string" && /^https?:\/\//.test(fx.bg.image) ? fx.bg.image : null;
-  const ownBg = !!(s?.bg && HEX.test(s.bg)) || !!s?.bgImage;
   return {
-    ownBg,
-    fx: s?.fx !== false,
+    bgMode, fxMode,
     font: s?.font && /^[A-Za-z0-9 ]{1,40}$/.test(s.font) ? s.font : "DM Sans",
-    bg: (s?.bg && HEX.test(s.bg) ? s.bg : null) ?? cardBg ?? COMMENTS_DEFAULTS.bg,
-    opacity: clampN(typeof s?.opacity === "number" ? s.opacity : 0.94, COMMENTS_OPACITY.min, COMMENTS_OPACITY.max),
+    bg: toHex(bgSrc.bg?.color) ?? toHex(gradFirst) ?? (bgMode === "card" ? toHex(fx.bg?.color) : null) ?? COMMENTS_DEFAULTS.bg,
+    bgImage: httpImg(bgSrc.bg?.image),
     radius: clampN(typeof s?.radius === "number" ? s.radius : typeof cardRad === "number" ? cardRad : COMMENTS_DEFAULTS.radius, COMMENTS_RADIUS.min, COMMENTS_RADIUS.max),
     color: (s?.color && HEX.test(s.color) ? s.color : null) ?? toHex(cardBaseColor(card, fx)) ?? COMMENTS_DEFAULTS.color,
     accent: (s?.accent && HEX.test(s.accent) ? s.accent : null) ?? COMMENTS_DEFAULTS.accent,
-    bgImage: s?.bgImage && /^https?:\/\//.test(s.bgImage) ? s.bgImage : s?.bg ? null : img,
   };
 }
 export const wallShown = (card?: ProfileCardData | null): boolean => !!card && !card.commentsBox?.hidden;

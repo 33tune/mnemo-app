@@ -21,7 +21,7 @@ import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { cardIsLight } from "@/lib/cardColors";
 import { fxCardColors } from "@/lib/cardPalette";
 import { hexAlpha, timeAgo } from "@/lib/comments";
-import { resolveWallLook, readableOn, postFontFamily, WALL_W, WALL_H } from "@/lib/wall";
+import { resolveWallLook, readableOn, postFontFamily, wallBackEffects, WALL_W, WALL_H } from "@/lib/wall";
 import { formatViewCount } from "@/lib/profileCardLayout";
 import { WallBody, PostView, Avatar, BackIcon, WallIcon, FeedIcon, BellIcon, ReplyArrow, roundBtn, UI_FONT } from "./WallParts";
 
@@ -45,24 +45,8 @@ export function turn(el: HTMLElement, from: number, to: number, ms: number, easi
   }
 }
 
-/** The back's effects: the card's own (or none), with the wall's background / corners when set. */
-export function backEffects(card: ProfileCardData): CardEffects {
-  const look = resolveWallLook(card);
-  const s = card.commentsBox;
-  const fx = getProfileCardEffects(card);
-  const base: CardEffects = look.fx ? { ...fx } : { bg: fx.bg, gradient: fx.gradient, border: { ...fx.border, width: 0 } };
-  const bg = look.ownBg
-    ? { ...base.bg, color: s?.bg ?? base.bg?.color, image: look.bgImage ?? undefined, imageMode: "cover" as const, ...(typeof s?.opacity === "number" ? { opacity: s.opacity } : {}) }
-    : { ...base.bg, ...(base.bg?.image ? { imageMode: "cover" as const } : {}), ...(typeof s?.opacity === "number" ? { opacity: s.opacity } : {}) };
-  return {
-    ...base,
-    bg,
-    gradient: look.ownBg ? undefined : base.gradient,
-    border: { ...base.border, radius: look.radius },
-    // The back never replays an entrance.
-    entrance: undefined,
-  };
-}
+/** The back's effects (wall.ts › wallBackEffects). */
+export const backEffects = wallBackEffects;
 
 type Tab = "wall" | "feed" | "news";
 
@@ -73,7 +57,7 @@ export interface WallPanelProps {
   getCard: () => HTMLElement | null;
   onClosed: () => void;
   closing?: boolean;
-  /** Editor: the wall settings are open beside it (the back stays while editing). */
+  /** Editor: the wall settings are open beside it (Esc belongs to the inspector). */
   editing?: boolean;
   newTab?: boolean;
   /** Px kept free at the right (the editor's dock) and at the bottom. */
@@ -205,11 +189,9 @@ export default function WallPanel(p: WallPanelProps) {
                   ))}
                 </div>
               )}
-              {!p.editing && (
-                <button type="button" onClick={close} aria-label="Dar vuelta la card" title="Volver" style={{ ...roundBtn }}>
-                  <BackIcon />
-                </button>
-              )}
+              <button type="button" onClick={close} aria-label="Volver al frente" title="Volver al frente" style={{ ...roundBtn }}>
+                <BackIcon />
+              </button>
             </div>
             <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               {tab === "wall" && (

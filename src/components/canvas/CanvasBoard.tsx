@@ -72,7 +72,6 @@ import { HeartPill } from "./StatsRow";
 import { useCommentCount } from "@/hooks/useComments";
 import { useUnreadActivity } from "@/hooks/useWall";
 import WallPanel from "@/components/wall/WallPanel";
-import FlipControl from "@/components/wall/FlipControl";
 import AvatarDock from "@/components/wall/AvatarDock";
 import { wallShown } from "@/lib/wall";
 import { cardIsLight } from "@/lib/cardColors";
@@ -116,7 +115,7 @@ const MOBILE_CANVAS_W = 390;
 const PHONE_BAR_H = 56;
 const PHONE_TIP_KEY = "mnemo_phone_tip_v1";
 /** Editor de celular: a block dragged with the finger opens its part. */
-const BLOCK_PART: Record<string, string> = { pfp: "photo", identity: "name", location: "location", views: "views", about: "about", links: "links", buttons: "buttons" };
+const BLOCK_PART: Record<string, string> = { pfp: "photo", identity: "name", location: "location", views: "views", about: "about", links: "links", buttons: "buttons", wall: "wallButton" };
 
 function isSpaceCanvas(mode: CanvasMode): boolean {
   return mode === "space" || mode === "space_mobile";
@@ -923,7 +922,9 @@ export default function CanvasBoard({
   const openWall = useCallback((tab: "wall" | "feed" | "news" = "wall") => { setWallTab(tab); setWallClosing(false); setWallOpen(true); }, []);
   const toggleWall = useCallback(() => { if (wallOpen) setWallClosing(true); else openWall(); }, [wallOpen, openWall]);
   /** Muro v2: the editor's Tarjeta › Muro part is open — the card shows its back while you edit it. */
-  const wallPartOpen = canEdit && !phonePreview && editorSel.target?.kind === "profile" && editorSel.target.objectId === "wall";
+  const editingObject = canEdit && !phonePreview && editorSel.target?.kind === "profile" ? editorSel.target.objectId : null;
+  /** Muro v3: a part of the Muro tab is open (Botón lives on the front; the rest show the back). */
+  const wallPartOpen = !!editingObject && editingObject.startsWith("wall") && editingObject !== "wallButton";
   const commentsStyleOpen = false;
   const inspectorProfile = inspectorCardId && inspectorEnabled
     ? elements.find(el => el.elementType === "profile" && el.id === inspectorCardId) as ProfileCardData | undefined
@@ -1299,34 +1300,23 @@ export default function CanvasBoard({
     [inSpace, texts, phoneAreaKey]);
   const visGalleries = useMemo(() => inSpace ? galleries.filter(g => g.isPublic)          : galleries,    [inSpace, galleries]);
   const visProfiles  = useMemo(() => inSpace ? profiles.filter(p => p.isPublic)           : profiles,     [inSpace, profiles]);
-  // Muro v2: on the public card the button turns it; in the editor it opens
-  // Tarjeta › Muro (the card turns there, live). Dragging it in the editor moves it.
-  const flipFromCard = useCallback(() => {
-    const c = visProfiles[0];
-    if (canEdit && !phonePreview && c) { if (phoneEdit) setPhoneSheetOpen(true); setSelectedIds(new Set([c.id])); openProfilePart(c.id, "wall" as PartRole); return; }
-    toggleWall();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canEdit, phonePreview, phoneEdit, toggleWall, visProfiles]);
-  const flipMove = useMemo(() => (canEdit && !phonePreview ? (x: number, y: number) => {
-    const c = visProfiles[0];
-    if (!c) return;
-    updateProfile(c.id, { commentsBox: { ...c.commentsBox, button: { ...c.commentsBox?.button, x, y } } });
-  } : undefined), [canEdit, phonePreview, visProfiles]);
-  // The Muro part opens / closes the back while it is the part being edited.
-  const wallPartWas = useRef(false);
+  // Muro v3: the button only turns the card (it never opens the menu).
+  // In the editor the Muro tab shows the back by itself (Botón shows the
+  // front); going to another tab shows the front; closing the menu changes nothing.
+  const lastEditingObject = useRef<string | null>(null);
   useEffect(() => {
-    if (wallPartOpen && !wallPartWas.current) openWall("wall");
-    if (!wallPartOpen && wallPartWas.current) setWallClosing(true);
-    wallPartWas.current = wallPartOpen;
-  }, [wallPartOpen, openWall]);
-  // Muro (2026-11-25): the control on the card that turns it to its wall.
+    const prev = lastEditingObject.current;
+    lastEditingObject.current = editingObject;
+    if (!editingObject || editingObject === prev) return;
+    if (wallPartOpen) { if (!wallOpen) openWall("wall"); }
+    else if (wallOpen) setWallClosing(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingObject]);
   const wallCard = visProfiles[0] as ProfileCardData | undefined;
   const wallOn = wallShown(wallCard) && !!wallOwnerId;
-  const wallCardLight = useMemo(() => (wallCard ? cardIsLight(wallCard) : false), [wallCard]);
-  const flipNode = useMemo(
-    () => (wallOn ? <FlipControl style={wallCard?.commentsBox} onFlip={flipFromCard} count={wallCount} light={wallCardLight}
-      onMove={flipMove} /> : null),
-    [wallOn, wallCard?.commentsBox, flipFromCard, wallCount, wallCardLight, flipMove],
+  const wallButtonProp = useMemo(
+    () => (wallOn ? { onFlip: toggleWall, active: editingObject === "wallButton" } : undefined),
+    [wallOn, toggleWall, editingObject],
   );
   // ?muro=1 opens the card already turned (links from the Feed and Avisos).
   const muroParamDone = useRef(false);
@@ -4257,7 +4247,7 @@ export default function CanvasBoard({
           // Phase H (D5): the open object's part gets the editor-only outline.
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}
           phoneEditor={phoneEdit && !phonePreview}
-          flipControl={i === 0 ? flipNode : undefined}
+          wallButton={i === 0 ? wallButtonProp : undefined}
           onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); setPhoneFocusTick(n => n + 1); }) : undefined} />);
       })}
 
