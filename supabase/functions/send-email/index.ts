@@ -119,7 +119,10 @@ Deno.serve(async (req) => {
     console.error("brevo test failed:", only.why);
     return new Response(JSON.stringify({ error: { http_code: 500, message: "No se pudo enviar el mail. Probá en un rato." } }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
-  const first = await viaResend(payload.user.email, m);
+  // Test: "+fallbacktest" pretends Resend refused, to exercise the real fallback below.
+  const first = /\+fallbacktest@/i.test(payload.user.email)
+    ? { ok: false, why: "simulated resend failure (+fallbacktest)" }
+    : await viaResend(payload.user.email, m);
   if (first.ok) return Response.json({});
   console.warn("resend failed, trying brevo:", first.why);
   const second = await viaBrevo(payload.user.email, m);
