@@ -1327,6 +1327,16 @@ export default function CanvasBoard({
       try { localStorage.setItem(NEWS_KEY, "1"); } catch { /* ignore */ }
     }
   }, [phoneEdit, isLoading, visProfiles, images, texts, wallpaper]);
+  // Explorar over the whole phone screen: the room behind sleeps (hidden +
+  // effects paused), so the phone only draws the grid — the same reason the
+  // card sleeps behind the Muro (iPhones reload the page when out of memory).
+  const phoneExploreShown = (phoneEdit && phoneTab === "explorar") || (!canEdit && !!mobileFit && exploreOpen);
+  useEffect(() => {
+    const el = canvasWrapperRef.current;
+    if (!el || !phoneExploreShown) return;
+    el.setAttribute("data-fx-paused", ""); el.style.visibility = "hidden";
+    return () => { el.removeAttribute("data-fx-paused"); el.style.visibility = ""; };
+  }, [phoneExploreShown]);
   // Guía de 4 pasos + festejo + aviso de escritorio (2026-11-26).
   const steps = useMemo(() => guideSteps(visProfiles[0]), [visProfiles]);
   const allDone = steps.every(st => st.done);

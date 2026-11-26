@@ -5,10 +5,14 @@
  * on screen (the effects stop off screen), so a long grid stays light. The
  * whole cell is a link to the profile; the heart gives / removes a favorite.
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ProfileCard from "@/components/canvas/ProfileCard";
 import type { ProfileCardData } from "@/types";
 import { HeartIcon } from "@/components/canvas/StatsRow";
+import { liteEffects } from "@/lib/thumbImages";
+
+// Touch screens (phones, tablets): the light version of each card.
+const lite = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
 
 const noop = () => {};
 
@@ -30,7 +34,7 @@ export default function ExploreThumb({ item, onFavorite, canFavorite, height = 1
     ro.observe(el);
     return () => { io.disconnect(); ro.disconnect(); };
   }, []);
-  const card = item.card;
+  const card = useMemo(() => (lite ? { ...item.card, effects: liteEffects(item.card.effects as Record<string, unknown> | undefined) } as ProfileCardData : item.card), [item.card]);
   const cw = Math.max(1, card.w || 320), ch = Math.max(1, card.h || 240);
   const pad = 14;
   const s = w ? Math.min((w - pad * 2) / cw, (height - pad * 2 - 18) / ch) : 0;

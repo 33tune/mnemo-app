@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { publicStateOf } from "@/lib/publishedState";
 import { isExploreTab, publicCardOf, rankExplore, type ExploreCandidate } from "@/lib/explore";
 import type { CanvasState, ProfileCardData } from "@/types";
+import { thumbify } from "@/lib/thumbImages";
+
+const SB = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
 // Explorar (2026-11-26): community cards, ranked by care and activity
 // (src/lib/explore.ts). Everything read here is already public: published
@@ -52,7 +55,9 @@ async function loadCandidates(): Promise<ExploreCandidate[]> {
 /** The card as the thumbnail draws it: no stickers outside the card frame need
  * the room, so only the card itself travels (photos and texts are public). */
 function cardForThumb(card: ProfileCardData): ProfileCardData {
-  return { ...card, x: 0, y: 0 } as ProfileCardData;
+  // Small, still pictures (src/lib/thumbImages.ts): full-size uploads and GIFs
+  // in a grid made iPhone Safari run out of memory and reload the page.
+  return thumbify({ ...card, x: 0, y: 0 } as ProfileCardData, 400, SB);
 }
 
 export async function GET(req: Request) {
@@ -82,7 +87,7 @@ export async function GET(req: Request) {
     items: page.map(c => ({
       userId: c.userId, handle: c.handle, name: (c.card.name || c.handle).slice(0, 60),
       isNew: Date.parse(c.createdAt) > newCut, favorite: favSet.has(c.userId), card: cardForThumb(c.card),
-      room: { wallpaper: typeof c.state.wallpaper === "string" && /^https?:\/\//.test(c.state.wallpaper) ? c.state.wallpaper : "", bgColor: typeof c.state.bgColor === "string" ? c.state.bgColor : "" },
+      room: { wallpaper: typeof c.state.wallpaper === "string" && /^https?:\/\//.test(c.state.wallpaper) ? thumbify(c.state.wallpaper, 400, SB) : "", bgColor: typeof c.state.bgColor === "string" ? c.state.bgColor : "" },
     })),
     more: offset + limit < ranked.length,
   }, { headers: { "Cache-Control": "private, max-age=30" } });

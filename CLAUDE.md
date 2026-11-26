@@ -766,6 +766,11 @@ planeado acá hasta confirmarlo.
 >     ≥ 4), "esmero" = contenido + minutos editando + ediciones (`explore_signals`, migración
 >     `20261126030000_explore_and_favorite_alerts.sql`, APLICADA); "Para vos" mezcla esmero, actividad, novedad y un
 >     sorteo por día y por persona (no siempre las mismas). Nunca tu propia card.
+>   - **Arreglo (2026-11-26, el iPhone recargaba la página al tocar Explorar = sin memoria):** las imágenes de las
+>     miniaturas pasan por `GET /api/thumb?u=&w=` (`sharp`, WebP de 400 px, GIF → primer cuadro, solo de nuestro storage,
+>     cache de un año; `src/lib/thumbImages.ts` › `thumbify`, con test); en pantallas táctiles cada card va sin capas
+>     pesadas (`liteEffects`: sin partículas, strass, glitter, retro, movimiento, vidrio) y la sala de atrás se duerme
+>     mientras Explorar ocupa la pantalla (`phoneExploreShown` en CanvasBoard). De 29 a 8 megapíxeles en pantalla.
 >   - **Avisos:** `my_activity` suma `favorite` → "@x te agregó a favoritos" con botón **Agregar** (`FavBack` en
 >     `WallPanel.tsx`). Las visitas siguen anónimas.
 >   - **Celular:** pestañas abajo Inicio (tu sala + Copiar link / Compartir + campana de Avisos) · Explorar · Editar
