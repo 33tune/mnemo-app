@@ -79,6 +79,7 @@ import { SHORTCUTS_BAR_H } from "./ShortcutsBar";
 import ExplorePanel, { ExploreButton } from "@/components/explore/ExplorePanel";
 import PhoneTabs, { PhoneHome, PHONE_TABS_H, type PhoneTab } from "@/components/explore/PhoneTabs";
 import { isFinished as cardIsFinished } from "@/lib/explore";
+import { guideSteps, PhoneGuidePill, CardReadySheet, DesktopTipSheet, seen as guideSeen, markSeen as guideMarkSeen } from "@/components/explore/PhoneGuide";
 import { track, trackOnce, markVisit } from "@/lib/track";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
@@ -1277,6 +1278,9 @@ export default function CanvasBoard({
     if (!authResolved || !canEdit) return;
     markVisit(true);
     trackOnce("editor_open", phoneEdit ? { phone: true } : undefined);
+    // The phone has no tour (it has the 4-step guide); its news open once the
+    // card is known (below): only someone with a finished card gets them.
+    if (phoneEdit) return;
     try {
       if (!localStorage.getItem(TOUR_KEY)) {
         setTourStep("card");
@@ -1315,8 +1319,30 @@ export default function CanvasBoard({
   useEffect(() => {
     if (!phoneEdit || isLoading || phoneTabDecided.current || !visProfiles.length) return;
     phoneTabDecided.current = true;
-    if (cardIsFinished(visProfiles[0], { images, texts, wallpaper } as unknown as CanvasState)) setPhoneTab("inicio");
+    if (cardIsFinished(visProfiles[0], { images, texts, wallpaper } as unknown as CanvasState)) {
+      setPhoneTab("inicio");
+      try { if (!localStorage.getItem(NEWS_KEY)) setNewsOpen(true); } catch { /* storage blocked: no news */ }
+    } else {
+      // A new card gets the guide; the news are about things it never saw.
+      try { localStorage.setItem(NEWS_KEY, "1"); } catch { /* ignore */ }
+    }
   }, [phoneEdit, isLoading, visProfiles, images, texts, wallpaper]);
+  // Guía de 4 pasos + festejo + aviso de escritorio (2026-11-26).
+  const steps = useMemo(() => guideSteps(visProfiles[0]), [visProfiles]);
+  const allDone = steps.every(st => st.done);
+  const doneAtLoad = useRef<boolean | null>(null);
+  const [readyOpen, setReadyOpen] = useState(false);
+  const [deskTipOpen, setDeskTipOpen] = useState(false);
+  useEffect(() => {
+    if (!phoneEdit || isLoading || !visProfiles.length) return;
+    if (doneAtLoad.current === null) { doneAtLoad.current = allDone; return; }
+    if (allDone && !doneAtLoad.current && !guideSeen("ready")) { guideMarkSeen("ready"); doneAtLoad.current = true; setReadyOpen(true); }
+  }, [phoneEdit, isLoading, visProfiles.length, allDone]);
+  useEffect(() => {
+    if (!phoneEdit || isLoading || phoneTab !== "inicio" || readyOpen || newsOpen || guideSeen("desk")) return;
+    const t = window.setTimeout(() => setDeskTipOpen(true), 1500);
+    return () => window.clearTimeout(t);
+  }, [phoneEdit, isLoading, phoneTab, readyOpen, newsOpen]);
   // Muro v3: the button only turns the card (it never opens the menu).
   // In the editor the Muro tab shows the back by itself (Botón shows the
   // front); going to another tab shows the front; closing the menu changes nothing.
@@ -3181,7 +3207,8 @@ export default function CanvasBoard({
       w, h, zIndex: zCounter.current, layer: 2, depth: 0.5, rotation: 0,
       format,
       pfpAnchorX: 0.5, pfpAnchorY: 0.5,
-      photo: "", name: "", status: "", handle: userHandle,
+      // The claimed name comes already written (2026-11-26): a card is never nameless by default.
+      photo: "", name: (userHandle || "").replace(/^@/, ""), status: "", handle: userHandle,
       userId: currentUserId,
       photoX: 50, photoY: 34, textX: 50, textY: 72,
       photoSize: "md",
@@ -3247,9 +3274,10 @@ export default function CanvasBoard({
   useEffect(() => {
     if (!phoneEdit || isLoading || !phoneCardId || shareOpen) return;
     if (!editorSel.target) {
-      // First open in this visit: the sheet starts on the effects gallery (what
-      // impresses), not on a text form; the empty photo / name ask on the card.
-      if (!phoneFirstOpenRef.current) { phoneFirstOpenRef.current = true; editorSel.memory.setActiveObject(phoneCardId, "cardFx"); }
+      // First open in this visit (2026-11-26): the sheet starts on the profile
+      // (the photo), not on the effects — people played with effects and left
+      // without a name or links.
+      if (!phoneFirstOpenRef.current) { phoneFirstOpenRef.current = true; editorSel.memory.setActiveObject(phoneCardId, "photo"); }
       setSelectedIds(new Set([phoneCardId])); openProfile(phoneCardId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3866,6 +3894,19 @@ export default function CanvasBoard({
         <PhoneTabs tab={phoneTab} onTab={t => { setPhoneZoom(null); if (t !== "editar") setWallOpen(false); setPhoneTab(t); }} />
       )}
       {phoneEdit && <input ref={phonePhotoInputRef} type="file" accept="image/*" hidden onChange={onPhonePhotoPicked} />}
+      {phoneEdit && phoneTab === "editar" && !isLoading && !shareOpen && !wallOpen && !readyOpen && visProfiles[0] && (
+        <PhoneGuidePill steps={steps} top={phoneBarH + 8} onGo={st => {
+          const id = visProfiles[0].id;
+          setPhoneSheetOpen(true); setSelectedIds(new Set([id]));
+          if (inspectorCardIdRef.current === id) setInspectorObject(st.part); else { editorSel.memory.setActiveObject(id, st.part); openProfile(id); }
+          setPhoneFocusTick(t => t + 1);
+        }} />
+      )}
+      {phoneEdit && readyOpen && (
+        <CardReadySheet handle={(userHandle || "").replace(/^@/, "")} onShare={visProfiles.length ? openShare : undefined}
+          onClose={() => { setReadyOpen(false); if (!guideSeen("desk")) window.setTimeout(() => setDeskTipOpen(true), 400); }} />
+      )}
+      {phoneEdit && deskTipOpen && !readyOpen && <DesktopTipSheet onClose={() => { guideMarkSeen("desk"); setDeskTipOpen(false); }} />}
       {phoneEdit && !phonePreview && (
         <PhoneEditorBar handle={userHandle}
           onPreview={() => { setPhoneZoom(null); setPhonePreview(true); }}
@@ -3897,7 +3938,7 @@ export default function CanvasBoard({
           </button>
         </div>
       )}
-      {phoneEdit && phoneTip && !phonePreview && !isLoading && (
+      {phoneEdit && phoneTip && !phonePreview && !isLoading && steps.every(st => st.done) && (
         <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
           <span>Tocá una parte de tu card para editarla, o arrastrala para moverla. Todo se guarda solo.</span>
           <button type="button" className="mn-phonetip__ok" onClick={() => closePhoneTip("skip")}>Entendido</button>
@@ -4909,7 +4950,7 @@ export default function CanvasBoard({
       )}
 
       {/* ── Novedades (once per browser, NewsDialog.tsx) ── */}
-      {newsOpen && railShown && !tourStep && <NewsDialog onClose={closeNews} />}
+      {newsOpen && (railShown || (phoneEdit && !isLoading)) && !tourStep && <NewsDialog onClose={closeNews} />}
 
       {/* ── SpaceMusic global player ── */}
       {spaceMusic?.url && (

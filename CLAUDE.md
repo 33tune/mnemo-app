@@ -754,6 +754,30 @@ planeado acá hasta confirmarlo.
 >     movimiento) y la card de adelante se duerme mientras se ve el muro (pausa + `visibility: hidden`): Safari recargaba
 >     la página en `drakovin`. La hoja del editor de celular arranca plegada. Sin "tu nombre" de muestra en la card vacía.
 >
+> **Explorar, avisos de favoritos y celular con pestañas (2026-11-26, pedido del usuario; rama
+>   `claude/adoring-edison-j7pzhk`, NO en `main` hasta su OK):**
+>   - **Explorar** reemplaza la barra de accesos directos (`ShortcutsBar` ya no se monta; queda `SHORTCUTS_BAR_H`): botón
+>     "Explorar" abajo (`ExploreButton`, con hasta 3 fotos de favoritos y punto rosa si alguno cambió) → panel
+>     (`ExplorePanel.tsx`: dock a la derecha en la compu, pantalla completa en el celular): buscar, Tus favoritos (anillo =
+>     cambió; Editar = fijar / ocultar) y Cards de la comunidad con pestañas Para vos / Nuevas / Más visitadas / Con holo.
+>     Cada celda es la card REAL (`ExploreThumb.tsx`, `ProfileCard` escalada, montada solo en pantalla) sobre el fondo de su
+>     sala, con corazón. Sin "Card de la semana" ni deslizar (decisión del usuario).
+>   - **Ranking** (`src/lib/explore.ts`, con test; `GET /api/explore?tab=&offset=`): solo cards terminadas (cara + contenido
+>     ≥ 4), "esmero" = contenido + minutos editando + ediciones (`explore_signals`, migración
+>     `20261126030000_explore_and_favorite_alerts.sql`, APLICADA); "Para vos" mezcla esmero, actividad, novedad y un
+>     sorteo por día y por persona (no siempre las mismas). Nunca tu propia card.
+>   - **Avisos:** `my_activity` suma `favorite` → "@x te agregó a favoritos" con botón **Agregar** (`FavBack` en
+>     `WallPanel.tsx`). Las visitas siguen anónimas.
+>   - **Celular:** pestañas abajo Inicio (tu sala + Copiar link / Compartir + campana de Avisos) · Explorar · Editar
+>     (`PhoneTabs.tsx`); una card terminada abre en Inicio. Editar: el nombre ya viene puesto, arranca en Foto, guía
+>     "n/4 · paso" (`PhoneGuide.tsx`: foto, nombre, redes, un estilo), festejo con copiar link / historia al completar, y
+>     una vez el aviso "versión de escritorio" (PC o Mac). El consejo viejo `phoneTip` solo con la guía completa.
+>   - **Novedades** (`NewsDialog.tsx`, clave `mnemo_news_2026_11_26`): en la compu y, en el celular, solo a quien ya tiene
+>     la card terminada (los nuevos reciben la guía).
+>   - **Mails (2026-11-26):** un solo mail por registro (código); el de bienvenida se borró (trigger
+>     `profiles_welcome_email` eliminado). Hook "Send Email" de Supabase Auth → edge function `send-email`: Resend y, si
+>     falla o se pasa del límite, Brevo (probado). Reenviar código: espera creciente y máx. 2 por mail por día.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por

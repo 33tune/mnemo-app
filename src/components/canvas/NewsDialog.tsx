@@ -1,27 +1,28 @@
 "use client";
 /**
- * Novedades (2026-11-06): a one-time notice in the editor about Favoritos,
- * Notas, the bottom bar and the phone view, reminding that myLand is a beta.
+ * Novedades (2026-11-26): a one-time notice in the editor about Explorar,
+ * who added you to favorites, and the phone tabs + guide, reminding that
+ * myLand is a beta. (Before: 2026-11-06, Favoritos / Notas / the bottom bar.)
  * Shown once per browser (NEWS_KEY). Someone who meets the editor for the
  * first time gets the tour instead and never sees it (CanvasBoard marks it
  * seen when the tour starts).
  */
 import React, { useEffect, useRef } from "react";
 
-export const NEWS_KEY = "mnemo_news_2026_11_06";
+export const NEWS_KEY = "mnemo_news_2026_11_26";
 
 const ICONS: Record<string, React.ReactNode> = {
+  compass: <><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></>,
   heart: <path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z" />,
-  quote: <><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" /><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" /></>,
-  search: <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>,
+  star: <path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z" />,
   phone: <><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2" /></>,
 };
 
 const ROWS: [keyof typeof ICONS, string, string][] = [
-  ["heart", "Favoritos", "Dale corazón a las cards que te gustan, al lado de \"Compartir\". Es anónimo."],
-  ["quote", "Notas", "Arriba de tu card: tocá el cuadro y escribí. Dura 24 h y les avisa a quienes te dieron favorito. El engranaje lo decora."],
-  ["search", "Barra de abajo", "Tus favoritos con su nota del día, y la lupa para buscar cards."],
-  ["phone", "Mejor en el celular", "Tu card centrada y con las imágenes que la rodean."],
+  ["compass", "Explorar", "Tocá \"Explorar\" abajo y descubrí cards de la comunidad. Tus favoritos están ahí: un anillo rosa te avisa cuando cambian su card."],
+  ["star", "Las cards más cuidadas", "Explorar muestra las cards con más detalle y cambia todos los días. Si decorás la tuya con esmero, puede aparecer."],
+  ["heart", "Quién te agregó", "En tus Avisos ves quién te dio favorito y lo podés agregar de vuelta. Las visitas siguen siendo anónimas."],
+  ["phone", "En el celular", "Tres pestañas: Inicio, Explorar y Editar, y una guía de 4 pasos para dejar tu card lista."],
 ];
 
 const PINK = "#ff4fa3";
