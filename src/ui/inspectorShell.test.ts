@@ -223,7 +223,7 @@ test("Liquid glass L6: Buscar ajuste — header button, / and ⌘K, results, rev
   const head = read("src/ui/InspectorHeader.tsx");
   const srch = read("src/ui/SettingsSearch.tsx");
   const board = read("src/components/canvas/CanvasBoard.tsx");
-  assert.ok(head.includes('className={searchRow ? "mn-sr-only" : undefined}'), "the h2 is hidden, never unmounted, while searching");
+  assert.ok(head.includes('className={searchRow ? "mn-sr-only" : "mn-inspector__titlerow"}'), "the h2 is hidden, never unmounted, while searching");
   assert.ok(shell.includes('<div style={{ display: searching ? "none" : "contents" }}>'), "the object's controls stay mounted (state survives)");
   assert.ok(shell.includes("if (searching) closeSearch();"), "Esc closes the search first, then the inspector");
   assert.ok(shell.includes("isSearchShortcut(e)") && board.includes("if (inspectorOpenRef.current && isSearchShortcut(e)) { e.preventDefault(); openSettingsSearch(); return; }"));

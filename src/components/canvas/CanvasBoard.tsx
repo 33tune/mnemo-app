@@ -689,7 +689,28 @@ export default function CanvasBoard({
   // the old "vista previa"), Explorar and Editar (the card editor).
   const [phoneTab, setPhoneTab] = useState<PhoneTab>("editar");
   const phonePreview = phoneEdit && phoneTab !== "editar";
-  const setPhonePreview = useCallback((v: boolean) => setPhoneTab(v ? "inicio" : "editar"), []);
+  // The tabs live in the browser's history too (2026-11-26): the phone's back
+  // gesture / button goes from Editar or Explorar back to Inicio instead of
+  // leaving myLand.
+  const phoneTabRef = useRef<PhoneTab>("editar");
+  phoneTabRef.current = phoneTab;
+  const goPhoneTab = useCallback((t: PhoneTab) => {
+    if (t === phoneTabRef.current) return;
+    try {
+      const st = window.history.state as { mlTab?: PhoneTab } | null;
+      if (t === "inicio") { if (st?.mlTab) { window.history.back(); return; } }
+      else if (st?.mlTab) window.history.replaceState({ ...st, mlTab: t }, "");
+      else window.history.pushState({ ...(st ?? {}), mlTab: t }, "");
+    } catch { /* history blocked: the tabs still work */ }
+    setPhoneTab(t);
+  }, []);
+  useEffect(() => {
+    if (!phoneEdit) return;
+    const onPop = (e: PopStateEvent) => setPhoneTab((e.state as { mlTab?: PhoneTab } | null)?.mlTab ?? "inicio");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [phoneEdit]);
+  const setPhonePreview = useCallback((v: boolean) => goPhoneTab(v ? "inicio" : "editar"), [goPhoneTab]);
   // Explorar (2026-11-26): the panel that replaced the favorites bar.
   const [exploreOpen, setExploreOpen] = useState(false);
   // The notch / status bar (env(safe-area-inset-top)): the top bar grows by it.
@@ -704,14 +725,16 @@ export default function CanvasBoard({
     window.addEventListener("resize", read);
     return () => { window.removeEventListener("resize", read); probe.remove(); };
   }, [phoneEdit]);
-  const phoneBarH = phonePreview ? 0 : PHONE_BAR_H + safeTop;
+  // Inicio / Explorar: room for the bell on top (Inicio also fits the card above
+  // its Copiar link / Compartir pills and the tabs, so nothing covers it).
+  const phoneBarH = phonePreview ? safeTop + 64 : PHONE_BAR_H + safeTop;
   // Editor de celular — zoom (2026-11-23, pedido del usuario): null = the
   // whole card; else a point of the room (cx, cy) shown k times bigger than
   // the whole-card fit. Set by tapping a part (auto) or by − / +.
   const [phoneZoom, setPhoneZoom] = useState<{ cx: number; cy: number; k: number } | null>(null);
   const phoneFitRef = useRef<{ s: number; areaH: number; vw: number } | null>(null);
   const phoneScreenH = viewerScreen?.h ?? viewportH;
-  const phoneSheetH = !phoneEdit || phonePreview ? 0 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
+  const phoneSheetH = !phoneEdit ? 0 : phonePreview ? PHONE_TABS_H + 70 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
   const viewFit = phoneEdit ? (() => {
     // Editor de celular: the card (and its stickers) fitted between the top
     // bar and the sheet — the same geometry the phone profile uses.
@@ -3901,10 +3924,10 @@ export default function CanvasBoard({
       )}
       {phoneEdit && phoneTab === "explorar" && <ExplorePanel mode="screen" bottom={PHONE_TABS_H} />}
       {phoneEdit && phoneTab !== "editar" && !shareOpen && !isLoading && !wallOpen && (
-        <PhoneTabs tab={phoneTab} onTab={t => { setPhoneZoom(null); if (t !== "editar") setWallOpen(false); setPhoneTab(t); }} />
+        <PhoneTabs tab={phoneTab} onTab={t => { setPhoneZoom(null); if (t !== "editar") setWallOpen(false); goPhoneTab(t); }} />
       )}
       {phoneEdit && <input ref={phonePhotoInputRef} type="file" accept="image/*" hidden onChange={onPhonePhotoPicked} />}
-      {phoneEdit && phoneTab === "editar" && !isLoading && !shareOpen && !wallOpen && !readyOpen && visProfiles[0] && (
+      {phoneEdit && phoneTab === "editar" && !phoneSheetOpen && !isLoading && !shareOpen && !wallOpen && !readyOpen && visProfiles[0] && (
         <PhoneGuidePill steps={steps} top={phoneBarH + 8} onGo={st => {
           const id = visProfiles[0].id;
           setPhoneSheetOpen(true); setSelectedIds(new Set([id]));
@@ -3920,8 +3943,9 @@ export default function CanvasBoard({
       {phoneEdit && !phonePreview && (
         <PhoneEditorBar handle={userHandle}
           onPreview={() => { setPhoneZoom(null); setPhonePreview(true); }}
-          onSearch={() => setPhoneTab("explorar")}
-          onFavorites={() => setPhoneTab("explorar")}
+          onSearch={() => goPhoneTab("explorar")}
+          onFavorites={() => goPhoneTab("explorar")}
+          onBack={() => { setPhoneZoom(null); setPhoneSheetOpen(false); goPhoneTab("inicio"); }}
           canUndo={histFlags.canUndo} canRedo={histFlags.canRedo}
           onUndo={() => runHistoryRef.current("undo")} onRedo={() => runHistoryRef.current("redo")}
           publishState={publishState} onPublish={publishSpace}
@@ -3932,8 +3956,8 @@ export default function CanvasBoard({
           onComments={() => { setPhoneSheetOpen(false); openWall(unreadActivity > 0 ? "news" : "wall"); }}
           unreadComments={unreadActivity > 0} />
       )}
-      {phoneEdit && !phonePreview && !isLoading && !shareOpen && !!viewerScreen && (
-        <div data-mnemo-ui="" className="mn-phonezoom" role="group" aria-label="Zoom" style={{ bottom: phoneSheetOpen ? phoneSheetH + 12 : INSPECTOR_SHEET_COLLAPSED_H + SHORTCUTS_BAR_H + 14 }}>
+      {phoneEdit && !phonePreview && !phoneSheetOpen && !isLoading && !shareOpen && !!viewerScreen && (
+        <div data-mnemo-ui="" className="mn-phonezoom" role="group" aria-label="Zoom" style={{ bottom: phoneSheetOpen ? phoneSheetH + 12 : INSPECTOR_SHEET_COLLAPSED_H + 14 }}>
           <button type="button" className="mn-gbtn" aria-label="Alejar" aria-disabled={!phoneZoom || undefined}
             onClick={() => setPhoneZoom(z => (!z || z.k / 1.5 < 1.1 ? null : { ...z, k: z.k / 1.5 }))}>
             <Icon name="minus" size={18} />
@@ -4664,7 +4688,7 @@ export default function CanvasBoard({
           in the editor (beside the rail, clear of the dock) and on other
           people's profiles while signed in (computer). */}
       {railShown && !tourStep && (
-        <ExploreButton open={exploreOpen} left={railW + 60} right={exploreOpen ? 414 : inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
+        <ExploreButton open={exploreOpen} left={0} right={exploreOpen ? 414 : inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
           onToggle={() => setExploreOpen(o => { if (!o) { closeInspector(); setMenuOpen(false); } return !o; })} />
       )}
       {railShown && !tourStep && exploreOpen && (
@@ -4674,7 +4698,7 @@ export default function CanvasBoard({
         mobileFit
           ? <ExploreButton compact open={exploreOpen} onToggle={() => setExploreOpen(o => !o)}
               at={{ left: 70, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }} />
-          : <ExploreButton open={exploreOpen} left={72} right={exploreOpen ? 414 : 170} onToggle={() => setExploreOpen(o => !o)} />
+          : <ExploreButton open={exploreOpen} left={0} right={exploreOpen ? 414 : 0} onToggle={() => setExploreOpen(o => !o)} />
       )}
       {!canEdit && exploreOpen && (mobileFit ? <ExplorePanel mode="screen" onClose={() => setExploreOpen(false)} /> : <ExplorePanel mode="dock" onClose={() => setExploreOpen(false)} />)}
       {/* Muro (2026-11-25): tu card en miniatura (bottom-left, everywhere) → tu celular. */}

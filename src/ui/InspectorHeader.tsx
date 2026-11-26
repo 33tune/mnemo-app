@@ -37,19 +37,19 @@ interface InspectorHeaderProps {
 export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose, onSearch, searchRow, sheet, children }: InspectorHeaderProps) {
   const btn = sheet ? 44 : 36;
   return (
-    <div className="mn-inspector__header" style={{
+    <div className="mn-inspector__header" data-searching={searchRow ? "" : undefined} style={{
       display: "flex", flexDirection: "column", gap: 14,
       padding: sheet ? `${T.space[2]}px ${T.ui.size.panelPad}px ${T.space[3]}px` : "16px 14px 12px 18px",
       flexShrink: 0, minWidth: 0,
     }}>
       {searchRow}
-      <div className={searchRow ? "mn-sr-only" : undefined} style={searchRow ? undefined : { display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+      <div className={searchRow ? "mn-sr-only" : "mn-inspector__titlerow"} style={searchRow ? undefined : { display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
         {icon && (
           <span key={icon} className="mn-inspector__icon" aria-hidden="true">
             <Icon name={icon} size={17} />
           </span>
         )}
-        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+        <div className="mn-inspector__titlewrap" style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
           <h2 key={title} ref={titleRef} id={titleId} tabIndex={-1} className="mn-inspector__title" style={{
             margin: 0, fontFamily: T.type.title.fontFamily, fontSize: T.type.title.fontSize, fontWeight: T.type.title.fontWeight,
             lineHeight: 1.15, letterSpacing: "-0.02em", color: uv("text-primary"),

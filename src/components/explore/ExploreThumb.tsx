@@ -11,8 +11,10 @@ import type { ProfileCardData } from "@/types";
 import { HeartIcon } from "@/components/canvas/StatsRow";
 import { liteEffects } from "@/lib/thumbImages";
 
-// Touch screens (phones, tablets): the light version of each card.
-const lite = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
+// Every device gets the light version of each card (liteEffects): a grid of
+// full cards with particles and motion dropped the frame rate while scrolling
+// on a computer and ran iPhones out of memory.
+const lite = true;
 
 const noop = () => {};
 
@@ -23,6 +25,10 @@ export default function ExploreThumb({ item, onFavorite, canFavorite, height = 1
 }) {
   const box = useRef<HTMLAnchorElement>(null);
   const [visible, setVisible] = useState(false);
+  // Mounted once it has been on screen (mounting a card mid-scroll made the
+  // scroll stutter); off screen it only pauses its effects.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { if (visible) setMounted(true); }, [visible]);
   const [w, setW] = useState(0);
   useEffect(() => {
     const el = box.current;
@@ -42,16 +48,16 @@ export default function ExploreThumb({ item, onFavorite, canFavorite, height = 1
   return (
     <a ref={box} href={`/${item.handle}`} data-explore-card="" aria-label={`${item.name} (@${item.handle})`}
       style={{ position: "relative", display: "block", height, borderRadius: 18, overflow: "hidden", textDecoration: "none", color: "#fff",
-        background: item.room?.bgColor || "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.09)", isolation: "isolate" }}>
+        background: item.room?.bgColor || "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.09)", isolation: "isolate", contain: "layout paint", willChange: "transform" }}>
       {/* The card's own room behind it: transparent / glass cards need it. */}
-      {item.room?.wallpaper && visible && (
+      {item.room?.wallpaper && mounted && (
         <span aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: `url(${JSON.stringify(item.room.wallpaper)})`,
           backgroundSize: "cover", backgroundPosition: "center", opacity: .9 }} />
       )}
       <div aria-hidden {...(visible ? {} : { "data-fx-paused": "" })}
         style={{ position: "absolute", left: "50%", top: `calc(50% - 9px)`, width: cw, height: ch, transform: `translate(-50%, -50%) scale(${s})`,
           transformOrigin: "50% 50%", pointerEvents: "none" }}>
-        {visible && s > 0 && (
+        {mounted && s > 0 && (
           <div style={{ position: "relative", width: cw, height: ch }}>
             <ProfileCard card={{ ...card, x: 0, y: 0 }} isSel={false} draggingId={null} parallaxTransform=""
               onMouseDown={noop} onClick={noop} onResizeMD={noop} updateProfile={noop} canInteract={false} />

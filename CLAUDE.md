@@ -771,6 +771,13 @@ planeado acá hasta confirmarlo.
 >     cache de un año; `src/lib/thumbImages.ts` › `thumbify`, con test); en pantallas táctiles cada card va sin capas
 >     pesadas (`liteEffects`: sin partículas, strass, glitter, retro, movimiento, vidrio) y la sala de atrás se duerme
 >     mientras Explorar ocupa la pantalla (`phoneExploreShown` en CanvasBoard). De 29 a 8 megapíxeles en pantalla.
+>   - **Ajustes (2026-11-26, feedback del usuario):** la pastilla Explorar va centrada en la pantalla; las filas de
+>     Favoritos y de pestañas se mueven de costado con la rueda, arrastrando o con flechas (`HRow`); el panel de la compu
+>     sin desenfoque de fondo y cada miniatura en su capa, montada una vez (scroll de 44 → 54 fps sin placa de video).
+>     **Celular:** botón ‹ en la barra del editor y las pestañas en el historial (el "atrás" del teléfono vuelve a Inicio,
+>     `goPhoneTab`); encabezado de la hoja en UNA fila (grupos como íconos + buscar + cerrar, título solo para lectores de
+>     pantalla; CSS con `:has(.mn-partpicker)` en `editor.css`); la guía y el − / + se ocultan con la hoja abierta; Inicio
+>     encaja la card arriba de Copiar link / Compartir.
 >   - **Avisos:** `my_activity` suma `favorite` → "@x te agregó a favoritos" con botón **Agregar** (`FavBack` en
 >     `WallPanel.tsx`). Las visitas siguen anónimas.
 >   - **Celular:** pestañas abajo Inicio (tu sala + Copiar link / Compartir + campana de Avisos) · Explorar · Editar

@@ -43,7 +43,7 @@ function Label({ children, action }: { children: React.ReactNode; action?: React
 
 function FavAvatar({ s, changed, onOpen }: { s: Shortcut; changed: boolean; onOpen: (s: Shortcut) => void }) {
   return (
-    <a href={`/${s.handle}`} onClick={() => onOpen(s)} title={`@${s.handle}`} aria-label={`@${s.handle}${changed ? ", cambió su card" : ""}`}
+    <a href={`/${s.handle}`} draggable={false} onClick={() => onOpen(s)} title={`@${s.handle}`} aria-label={`@${s.handle}${changed ? ", cambió su card" : ""}`}
       style={{ width: 64, flex: "none", textAlign: "center", textDecoration: "none", color: "rgba(246,243,248,.7)", font: `500 11px ${font}` }}>
       <span style={{ width: 56, height: 56, borderRadius: 28, margin: "0 auto 5px", display: "grid", placeItems: "center", overflow: "hidden",
         background: s.bg, color: s.nameColor, font: `700 18px ${font}`,
@@ -52,6 +52,57 @@ function FavAvatar({ s, changed, onOpen }: { s: Shortcut; changed: boolean; onOp
       </span>
       <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{s.handle}</span>
     </a>
+  );
+}
+
+/** A row that scrolls sideways with a finger, the mouse wheel, dragging with
+ * the mouse, or the arrows that show up when there is more to see. */
+function HRow({ children, gap = 8, label }: { children: React.ReactNode; gap?: number; label?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
+  const update = useCallback(() => {
+    const el = ref.current; if (!el) return;
+    setEdge({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
+  }, []);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    update();
+    const ro = new ResizeObserver(update); ro.observe(el);
+    for (const c of Array.from(el.children)) ro.observe(c);
+    // A vertical wheel over the row moves it sideways (only while it can move).
+    const wheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || el.scrollWidth <= el.clientWidth) return;
+      const before = el.scrollLeft;
+      el.scrollLeft += e.deltaY;
+      if (el.scrollLeft !== before) e.preventDefault();
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => { ro.disconnect(); el.removeEventListener("wheel", wheel); };
+  }, [update, children]);
+  const by = (dir: number) => ref.current?.scrollBy({ left: dir * ref.current.clientWidth * 0.8, behavior: "smooth" });
+  const arrow = (dir: -1 | 1): React.CSSProperties => ({ position: "absolute", top: "50%", [dir < 0 ? "left" : "right"]: -4, transform: "translateY(-60%)",
+    width: 30, height: 30, borderRadius: 15, border: "none", background: "rgba(246,243,248,.95)", color: "#141118", display: "grid", placeItems: "center",
+    cursor: "pointer", boxShadow: "0 4px 14px rgba(0,0,0,.4)", zIndex: 2, padding: 0 });
+  return (
+    <div style={{ position: "relative" }} role={label ? "group" : undefined} aria-label={label}>
+      <div ref={ref} onScroll={update}
+        onPointerDown={e => { if (e.pointerType === "mouse" && e.button === 0) drag.current = { x: e.clientX, left: ref.current!.scrollLeft, moved: false }; }}
+        onPointerMove={e => {
+          const d = drag.current; if (!d || !ref.current) return;
+          const dx = e.clientX - d.x;
+          if (!d.moved && Math.abs(dx) > 4) { d.moved = true; ref.current.setPointerCapture(e.pointerId); }
+          if (d.moved) ref.current.scrollLeft = d.left - dx;
+        }}
+        onPointerUp={() => { const d = drag.current; drag.current = null; if (d?.moved) { const stop = (ev: Event) => { ev.preventDefault(); ev.stopPropagation(); }; ref.current?.addEventListener("click", stop, { capture: true, once: true }); window.setTimeout(() => ref.current?.removeEventListener("click", stop, { capture: true }), 0); } }}
+        onPointerCancel={() => { drag.current = null; }}
+        style={{ display: "flex", gap, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2, overscrollBehaviorX: "contain", WebkitOverflowScrolling: "touch",
+          maskImage: edge.l || edge.r ? `linear-gradient(90deg, ${edge.l ? "transparent, #000 28px" : "#000"}, ${edge.r ? "#000 calc(100% - 28px), transparent" : "#000"})` : undefined }}>
+        {children}
+      </div>
+      {edge.l && <button type="button" aria-label="Ver anteriores" onClick={() => by(-1)} style={arrow(-1)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden><path d="m15 18-6-6 6-6" /></svg></button>}
+      {edge.r && <button type="button" aria-label="Ver más" onClick={() => by(1)} style={arrow(1)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden><path d="m9 18 6-6-6-6" /></svg></button>}
+    </div>
   );
 }
 
@@ -131,7 +182,9 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const dock = mode === "dock";
   const shell: React.CSSProperties = dock
     ? { position: "fixed", top, right, bottom, width: "min(400px, calc(100vw - 28px))", borderRadius: 24, zIndex: 2147481050,
-        background: "rgba(14,12,18,.9)", WebkitBackdropFilter: "blur(22px)", backdropFilter: "blur(22px)",
+        // Solid (no backdrop blur): the room behind animates, and the blur was
+        // redone on every frame while scrolling the cards.
+        background: "rgba(16,14,21,.985)",
         border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 24px 60px rgba(0,0,0,.45)" }
     : { position: "fixed", inset: 0, bottom, zIndex: 2147481050, background: "#0E0C12" };
 
@@ -196,19 +249,21 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
                     ))}
                   </div>
                 ) : favs.length ? (
-                  <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
+                  <HRow label="Tus favoritos">
                     {favs.map(s => <FavAvatar key={s.userId} s={s} changed={changed.has(s.userId)} onOpen={markSeen} />)}
-                  </div>
+                  </HRow>
                 ) : (
                   <p style={{ margin: 0, color: "rgba(246,243,248,.6)", font: `500 13.5px ${font}` }}>Tocá el corazón de una card y aparece acá.</p>
                 )}
               </>
             )}
             <Label>Cards de la comunidad</Label>
-            <div role="tablist" aria-label="Ordenar cards" style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none" }}>
-              {EXPLORE_TABS.map(t => (
-                <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} style={chip(tab === t.id)}>{t.label}</button>
-              ))}
+            <div role="tablist" aria-label="Ordenar cards" style={{ marginBottom: 12 }}>
+              <HRow gap={6}>
+                {EXPLORE_TABS.map(t => (
+                  <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} style={chip(tab === t.id)}>{t.label}</button>
+                ))}
+              </HRow>
             </div>
             {items === null ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>

@@ -1870,3 +1870,28 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
 :where([data-mnemo-ui]) .mn-pill--live[data-state="pending"]::before, :where([data-mnemo-ui]) .mn-pill--live[data-state="publishing"]::before { background: var(--ui-text-secondary); animation: mn-live-pulse 1s ease-in-out infinite; }
 @keyframes mn-live-pulse { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { :where([data-mnemo-ui]) .mn-pill--live::before { animation: none !important; } }
+
+/* Phone sheet, one compact header (2026-11-26, audit "the menu leaves no room"):
+   the groups (Tarjeta · Perfil · Contenido · Muro) share a row with search and
+   close; the parts go under them; the title stays for screen readers only (the
+   selected part shows its name). Before: title row + groups + parts = ~45 % of
+   the sheet before the first control. Browsers without :has keep the old one. */
+@media (pointer: coarse) {
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) auto auto; column-gap: 6px; row-gap: 10px; align-items: center;
+    padding-top: 2px !important; padding-bottom: 8px !important;
+  }
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) .mn-inspector__titlerow,
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) .mn-partpicker { display: contents !important; }
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) .mn-inspector__icon { display: none; }
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) .mn-inspector__titlewrap {
+    position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) .mn-partpicker > :first-child { grid-column: 1; grid-row: 1; }
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) .mn-parts { grid-column: 1 / -1; grid-row: 2; }
+}
+/* …and the groups as icons only there (the active name was cut off at 390 px;
+   the parts under them say where you are). Its name stays for screen readers. */
+@media (pointer: coarse) {
+  :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) .mn-partpicker > :first-child .mn-seg__btn { font-size: 0 !important; gap: 0 !important; }
+}

@@ -15,8 +15,10 @@ const MORE_ID = "mnemo-phone-more";
  * Salir) and Publicar. 44px targets; respects the notch (safe-area).
  */
 export default function PhoneEditorBar({
-  handle, canUndo, canRedo, onUndo, onRedo, publishState, onPublish, onShare, onRoom, roomOpen, onLogout, onComments, unreadComments, onPreview, onSearch, onFavorites,
+  handle, canUndo, canRedo, onUndo, onRedo, publishState, onPublish, onShare, onRoom, roomOpen, onLogout, onComments, unreadComments, onPreview, onSearch, onFavorites, onBack,
 }: {
+  /** Back to Inicio (2026-11-26): the editor always has a way out. */
+  onBack?: () => void;
   handle: string;
   canUndo: boolean; canRedo: boolean;
   onUndo: () => void; onRedo: () => void;
@@ -54,6 +56,11 @@ export default function PhoneEditorBar({
   return (
     <header {...{ [EDITOR_UI_ATTR]: "" }} className="mn-phonebar" style={{ fontFamily: T.uiFont.sans }}>
       <div className="mn-phonebar__brand">
+        {onBack && (
+          <button type="button" className="mn-gbtn" aria-label="Volver a Inicio" onClick={onBack} style={{ width: 40, height: 44, marginRight: -6 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m15 18-6-6 6-6" /></svg>
+          </button>
+        )}
         <img src="/logo.png" alt="" width={28} height={28} draggable={false} />
         <span className="mn-phonebar__handle">@{handle}</span>
         <span className="mn-capsule__status" data-dirty={dirty || undefined} aria-hidden="true" />
