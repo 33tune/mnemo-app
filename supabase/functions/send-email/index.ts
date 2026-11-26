@@ -112,6 +112,13 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: { http_code: 401, message: "bad signature" } }), { status: 401, headers: { "Content-Type": "application/json" } });
   }
   const m = build(payload.email_data, payload.user);
+  // Test: an address with "+brevotest" goes straight to Brevo (checks the fallback without using Resend).
+  if (/\+brevotest@/i.test(payload.user.email)) {
+    const only = await viaBrevo(payload.user.email, m);
+    if (only.ok) return Response.json({});
+    console.error("brevo test failed:", only.why);
+    return new Response(JSON.stringify({ error: { http_code: 500, message: "No se pudo enviar el mail. Probá en un rato." } }), { status: 500, headers: { "Content-Type": "application/json" } });
+  }
   const first = await viaResend(payload.user.email, m);
   if (first.ok) return Response.json({});
   console.warn("resend failed, trying brevo:", first.why);
