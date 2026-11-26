@@ -24,6 +24,9 @@ import { hexAlpha, timeAgo } from "@/lib/comments";
 import { resolveWallLook, readableOn, postFontFamily, wallBackEffects, WALL_W, WALL_H } from "@/lib/wall";
 import { formatViewCount } from "@/lib/profileCardLayout";
 import { WallBody, PostView, Avatar, BackIcon, WallIcon, FeedIcon, BellIcon, ReplyArrow, roundBtn, UI_FONT } from "./WallParts";
+import { useViewerId } from "@/lib/viewer";
+import { createClient } from "@/lib/supabase/client";
+import { track } from "@/lib/track";
 
 const TURN_MS = 230;
 const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -240,27 +243,46 @@ function FeedTab({ meId, ink, accent, wallBg, newTab }: { meId: string; ink: str
 }
 
 /** Avisos: posts on my wall, replies to me, likes on my posts. */
+function FavBack({ userId, accent, mutual }: { userId: string; accent: string; mutual?: boolean }) {
+  const viewer = useViewerId();
+  const [done, setDone] = useState(!!mutual);
+  if (!viewer || !userId) return null;
+  return (
+    <button type="button" disabled={done} aria-pressed={done}
+      onClick={e => {
+        e.preventDefault(); e.stopPropagation(); setDone(true); track("favorite_add", { from: "notice" });
+        createClient().from("favorites").insert({ user_id: viewer, target_user_id: userId }).then(({ error }) => { if (error && error.code !== "23505") setDone(false); });
+      }}
+      style={{ flex: "none", height: 30, padding: "0 12px", borderRadius: 999, border: "none", cursor: done ? "default" : "pointer",
+        background: done ? "rgba(255,255,255,.12)" : accent, color: "#fff", font: "700 12px system-ui, sans-serif" }}>
+      {done ? "Agregado" : "Agregar"}
+    </button>
+  );
+}
+
 function NewsTab({ ink, accent, newTab }: { ink: string; accent: string; newTab?: boolean }) {
   const a = useActivity(true);
-  const kindIcon = (k: string) => (k === "like" ? <HeartIcon size={11} filled /> : k === "reply" ? <ReplyArrow size={11} /> : <CommentIcon size={11} />);
+  const kindIcon = (k: string) => (k === "like" || k === "favorite" ? <HeartIcon size={11} filled /> : k === "reply" ? <ReplyArrow size={11} /> : <CommentIcon size={11} />);
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "4px 8px 10px", overscrollBehavior: "contain" }}>
       {!a.loaded && <Empty ink={ink} icon={<BellIcon size={28} />} />}
       {a.loaded && a.items.length === 0 && <Empty ink={ink} icon={<BellIcon size={30} />} />}
       {a.items.map((it, i) => (
-        <a key={`${it.postId}-${it.kind}-${i}`} href={it.wallHandle ? `/${it.wallHandle}?muro=1` : undefined} target={newTab ? "_blank" : undefined} rel="noreferrer"
+        <a key={`${it.postId}-${it.kind}-${i}`} href={it.kind === "favorite" ? (it.actor.handle ? `/${it.actor.handle}` : undefined) : it.wallHandle ? `/${it.wallHandle}?muro=1` : undefined} target={newTab ? "_blank" : undefined} rel="noreferrer"
           aria-label={`${it.actor.handle ? "@" + it.actor.handle : "alguien"} · ${it.body}`}
           style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 8px", borderRadius: 14, color: ink, textDecoration: "none" }}>
           <span style={{ position: "relative", flex: "none" }}>
             <Avatar a={it.actor} size={36} />
             <span aria-hidden style={{ position: "absolute", right: -4, bottom: -4, width: 19, height: 19, borderRadius: 99, display: "grid", placeItems: "center",
-              background: it.kind === "like" ? accent : "#2c2b33", color: "#fff", boxShadow: "0 0 0 2px rgba(0,0,0,.4)" }}>{kindIcon(it.kind)}</span>
+              background: it.kind === "like" || it.kind === "favorite" ? accent : "#2c2b33", color: "#fff", boxShadow: "0 0 0 2px rgba(0,0,0,.4)" }}>{kindIcon(it.kind)}</span>
           </span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: "block", fontWeight: 650, fontSize: 13 }}>@{it.actor.handle || "?"}</span>
             <span style={{ display: "block", color: hexAlpha(ink, 0.65), fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.body}</span>
           </span>
-          <span style={{ color: hexAlpha(ink, 0.5), fontSize: 11.5, flex: "none" }}>{timeAgo(it.at)}</span>
+          {it.kind === "favorite"
+            ? <FavBack userId={it.actor.id} accent={accent} mutual={it.mutual} />
+            : <span style={{ color: hexAlpha(ink, 0.5), fontSize: 11.5, flex: "none" }}>{timeAgo(it.at)}</span>}
         </a>
       ))}
     </div>

@@ -28,7 +28,11 @@ export interface WallPost {
   liked: boolean;
   pinned?: boolean;
 }
-export interface ActivityItem { kind: "wall" | "reply" | "like"; postId: string; wallHandle: string; body: string; at: string; actor: PostAuthor }
+export interface ActivityItem {
+  kind: "wall" | "reply" | "like" | "favorite"; postId: string; wallHandle: string; body: string; at: string; actor: PostAuthor;
+  /** "favorite" (2026-11-26): I already gave them a favorite back. */
+  mutual?: boolean;
+}
 
 /** Fonts offered when writing (a short, legible set; any card font is accepted). */
 export const POST_FONTS = ["DM Sans", "Poppins", "Space Mono", "Playfair Display", "Comic Sans MS", "Dancing Script", "Bebas Neue", "Pacifico", "Courier New", "Impact", "Great Vibes", "Quicksand"]
