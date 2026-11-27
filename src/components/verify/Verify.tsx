@@ -8,7 +8,7 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useVerified, sendVerifyCode, confirmVerifyCode, verifyPillHidden, hideVerifyPill, VERIFY_EVENT } from "@/lib/verify";
+import { useVerified, sendVerifyCode, confirmVerifyCode, verifyPillHidden, hideVerifyPill, VERIFY_EVENT, NEED_VERIFY_EVENT } from "@/lib/verify";
 
 const FONT = "var(--font-sans, 'DM Sans', system-ui), sans-serif";
 const PINK = "#FF4F94";
@@ -73,7 +73,7 @@ export function VerifyDialog({ onClose }: { onClose: () => void }) {
   });
 
   return createPortal(
-    <div data-mnemo-ui="" role="dialog" aria-modal="true" aria-label="Verificá tu cuenta" style={{ position: "fixed", inset: 0, zIndex: 9500 }}>
+    <div data-mnemo-ui="" role="dialog" aria-modal="true" aria-label="Verificá tu cuenta" style={{ position: "fixed", inset: 0, zIndex: 2147483000 }}>
       <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(5,4,8,.6)" }} />
       <div style={{ ...box, background: "rgba(22,19,28,.98)", border: "1px solid rgba(255,255,255,.1)", color: INK, font: `500 14px ${FONT}`, boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
         <button type="button" aria-label="Cerrar" onClick={onClose}
@@ -83,7 +83,7 @@ export function VerifyDialog({ onClose }: { onClose: () => void }) {
         {step === "intro" && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><VerifiedMark size={28} /><h2 style={{ margin: 0, font: `800 21px ${FONT}` }}>Verificá tu cuenta</h2></div>
-            <p style={{ margin: "0 0 16px", color: "rgba(246,243,248,.62)" }}>Te mandamos un código a tu mail. Tarda 30 segundos.</p>
+            <p style={{ margin: "0 0 16px", color: "rgba(246,243,248,.62)" }}>Te mandamos un código a tu mail. Tarda 30 segundos. Para escribir en muros, dar likes y favoritos hay que estar verificado.</p>
             <ul style={{ listStyle: "none", margin: "0 0 18px", padding: 0, display: "grid", gap: 12 }}>
               {BENEFITS.map(b => (
                 <li key={b.t} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -176,4 +176,15 @@ export function VerifyExploreNotice() {
       {open && <VerifyDialog onClose={() => setOpen(false)} />}
     </>
   );
+}
+
+/** Mounted once (layout): opens the dialog when an action needs a verified account. */
+export function VerifyGate() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const on = () => setOpen(true);
+    window.addEventListener(NEED_VERIFY_EVENT, on);
+    return () => window.removeEventListener(NEED_VERIFY_EVENT, on);
+  }, []);
+  return open ? <VerifyDialog onClose={() => setOpen(false)} /> : null;
 }

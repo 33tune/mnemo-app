@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useViewerId } from "@/lib/viewer";
 import { bumpCommentCount } from "@/hooks/useComments";
 import { cleanPostStyle, wallError, type ActivityItem, type PostAuthor, type PostStyle, type WallPost } from "@/lib/wall";
+import { isVerifyError, requestVerify } from "@/lib/verify";
 
 const json = async <T,>(url: string): Promise<T | null> => {
   const r = await fetch(url, { cache: "no-store" }).catch(() => null);
@@ -21,7 +22,7 @@ const json = async <T,>(url: string): Promise<T | null> => {
 /** Like / unlike with an optimistic update; `apply` patches the post everywhere it shows. */
 export async function togglePostLike(id: string): Promise<{ liked: boolean; n: number } | null> {
   const { data, error } = await createClient().rpc("toggle_post_like", { p_id: id });
-  if (error) return null;
+  if (error) { if (isVerifyError(error)) requestVerify(); return null; }
   const row = (Array.isArray(data) ? data[0] : data) as { liked: boolean; n: number } | undefined;
   return row ? { liked: !!row.liked, n: Number(row.n) } : null;
 }
@@ -122,7 +123,7 @@ export function useWall(owner: string | undefined, open: boolean): WallState {
     if (!owner) return wallError(undefined);
     const st = cleanPostStyle(style);
     const { error } = await createClient().rpc("post_wall", { p_owner: owner, p_body: body, p_parent: parent ?? null, p_style: Object.keys(st).length ? st : null });
-    if (error) return wallError(error.message);
+    if (error) { if (isVerifyError(error)) requestVerify(); return wallError(error.message); }
     if (parent) {
       loadReplies(parent);
       setPosts(prev => patchPost(prev, parent, p => ({ ...p, replies: p.replies + 1 })));

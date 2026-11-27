@@ -46,8 +46,10 @@ export async function publishExploreThumb(userId: string, el: HTMLElement, card:
     const nums = exploreNumbers(card, state);
     const sb = createClient();
     let thumb: string | null = null;
-    // Only finished cards are shown: no picture needed for the others.
-    if (nums.finished) {
+    // Only finished cards of verified accounts are shown: no picture (nor an
+    // upload slot) for the others.
+    const { data: ver } = await sb.from("verified_users").select("user_id").eq("user_id", userId).maybeSingle();
+    if (nums.finished && ver) {
       const blob = await renderExploreThumb(el, card, bg);
       if (blob) {
         const path = `${userId}/explore-thumb.jpg`;

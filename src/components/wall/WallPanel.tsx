@@ -27,6 +27,7 @@ import { WallBody, PostView, Avatar, BackIcon, WallIcon, FeedIcon, BellIcon, Rep
 import { useViewerId } from "@/lib/viewer";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/track";
+import { isVerifyError, requestVerify } from "@/lib/verify";
 
 const TURN_MS = 230;
 const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -251,7 +252,7 @@ function FavBack({ userId, accent, mutual }: { userId: string; accent: string; m
     <button type="button" disabled={done} aria-pressed={done}
       onClick={e => {
         e.preventDefault(); e.stopPropagation(); setDone(true); track("favorite_add", { from: "notice" });
-        createClient().from("favorites").insert({ user_id: viewer, target_user_id: userId }).then(({ error }) => { if (error && error.code !== "23505") setDone(false); });
+        createClient().from("favorites").insert({ user_id: viewer, target_user_id: userId }).then(({ error }) => { if (error && error.code !== "23505") { setDone(false); if (isVerifyError(error)) requestVerify(); } });
       }}
       style={{ flex: "none", height: 30, padding: "0 12px", borderRadius: 999, border: "none", cursor: done ? "default" : "pointer",
         background: done ? "rgba(255,255,255,.12)" : accent, color: "#fff", font: "700 12px system-ui, sans-serif" }}>

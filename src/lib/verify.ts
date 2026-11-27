@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCaptchaToken } from "@/lib/captcha";
 
 export const VERIFY_EVENT = "ml-verified";
 
@@ -49,7 +50,8 @@ export function useVerified(): State {
 /** Sends the 6-digit code to the account's email. */
 export async function sendVerifyCode(email: string): Promise<string | null> {
   try {
-    const { error } = await createClient().auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    const captchaToken = await getCaptchaToken();
+    const { error } = await createClient().auth.signInWithOtp({ email, options: { shouldCreateUser: false, captchaToken } });
     if (!error) return null;
     const m = error.message.toLowerCase();
     if (m.includes("rate") || m.includes("seconds") || m.includes("security")) return "Esperá un minuto y pedí otro código.";
@@ -76,3 +78,12 @@ export async function confirmVerifyCode(email: string, code: string): Promise<st
 const HIDE_KEY = "ml_verify_pill_hidden";
 export function verifyPillHidden(): boolean { try { return sessionStorage.getItem(HIDE_KEY) === "1"; } catch { return false; } }
 export function hideVerifyPill() { try { sessionStorage.setItem(HIDE_KEY, "1"); } catch { /* blocked */ } window.dispatchEvent(new Event(VERIFY_EVENT)); }
+
+/** Something needs a verified account: opens the verify dialog (VerifyGate). */
+export const NEED_VERIFY_EVENT = "ml-need-verify";
+export function requestVerify() { if (typeof window !== "undefined") window.dispatchEvent(new Event(NEED_VERIFY_EVENT)); }
+/** True for the database's "verify first" answers (post / like / favorite / upload). */
+export function isVerifyError(e: { message?: string; code?: string } | null | undefined): boolean {
+  if (!e) return false;
+  return (e.message ?? "").includes("verify_required") || e.code === "42501" || /row-level security/i.test(e.message ?? "");
+}

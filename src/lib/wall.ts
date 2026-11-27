@@ -108,6 +108,7 @@ export function postLength(s: string): number { return Array.from(s.trim()).leng
 /** Error code from post_wall → what the person reads (short). */
 export function wallError(msg: string | undefined): string {
   if (!msg) return "No se pudo enviar.";
+  if (msg.includes("verify_required")) return "Verificá tu cuenta para escribir.";
   if (msg.includes("too_fast")) return "Más despacio: probá en un ratito.";
   if (msg.includes("comments_off")) return "Este muro está cerrado.";
   if (msg.includes("blocked")) return "No podés escribir en este muro.";

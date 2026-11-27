@@ -9,6 +9,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ExploreThumb, { type ExploreItem } from "./ExploreThumb";
 import { VerifyExploreNotice } from "@/components/verify/Verify";
+import { isVerifyError, requestVerify } from "@/lib/verify";
 import { EXPLORE_TABS, type ExploreTab } from "@/lib/explore";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { barShortcuts, changedSince, readSeenSigs, writeSeenSigs, type Shortcut } from "@/lib/shortcuts";
@@ -202,6 +203,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
       : await sb.from("favorites").delete().eq("user_id", viewer).eq("target_user_id", it.userId);
     if (error && !(next && error.code === "23505")) {
       setItems(list => list?.map(x => (x.userId === it.userId ? { ...x, favorite: !next } : x)) ?? list);
+      if (next && isVerifyError(error)) requestVerify();
       return;
     }
     sc.reload();

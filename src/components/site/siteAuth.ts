@@ -8,6 +8,7 @@ import { safeNextPath } from "@/lib/handles";
 import { createClient } from "@/lib/supabase/client";
 import { HANDLE_RE, RESERVED_HANDLES } from "@/lib/handles";
 import { track } from "@/lib/track";
+import { getCaptchaToken } from "@/lib/captcha";
 
 export { RESERVED_HANDLES };
 
@@ -57,6 +58,7 @@ function friendly(message: string): Result {
   // Too many sign-ups in the hour across all of myLand (the mail limit), not
   // this person's fault: Google needs no email at all.
   if (m.includes("email rate limit")) return { error: "Hay muchísima gente registrándose ahora. Entrá con Google (un toque) o probá de nuevo en unos minutos.", kind: "" };
+  if (m.includes("captcha")) return { error: "No pudimos confirmar que no sos un robot. Probá de nuevo.", kind: "" };
   if (m.includes("for security purposes") || m.includes("rate limit")) return { error: "Demasiados intentos. Esperá un minuto y probá de nuevo.", kind: "" };
   if (m.includes("password")) return { error: "La contraseña no es válida: usá al menos 8 caracteres.", kind: "" };
   if (m.includes("fetch") || m.includes("network")) return { error: "No pudimos conectarnos. Revisá tu internet y probá de nuevo.", kind: "network" };
@@ -70,9 +72,10 @@ const actions = {
   async register({ email, pass, handle }: { email: string; pass: string; handle: string }): Promise<Result> {
     const supabase = createClient();
     track("signup_submit");
+    const captchaToken = await getCaptchaToken();
     const { data, error } = await supabase.auth.signUp({
       email, password: pass,
-      options: { data: { handle }, emailRedirectTo: callback() },
+      options: { data: { handle }, emailRedirectTo: callback(), captchaToken },
     });
     if (error) return friendly(error.message);
     // Supabase answers an existing (confirmed) email with a user without identities.
@@ -91,7 +94,8 @@ const actions = {
   },
 
   async login({ email, pass }: { email: string; pass: string }): Promise<Result> {
-    const { error } = await createClient().auth.signInWithPassword({ email, password: pass });
+    const captchaToken = await getCaptchaToken();
+    const { error } = await createClient().auth.signInWithPassword({ email, password: pass, options: { captchaToken } });
     if (error) return friendly(error.message);
     track("login_done");
     return { next: returnPath() };
@@ -116,7 +120,8 @@ const actions = {
 
   /** "¿Te la olvidaste?": the email's link signs in and opens /reset-password. */
   async reset({ email }: { email: string }): Promise<Result> {
-    const { error } = await createClient().auth.resetPasswordForEmail(email, { redirectTo: callback("/reset-password") });
+    const captchaToken = await getCaptchaToken();
+    const { error } = await createClient().auth.resetPasswordForEmail(email, { redirectTo: callback("/reset-password"), captchaToken });
     if (error) return friendly(error.message);
     return { sent: true };
   },
@@ -130,9 +135,10 @@ const actions = {
 
   async resend(mode: string, email: string): Promise<string | null> {
     const supabase = createClient();
+    const captchaToken = await getCaptchaToken();
     const { error } = mode === "reset"
-      ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: callback("/reset-password") })
-      : await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: callback() } });
+      ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: callback("/reset-password"), captchaToken })
+      : await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: callback(), captchaToken } });
     return error ? friendly(error.message).error ?? error.message : null;
   },
 };

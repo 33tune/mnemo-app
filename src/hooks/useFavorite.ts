@@ -8,6 +8,7 @@ import { track } from "@/lib/track";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useViewerId } from "@/lib/viewer";
+import { isVerifyError, requestVerify } from "@/lib/verify";
 
 export type FavoriteState = {
   count: number;
@@ -60,7 +61,7 @@ export function useFavorite(ownerUserId?: string): FavoriteState {
       : sb.from("favorites").delete().eq("user_id", viewer).eq("target_user_id", ownerUserId);
     q.then(({ error }) => {
       // A duplicate (already given in another tab) is still "given".
-      if (error && !(next && error.code === "23505")) listeners.get(ownerUserId)?.forEach(f => f(count, liked));
+      if (error && !(next && error.code === "23505")) { listeners.get(ownerUserId)?.forEach(f => f(count, liked)); if (next && isVerifyError(error)) requestVerify(); }
     });
   }, [canLike, ownerUserId, viewer, liked, count]);
 

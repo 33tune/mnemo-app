@@ -302,7 +302,8 @@ export const EN: Record<string, string> = {
   "Abrí myLand en una compu": "Open myLand on a computer",
   // Verificación (2026-11-27)
   "Verificá tu cuenta": "Verify your account", "· aparecé en Explorar": "· show up in Explore", "Ahora no": "Not now",
-  "Te mandamos un código a tu mail. Tarda 30 segundos.": "We'll email you a code. Takes 30 seconds.",
+  "Te mandamos un código a tu mail. Tarda 30 segundos. Para escribir en muros, dar likes y favoritos hay que estar verificado.": "We'll email you a code. Takes 30 seconds. You need a verified account to post on walls, like and favorite.",
+  "Verificá tu cuenta para escribir.": "Verify your account to post.", "No pudimos confirmar que no sos un robot. Probá de nuevo.": "We couldn't confirm you're not a robot. Try again.",
   "Aparecé en Explorar": "Show up in Explore", "Tu card se muestra a la comunidad y te recomendamos a otros.": "Your card is shown to the community and recommended to others.",
   "Tilde de verificado": "Verified check", "Al lado de tu @ en tu perfil.": "Next to your @ on your profile.",
   "Nunca perdés tu cuenta": "Never lose your account", "Si te olvidás la contraseña, la recuperás por mail.": "If you forget your password, you get it back by email.",

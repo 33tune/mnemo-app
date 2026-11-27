@@ -57,7 +57,10 @@ async function _doUpload(file: File): Promise<UploadResult> {
   // 20261028000000): say so instead of a silent failure.
   if (session && /row-level security|violates/i.test(String((lastError as { message?: string })?.message ?? ""))
       && typeof window !== "undefined") {
-    window.alert("Llegaste al máximo de 100 archivos. Sacá imágenes o GIFs que no uses: el espacio se libera al día siguiente.");
+    // Unverified accounts get 8 files (migration 20261127030000): offer to verify.
+    const { data: v } = await supabase.from("verified_users").select("user_id").eq("user_id", session.user.id).maybeSingle();
+    if (!v) { const { requestVerify } = await import("@/lib/verify"); requestVerify(); }
+    else window.alert("Llegaste al máximo de 100 archivos. Sacá imágenes o GIFs que no uses: el espacio se libera al día siguiente.");
   }
   throw lastError;
 }
