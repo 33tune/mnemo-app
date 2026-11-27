@@ -24,6 +24,9 @@ export async function GET(request: Request) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(`${origin}/login?mode=login&error=confirmed`);
+  // Google / mail link = the email is theirs: verified (the database reads how
+  // the session was made, public.mark_verified). Never blocks the sign-in.
+  try { await supabase.rpc("mark_verified"); } catch { /* optional */ }
   const profile = await ensureProfile(supabase, user);
   if (!profile || profile.onboarding_completed === false) return NextResponse.redirect(`${origin}/setup`);
   return NextResponse.redirect(`${origin}${next}`);

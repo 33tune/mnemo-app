@@ -31,6 +31,9 @@ export async function GET(request: Request) {
 
   // ── Profile: the existing one, or created now (the name claimed at sign-up,
   // else a temp_ one for /setup) — ensureProfile.ts.
+  // Google / mail link = the email is theirs: verified (the database reads how
+  // the session was made, public.mark_verified). Never blocks the sign-in.
+  try { await supabase.rpc("mark_verified"); } catch { /* optional */ }
   const profile = await ensureProfile(supabase, user);
   if (!profile || profile.onboarding_completed === false) {
     return NextResponse.redirect(`${origin}/setup`);
