@@ -5,7 +5,7 @@ import { uploadToStorage } from "@/lib/storage";
 import { MenuSection, MenuNote, UploadField, ActionButton, IconButton, Icon, ExampleStrip } from "@/ui";
 
 /** "Ejemplos en lo vacío": myLand's own decorations as starter stickers (public/editor/stickers). */
-const SAMPLE_STICKERS = [
+export const SAMPLE_STICKERS = [
   { id: "star", label: "Estrella cromada", w: 600, h: 536 }, { id: "starburst", label: "Destello", w: 475, h: 525 },
   { id: "wings", label: "Alas", w: 447, h: 559 }, { id: "tribal", label: "Tribal", w: 382, h: 600 },
   { id: "spine", label: "Espina", w: 300, h: 600 }, { id: "vcorner", label: "Esquina", w: 300, h: 600 },

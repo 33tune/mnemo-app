@@ -804,6 +804,20 @@ planeado acá hasta confirmarlo.
 >   hoja); las demás partes abren la hoja. Sin los botones − / + sobre la card. Estilos `.mn-studio*` en `editor.css`.
 >   Probado en iPhone emulado con una cuenta de prueba (borrada); sin QA en un iPhone real.
 >
+> **Estudio v2 (2026-11-27, aprobado por el usuario con capturas; en `main`) — REEMPLAZA del Estudio de arriba las 5
+>   categorías y "Más":** `PhoneStudio.tsx` = tira de herramientas que se desliza (Efectos · Fondo · Texto · Foto · Acomodar ·
+>   Tamaño · Stickers · Redes · Botones · Borde · Animar · Todo) + el panel de la herramienta (alto fijo `PHONE_STUDIO_H` =
+>   252). Efectos: toque = sumar; tocar uno puesto abre SUS ajustes ahí mismo (acabados / forma / dónde + deslizadores) con
+>   ✕ (vuelve `effects` a como estaba al abrir) y ✓, "Quitar" y "Todos los ajustes". Texto: "Nombre ▾" elige el texto (los 6
+>   roles, campos `*Font` / `*FontSize` / `*Color`), "Aa Fuente ▾" abre una LISTA vertical con buscador (cada fuente escrita
+>   con ese texto), colores y Tamaño. Acomodar: `html[data-arrange]` marca cada parte de la card (contorno punteado con su
+>   color) y se arrastran con el dedo (el arrastre que ya existía); no abre la hoja ni cambia de herramienta. Tamaño: formas
+>   (Vertical / Cuadrada / Horizontal / Alta) + Ancho / Alto con `clampProfileCardSize`, creciendo desde su centro. Stickers:
+>   subir + los de ejemplo (`SAMPLE_STICKERS`), edición en la card con el dedo (`stickerEditing`), Delante / Detrás / Encima
+>   de todo / Borrar. Borde: color, Grosor, Esquinas. Animar: Flotar, Respirar, Balanceo, Latido, Destello, Luz en el borde.
+>   Las herramientas que no son una parte (Acomodar, Tamaño, Borde, Animar) no cambian la selección. "Todo" abre la hoja
+>   completa en la parte actual.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

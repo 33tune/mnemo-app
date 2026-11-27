@@ -1900,15 +1900,11 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
    categories. 52px+ targets, no scrollbar, safe-area aware. */
 .mn-studio[data-mnemo-editor] {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 780; box-sizing: border-box;
-  height: calc(196px + env(safe-area-inset-bottom, 0px)); padding: 6px 0 env(safe-area-inset-bottom, 0px);
+  height: calc(252px + env(safe-area-inset-bottom, 0px)); padding: 4px 0 env(safe-area-inset-bottom, 0px);
   display: flex; flex-direction: column; background: var(--ui-surface-panel-opaque); color: var(--ui-text-primary);
   border-top: 1px solid var(--ui-line-panel); font-family: var(--ui-font-sans);
   border-radius: var(--ui-radius-sheet) var(--ui-radius-sheet) 0 0; box-shadow: var(--ui-shadow-panel);
 }
-:where([data-mnemo-editor]).mn-studio .mn-studio__slider { height: 44px; display: flex; align-items: center; padding: 0 18px; flex-shrink: 0; }
-:where([data-mnemo-editor]).mn-studio .mn-studio__slider label { flex: 1; display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 650; }
-:where([data-mnemo-editor]).mn-studio .mn-studio__slider label > span { min-width: 64px; }
-:where([data-mnemo-editor]).mn-studio .mn-studio__hint { font-size: 13px; font-weight: 600; color: var(--ui-text-secondary); }
 :where([data-mnemo-editor]).mn-studio .mn-studio__range {
   flex: 1; -webkit-appearance: none; appearance: none; height: 30px; background: transparent; margin: 0; touch-action: pan-x;
 }
@@ -1949,10 +1945,12 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
 }
 :where([data-mnemo-editor]).mn-studio .mn-studio__font[aria-pressed="true"] { border-color: var(--ui-accent-edit); }
 :where([data-mnemo-editor]).mn-studio .mn-studio__cats {
-  height: 58px; flex-shrink: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--ui-line-panel);
+  height: 60px; flex-shrink: 0; display: flex; align-items: center; border-top: 1px solid var(--ui-line-panel);
+  overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; padding: 0 4px;
 }
+:where([data-mnemo-editor]).mn-studio .mn-studio__cats::-webkit-scrollbar { display: none; }
 :where([data-mnemo-editor]).mn-studio .mn-studio__cats button {
-  flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: none; background: none;
+  flex: none; width: 66px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: none; background: none;
   color: var(--ui-text-tertiary); font: 600 11px var(--ui-font-sans); cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 :where([data-mnemo-editor]).mn-studio .mn-studio__cats button[aria-current] { color: var(--ui-text-primary); }
@@ -1962,3 +1960,56 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
   :where([data-mnemo-editor]).mn-studio .mn-studio__font[aria-pressed="true"] { border-color: Highlight; }
 }
 @media (prefers-reduced-motion: reduce) { :where([data-mnemo-editor]).mn-studio .mn-studio__tile { transition: none; } }
+
+/* Estudio v2 (2026-11-27): the panel of the tool in use, its ✕ / ✓ detail,
+   chips, the font list and the role picker that rise over it. */
+:where([data-mnemo-editor]).mn-studio .mn-studio__body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; padding-top: 4px; gap: 2px; overflow-y: auto; scrollbar-width: none; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__body::-webkit-scrollbar { display: none; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__row { flex: none; min-height: 88px; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__slider { flex: none; height: 40px; display: flex; align-items: center; gap: 12px; padding: 0 18px; font-size: 13px; font-weight: 650; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__slider > span { min-width: 72px; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__hint { font-size: 13px; font-weight: 600; color: var(--ui-text-secondary); padding: 0 4px; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__hintrow { flex: none; padding: 0 18px; font-size: 12.5px; font-weight: 600; color: var(--ui-text-tertiary); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__chips { flex: none; display: flex; align-items: center; gap: 8px; padding: 4px 14px; overflow-x: auto; scrollbar-width: none; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__chips::-webkit-scrollbar { display: none; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__chip {
+  flex: none; height: 38px; padding: 0 14px; border-radius: 999px; border: none; display: inline-flex; align-items: center; gap: 7px;
+  background: var(--ui-surface-control); color: var(--ui-text-primary); font: 650 13px var(--ui-font-sans); white-space: nowrap; cursor: pointer;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__chip[aria-pressed="true"] { background: var(--ui-accent-on); color: var(--ui-accent-on-ink); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__detail { display: flex; flex-direction: column; gap: 2px; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__dhead { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; height: 46px; font-weight: 750; font-size: 15px; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__round {
+  width: 38px; height: 38px; border-radius: 19px; border: none; display: grid; place-items: center; cursor: pointer;
+  background: var(--ui-surface-control); color: var(--ui-text-primary);
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__round[data-ok] { background: var(--ui-accent-edit); color: var(--ui-accent-ink); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__info { display: flex; align-items: center; gap: 14px; padding: 0 20px; color: var(--ui-text-secondary); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__info b { display: block; color: var(--ui-text-primary); font-size: 15px; margin-bottom: 4px; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__info span { font-size: 13px; line-height: 1.4; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__pop {
+  position: absolute; left: 10px; right: 10px; bottom: calc(100% + 8px); max-height: 46vh; overflow-y: auto; border-radius: 22px;
+  background: var(--ui-surface-panel-opaque); box-shadow: var(--ui-shadow-popover); border: 1px solid var(--ui-line-panel); padding: 6px;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__popitem {
+  display: block; width: 100%; height: 48px; padding: 0 14px; border: none; border-radius: 14px; background: transparent; text-align: left;
+  color: var(--ui-text-primary); font: 650 15px var(--ui-font-sans); cursor: pointer;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__popitem[aria-selected="true"] { background: var(--ui-surface-control); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__fonts { display: flex; flex-direction: column; padding: 0; overflow: hidden; height: 46vh; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__fhead { display: flex; gap: 8px; padding: 10px; border-bottom: 1px solid var(--ui-line-panel); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__fhead input {
+  flex: 1; min-width: 0; height: 40px; border-radius: 12px; border: 1px solid var(--ui-line-field); background: var(--ui-surface-control);
+  color: var(--ui-text-primary); padding: 0 12px; font: 500 16px var(--ui-font-sans);
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__flist { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__fitem {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 54px; padding: 0 16px; border: none;
+  border-bottom: 1px solid var(--ui-line-panel); background: transparent; color: var(--ui-text-primary); font-size: 22px; text-align: left; cursor: pointer;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__fitem span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__fitem small { flex: none; font: 600 11px var(--ui-font-sans); color: var(--ui-text-tertiary); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__fitem[aria-selected="true"] { background: var(--ui-accent-soft); }
+/* Acomodar: every part of the card shows as something to grab. */
+/* (The card is outside the editor tokens: its own text color draws the frame.) */
+html[data-arrange] [data-profile-card] [data-role] { outline: 2px dashed currentColor !important; outline-offset: 2px !important; border-radius: 6px; }

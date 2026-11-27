@@ -92,7 +92,7 @@ export default function ProfileInspector({
   if (studio && mode === "sheet" && collapsed) {
     return (
       <CardPaletteProvider value={cardPalette(card, effective)}>
-        <PhoneStudio card={card} effective={effective} object={object} onSelectObject={onSelectObject} onChange={onChange}
+        <PhoneStudio card={card} effective={effective} baseColor={baseColor} object={object} onSelectObject={onSelectObject} onChange={onChange}
           onMore={o => { if (o !== object) onSelectObject(o); onExpand(); }} onPickPhoto={studio.onPickPhoto} />
       </CardPaletteProvider>
     );

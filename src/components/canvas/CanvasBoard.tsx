@@ -3542,7 +3542,7 @@ export default function CanvasBoard({
       closePhoneTip("done");
       // The Estudio edits photo / name / links / background / effects itself:
       // the card stays big. Any other part opens the full sheet.
-      if (part?.role && !studioCovers(part.role as ObjectId)) setPhoneSheetOpen(true);
+      if (part?.role && !studioCovers(part.role as ObjectId) && !document.documentElement.hasAttribute("data-arrange")) setPhoneSheetOpen(true);
       try { navigator.vibrate?.(8); } catch { /* no haptics */ }
       setPhoneFocusTick(n => n + 1);
       if (!selIdsRef.current.has(id)) setSelectedIds(new Set([id]));
@@ -4328,7 +4328,7 @@ export default function CanvasBoard({
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}
           phoneEditor={phoneEdit && !phonePreview}
           wallButton={i === 0 ? wallButtonProp : undefined}
-          onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); if (!studioCovers(BLOCK_PART[key] as ObjectId)) setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); setPhoneFocusTick(n => n + 1); }) : undefined} />);
+          onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); if (!studioCovers(BLOCK_PART[key] as ObjectId) && !document.documentElement.hasAttribute("data-arrange")) setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); setPhoneFocusTick(n => n + 1); }) : undefined} />);
       })}
 
 
