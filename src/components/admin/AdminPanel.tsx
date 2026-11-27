@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { C, FONT, STEP_LABEL, EVENT_LABEL, fmtN, fmtB, fmtD, ago, Box, Stat, grid, chip, btn, input, badge, cell, th, td } from "./adminUi";
 import { Live, Feed, Relations, Space, UserDetail } from "./AdminInsights";
+import Retention from "./AdminRetention";
 
 type Metrics = {
   totals: { users: number; real_profiles: number; banned: number; new_in_range: number; notes_active: number; favorites: number; views_in_range: number };
@@ -44,8 +45,8 @@ const ERR: Record<string, string> = {
 };
 const errText = (m: string) => Object.entries(ERR).find(([k]) => m.includes(k))?.[1] ?? m;
 
-type Tab = "resumen" | "vivo" | "actividad" | "usuarios" | "muros" | "relaciones" | "espacio" | "reportes" | "historial";
-const TABS: [Tab, string][] = [["resumen", "Resumen"], ["vivo", "En vivo"], ["actividad", "Actividad"], ["usuarios", "Usuarios"], ["muros", "Muros"],
+type Tab = "resumen" | "retencion" | "vivo" | "actividad" | "usuarios" | "muros" | "relaciones" | "espacio" | "reportes" | "historial";
+const TABS: [Tab, string][] = [["resumen", "Resumen"], ["retencion", "Retención"], ["vivo", "En vivo"], ["actividad", "Actividad"], ["usuarios", "Usuarios"], ["muros", "Muros"],
   ["relaciones", "Favoritos y visitas"], ["espacio", "Espacio"], ["reportes", "Reportes"], ["historial", "Historial"]];
 
 export default function AdminPanel() {
@@ -76,6 +77,7 @@ export default function AdminPanel() {
           </nav>
         </header>
         {tab === "resumen" && <Summary />}
+        {tab === "retencion" && <Retention />}
         {tab === "vivo" && <Live />}
         {tab === "actividad" && <Feed />}
         {tab === "relaciones" && <Relations />}

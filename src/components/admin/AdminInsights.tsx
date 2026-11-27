@@ -6,6 +6,7 @@
  * checked in the database).
  */
 import React, { useEffect, useMemo, useState } from "react";
+import { crumbLabel } from "./AdminRetention";
 import { createClient } from "@/lib/supabase/client";
 import {
   C, EVENT_LABEL, EDIT_LABEL, fmtN, fmtB, fmtD, fmtT, ago, pathLabel, deviceLabel, who,
@@ -279,7 +280,7 @@ export function Space() {
 // ── everything about one person (inside Usuarios) ────────────────────────────
 export function UserDetail({ userId }: { userId: string }) {
   const { data: d, err } = useRpc("admin_user_detail", { p_user: userId }, [userId]);
-  const { data: feed } = useRpc<J[]>("admin_feed", { p_limit: 80, p_user: userId, p_days: 60 }, [userId]);
+  const { data: trails } = useRpc<J[]>("admin_user_trails", { p_user: userId }, [userId]);
   if (!d) return <span style={{ color: err ? C.red : C.dim }}>{err ?? "Cargando…"}</span>;
   const hours: Record<string, number> = d.hours ?? {};
   const hmax = Math.max(1, ...Object.values(hours));
@@ -317,9 +318,35 @@ export function UserDetail({ userId }: { userId: string }) {
             <b>{s.minutes} min</b><span style={{ color: C.dim }}>{pathLabel(s.first_path)}{s.last_path !== s.first_path ? ` → ${pathLabel(s.last_path)}` : ""}</span></div>
         ))}
       </Sub>
-      <Sub title="Todo lo que hizo (60 días)">{feed ? <FeedList items={feed} /> : <span style={{ color: C.dim }}>Cargando…</span>}</Sub>
+      {trails && trails.length > 0 && (
+        <Sub title="Qué tocó en sus últimas visitas">
+          {trails.slice(0, 10).map((t: J, i: number) => (
+            <div key={i} style={row}><span style={{ color: C.dim, width: 130 }}>{fmtT(t.at)}</span><span>{t.props?.phone ? "celular" : "compu"}</span>
+              <b>{Math.round((t.props?.sec ?? 0) / 60) || "<1"} min</b>
+              <span style={{ color: C.dim }}>{(t.props?.used ?? []).map(crumbLabel).join(" · ")}{t.props?.last?.length ? ` → se fue en: ${crumbLabel(t.props.last[t.props.last.length - 1])}` : ""}</span></div>
+          ))}
+        </Sub>
+      )}
+      <Collapsed title="Todo lo que hizo (60 días)"><UserFeed userId={userId} /></Collapsed>
     </div>
   );
+}
+/** Folded until opened (the full history is long); loads only when open. */
+function Collapsed({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        style={{ background: "rgba(255,255,255,.05)", border: `1px solid ${C.line}`, borderRadius: 10, padding: "8px 12px", color: C.text, font: "700 13px inherit", cursor: "pointer" }}>
+        {open ? "▾" : "▸"} {title}
+      </button>
+      {open && <div style={{ marginTop: 8, maxHeight: 420, overflowY: "auto" }}>{children}</div>}
+    </div>
+  );
+}
+function UserFeed({ userId }: { userId: string }) {
+  const { data: feed, err } = useRpc<J[]>("admin_feed", { p_limit: 80, p_user: userId, p_days: 60 }, [userId]);
+  return feed ? <FeedList items={feed} /> : <span style={{ color: err ? C.red : C.dim }}>{err ?? "Cargando…"}</span>;
 }
 function MiniStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
