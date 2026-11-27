@@ -68,8 +68,15 @@ export async function startCapture(el: HTMLElement, region: Rect, ratio: number)
   const root = el.parentElement!;
   const cardRect = el.getBoundingClientRect();
   // The room's images / free texts that touch the card (the phone draws them).
+  // Decided with layout boxes (left / top / size in room px), never with what
+  // the screen shows right now: an entrance animation, the parallax or a
+  // slow phone's half-laid-out frame could make a far picture look like it
+  // touches the card (2026-11-27: a Redmi Note 11 got the whole room pasted
+  // over its card). Both tests must agree.
+  const box = (n: HTMLElement) => ({ left: n.offsetLeft, top: n.offsetTop, right: n.offsetLeft + n.offsetWidth, bottom: n.offsetTop + n.offsetHeight });
   const extras = el.offsetParent === root
-    ? [...root.querySelectorAll<HTMLElement>(`:scope > ${ROOM_EL}`)].filter(n => touches(n.getBoundingClientRect(), cardRect))
+    ? [...root.querySelectorAll<HTMLElement>(`:scope > ${ROOM_EL}`)]
+        .filter(n => n.offsetParent === root && touches(box(n) as DOMRect, box(el) as DOMRect) && touches(n.getBoundingClientRect(), cardRect))
     : [];
   const subjects = [el, ...extras];
   const { x: cardX, y: cardY, w: cardW, h: cardH } = cardRoomRect(el);
