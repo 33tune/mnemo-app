@@ -37,15 +37,22 @@ export interface StoryView {
   region: Rect;
   /** Story px per room px. */
   ratio: number;
+  /** The picture's size (px) and px per CSS px of its phone (the story by
+   * default; Explorar's thumbnail is a smaller 4:5 one). */
+  W: number;
+  H: number;
+  dpr: number;
 }
 
 /** Where the card (with its stickers, room px) sits on the story's phone. */
-export function storyView(card: Rect): StoryView {
-  const v = mobileView(STORY_VIEW_W, STORY_VIEW_H, card);
+export function storyView(card: Rect, viewW = STORY_VIEW_W, viewH = STORY_VIEW_H, outW = STORY_W): StoryView {
+  const v = mobileView(viewW, viewH, card);
+  const dpr = outW / viewW;
   return {
     ...v,
-    region: { x: -v.tx / v.s, y: -v.ty / v.s, w: STORY_VIEW_W / v.s, h: STORY_VIEW_H / v.s },
-    ratio: v.s * STORY_DPR,
+    region: { x: -v.tx / v.s, y: -v.ty / v.s, w: viewW / v.s, h: viewH / v.s },
+    ratio: v.s * dpr,
+    W: outW, H: Math.round(viewH * dpr), dpr,
   };
 }
 
@@ -62,6 +69,7 @@ export interface StoryBg {
 
 /** The room's background as the public view draws it (CanvasBoard), once. */
 export function storyBackground(bg: StoryBg, view: StoryView): HTMLCanvasElement {
+  const STORY_W = view.W, STORY_H = view.H, STORY_DPR = view.dpr;
   const c = document.createElement("canvas");
   c.width = STORY_W;
   c.height = STORY_H;
@@ -114,8 +122,8 @@ function filteredRoom(background: HTMLCanvasElement, filter: string): HTMLCanvas
   let c = byFilter.get(filter);
   if (!c) {
     c = document.createElement("canvas");
-    c.width = STORY_W;
-    c.height = STORY_H;
+    c.width = background.width;
+    c.height = background.height;
     const ctx = c.getContext("2d")!;
     ctx.drawImage(background, 0, 0);
     ctx.filter = filter;
@@ -131,7 +139,8 @@ export function drawStoryFrame(ctx: CanvasRenderingContext2D, background: HTMLCa
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
-  ctx.drawImage(background, 0, 0, STORY_W, STORY_H);
+  const W = background.width, H = background.height;
+  ctx.drawImage(background, 0, 0, W, H);
   for (const b of glass) {
     ctx.save();
     ctx.beginPath();
@@ -142,5 +151,5 @@ export function drawStoryFrame(ctx: CanvasRenderingContext2D, background: HTMLCa
     ctx.restore();
   }
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(shot, 0, 0, STORY_W, STORY_H);
+  ctx.drawImage(shot, 0, 0, W, H);
 }

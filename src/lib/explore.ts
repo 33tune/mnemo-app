@@ -41,9 +41,19 @@ export interface ExploreCandidate {
   createdAt: string;
   /** Last time the owner saved or published the room (optional: older caches). */
   updatedAt?: string;
-  card: ProfileCardData;
-  state: CanvasState;
+  /** The full card / room (tests, the indexer); Explorar's list has only the
+   * numbers below, computed when the owner saved (explore_cards). */
+  card?: ProfileCardData;
+  state?: CanvasState;
+  content?: number;
+  finished?: boolean;
+  collection?: boolean;
   signals: ExploreSignals;
+}
+
+/** The numbers Explorar keeps for a card (explore_index), from the card itself. */
+export function exploreNumbers(card: ProfileCardData, state: CanvasState): { content: number; finished: boolean; collection: boolean } {
+  return { content: contentScore(card, state), finished: isFinished(card, state), collection: hasCollectionFx(card) };
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
@@ -105,10 +115,11 @@ export function contentScore(card: ProfileCardData, state: CanvasState): number 
 }
 
 /** Care = what is on the card + time and changes spent on it. */
-export function careScore(c: Pick<ExploreCandidate, "card" | "state" | "signals">): number {
+export function careScore(c: Pick<ExploreCandidate, "card" | "state" | "signals" | "content">): number {
   const time = Math.min(90, c.signals.editMinutes) / 9;      // up to +10
   const changes = Math.min(400, c.signals.edits) / 50;        // up to +8
-  return Math.round((contentScore(c.card, c.state) + time + changes) * 10) / 10;
+  const content = c.content ?? (c.card ? contentScore(c.card, c.state ?? ({} as CanvasState)) : 0);
+  return Math.round((content + time + changes) * 10) / 10;
 }
 
 /** Below this, a card is considered low effort and never shown. */
@@ -148,9 +159,11 @@ export function paraWeight(c: ExploreCandidate, now: number): number {
 }
 
 export function rankExplore(list: ExploreCandidate[], o: RankOptions): ExploreCandidate[] {
-  const pool = list.filter(c => c.userId !== o.excludeUserId && isFinished(c.card, c.state) && careScore(c) >= MIN_CARE)
+  const finished = (c: ExploreCandidate) => c.finished ?? (!!c.card && isFinished(c.card, c.state));
+  const collection = (c: ExploreCandidate) => c.collection ?? (!!c.card && hasCollectionFx(c.card));
+  const pool = list.filter(c => c.userId !== o.excludeUserId && finished(c) && careScore(c) >= MIN_CARE)
     .filter(c => o.tab !== "para" || !o.excludeIds?.has(c.userId))
-    .filter(c => o.tab !== "holo" || hasCollectionFx(c.card));
+    .filter(c => o.tab !== "holo" || collection(c));
   const ageDays = (c: ExploreCandidate) => Math.max(0, (o.now - Date.parse(c.createdAt)) / 86400000);
   const score = (c: ExploreCandidate) => {
     const shuffle = hash01(`${o.seed}:${c.userId}`);

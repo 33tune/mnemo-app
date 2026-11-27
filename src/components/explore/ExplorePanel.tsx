@@ -116,6 +116,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const [items, setItems] = useState<ExploreItem[] | null>(null);
   const [more, setMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [editFavs, setEditFavs] = useState(false);
@@ -135,16 +136,41 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
 
   const load = useCallback(async (t: ExploreTab, offset: number) => {
     const id = ++reqId.current;
+    setFailed(false);
     try {
-      const r = await fetch(`/api/explore?tab=${t}&offset=${offset}&limit=12&seed=${seed.current}`);
+      const r = await fetch(`/api/explore?tab=${t}&offset=${offset}&limit=18&seed=${seed.current}`);
+      if (!r.ok) throw new Error(String(r.status));
       const j = await r.json() as { items?: ExploreItem[]; more?: boolean };
       if (id !== reqId.current) return;
-      setItems(prev => (offset ? [...(prev ?? []), ...(j.items ?? [])] : (j.items ?? [])));
+      setItems(prev => {
+        if (!offset) return j.items ?? [];
+        const seen = new Set((prev ?? []).map(x => x.userId));
+        return [...(prev ?? []), ...(j.items ?? []).filter(x => !seen.has(x.userId))];
+      });
       setMore(!!j.more);
-    } catch { if (id === reqId.current && !offset) setItems([]); }
+    } catch {
+      // A failed load is not "no cards": say so and offer to try again.
+      if (id === reqId.current) { setFailed(true); if (!offset) setItems(prev => prev ?? []); }
+    }
     finally { if (id === reqId.current) setLoadingMore(false); }
   }, []);
   useEffect(() => { setItems(null); load(tab, 0); }, [tab, load]);
+  // Infinite scroll: the next page loads when the end of the grid comes near.
+  const endRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef({ more, loadingMore, failed, n: 0, tab });
+  moreRef.current = { more, loadingMore, failed, n: items?.length ?? 0, tab };
+  useEffect(() => {
+    const el = endRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => {
+      const m = moreRef.current;
+      if (!e.isIntersecting || !m.more || m.loadingMore || m.failed || !m.n) return;
+      setLoadingMore(true);
+      load(m.tab, m.n);
+    }, { rootMargin: "600px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [load, items === null, !!query]);
 
   useEffect(() => {
     if (!query) { setHits(null); return; }
@@ -269,8 +295,10 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             </div>
             {items === null ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {Array.from({ length: 6 }, (_, i) => <div key={i} style={{ height: 170, borderRadius: 18, background: "rgba(255,255,255,.05)" }} />)}
+                {Array.from({ length: 6 }, (_, i) => <div key={i} style={{ aspectRatio: "4 / 5", borderRadius: 18, background: "rgba(255,255,255,.05)" }} />)}
               </div>
+            ) : items.length === 0 && failed ? (
+              <button type="button" onClick={() => { setItems(null); load(tab, 0); }} style={{ ...chip(false), width: "100%", height: 44, justifyContent: "center" }}>No se pudieron cargar. Reintentar</button>
             ) : items.length === 0 ? (
               <p style={{ color: "rgba(246,243,248,.6)" }}>Todavía no hay cards acá.</p>
             ) : (
@@ -278,12 +306,12 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
                 {items.map(it => <ExploreThumb key={it.userId} item={it} canFavorite={!!viewer} onFavorite={toggleFavorite} />)}
               </div>
             )}
-            {more && items && (
-              <button type="button" disabled={loadingMore} onClick={() => { setLoadingMore(true); load(tab, items.length); }}
-                style={{ ...chip(false), width: "100%", height: 44, marginTop: 12, justifyContent: "center" }}>
-                {loadingMore ? "Cargando…" : "Ver más"}
-              </button>
+            <div ref={endRef} aria-hidden style={{ height: 1 }} />
+            {items && items.length > 0 && failed && (
+              <button type="button" onClick={() => { setLoadingMore(true); load(tab, items.length); }}
+                style={{ ...chip(false), width: "100%", height: 44, marginTop: 12, justifyContent: "center" }}>Reintentar</button>
             )}
+            {loadingMore && <p style={{ textAlign: "center", color: "rgba(246,243,248,.5)", font: `500 13px ${font}` }}>Cargando…</p>}
           </>
         )}
       </div>

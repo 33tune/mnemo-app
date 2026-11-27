@@ -845,6 +845,27 @@ planeado acá hasta confirmarlo.
 >     nueva + algo de actividad (1…~10); clave `u^(1/w)`. Saca las cards que la persona ya tiene en favoritos (solo en
 >     Para vos). `canvases.updated_at` viaja como `updatedAt` (cache `explore-candidates-v2`).
 >
+> **Explorar v2 = fotos (2026-11-27, pedido del usuario; REEMPLAZA de "Explorar" las celdas con la card viva, `liteEffects`,
+>   el montaje por pantalla, "Ver más" y el ranking que leía todas las salas):**
+>   - **Causas:** `/api/explore` pedía las salas con `.in("user_id", <339 ids>)` (~12.500 caracteres en la URL: fallaba y la
+>     lista vacía quedaba en cache → "no hay cards"); cada celda era la card real con efectos (lag en la compu y el iPhone
+>     recargaba con "Ver más").
+>   - **Base** (`supabase/migrations/20261127010000_explore_cards.sql`, APLICADA): `explore_cards` (una fila por card: foto,
+>     `content`, `finished`, `collection`, nombre), `explore_index(...)` (el dueño escribe SU fila; la foto solo puede ser
+>     `<uid>/explore-thumb.jpg`), `explore_list()` (perfiles reales, no baneados, con foto y terminados + `explore_signals`
+>     en una llamada). La limpieza diaria (`storage_gc_candidates`) también mira `explore_cards`. El puntaje lo calcula la
+>     app (`exploreNumbers` en `explore.ts`): un dueño podría inflar el suyo (solo afecta su lugar en Para vos).
+>   - **Foto** (`src/lib/export/exploreThumb.ts`): la MISMA captura que Compartir (card + stickers + marcos + imágenes /
+>     textos que la tocan, sobre el fondo de la sala, como el celular) en un celular 4:5 de 360×450 → JPEG 480×600
+>     (~30–60 KB), siempre en el mismo archivo con `?v=`. La saca el editor después de guardar (`scheduleExploreThumb` en
+>     CanvasBoard: 6 s después del último guardado, máx. 1 por minuto, no con el muro dado vuelta, Acomodar, stickers en
+>     edición ni la pestaña oculta). `storyView` / `storyBackground` / `drawStoryFrame` aceptan otro tamaño.
+>   - **Panel:** cada celda es un `<img>` 4:5 (`ExploreThumb.tsx`, `content-visibility: auto`); scroll infinito (de a 18,
+>     `IntersectionObserver`); un error ya no se muestra como "no hay cards" (botón Reintentar). `/api/explore` lee
+>     `explore_list` (cache de datos 2 min; un error no se guarda en cache).
+>   - **Fotos de las cards existentes:** 167 cards terminadas, sacadas del perfil público en vista de celular y subidas con
+>     una función temporal (`explore-backfill`, ya responde 410). Medido: 108 celdas sin errores.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

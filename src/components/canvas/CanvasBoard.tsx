@@ -78,7 +78,9 @@ import { cardIsLight } from "@/lib/cardColors";
 import { SHORTCUTS_BAR_H } from "./ShortcutsBar";
 import ExplorePanel, { ExploreButton } from "@/components/explore/ExplorePanel";
 import PhoneTabs, { PhoneHome, PHONE_TABS_H, type PhoneTab } from "@/components/explore/PhoneTabs";
-import { isFinished as cardIsFinished } from "@/lib/explore";
+import { isFinished as cardIsFinished, publicCardOf } from "@/lib/explore";
+import { publishExploreThumb } from "@/lib/export/exploreThumb";
+import { stickerEditing } from "@/lib/stickerEditing";
 import { PHONE_STUDIO_H, studioCovers } from "./PhoneStudio";
 import type { ObjectId } from "@/lib/inspectorObjects";
 import { guideSteps, PhoneGuidePill, CardReadySheet, DesktopTipSheet, seen as guideSeen, markSeen as guideMarkSeen } from "@/components/explore/PhoneGuide";
@@ -2588,6 +2590,39 @@ export default function CanvasBoard({
       .eq("canvas_type", mode);
   }
 
+  // Explorar v2 (2026-11-27): after a save, once the owner stops for a few
+  // seconds, the card's picture + ranking numbers are refreshed
+  // (lib/export/exploreThumb.ts) — at most once a minute, only with the card
+  // on screen as visitors see it (not flipped, not mid-arrange / sticker edit).
+  const exploreThumbRef = useRef<{ timer: number | null; last: number; state: CanvasState | null; busy: boolean }>({ timer: null, last: 0, state: null, busy: false });
+  const thumbEnvRef = useRef({ bgColor, wallpaper, blur: 0, brightness: 100, vignette: 0, wallOpen: false, hidden: false });
+  thumbEnvRef.current = { bgColor, wallpaper, blur: wallpaperBlur, brightness: wallpaperBrightness, vignette: wallpaperVignette, wallOpen, hidden: phoneExploreShown || (phoneEdit && phoneTab !== "editar" && phoneTab !== "inicio") };
+  function scheduleExploreThumb(state: CanvasState) {
+    const t = exploreThumbRef.current;
+    t.state = state;
+    if (t.timer !== null) clearTimeout(t.timer);
+    const wait = Math.max(6000, 60_000 - (Date.now() - t.last));
+    t.timer = window.setTimeout(runExploreThumb, wait);
+  }
+  async function runExploreThumb() {
+    const t = exploreThumbRef.current;
+    t.timer = null;
+    const uid = currentUserIdRef.current, state = t.state;
+    if (!uid || !state || t.busy || canvasModeRef.current !== "space") return;
+    const env = thumbEnvRef.current;
+    const html = document.documentElement;
+    const busyUi = document.visibilityState !== "visible" || env.wallOpen || env.hidden || html.hasAttribute("data-arrange") || stickerEditing.get().cardId !== null;
+    if (busyUi || publishingRef.current || dirtyRef.current) { t.timer = window.setTimeout(runExploreThumb, 15_000); return; }
+    const card = publicCardOf(state);
+    const el = card ? document.querySelector<HTMLElement>(`[data-profile-card][data-card-id="${card.id}"]`) : null;
+    if (!card || !el || el.getBoundingClientRect().width < 10) return;
+    t.busy = true;
+    try {
+      await publishExploreThumb(uid, el, card, state, { color: env.bgColor, imageUrl: env.wallpaper || undefined, blur: env.blur, brightness: env.brightness, vignette: env.vignette });
+      t.last = Date.now();
+    } finally { t.busy = false; }
+  }
+
   async function publishSpace() {
     if (!canvasIdRef.current || publishingRef.current || !dirtyRef.current) return;
     publishingRef.current = true; dirtyRef.current = false;
@@ -2614,6 +2649,7 @@ export default function CanvasBoard({
 
       if (!error) {
         publishedRef.current = state;
+        scheduleExploreThumb(state);
         if (!firstPublishTrackedRef.current) { firstPublishTrackedRef.current = true; track("publish", phoneEdit ? { phone: true, auto: true } : { auto: true }); }
         if (dirtyRef.current) setPublishState("pending");
         else {
