@@ -893,6 +893,15 @@ planeado acá hasta confirmarlo.
 >     (deploy), DESPUÉS encender Captcha (Turnstile + clave secreta) en Supabase › Authentication › Attack Protection — al
 >     revés, nadie puede entrar.
 >
+> **Panel de admin v3 (2026-11-27, pedido del usuario):** `supabase/migrations/20261127040000_admin_walls_verified.sql`
+>   (APLICADA; solo funciones nuevas, cada una con `admin_guard`): `admin_users_v2` (filtro Todas / Verificadas / Sin
+>   verificar, + verificada, método, posts en muros y archivos), `admin_wall` (todos los posts, más nuevos primero; filtros
+>   Todo / En muros ajenos / De cuentas sin verificar / Reportados; búsqueda por texto o @), `admin_verify_stats` (verificadas,
+>   sin verificar, registros sin verificar en 24 h, cómo se verificaron, posts 24 h / ajenos / total, reportados) y
+>   `admin_set_verified` (verificar / quitar a mano, queda en Historial). UI en `AdminPanel.tsx`: pestaña **Muros** (borrar
+>   post), números de verificación en Resumen (`VerifySummary`) y filtro + insignias + botones Verificar / Quitar
+>   verificación en Usuarios. Sin QA en navegador con una cuenta admin (las funciones se probaron en una transacción).
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

@@ -25,11 +25,17 @@ type UserRow = {
   user_id: string; handle: string | null; display_name: string | null; email: string | null; provider: string;
   created_at: string; last_sign_in_at: string | null; onboarding_completed: boolean | null;
   banned: boolean; ban_reason: string | null; views: number; favorites: number; has_note: boolean; total: number;
+  verified?: boolean; verify_method?: string | null; verified_at?: string | null; posts?: number; files?: number;
 };
+type VerifyStats = {
+  users: number; verified: number; unverified: number; new_24h: number; new_unverified_24h: number; verified_24h: number;
+  by_method: Record<string, number>; posts_total: number; posts_24h: number; posts_others_24h: number; reports_open: number;
+};
+const METHOD_LABEL: Record<string, string> = { existing: "cuentas previas", otp: "con código", oauth: "con Google", magiclink: "con link", admin: "a mano", recovery: "recuperando clave" };
 type Report = { id: number; created_at: string; handle: string | null; email: string | null; message: string; page: string | null; user_agent: string | null };
 type Action = { id: number; at: string; action: string; target_handle: string | null; detail: Record<string, unknown> | null };
 
-const ACTION_LABEL: Record<string, string> = { ban: "Baneó", unban: "Desbaneó", delete: "Eliminó", rename: "Renombró", delete_note: "Borró la nota de" };
+const ACTION_LABEL: Record<string, string> = { ban: "Baneó", unban: "Desbaneó", delete: "Eliminó", rename: "Renombró", delete_note: "Borró la nota de", verify: "Verificó a", unverify: "Quitó la verificación de" };
 
 const ERR: Record<string, string> = {
   handle_taken: "Ese nombre ya lo tiene otra cuenta.", invalid_handle: "Nombre inválido: 3 a 20, minúsculas, números, _ o -.",
@@ -38,8 +44,8 @@ const ERR: Record<string, string> = {
 };
 const errText = (m: string) => Object.entries(ERR).find(([k]) => m.includes(k))?.[1] ?? m;
 
-type Tab = "resumen" | "vivo" | "actividad" | "usuarios" | "relaciones" | "espacio" | "reportes" | "historial";
-const TABS: [Tab, string][] = [["resumen", "Resumen"], ["vivo", "En vivo"], ["actividad", "Actividad"], ["usuarios", "Usuarios"],
+type Tab = "resumen" | "vivo" | "actividad" | "usuarios" | "muros" | "relaciones" | "espacio" | "reportes" | "historial";
+const TABS: [Tab, string][] = [["resumen", "Resumen"], ["vivo", "En vivo"], ["actividad", "Actividad"], ["usuarios", "Usuarios"], ["muros", "Muros"],
   ["relaciones", "Favoritos y visitas"], ["espacio", "Espacio"], ["reportes", "Reportes"], ["historial", "Historial"]];
 
 export default function AdminPanel() {
@@ -75,6 +81,7 @@ export default function AdminPanel() {
         {tab === "relaciones" && <Relations />}
         {tab === "espacio" && <Space />}
         {tab === "usuarios" && <Users />}
+        {tab === "muros" && <Walls />}
         {tab === "reportes" && <Reports />}
         {tab === "historial" && <History />}
       </div>
@@ -115,6 +122,7 @@ function Summary() {
         <Stat label="Visitas a perfiles" value={m.totals.views_in_range} hint={`en ${days} d`} />
         <Stat label="Favoritos" value={m.totals.favorites} hint={`${fmtN(m.totals.notes_active)} notas activas`} />
       </div>
+      <VerifySummary />
       <Box title="Por día">
         <DailyChart rows={m.daily} />
         <div style={{ display: "flex", gap: 16, marginTop: 10, color: C.dim, fontSize: 12, flexWrap: "wrap" }}>
@@ -247,6 +255,7 @@ function DailyChart({ rows }: { rows: Metrics["daily"] }) {
 
 function Users() {
   const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | "verified" | "unverified">("all");
   const [rows, setRows] = useState<UserRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -255,19 +264,19 @@ function Users() {
 
   const load = useCallback(async (query: string, offset = 0) => {
     setLoading(true);
-    const { data, error } = await createClient().rpc("admin_users", { p_q: query, p_limit: 50, p_offset: offset });
+    const { data, error } = await createClient().rpc("admin_users_v2", { p_q: query, p_filter: filter, p_limit: 50, p_offset: offset });
     setLoading(false);
     if (error) { setMsg({ ok: false, text: error.message }); return; }
     const list = (data ?? []) as UserRow[];
     setRows(r => (offset ? [...r, ...list] : list));
     setTotal(list[0]?.total ?? (offset ? total : 0));
-  }, [total]);
+  }, [total, filter]);
 
   useEffect(() => {
     const t = setTimeout(() => { void load(q.trim()); }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [q, filter]);
 
   const act = async (fn: string, args: Record<string, unknown>, okText: string) => {
     setMsg(null);
@@ -284,6 +293,11 @@ function Users() {
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por @usuario, nombre o mail"
           style={{ ...input, flex: "1 1 280px" }} />
         <span style={{ color: C.dim }}>{loading ? "Buscando…" : `${fmtN(total)} cuentas`}</span>
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {([["all", "Todas"], ["verified", "Verificadas"], ["unverified", "Sin verificar"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setFilter(k)} style={chip(filter === k)}>{l}</button>
+        ))}
       </div>
       {msg && <div role="status" style={{ padding: "10px 14px", borderRadius: 12, background: msg.ok ? "rgba(74,222,128,.12)" : "rgba(255,91,107,.12)", color: msg.ok ? C.green : C.red }}>{msg.text}</div>}
       <div style={{ display: "grid", gap: 8 }}>
@@ -309,7 +323,8 @@ function UserCard({ u, open, onToggle, act }: {
       <button onClick={onToggle} aria-expanded={open}
         style={{ all: "unset", boxSizing: "border-box", width: "100%", cursor: "pointer", display: "grid", gridTemplateColumns: "minmax(0,1.3fr) minmax(0,1.4fr) repeat(3, minmax(64px,.5fr))", gap: 10, alignItems: "center", padding: "12px 14px" }}>
         <span style={{ minWidth: 0 }}>
-          <b>{name}</b>{u.banned && <span style={badge(C.red)}>BANEADO</span>}{u.handle?.startsWith("temp_") && <span style={badge(C.amber)}>SIN NOMBRE</span>}
+          <b>{name}</b>{u.banned && <span style={badge(C.red)}>BANEADO</span>}
+          {u.verified === true && <span style={badge(C.green)}>VERIFICADA</span>}{u.verified === false && <span style={badge(C.amber)}>SIN VERIFICAR</span>}{u.handle?.startsWith("temp_") && <span style={badge(C.amber)}>SIN NOMBRE</span>}
           <div style={{ color: C.dim, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.display_name ?? ""}</div>
         </span>
         <span style={{ minWidth: 0, color: C.dim, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}<span style={{ opacity: .7 }}> · {u.provider}</span></span>
@@ -320,14 +335,17 @@ function UserCard({ u, open, onToggle, act }: {
       {open && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 14, display: "grid", gap: 12 }}>
           <div style={{ color: C.dim, fontSize: 12.5 }}>
-            Se registró {fmtD(u.created_at)} · última entrada {fmtD(u.last_sign_in_at)} · {u.has_note ? "tiene nota activa" : "sin nota"}
+            Se registró {fmtD(u.created_at)} · última entrada {fmtD(u.last_sign_in_at)}
+            {u.verified ? ` · verificada ${METHOD_LABEL[u.verify_method ?? ""] ?? u.verify_method ?? ""} (${fmtD(u.verified_at)})` : " · sin verificar"}
+            {` · ${fmtN(u.posts ?? 0)} posts en muros · ${fmtN(u.files ?? 0)} archivos`}
             {u.banned && u.ban_reason ? ` · motivo del baneo: ${u.ban_reason}` : ""}
           </div>
           <UserDetail userId={u.user_id} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {u.handle && !u.banned && <a href={`/${u.handle}`} target="_blank" rel="noreferrer" style={{ ...btn(), textDecoration: "none" }}>Ver perfil</a>}
             {u.handle && <button style={btn()} onClick={() => { setMode("rename"); setVal(u.handle ?? ""); }}>Cambiar nombre</button>}
-            {u.has_note && <button style={btn()} onClick={() => act("admin_delete_note", { p_user: u.user_id }, `Nota de ${name} borrada.`)}>Borrar nota</button>}
+            {u.verified === false && <button style={btn(C.green)} onClick={() => act("admin_set_verified", { p_user: u.user_id, p_on: true }, `${name} verificada.`)}>Verificar</button>}
+            {u.verified === true && <button style={btn()} onClick={() => { if (confirm(`¿Quitarle la verificación a ${name}? Deja de aparecer en Explorar y no puede escribir en muros ajenos.`)) act("admin_set_verified", { p_user: u.user_id, p_on: false }, `${name} ya no está verificada.`); }}>Quitar verificación</button>}
             {u.banned
               ? <button style={btn(C.green)} onClick={() => act("admin_unban", { p_user: u.user_id }, `${name} desbaneado.`)}>Desbanear</button>
               : <button style={btn(C.amber)} onClick={() => { setMode("ban"); setVal(""); }}>Banear</button>}
@@ -426,6 +444,84 @@ function PostReports() {
         </Box>
       ))}
     </>
+  );
+}
+
+/** Cuentas verificadas / sin verificar y actividad de los muros (2026-11-27). */
+function VerifySummary() {
+  const [v, setV] = useState<VerifyStats | null>(null);
+  useEffect(() => { createClient().rpc("admin_verify_stats").then(({ data }) => { if (data) setV(data as VerifyStats); }); }, []);
+  if (!v) return null;
+  const pct = v.users ? Math.round((100 * v.verified) / v.users) : 0;
+  const methods = Object.entries(v.by_method).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${fmtN(n)} ${METHOD_LABEL[k] ?? k}`).join(" · ");
+  return (
+    <div style={grid(170)}>
+      <Stat label="Verificadas" value={v.verified} hint={`${pct} % · ${fmtN(v.verified_24h)} nuevas en 24 h`} />
+      <Stat label="Sin verificar" value={v.unverified} hint={`${fmtN(v.new_unverified_24h)} de ${fmtN(v.new_24h)} registros en 24 h`} />
+      <Stat label="Posts en muros" value={v.posts_24h} hint={`en 24 h · ${fmtN(v.posts_others_24h)} en muros ajenos`} />
+      <Stat label="Posts en total" value={v.posts_total} hint={v.reports_open ? `${fmtN(v.reports_open)} reportados` : "ninguno reportado"} />
+      <div style={{ gridColumn: "1 / -1", color: C.dim, fontSize: 12 }}>Cómo se verificaron: {methods}</div>
+    </div>
+  );
+}
+
+/** Muros (2026-11-27): everything people post, newest first; delete from here. */
+type WallRow = { id: string; created_at: string; body: string; parent_id: string | null; pinned: boolean; author_id: string; author_handle: string | null;
+  author_verified: boolean; owner_id: string; owner_handle: string | null; likes: number; reports: number; replies: number };
+function Walls() {
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | "others" | "reported" | "unverified">("all");
+  const [rows, setRows] = useState<WallRow[] | null>(null);
+  const [more, setMore] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const load = useCallback(async (before?: string) => {
+    const { data, error } = await createClient().rpc("admin_wall", { p_q: q.trim(), p_filter: filter, p_limit: 60, p_before: before ?? null });
+    if (error) { setErr(error.message); return; }
+    const list = (data ?? []) as WallRow[];
+    setRows(r => (before ? [...(r ?? []), ...list] : list));
+    setMore(list.length === 60);
+  }, [q, filter]);
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 250); return () => clearTimeout(t); }, [load]);
+  const del = async (r: WallRow) => {
+    if (!confirm(`¿Borrar este post de @${r.author_handle ?? "?"}?`)) return;
+    const { error } = await createClient().rpc("admin_delete_comment", { p_id: r.id });
+    if (error) { setErr(error.message); return; }
+    setRows(list => list?.filter(x => x.id !== r.id && x.parent_id !== r.id) ?? list);
+  };
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar texto o @usuario" style={{ ...input, flex: "1 1 280px" }} />
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {([["all", "Todo"], ["others", "En muros ajenos"], ["unverified", "De cuentas sin verificar"], ["reported", "Reportados"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setFilter(k)} style={chip(filter === k)}>{l}</button>
+        ))}
+      </div>
+      {err && <Box><span style={{ color: C.red }}>{err}</span></Box>}
+      {!rows && !err && <Box><span style={{ color: C.dim }}>Cargando…</span></Box>}
+      {rows && rows.length === 0 && <Box><span style={{ color: C.dim }}>No hay posts.</span></Box>}
+      {rows?.map(r => (
+        <Box key={r.id}>
+          <div style={{ display: "flex", gap: 8, color: C.dim, fontSize: 12.5, flexWrap: "wrap", alignItems: "center" }}>
+            <span>{fmtD(r.created_at)}</span>
+            <span>
+              {r.author_handle ? <a href={`/${r.author_handle}`} target="_blank" rel="noreferrer" style={{ color: C.text }}>@{r.author_handle}</a> : "?"}
+              {!r.author_verified && <span style={badge(C.amber)}>SIN VERIFICAR</span>}
+              {r.author_id === r.owner_id ? " en su muro" : <> en el muro de {r.owner_handle ? <a href={`/${r.owner_handle}?muro=1`} target="_blank" rel="noreferrer" style={{ color: C.text }}>@{r.owner_handle}</a> : "?"}</>}
+            </span>
+            {r.parent_id && <span style={badge(C.dim)}>RESPUESTA</span>}
+            {r.pinned && <span style={badge(C.text)}>FIJADO</span>}
+            {r.reports > 0 && <span style={badge(C.red)}>{r.reports} REPORTE{r.reports > 1 ? "S" : ""}</span>}
+            <span style={{ marginLeft: "auto" }}>{fmtN(r.likes)} likes · {fmtN(r.replies)} respuestas</span>
+          </div>
+          <div style={{ marginTop: 8, whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.45 }}>{r.body}</div>
+          <button type="button" onClick={() => del(r)}
+            style={{ marginTop: 8, padding: "5px 12px", borderRadius: 8, border: `1px solid ${C.red}`, background: "transparent", color: C.red, cursor: "pointer" }}>Borrar post</button>
+        </Box>
+      ))}
+      {more && rows && <button onClick={() => load(rows[rows.length - 1].created_at)} style={btn()}>Ver más</button>}
+    </div>
   );
 }
 
