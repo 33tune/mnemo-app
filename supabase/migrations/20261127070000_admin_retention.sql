@@ -72,7 +72,7 @@ begin
   perform public.admin_guard();
 
   create temp table if not exists _act (user_id uuid, day date) on commit drop;
-  truncate _act;
+  delete from _act where true; -- PostgREST (pg_safeupdate) needs a WHERE
   insert into _act
     select user_id, day from activity_days where user_id is not null and day > today - 120
     union select user_id, (created_at at time zone 'America/Argentina/Buenos_Aires')::date from canvas_ops where created_at > now() - interval '120 days'
@@ -83,7 +83,7 @@ begin
   create temp table if not exists _new (id uuid, created_at timestamptz, d0 date, back boolean, d1 boolean, r3 boolean, r7 boolean, r30 boolean,
     ops int, finished boolean, fav_given int, fav_recv int, posts_other int, posts_recv int, views_recv int,
     verified boolean, google boolean, phone boolean, mins numeric, shared boolean, explored boolean) on commit drop;
-  truncate _new;
+  delete from _new where true;
   insert into _new
     select u.id, u.created_at, (u.created_at at time zone 'America/Argentina/Buenos_Aires')::date d0,
       false, false, false, false, false, 0, false, 0, 0, 0, 0, 0, false, false, false, 0, false, false
@@ -107,7 +107,8 @@ begin
     mins     = coalesce((select sum(extract(epoch from p.last_seen - p.started_at)) / 60 from presence_sessions p
                  where p.user_id = n.id and p.started_at < n.created_at + interval '24 hours'), 0),
     shared   = exists (select 1 from events e where e.user_id = n.id and e.name in ('share_open', 'share_copy_link', 'share_save') and e.at < n.created_at + interval '24 hours'),
-    explored = exists (select 1 from events e where e.user_id = n.id and e.name in ('explore_open', 'search') and e.at < n.created_at + interval '24 hours');
+    explored = exists (select 1 from events e where e.user_id = n.id and e.name in ('explore_open', 'search') and e.at < n.created_at + interval '24 hours'))
+    where n.id is not null;
 
   select jsonb_build_object(
     'today', today,
