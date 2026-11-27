@@ -603,6 +603,16 @@ export default function CanvasBoard({
   const userInteractedRef  = useRef(false);
   const opsQueueRef  = useRef<QueuedOp[]>([]);
   const flushingRef  = useRef(false);
+  // Ops go out in batches (2026-11-27: one insert per edit — every step of a
+  // slider — plus a count after each one brought the database down under a
+  // traffic spike). A flush waits for a short pause in the edits (or 2 s at
+  // most); leaving the page or hiding the tab sends what is left right away.
+  const flushTimerRef = useRef<number | null>(null);
+  const flushFirstAtRef = useRef(0);
+  const opsSinceCompactRef = useRef(0);
+  // The latest flushOps (it compacts from the CURRENT elements: an old closure
+  // would save an old room).
+  const flushOpsRef = useRef<() => Promise<void>>(async () => {});
   const clientIdRef       = useRef(crypto.randomUUID());
   const firstEditRef = useRef(false); // fires analytics.canvasEdit once per session
 
@@ -2186,7 +2196,14 @@ export default function CanvasBoard({
     }
     markActive(op.type === "update_profile" || isSpaceCanvas(canvasModeRef.current));
 
-    flushOps();
+    scheduleFlush();
+  }
+  function scheduleFlush() {
+    const now = Date.now();
+    if (flushTimerRef.current === null) flushFirstAtRef.current = now;
+    else window.clearTimeout(flushTimerRef.current);
+    const wait = now - flushFirstAtRef.current >= 2000 ? 0 : 600;
+    flushTimerRef.current = window.setTimeout(() => { flushTimerRef.current = null; void flushOpsRef.current(); }, wait);
   }
   enqueueOpRef.current = enqueueOp;
 
@@ -2502,7 +2519,10 @@ export default function CanvasBoard({
         console.error("[OPS INSERT ERROR]", error);
         opsQueueRef.current.unshift(...batch);
       } else {
-        compactOps();
+        opsSinceCompactRef.current += rows.length;
+        // Only count the stored ops when this visit alone may have reached the
+        // compaction threshold (the count was a query after EVERY insert).
+        if (opsSinceCompactRef.current >= 50) compactOps();
       }
     } catch (err) {
       console.error("[OPS FLUSH EXCEPTION]", err);
@@ -2512,6 +2532,8 @@ export default function CanvasBoard({
       if (opsQueueRef.current.length) flushOps();
     }
   }
+
+  flushOpsRef.current = flushOps;
 
   async function compactOps() {
     const mode    = canvasModeRef.current;
@@ -2527,7 +2549,8 @@ export default function CanvasBoard({
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("canvas_type", mode);
-    if (!count || count < 50) return;
+    if (!count || count < 50) { opsSinceCompactRef.current = count ?? 0; return; }
+    opsSinceCompactRef.current = 0;
     const state = await buildSaveState(elementsAtCompact);
     if (session !== sessionIdRef.current) return;
 
@@ -2943,16 +2966,27 @@ export default function CanvasBoard({
     function handler() {
       if (!canEdit) return;
       if (!opsQueueRef.current.length) return;
-      navigator.sendBeacon(
+      const sent = navigator.sendBeacon(
         "/api/flush-ops",
         new Blob(
           [JSON.stringify(opsQueueRef.current.map(({ op, canvas_type }) => ({ canvas_type, op })))],
           { type: "application/json" }
         )
       );
+      // beforeunload and pagehide can both fire: never send the same ops twice.
+      if (sent) opsQueueRef.current = [];
     }
+    // iOS Safari often skips beforeunload: pagehide too, and a hidden tab
+    // sends the pending batch right away (the timer may never fire after it).
+    const hidden = () => { if (document.visibilityState === "hidden" && opsQueueRef.current.length) void flushOpsRef.current(); };
     window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+    window.addEventListener("pagehide", handler);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+      window.removeEventListener("pagehide", handler);
+      document.removeEventListener("visibilitychange", hidden);
+    };
   }, []);
 
   // ── Cambio de modo — el useEffect([canvasMode]) maneja flush + reset + carga ──
