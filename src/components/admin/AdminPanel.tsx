@@ -105,7 +105,7 @@ function Summary() {
   if (err) return <Box><span style={{ color: C.red }}>{err}</span></Box>;
   if (!m) return <Box><span style={{ color: C.dim }}>Cargando…</span></Box>;
   const funnelTop = Math.max(1, ...m.funnel.map(f => f.n));
-  const DB_LIMIT = 500e6, FILES_LIMIT = 1e9; // Supabase free plan
+  const DB_LIMIT = 8e9, FILES_LIMIT = 100e9; // Supabase Pro (2026-11-27)
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -193,7 +193,7 @@ function Summary() {
           </div>
         </Box>
       </div>
-      <Box title="Espacio en Supabase" right={<span style={{ color: C.dim, fontSize: 12 }}>plan gratis: 500 MB base · 1 GB archivos</span>}>
+      <Box title="Espacio en Supabase" right={<span style={{ color: C.dim, fontSize: 12 }}>plan Pro: 8 GB base · 100 GB archivos</span>}>
         <Meter label="Base de datos" used={m.storage.db} limit={DB_LIMIT} detail={`métricas: ${fmtB(m.storage.events + m.storage.activity)}`} />
         <Meter label="Archivos (imágenes, GIFs, MP3)" used={m.storage.files} limit={FILES_LIMIT} detail={`${fmtN(m.storage.file_count)} archivos`} />
       </Box>

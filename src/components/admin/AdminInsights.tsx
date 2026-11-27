@@ -235,7 +235,7 @@ export function Relations() {
 export function Space() {
   const { data: d, err } = useRpc("admin_space", {}, []);
   if (!d) return <Loading err={err} />;
-  const DB = 500e6, FILES = 1e9;
+  const DB = 8e9, FILES = 100e9; // Supabase Pro (2026-11-27)
   const meter = (label: string, used: number, limit: number, detail: string) => {
     const pct = Math.min(100, (100 * used) / limit); const color = pct > 80 ? C.red : pct > 60 ? C.amber : C.green;
     return (
