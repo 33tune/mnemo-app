@@ -258,17 +258,13 @@ export function useUnreadActivity(enabled: boolean): number {
     const sb = createClient();
     const refresh = () => sb.rpc("my_unread_activity").then(({ data }) => setUnread(Number(data ?? 0)));
     refresh();
-    const ch = sb.channel(`activity-${viewer}-${Math.random().toString(36).slice(2, 8)}`)
-      // Live for posts on my wall; replies elsewhere and likes show up on focus / every 2 min.
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments", filter: `profile_user_id=eq.${viewer}` }, payload => {
-        const row = payload.new as { author_user_id?: string };
-        if (row.author_user_id !== viewer) refresh();
-      })
-      .subscribe();
-    const iv = window.setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 120_000);
+    // No live channel here (2026-11-27, load): every signed-in page held one,
+    // and the database polls its changes for each. The dot updates on focus
+    // and every 90 s; an open wall is still live (useWall).
+    const iv = window.setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 90_000);
     const onVis = () => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVis);
-    return () => { window.clearInterval(iv); unreadSubs.delete(setN); sb.removeChannel(ch); document.removeEventListener("visibilitychange", onVis); };
+    return () => { window.clearInterval(iv); unreadSubs.delete(setN); document.removeEventListener("visibilitychange", onVis); };
   }, [enabled, viewer]);
   return n;
 }

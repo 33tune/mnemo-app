@@ -818,6 +818,18 @@ planeado acá hasta confirmarlo.
 >   Las herramientas que no son una parte (Acomodar, Tamaño, Borde, Animar) no cambian la selección. "Todo" abre la hoja
 >   completa en la parte actual.
 >
+> **Caída por saturación y optimizaciones (2026-11-27, en `main`):** con el pico de tráfico (~1.000 pedidos/min) la base del
+>   plan gratis se saturó desde la 01:45 UTC (consultas cortadas por timeout, `/auth/v1/user` sin responder → sesiones
+>   cerradas); no fue un ataque. Arreglos: el editor guarda los ops EN TANDAS (`scheduleFlush`: 600 ms de pausa o 2 s como
+>   máximo; al ocultar la pestaña / salir se mandan en el acto; `flushOpsRef` = el flush más nuevo) y ya no cuenta
+>   `canvas_ops` después de cada insert (`opsSinceCompactRef`: cuenta recién con ~50 nuevos); el beacon de salida corre en
+>   `beforeunload` y `pagehide` y vacía la cola (nunca manda dos veces). `PresencePing` cada 2 min (el admin cuenta
+>   "conectado" con 3 min). El punto de Avisos sin canal Realtime (cada 90 s y al volver a la pestaña; el muro abierto
+>   sigue en vivo). `/api/explore`: candidatos leídos con la clave pública y guardados 5 min en el cache de datos de Next
+>   compartido (`unstable_cache`, con la sala reducida a lo que usa el ranking: `slimRoom`). Explorar en el celular: solo
+>   quedan montadas las cards cerca de la pantalla ("Ver más" acumulaba todas y el iPhone recargaba la página).
+>   Recomendado al usuario: Supabase Pro antes del próximo pico.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

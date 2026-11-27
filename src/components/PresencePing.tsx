@@ -1,7 +1,7 @@
 "use client";
 /**
  * "Who is online and for how long" (2026-11-15, admin panel): while a page is
- * open AND visible, ping once a minute (public.ping). The database keeps one
+ * open AND visible, ping every 2 minutes (public.ping). The database keeps one
  * row per visit (a ping within 5 min extends it), so this costs one tiny
  * request a minute and no rows of its own. Never throws, never blocks.
  * The admin panel itself is not counted.
@@ -29,7 +29,9 @@ export default function PresencePing() {
       } catch { /* presence never breaks the app */ }
     };
     send();
-    const iv = setInterval(send, 60_000);
+    // Every 2 min (2026-11-27, load): the admin counts "online" within 3 min
+    // and a visit within 5 min, so nothing changes there.
+    const iv = setInterval(send, 120_000);
     document.addEventListener("visibilitychange", send);
     return () => { clearInterval(iv); document.removeEventListener("visibilitychange", send); };
   }, [path]);

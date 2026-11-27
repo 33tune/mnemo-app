@@ -15,6 +15,7 @@ import { liteEffects } from "@/lib/thumbImages";
 // full cards with particles and motion dropped the frame rate while scrolling
 // on a computer and ran iPhones out of memory.
 const lite = true;
+const touch = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
 
 const noop = () => {};
 
@@ -25,16 +26,19 @@ export default function ExploreThumb({ item, onFavorite, canFavorite, height = 1
 }) {
   const box = useRef<HTMLAnchorElement>(null);
   const [visible, setVisible] = useState(false);
-  // Mounted once it has been on screen (mounting a card mid-scroll made the
-  // scroll stutter); off screen it only pauses its effects.
+  // Computer: mounted once it has been on screen (mounting a card mid-scroll
+  // made the scroll stutter); off screen it only pauses its effects.
+  // Touch screens (2026-11-27, "Ver más" reloaded the page on iPhone): only
+  // the cards near the screen stay mounted — every card ever seen piled up
+  // in memory until Safari gave up.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { if (visible) setMounted(true); }, [visible]);
+  useEffect(() => { if (visible) setMounted(true); else if (touch) setMounted(false); }, [visible]);
   const [w, setW] = useState(0);
   useEffect(() => {
     const el = box.current;
     if (!el) return;
     setW(el.clientWidth);
-    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: "120px" });
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: touch ? "200px" : "120px" });
     io.observe(el);
     const ro = new ResizeObserver(() => setW(el.clientWidth));
     ro.observe(el);

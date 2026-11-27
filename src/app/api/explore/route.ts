@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
+import { createClient as createPublicClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { publicStateOf } from "@/lib/publishedState";
 import { isExploreTab, publicCardOf, rankExplore, type ExploreCandidate } from "@/lib/explore";
@@ -10,15 +12,26 @@ const SB = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 // Explorar (2026-11-26): community cards, ranked by care and activity
 // (src/lib/explore.ts). Everything read here is already public: published
 // rooms, profiles, and aggregated numbers (explore_signals, no personal data).
-// The candidate list is kept for a minute per server instance.
+// The candidate list (2026-11-27, load: every server instance re-read every
+// room each minute) is read with the public key — the same rows a visitor
+// without a session sees — and kept 5 min in Next's data cache, shared by all
+// instances; plus a 5 min copy in this instance's memory.
 
 type Cached = { at: number; list: ExploreCandidate[] };
 let cache: Cached | null = null;
-const TTL = 60_000;
+const TTL = 300_000;
+
+const loadShared = unstable_cache(readCandidates, ["explore-candidates-v1"], { revalidate: 300 });
 
 async function loadCandidates(): Promise<ExploreCandidate[]> {
   if (cache && Date.now() - cache.at < TTL) return cache.list;
-  const supabase = await createClient();
+  const list = await loadShared();
+  cache = { at: Date.now(), list };
+  return list;
+}
+
+async function readCandidates(): Promise<ExploreCandidate[]> {
+  const supabase = createPublicClient(SB, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: profiles } = await supabase.from("profiles")
     .select("user_id, handle, created_at, onboarding_completed")
     .not("handle", "like", "temp\\_%").limit(2000);
@@ -41,15 +54,23 @@ async function loadCandidates(): Promise<ExploreCandidate[]> {
     if (!card) continue;
     const s = sigOf.get(p.user_id as string) ?? {};
     list.push({
-      userId: p.user_id as string, handle: p.handle as string, createdAt: p.created_at as string, card, state,
+      userId: p.user_id as string, handle: p.handle as string, createdAt: p.created_at as string, card, state: slimRoom(state),
       signals: {
         views14: Number(s.views14 ?? 0), favs: Number(s.favs ?? 0), favs14: Number(s.favs14 ?? 0),
         posts14: Number(s.posts14 ?? 0), editMinutes: Number(s.edit_minutes ?? 0), edits: Number(s.edits ?? 0),
       },
     });
   }
-  cache = { at: Date.now(), list };
   return list;
+}
+
+/** Only what the ranking and the thumbnail read from the room (its
+ * wallpaper, color and how many images / texts): the whole room would not fit
+ * the shared cache and nobody needs it here. */
+function slimRoom(state: CanvasState): CanvasState {
+  const st = state as CanvasState & Record<string, unknown>;
+  const n = (v: unknown, max: number) => new Array(Math.min(max, Array.isArray(v) ? v.length : 0)).fill(0);
+  return { wallpaper: st.wallpaper, bgColor: st.bgColor, images: n(st.images, 6), texts: n(st.texts, 4) } as unknown as CanvasState;
 }
 
 /** The card as the thumbnail draws it: no stickers outside the card frame need
