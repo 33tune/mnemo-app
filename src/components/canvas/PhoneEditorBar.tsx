@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PublishState } from "@/types";
 import { T, Icon } from "@/ui";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
+import { getLang, setLang, type Lang } from "@/lib/i18n/lang";
 
 const PUBLISH_LABEL: Record<PublishState, string> = {
   idle: "En vivo", pending: "Guardando…", publishing: "Guardando…", success: "En vivo",
@@ -39,6 +40,8 @@ export default function PhoneEditorBar({
   onFavorites: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [lang, setLangState] = useState<Lang>("es");
+  useEffect(() => { setLangState(getLang()); }, []);
   const moreRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -109,6 +112,9 @@ export default function PhoneEditorBar({
                 <Icon name="share" size={16} /><span>Compartir como historia</span>
               </button>
             )}
+            <button type="button" className="mn-glassmenu__item" onClick={run(() => { const v: Lang = lang === "en" ? "es" : "en"; setLangState(v); setLang(v); })}>
+              <Icon name="globe" size={16} /><span data-no-i18n="">{lang === "en" ? "Español" : "English"}</span>
+            </button>
             <button type="button" className="mn-glassmenu__item" onClick={run(() => { void onLogout(); })}>
               <span>Salir</span>
             </button>

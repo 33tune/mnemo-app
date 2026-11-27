@@ -6,6 +6,7 @@
 // "Entrar" go to /login, assets under /landing, three.js from npm.
 "use client";
 import React from "react";
+import { getLang, setLang as setGlobalLang } from "@/lib/i18n/lang";
 import { Icon as DsIcon, LiquidSlider as DsLiquidSlider, IconTabs as DsIconTabs, ColorRibbon as DsColorRibbon, ControlTiles as DsControlTiles, GlassToast as DsGlassToast } from "./ds";
 
 export default 
@@ -28,7 +29,7 @@ class LandingPage extends React.Component<any, any> {
   ];
   LABELS = [["Foto","25%",".30","9","L","Subí la tuya"],["Nombre","42%",".34","9","R","Con tu fuente y color"],["@usuario","50%",".38","9","L","Tu link: myland.lol/…"],["Frase","57%",".42","9","R","Contá algo de vos"],["Ubicación","65.5%",".46","9","L","De dónde sos"],["Links","80%",".5","9","R","Todas tus redes, en un toque"]];
   TOASTS = [["Publicado en tu perfil","check"],["Link copiado","link"],["Fondo cambiado","palette"],["Música agregada","music"]];
-  state = { handle: "", status: "idle", mobile: window.innerWidth < 980, stack: window.innerWidth < 960, wide: window.innerWidth >= 1100, vh: window.innerHeight, xl: window.innerWidth >= 1240, claiming: false, dock: false, gal: 0, glow: 64, toast: 0, dockOpen: false, dockTab: "estilo", theme: (() => { try { return localStorage.getItem("myland-theme") || "dark"; } catch (e) { return "dark"; } })(), accent: "#FF4F94", font: (this.props && this.props.displayFont) || "Archivo", hs: 100, ls: 0, tFlotar: true, tBrillo: false, t3d: true, tLineas: true, dtoast: null, chap: 0, demo: false, lang: (() => { try { return localStorage.getItem("myland-lang") || "es"; } catch (e) { return "es"; } })(), mcard: "color", menuOpen: false, hint: false, fabSeen: false };
+  state = { handle: "", status: "idle", mobile: window.innerWidth < 980, stack: window.innerWidth < 960, wide: window.innerWidth >= 1100, vh: window.innerHeight, xl: window.innerWidth >= 1240, claiming: false, dock: false, gal: 0, glow: 64, toast: 0, dockOpen: false, dockTab: "estilo", theme: (() => { try { return localStorage.getItem("myland-theme") || "dark"; } catch (e) { return "dark"; } })(), accent: "#FF4F94", font: (this.props && this.props.displayFont) || "Archivo", hs: 100, ls: 0, tFlotar: true, tBrillo: false, t3d: true, tLineas: true, dtoast: null, chap: 0, demo: false, lang: getLang(), mcard: "color", menuOpen: false, hint: false, fabSeen: false };
   CH = [["Tu tarjeta","Foto, nombre, @usuario, frase, ubicación y bio."],["Tus links","Instagram, TikTok, Spotify, mail o web. Íconos o botones."],["Tu sala","Fondo, imágenes, GIFs, textos, galería y tu música."]];
   NAMES = ["tu-nombre","sofi.art","dj-luna","estudio-mar","fede","tu-marca"];
   LABELS_EN = { "Foto": ["Photo","Upload yours"], "Nombre": ["Name","Your font and color"], "@usuario": ["@username","Your link: myland.lol/…"], "Frase": ["Tagline","Tell people about you"], "Ubicación": ["Location","Where you're from"], "Links": ["Links","All your socials, one tap away"] };
@@ -333,7 +334,7 @@ class LandingPage extends React.Component<any, any> {
       statusText: ST[0], statusColor: ST[1], claimRing: ring,
       mobile: s.mobile, notMobile: !s.mobile, wide: s.wide, navCta: EN ? (s.mobile ? "Claim" : "Claim your myLand") : (s.mobile ? "Reclamar" : "Reclamá tu myLand"),
       decor: p.decor ?? true, river,
-      lang: s.lang, langTabs: [{ id: "es", label: "Español" }, { id: "en", label: "English" }], setLang: v => { if (v === s.lang) return; this.setState({ lang: v }); this.toastMsg(v === "en" ? "Language: English" : "Idioma: español", "globe"); },
+      lang: s.lang, langTabs: [{ id: "es", label: "Español" }, { id: "en", label: "English" }], setLang: v => { if (v === s.lang) return; this.setState({ lang: v }); setGlobalLang(v); this.toastMsg(v === "en" ? "Language: English" : "Idioma: español", "globe"); },
       menuOpen: s.menuOpen, menuClosed: !s.menuOpen, closeMenu: () => this.setState({ menuOpen: false, hint: false }), openMenu: () => this.setState({ menuOpen: true }),
       menuPath: "myland.lol/" + (s.handle || (s.lang === "en" ? "your-name" : "tu-nombre")),
       oc: Object.fromEntries(["tema", "color", "tipo", "fx", "idioma"].map(k => [k, () => this.setState({ mcard: s.mcard === k ? null : k, demo: false })])),
@@ -350,7 +351,7 @@ class LandingPage extends React.Component<any, any> {
       sumLang: s.lang === "en" ? "English" : "Español",
       tSize: s.lang === "en" ? "Size" : "Tamaño", tLs: s.lang === "en" ? "Letter spacing" : "Interletrado", pxFmt: v => (v > 0 ? "+" : "") + v + " px",
       heroMinH: s.mobile ? "calc(100svh - 16px)" : "calc(100vh - 24px)", heroPad: s.mobile ? "8px" : "12px", heroR: s.mobile ? "28px" : "clamp(30px,3vw,44px)", riverH: s.mobile ? "clamp(200px,54vw,290px)" : "clamp(220px,min(22vw,30vh),330px)", rowDir: s.mobile ? "column" : "row", pFlex: s.mobile ? "none" : "1 1 420px", ctaFlex: s.mobile ? "none" : "0 1 580px", rowAlign: s.mobile ? "center" : "left", rowJustify: s.mobile ? "center" : "flex-start", toggleMenu: () => this.setState({ menuOpen: !s.menuOpen, hint: false, fabSeen: true }), fabHop: s.menuOpen || this.reduce ? "none" : "ml-hop 3.8s 1.8s cubic-bezier(.34,1.56,.64,1) infinite", fabGlow: s.menuOpen ? 0 : .9, fabDot: !s.fabSeen && !s.menuOpen, hint: s.hint && !s.menuOpen, fabLabel: !s.mobile, fabR: s.mobile ? "12px" : "16px", fabChev: s.menuOpen ? "180deg" : "0deg", fabRing: s.menuOpen ? "none" : "ml-ring 2.2s ease-out infinite",
-      xl: s.xl, h1Size: s.mobile ? "clamp(34px,9.4vw,72px)" : "clamp(64px,min(10vw,15vh),200px)", langLabel: s.lang === "en" ? "ES" : "EN", toggleLang: () => { const v = s.lang === "en" ? "es" : "en"; this.setState({ lang: v }); this.toastMsg(v === "en" ? "Language: English" : "Idioma: español", "globe"); },
+      xl: s.xl, h1Size: s.mobile ? "clamp(34px,9.4vw,72px)" : "clamp(64px,min(10vw,15vh),200px)", langLabel: s.lang === "en" ? "ES" : "EN", toggleLang: () => { const v = s.lang === "en" ? "es" : "en"; this.setState({ lang: v }); setGlobalLang(v); this.toastMsg(v === "en" ? "Language: English" : "Idioma: español", "globe"); },
       tutIcon: s.tutPaused ? "play" : "pause", tutLabel: s.lang === "en" ? (s.tutPaused ? "Play" : "Pause") : (s.tutPaused ? "Reproducir" : "Pausar"),
       tutToggle: () => { const v = this.tutEl; if (!v) return; if (v.paused) { const p = v.play(); p && p.catch(() => {}); this.tutPaused = false; this.setState({ tutPaused: false }); } else { v.pause(); this.tutPaused = true; this.setState({ tutPaused: true }); } },
       whatH: s.mobile ? "230vh" : "250vh", whatSize: s.mobile ? "clamp(27px,7.6vw,40px)" : "clamp(34px,min(4.3vw,7.4vh),72px)", chipIcon: s.mobile ? 15 : 26,

@@ -220,7 +220,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
                   {h.photo && <img src={h.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                 </span>
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: "block", font: `700 15px ${font}`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</span>
+                  <span style={{ display: "block", font: `700 15px ${font}`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-no-i18n="">{h.name}</span>
                   <span style={{ font: `500 13px ${font}`, color: "rgba(246,243,248,.55)" }}>@{h.handle}</span>
                 </span>
               </a>

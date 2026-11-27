@@ -30,7 +30,7 @@ export function useCss() {
 
 export function PostText({ text, fx, color }: { text: string; fx?: PostFx; color: string }) {
   useCss();
-  if (!fx) return <>{text}</>;
+  if (!fx) return <span data-no-i18n="">{text}</span>;
   const base = { "--c": color } as React.CSSProperties;
   if (fx === "bounce" || fx === "wave" || fx === "shake") {
     const letters = Array.from(text);

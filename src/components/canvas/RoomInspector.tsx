@@ -8,6 +8,7 @@ import {
 } from "@/ui";
 import { wellHex } from "@/ui/ColorPopover";
 import { useEditorTheme } from "@/lib/useEditorTheme";
+import { getLang, setLang, type Lang } from "@/lib/i18n/lang";
 import { EDITOR_THEMES, type EditorTheme } from "@/lib/editorTheme";
 
 /** "Ejemplos en lo vacío": wallpapers made for myLand (public/editor/wallpapers). */
@@ -105,6 +106,7 @@ function ThemePicker({ theme, onChange }: { theme: EditorTheme; onChange: (t: Ed
 // (every enqueue below is the one the old "Ajustes de MyLand" submenu sent).
 export default function RoomInspector(p: RoomInspectorProps) {
   const [theme, setTheme] = useEditorTheme();
+  const [lang, setLangState] = useState<Lang>(() => getLang());
   // DS accordion: every card starts closed; one open at a time.
   const [open, setOpen] = useState<string | null>(null);
   const { enqueue } = p;
@@ -178,6 +180,12 @@ export default function RoomInspector(p: RoomInspectorProps) {
         <MenuSection label="Apariencia del editor" icon="sun" summary={THEME_LABEL[theme]}>
           <ThemePicker theme={theme} onChange={setTheme} />
           <MenuNote>Cambia solo el editor: tu sala y tu perfil se ven igual.</MenuNote>
+        </MenuSection>
+
+        {/* Idioma (2026-11-27): the app's texts; never what people wrote. */}
+        <MenuSection label="Idioma" icon="globe" summary={lang === "en" ? "English" : "Español"}>
+          <Tabs label="Idioma" active={lang} onChange={id => { const v = id as Lang; setLangState(v); setLang(v); }}
+            tabs={[{ id: "es", label: "Español" }, { id: "en", label: "English" }]} />
         </MenuSection>
       </div>
       </Accordion>

@@ -790,8 +790,8 @@ planeado acá hasta confirmarlo.
 >     `profiles_welcome_email` eliminado). Hook "Send Email" de Supabase Auth → edge function `send-email`: Resend y, si
 >     falla o se pasa del límite, Brevo (probado). Reenviar código: espera creciente y máx. 2 por mail por día.
 >
-> **Estudio en el editor de celular (2026-11-27, propuesta "A · Estudio de fotos" elegida por el usuario; rama
->   `claude/adoring-edison-j7pzhk`, NO en `main` hasta su OK):** la hoja plegada del editor de celular pasó a ser
+> **Estudio en el editor de celular (2026-11-27, propuesta "A · Estudio de fotos" elegida por el usuario; en `main` con
+>   su OK):** la hoja plegada del editor de celular pasó a ser
 >   `PhoneStudio.tsx` (lo monta `ProfileInspector` cuando `studio` y la hoja está plegada; `EditorHost` › `studio`): la card
 >   queda grande y abajo hay UN deslizador, UNA fila de opciones para el pulgar y las categorías Efectos · Fondo · Texto ·
 >   Foto · Redes (cada una = una parte: `cardFx`, `cardBg`, `name`, `photo`, `links`). Efectos: Nada / Holo / Reflejo /
@@ -803,6 +803,16 @@ planeado acá hasta confirmarlo.
 >   y guardado automático iguales. Tocar una parte de la card cubierta por el Estudio cambia de categoría (no abre la
 >   hoja); las demás partes abren la hoja. Sin los botones − / + sobre la card. Estilos `.mn-studio*` en `editor.css`.
 >   Probado en iPhone emulado con una cuenta de prueba (borrada); sin QA en un iPhone real.
+>
+> **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
+>   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
+>   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas
+>   (placeholder, aria-label, title, data-tip, alt) que estén en el diccionario `src/lib/i18n/en.ts` (texto exacto →
+>   inglés, ~780, más patrones con valores en `EN_PATTERNS`) y vuelve al original al elegir español. NUNCA toca la card
+>   (`[data-profile-card]`), lo que se escribe, los posts (`[data-mnw-fx]` / `PostText`) ni lo marcado `[data-no-i18n]`
+>   (nombres de la búsqueda, cuerpo de los avisos); la landing sigue con su `data-en`. Cambiar: Tu sala › Idioma (compu y
+>   celular), Más › English/Español en el editor de celular, y el de la landing. Un texto que falta en el diccionario queda en
+>   español: para sumarlo, agregarlo a `en.ts` tal cual aparece en el código.
 >
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:

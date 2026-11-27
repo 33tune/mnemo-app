@@ -278,7 +278,7 @@ function NewsTab({ ink, accent, newTab }: { ink: string; accent: string; newTab?
           </span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: "block", fontWeight: 650, fontSize: 13 }}>@{it.actor.handle || "?"}</span>
-            <span style={{ display: "block", color: hexAlpha(ink, 0.65), fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.body}</span>
+            <span style={{ display: "block", color: hexAlpha(ink, 0.65), fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-no-i18n={it.kind === "favorite" ? undefined : ""}>{it.body}</span>
           </span>
           {it.kind === "favorite"
             ? <FavBack userId={it.actor.id} accent={accent} mutual={it.mutual} />

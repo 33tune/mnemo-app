@@ -1,3 +1,4 @@
+import Translator from "@/components/i18n/Translator";
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AppErrorBoundary>{children}</AppErrorBoundary>
         <PresencePing />
+        <Translator />
       </body>
     </html>
   );
