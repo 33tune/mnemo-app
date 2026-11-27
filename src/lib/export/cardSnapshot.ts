@@ -63,7 +63,7 @@ export interface Capture {
  * `region` = the room rectangle to picture (room px), `ratio` = output px per
  * room px. The card element is `[data-profile-card]`, a child of the room.
  */
-export async function startCapture(el: HTMLElement, region: Rect, ratio: number): Promise<Capture> {
+export async function startCapture(el: HTMLElement, region: Rect, ratio: number, opts: { withRoom?: boolean } = {}): Promise<Capture> {
   const { toCanvas, getFontEmbedCSS } = await import("html-to-image");
   const root = el.parentElement!;
   const cardRect = el.getBoundingClientRect();
@@ -74,7 +74,10 @@ export async function startCapture(el: HTMLElement, region: Rect, ratio: number)
   // touches the card (2026-11-27: a Redmi Note 11 got the whole room pasted
   // over its card). Both tests must agree.
   const box = (n: HTMLElement) => ({ left: n.offsetLeft, top: n.offsetTop, right: n.offsetLeft + n.offsetWidth, bottom: n.offsetTop + n.offsetHeight });
-  const extras = el.offsetParent === root
+  // Compartir (2026-11-27, owner's decision): ONLY the card and its stickers —
+  // the room's pictures never go in. Explorar's thumbnail still adds what
+  // really touches the card (withRoom).
+  const extras = opts.withRoom && el.offsetParent === root
     ? [...root.querySelectorAll<HTMLElement>(`:scope > ${ROOM_EL}`)]
         .filter(n => n.offsetParent === root && touches(box(n) as DOMRect, box(el) as DOMRect) && touches(n.getBoundingClientRect(), cardRect))
     : [];
@@ -145,8 +148,14 @@ export async function startCapture(el: HTMLElement, region: Rect, ratio: number)
         background: "transparent", backgroundImage: "none", backgroundColor: "transparent",
         filter: "none", overflow: "visible", clipPath: "none",
       } as Partial<CSSStyleDeclaration>,
+      // Only the subjects and their insides (and whatever wraps them):
+      // nothing else of the room can be drawn, wherever it sits in the page.
       filter: node => {
-        if (node instanceof HTMLElement && node.parentElement === root) return subjects.includes(node);
+        if (node instanceof HTMLElement && node !== root) {
+          const inside = subjects.some(s => s === node || s.contains(node));
+          const wraps = !inside && subjects.some(s => node.contains(s));
+          if (!inside && !wraps) return false;
+        }
         return skip(node);
       },
     });

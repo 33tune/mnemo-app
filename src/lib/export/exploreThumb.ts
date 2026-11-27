@@ -26,7 +26,7 @@ export async function renderExploreThumb(el: HTMLElement, card: ProfileCardData,
     const view = storyView(cardViewRect({ ...card, x: at.x, y: at.y, w: at.w }, at.h), THUMB_VIEW_W, THUMB_VIEW_H, THUMB_W);
     const img = bg.imageUrl ? await loadImage(bg.imageUrl) : null;
     const background = storyBackground({ ...bg, image: img, imageW: img?.naturalWidth, imageH: img?.naturalHeight }, view);
-    const cap = await startCapture(el, view.region, view.ratio);
+    const cap = await startCapture(el, view.region, view.ratio, { withRoom: true });
     let first: Awaited<ReturnType<typeof cap.frame>>;
     try { first = await cap.frame(0); } finally { cap.done(); }
     const out = document.createElement("canvas");
