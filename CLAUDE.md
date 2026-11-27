@@ -879,6 +879,20 @@ planeado acá hasta confirmarlo.
 >   › Sign In / Providers › Email). El registro ya entra directo si Supabase devuelve sesión (`siteAuth.register`).
 >   Recomendado antes: Cloudflare Turnstile en el registro (anti-bots), no implementado.
 >
+> **Sin verificar = solo tu card + anti-bots (2026-11-27, pedido del usuario tras apagar "Confirm email"):**
+>   - Base `supabase/migrations/20261127030000_verified_only_actions.sql` (APLICADA, con la confirmación del usuario):
+>     `is_verified(uid)`; `post_wall` exige cuenta verificada para escribir en muros AJENOS (el propio, no);
+>     `toggle_post_like` exige verificada; favoritos (`fav_insert_own`) solo verificadas; subidas: 8 archivos sin verificar,
+>     100 verificada (`ml_assets_insert_own`).
+>   - App: esas acciones, si la base responde `verify_required` / RLS, abren la ventana de verificar (`requestVerify()` →
+>     `VerifyGate` en `layout.tsx`); al llegar al tope de archivos sin verificar, también. La foto de Explorar no se sube
+>     para cuentas sin verificar. La ventana va por encima de todo (z 2147483000: en el celular la tapaban las pastillas).
+>   - **Anti-bots** (`src/lib/captcha.ts`): Cloudflare Turnstile invisible (`appearance: interaction-only`) para registro,
+>     login, olvidé mi contraseña, reenviar y el código de verificar (`captchaToken` en cada llamada de Auth). Se activa
+>     con `NEXT_PUBLIC_TURNSTILE_SITE_KEY` en Vercel; sin esa variable no hace nada. **Orden:** primero la variable en Vercel
+>     (deploy), DESPUÉS encender Captcha (Turnstile + clave secreta) en Supabase › Authentication › Attack Protection — al
+>     revés, nadie puede entrar.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas
