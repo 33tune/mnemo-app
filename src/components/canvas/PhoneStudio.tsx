@@ -37,6 +37,7 @@ import { STICKER_MAX, newSticker } from "@/lib/stickerGeometry";
 import { stickerEditing, useStickerEditing } from "@/lib/stickerEditing";
 import { uploadToStorage } from "@/lib/storage";
 import { detectPlatform, PlatformIcon } from "./SocialIcons";
+import { crumb } from "@/lib/crashProbe";
 
 export const PHONE_STUDIO_H = 252;
 
@@ -142,7 +143,7 @@ export default function PhoneStudio({ card, effective, baseColor, object, onSele
   // selecting "Efectos" for them would send the strip back to Efectos.
   const OWN: Tool[] = ["fx", "bg", "text", "photo", "stickers", "links", "buttons"];
   const pickTool = (t: Tool) => {
-    setTool(t); setDetail(null); setPop(null);
+    setTool(t); setDetail(null); setPop(null); crumb(`tool:${t}`);
     if (!OWN.includes(t)) return;
     const o = t === "text" ? role : OBJ_OF[t];
     if (o !== object) onSelectObject(o);

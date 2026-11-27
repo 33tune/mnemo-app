@@ -7,8 +7,11 @@
  * card) plus how long they spent editing and how many changes they made. The
  * low-effort ones (a photo and nothing else) never show.
  *
- * Tabs: "para" (Para vos) mixes care + recent activity + a boost for new cards
- * + a daily shuffle, so it is not always the same faces; "nuevas" is newest
+ * Tabs: "para" (Para vos, 2026-11-27: "siempre salen los mismos") is a
+ * weighted RANDOM draw, new each time Explorar opens (the seed comes from the
+ * viewer's visit): better-made cards, recently edited ones and new ones are
+ * likelier to come first, but any good card can; the viewer's own favorites
+ * are left out (they already have them in Tus favoritos); "nuevas" is newest
  * first; "visitadas" is most visited in 14 days; "holo" is the cards with
  * collection effects (holo, glare, glitter, strass).
  */
@@ -36,6 +39,8 @@ export interface ExploreCandidate {
   userId: string;
   handle: string;
   createdAt: string;
+  /** Last time the owner saved or published the room (optional: older caches). */
+  updatedAt?: string;
   card: ProfileCardData;
   state: CanvasState;
   signals: ExploreSignals;
@@ -113,6 +118,8 @@ export const MIN_CARE = 6;
 export function hash01(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  // Final mix: seeds that differ in one letter give unrelated orders.
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
   return ((h >>> 0) % 100000) / 100000;
 }
 
@@ -122,21 +129,36 @@ export interface RankOptions {
   /** Changes the shuffle: the day plus who is looking (each person sees a different mix). */
   seed: string;
   excludeUserId?: string | null;
+  /** Para vos: cards the viewer already has in favorites (left out). */
+  excludeIds?: ReadonlySet<string>;
+}
+
+/** Para vos: how likely a card is to come up first (1 … ~10). Care counts most;
+ * a card edited in the last days, a new card and some activity add a bit. */
+export function paraWeight(c: ExploreCandidate, now: number): number {
+  const care = careScore(c);
+  const days = (iso?: string) => (iso ? Math.max(0, (now - Date.parse(iso)) / 86400000) : Infinity);
+  const edited = days(c.updatedAt);
+  const age = days(c.createdAt);
+  const act = Math.sqrt(c.signals.views14 * 0.4 + c.signals.favs14 * 3 + c.signals.posts14 * 2 + c.signals.favs * 0.5);
+  return 1 + Math.max(0, care - MIN_CARE) / 5
+    + (edited < 3 ? 2 * (1 - edited / 3) : 0)
+    + (age < 10 ? 1.5 * (1 - age / 10) : 0)
+    + Math.min(2, act / 6);
 }
 
 export function rankExplore(list: ExploreCandidate[], o: RankOptions): ExploreCandidate[] {
   const pool = list.filter(c => c.userId !== o.excludeUserId && isFinished(c.card, c.state) && careScore(c) >= MIN_CARE)
+    .filter(c => o.tab !== "para" || !o.excludeIds?.has(c.userId))
     .filter(c => o.tab !== "holo" || hasCollectionFx(c.card));
   const ageDays = (c: ExploreCandidate) => Math.max(0, (o.now - Date.parse(c.createdAt)) / 86400000);
   const score = (c: ExploreCandidate) => {
-    const care = careScore(c);
-    const act = Math.sqrt(c.signals.views14 * 0.4 + c.signals.favs14 * 3 + c.signals.posts14 * 2 + c.signals.favs * 0.5);
-    const fresh = ageDays(c) < 10 ? 4 * (1 - ageDays(c) / 10) : 0;
     const shuffle = hash01(`${o.seed}:${c.userId}`);
     switch (o.tab) {
       case "nuevas": return -ageDays(c);
       case "visitadas": return c.signals.views14 + shuffle * 0.5;
-      default: return care * 0.6 + act * 1.4 + fresh + shuffle * 6;
+      // Weighted random order (Efraimidis–Spirakis): key = u^(1/w).
+      default: return Math.pow(Math.max(1e-9, shuffle), 1 / paraWeight(c, o.now));
     }
   };
   return pool.map(c => ({ c, s: score(c) })).sort((a, b) => b.s - a.s || a.c.handle.localeCompare(b.c.handle)).map(x => x.c);

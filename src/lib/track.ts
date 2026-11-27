@@ -14,7 +14,7 @@ export type TrackEvent =
   | "landing_view" | "claim_click" | "login_view" | "signup_submit" | "signup_google" | "login_done"
   | "setup_view" | "setup_done" | "editor_open" | "tour_done" | "tour_skip" | "publish"
   | "note_post" | "favorite_add" | "favorite_remove" | "share_open" | "share_save" | "share_copy_link"
-  | "search" | "profile_view" | "bug_report";
+  | "search" | "profile_view" | "bug_report" | "crash";
 
 function send(name: string, props?: Record<string, unknown>) {
   try {

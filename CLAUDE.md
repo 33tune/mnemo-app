@@ -830,6 +830,21 @@ planeado acá hasta confirmarlo.
 >   quedan montadas las cards cerca de la pantalla ("Ver más" acumulaba todas y el iPhone recargaba la página).
 >   Recomendado al usuario: Supabase Pro antes del próximo pico.
 >
+> **Caídas en iPhone y Para vos (2026-11-27, pedido del usuario):**
+>   - **Detector de caídas** (`src/lib/crashProbe.ts`, montado en `PresencePing`): mientras la página está visible guarda
+>     un aviso en `sessionStorage` (`ml_alive`); salir normal o esconderla lo borra. Si al cargar sigue ahí, Safari mató la
+>     página ("Ocurrió un problema…") → evento `crash` en `events` con las últimas "migas" (`crumb()`: ruta, pestaña del
+>     celular, herramienta del Estudio, hoja abierta, elegir foto + MB, muro, compartir, explorar), versión de iOS. Base:
+>     `supabase/migrations/20261127000000_track_crash.sql` (APLICADA, `track` acepta `crash`). Consultar:
+>     `select props from events where name='crash' order by at desc`.
+>   - **Memoria del editor de celular:** el zoom al tocar una parte llega a 1,6× (antes 2,4×: con la hoja abierta las
+>     capas de la card ocupaban ~184 MB a 3×; ahora ~92). `shrinkImage` libera el canvas en el acto.
+>   - El 36 % de "reabrir el editor en < 3 min" también pasa en la compu: es ir y volver, no caídas.
+>   - **Para vos** (`rankExplore`, tab `para`): sorteo PONDERADO nuevo en cada visita a Explorar (el panel manda `seed` y
+>     lo mantiene al paginar; sin seed, cambia cada hora): `paraWeight` = esmero + editada en los últimos 3 días + card
+>     nueva + algo de actividad (1…~10); clave `u^(1/w)`. Saca las cards que la persona ya tiene en favoritos (solo en
+>     Para vos). `canvases.updated_at` viaja como `updatedAt` (cache `explore-candidates-v2`).
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

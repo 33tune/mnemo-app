@@ -83,6 +83,7 @@ import { PHONE_STUDIO_H, studioCovers } from "./PhoneStudio";
 import type { ObjectId } from "@/lib/inspectorObjects";
 import { guideSteps, PhoneGuidePill, CardReadySheet, DesktopTipSheet, seen as guideSeen, markSeen as guideMarkSeen } from "@/components/explore/PhoneGuide";
 import { track, trackOnce, markVisit } from "@/lib/track";
+import { crumb } from "@/lib/crashProbe";
 import {
   createEditorHistory, snap, ABSENT, isSystemLayoutWrite, mergeQueuedPatches, bindEditorHistory, isTextEntry,
   HISTORY_TEXT_IDLE_MS, ownHistoryStep, inOwnHistoryStep, undoShortcutOwner, historyShortcut, type EditorHistory, type HistoryEntry, type Snap,
@@ -723,6 +724,9 @@ export default function CanvasBoard({
     return () => window.removeEventListener("popstate", onPop);
   }, [phoneEdit]);
   const setPhonePreview = useCallback((v: boolean) => goPhoneTab(v ? "inicio" : "editar"), [goPhoneTab]);
+  // Crash probe crumbs (src/lib/crashProbe.ts): what was on screen if Safari kills the page.
+  useEffect(() => { if (phoneEdit) crumb(`tab:${phoneTab}`); }, [phoneEdit, phoneTab]);
+  useEffect(() => { if (phoneEdit) crumb(phoneSheetOpen ? "sheet:open" : "sheet:closed"); }, [phoneEdit, phoneSheetOpen]);
   // Explorar (2026-11-26): the panel that replaced the favorites bar.
   const [exploreOpen, setExploreOpen] = useState(false);
   // The notch / status bar (env(safe-area-inset-top)): the top bar grows by it.
@@ -966,6 +970,9 @@ export default function CanvasBoard({
   const unreadActivity = useUnreadActivity(canEdit && phoneEdit);
   const openWall = useCallback((tab: "wall" | "feed" | "news" = "wall") => { setWallTab(tab); setWallClosing(false); setWallOpen(true); }, []);
   const toggleWall = useCallback(() => { if (wallOpen) setWallClosing(true); else openWall(); }, [wallOpen, openWall]);
+  useEffect(() => { if (wallOpen) crumb("wall"); }, [wallOpen]);
+  useEffect(() => { if (shareOpen) crumb("share"); }, [shareOpen]);
+  useEffect(() => { if (exploreOpen) crumb("explore"); }, [exploreOpen]);
   /** Muro v2: the editor's Tarjeta › Muro part is open — the card shows its back while you edit it. */
   const editingObject = canEdit && !phonePreview && editorSel.target?.kind === "profile" ? editorSel.target.objectId : null;
   /** Muro v3: a part of the Muro tab is open (Botón lives on the front; the rest show the back). */
@@ -3155,6 +3162,7 @@ export default function CanvasBoard({
   const phonePhotoCardRef = useRef<string | null>(null);
   async function onPhonePhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; const id = phonePhotoCardRef.current; e.target.value = "";
+    crumb(f ? `photo:${Math.round(f.size / 1e5) / 10}MB` : "photo:none");
     if (!f || !id) return;
     try { const { publicUrl } = await uploadToStorage(f); updateProfile(id, { photo: publicUrl }); }
     catch (err) { console.error("[phone photo]", err); }
@@ -3328,9 +3336,12 @@ export default function CanvasBoard({
       const pad = 18;
       const x = card.x + (pr.left - cr.left) / sc - pad, y = card.y + (pr.top - cr.top) / sc - pad;
       const w = pr.width / sc + pad * 2, h = pr.height / sc + pad * 2;
-      // Big enough to fill the space above the sheet, never more than 2.4×.
+      // Big enough to fill the space above the sheet, never more than 1.6×
+      // (2026-11-27: at 2.4× the card's light / border layers were ~3× the
+      // memory of the unzoomed card, on top of the open sheet — iPhone Safari
+      // kills the page when it runs out).
       const kFit = Math.min((fit.vw - 32) / w, (fit.areaH - 24) / h) / fit.s;
-      const k = Math.min(2.4, Math.max(1, kFit * 0.9));
+      const k = Math.min(1.6, Math.max(1, kFit * 0.9));
       setPhoneZoom(k < 1.15 ? null : { cx: x + w / 2, cy: y + h / 2, k });
     }); });
     return () => cancelAnimationFrame(raf);
@@ -3585,7 +3596,7 @@ export default function CanvasBoard({
       // opens (same tap = a user gesture); no name → the keyboard comes up in
       // the Nombre field. With content, a tap only selects the part.
       const prof = elements.find(el => el.id === id && el.elementType === "profile") as ProfileCardData | undefined;
-      if (part?.role === "photo" && prof && !prof.photo) { phonePhotoCardRef.current = id; phonePhotoInputRef.current?.click(); }
+      if (part?.role === "photo" && prof && !prof.photo) { phonePhotoCardRef.current = id; crumb("photo:pick"); phonePhotoInputRef.current?.click(); }
       if (part?.role === "name" && prof && !prof.name) window.setTimeout(() => {
         const f = document.querySelector<HTMLInputElement>('[data-mnemo-editor] input[type="text"], [data-mnemo-editor] textarea'); f?.focus();
       }, 320);
@@ -4885,7 +4896,7 @@ export default function CanvasBoard({
           // grows); Tu sala closes back to the card's inspector.
           onClose={phoneEdit ? () => { if (editorSel.target?.kind === "profile") setPhoneSheetOpen(false); else { const c = visProfiles[0]; if (c) { setSelectedIds(new Set([c.id])); openProfile(c.id); } else closeInspector(); } } : handleInspectorClose}
           onExpand={phoneEdit ? () => setPhoneSheetOpen(true) : expandInspector}
-          studio={phoneEdit ? { onPickPhoto: () => { const c = visProfiles[0]; if (c) { phonePhotoCardRef.current = c.id; phonePhotoInputRef.current?.click(); } } } : undefined}
+          studio={phoneEdit ? { onPickPhoto: () => { const c = visProfiles[0]; if (c) { phonePhotoCardRef.current = c.id; crumb("photo:pick"); phonePhotoInputRef.current?.click(); } } } : undefined}
         />
       )}
 

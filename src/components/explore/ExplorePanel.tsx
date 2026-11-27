@@ -122,6 +122,8 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const [changed, setChanged] = useState<Set<string>>(new Set());
   const query = cleanSearchQuery(q);
   const reqId = useRef(0);
+  // Para vos: one random seed per visit (a new mix each time Explorar opens).
+  const seed = useRef(Math.random().toString(36).slice(2, 12));
 
   useEffect(() => { track("search", { explore: mode }); }, [mode]);
   useEffect(() => {
@@ -134,7 +136,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const load = useCallback(async (t: ExploreTab, offset: number) => {
     const id = ++reqId.current;
     try {
-      const r = await fetch(`/api/explore?tab=${t}&offset=${offset}&limit=12`);
+      const r = await fetch(`/api/explore?tab=${t}&offset=${offset}&limit=12&seed=${seed.current}`);
       const j = await r.json() as { items?: ExploreItem[]; more?: boolean };
       if (id !== reqId.current) return;
       setItems(prev => (offset ? [...(prev ?? []), ...(j.items ?? [])] : (j.items ?? [])));

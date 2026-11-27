@@ -21,7 +21,7 @@ type Cached = { at: number; list: ExploreCandidate[] };
 let cache: Cached | null = null;
 const TTL = 300_000;
 
-const loadShared = unstable_cache(readCandidates, ["explore-candidates-v1"], { revalidate: 300 });
+const loadShared = unstable_cache(readCandidates, ["explore-candidates-v2"], { revalidate: 300 });
 
 async function loadCandidates(): Promise<ExploreCandidate[]> {
   if (cache && Date.now() - cache.at < TTL) return cache.list;
@@ -39,22 +39,23 @@ async function readCandidates(): Promise<ExploreCandidate[]> {
   if (!real.length) return [];
   const ids = real.map(p => p.user_id as string);
   const [{ data: rooms }, { data: signals }] = await Promise.all([
-    supabase.from("canvases").select("user_id, data, created_at").in("user_id", ids).eq("type", "space").order("created_at", { ascending: true }),
+    supabase.from("canvases").select("user_id, data, created_at, updated_at").in("user_id", ids).eq("type", "space").order("created_at", { ascending: true }),
     supabase.rpc("explore_signals", { targets: ids }),
   ]);
-  const roomOf = new Map<string, unknown>();
-  for (const r of rooms ?? []) if (!roomOf.has(r.user_id as string)) roomOf.set(r.user_id as string, r.data);
+  const roomOf = new Map<string, { data: unknown; updatedAt?: string }>();
+  for (const r of rooms ?? []) if (!roomOf.has(r.user_id as string)) roomOf.set(r.user_id as string, { data: r.data, updatedAt: (r.updated_at as string) ?? undefined });
   const sigOf = new Map(((signals as Record<string, unknown>[]) ?? []).map(s => [s.user_id as string, s]));
   const list: ExploreCandidate[] = [];
   for (const p of real) {
-    const data = roomOf.get(p.user_id as string);
+    const row = roomOf.get(p.user_id as string);
+    const data = row?.data;
     if (!data) continue;
     const state = publicStateOf(data as CanvasState);
     const card = publicCardOf(state);
     if (!card) continue;
     const s = sigOf.get(p.user_id as string) ?? {};
     list.push({
-      userId: p.user_id as string, handle: p.handle as string, createdAt: p.created_at as string, card, state: slimRoom(state),
+      userId: p.user_id as string, handle: p.handle as string, createdAt: p.created_at as string, updatedAt: row.updatedAt, card, state: slimRoom(state),
       signals: {
         views14: Number(s.views14 ?? 0), favs: Number(s.favs ?? 0), favs14: Number(s.favs14 ?? 0),
         posts14: Number(s.posts14 ?? 0), editMinutes: Number(s.edit_minutes ?? 0), edits: Number(s.edits ?? 0),
@@ -94,8 +95,17 @@ export async function GET(req: Request) {
   try { list = await loadCandidates(); }
   catch { return NextResponse.json({ items: [], more: false, error: "explore_failed" }, { status: 500 }); }
 
-  const day = new Date().toISOString().slice(0, 10);
-  const ranked = rankExplore(list, { tab, now: Date.now(), seed: `${day}:${user?.id ?? "anon"}`, excludeUserId: user?.id ?? null });
+  // Para vos: a new mix each time Explorar opens (the panel sends one seed per
+  // visit, kept while paging); without one, a new mix every hour.
+  const seedRaw = url.searchParams.get("seed") ?? "";
+  const seed = /^[a-z0-9]{1,24}$/i.test(seedRaw) ? seedRaw : new Date().toISOString().slice(0, 13);
+  // The viewer's favorites are not suggested again (they are in Tus favoritos).
+  let mine = new Set<string>();
+  if (user && tab === "para") {
+    const { data: favs } = await supabase.from("favorites").select("target_user_id").eq("user_id", user.id).limit(1000);
+    mine = new Set((favs ?? []).map(f => f.target_user_id as string));
+  }
+  const ranked = rankExplore(list, { tab, now: Date.now(), seed: `${seed}:${user?.id ?? "anon"}`, excludeUserId: user?.id ?? null, excludeIds: mine });
   const page = ranked.slice(offset, offset + limit);
 
   let favSet = new Set<string>();

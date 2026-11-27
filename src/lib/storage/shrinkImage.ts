@@ -30,6 +30,8 @@ export async function shrinkImage(file: File): Promise<File> {
       // No WebP encoder (older Safari): JPEG only for pictures without alpha.
       blob = file.type === "image/jpeg" ? await toBlob("image/jpeg") : null;
     }
+    // Free the pixels now (iPhone Safari counts canvas memory until GC).
+    canvas.width = 0; canvas.height = 0;
     if (!blob || blob.size >= file.size) return file;
     const ext = blob.type === "image/webp" ? "webp" : "jpg";
     const name = file.name.replace(/\.[^.]+$/, "") + "." + ext;

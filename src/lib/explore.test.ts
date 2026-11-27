@@ -69,3 +69,28 @@ test("helpers", () => {
   const h = hash01("abc"); assert.ok(h >= 0 && h < 1); assert.equal(h, hash01("abc"));
   assert.equal(isExploreTab("holo"), true); assert.equal(isExploreTab("x"), false);
 });
+
+test("Para vos leaves out the viewer's favorites and favors better-made cards without fixing the order", () => {
+  const now = Date.parse("2026-11-26");
+  const plain = { ...base, status: "a", bio: "b", effects: { holo: { enabled: true }, bg: { color: "#000" } } } as unknown as ProfileCardData;
+  const great = { ...plain, aboutText: "x", location: "y", stickers: [{}, {}, {}, {}], nameFont: "Syne", handleFont: "Syne",
+    effects: { holo: { enabled: true }, glare: {}, glitter: {}, strass: {}, aura: {}, bg: { color: "#000" } } } as unknown as ProfileCardData;
+  const list = [
+    ...Array.from({ length: 10 }, (_, i) => cand(`p${i}`, plain, { signals: sig({ editMinutes: 10, edits: 20 }) })),
+    cand("top", great, { signals: sig({ editMinutes: 90, edits: 400 }), updatedAt: "2026-11-25T20:00:00Z" }),
+    cand("fav", great, { signals: sig({ editMinutes: 90, edits: 400 }) }),
+  ];
+  let topFirst3 = 0;
+  const firsts = new Set<string>();
+  for (let i = 0; i < 200; i++) {
+    const out = rankExplore(list, { tab: "para", now, seed: `s${i}`, excludeIds: new Set(["fav"]) }).map(c => c.userId);
+    assert.ok(!out.includes("fav"));
+    assert.equal(out.length, 11);
+    if (out.slice(0, 3).includes("top")) topFirst3++;
+    firsts.add(out[0]);
+  }
+  assert.ok(topFirst3 > 110, `top in the first 3: ${topFirst3}/200`);
+  assert.ok(firsts.size >= 6, `different first cards: ${firsts.size}`);
+  // Other tabs still show favorites.
+  assert.ok(rankExplore(list, { tab: "nuevas", now, seed: "s", excludeIds: new Set(["fav"]) }).some(c => c.userId === "fav"));
+});

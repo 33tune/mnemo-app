@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { deviceKey } from "@/lib/viewer";
+import { startCrashProbe, crumb } from "@/lib/crashProbe";
 
 function device(): "mobile" | "tablet" | "desktop" {
   const ua = navigator.userAgent;
@@ -19,6 +20,9 @@ function device(): "mobile" | "tablet" | "desktop" {
 
 export default function PresencePing() {
   const path = usePathname() || "/";
+  // Crash probe (src/lib/crashProbe.ts): once per page load; every route is a crumb.
+  useEffect(() => startCrashProbe(), []);
+  useEffect(() => { crumb(`go:${path.split("/").slice(0, 2).join("/") || "/"}`); }, [path]);
   useEffect(() => {
     if (path.startsWith("/admin")) return;
     const send = () => {
