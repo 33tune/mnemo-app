@@ -3196,6 +3196,15 @@ export default function CanvasBoard({
   function updateText(id: string, patch: Partial<CanvasText>) { enqueueOp({ type: "update_text", id, patch }); }
   function updateGallery(id: string, patch: Partial<CanvasGallery>) { enqueueOp({ type: "update_gallery", id, patch }); }
   function updateProfile(id: string, patch: Partial<ProfileCardData>) { enqueueOp({ type: "update_profile", id, patch }); }
+  /** The card was re-centered for this screen (ProfileCard): every other
+   * element moves by the same amount, as one system write (never an undo
+   * step), so the room keeps its arrangement around the card. */
+  function shiftRoom(dx: number, dy: number) {
+    const moves = elementsRef.current
+      .filter(e => e.elementType !== "profile" && Number.isFinite((e as { x?: number }).x) && Number.isFinite((e as { y?: number }).y))
+      .map(e => ({ id: e.id, elementType: e.elementType, x: Math.round((e as { x: number }).x + dx), y: Math.round((e as { y: number }).y + dy) }));
+    if (moves.length) enqueueOp({ type: "move_elements", moves }, { record: false });
+  }
   // Phone: the gallery that a tap on an empty photo opens (handleProfileClick).
   const phonePhotoInputRef = useRef<HTMLInputElement>(null);
   const phonePhotoCardRef = useRef<string | null>(null);
@@ -4388,6 +4397,7 @@ export default function CanvasBoard({
           onClick={(e,part)=>handleProfileClick(prof.id,e,part)}
           onResizeMD={(h,e)=>startSingleResize(prof.id,"profile",h,e)}
           updateProfile={updateProfile}
+          onRoomShift={shiftRoom}
           canInteract={canInteract}
           currentUserId={currentUserId}
           ownerUserId={ownerUserId}

@@ -200,6 +200,10 @@ interface Props {
   onClick:           (e: React.MouseEvent, part?: PartClick) => void;
   onResizeMD:        (handle: ResizeHandle, e: React.MouseEvent) => void;
   updateProfile:     (id: string, patch: Partial<ProfileCardData>) => void;
+  /** The editor re-centered the card for this screen: the room must move by
+   * the same amount so the card and what surrounds it keep their places
+   * relative to each other (2026-11-27). */
+  onRoomShift?:      (dx: number, dy: number) => void;
   canInteract?:      boolean;
   currentUserId?:    string;
   ownerUserId?:      string;
@@ -272,7 +276,7 @@ const GLITTER_SEED = { name: 1, handle: 2, descriptor: 3, bio: 4, location: 5, v
 
 function ProfileCard({
   card: savedCard, isSel, draggingId, parallaxTransform,
-  onMouseDown, onClick, onResizeMD, updateProfile, canInteract,
+  onMouseDown, onClick, onResizeMD, updateProfile, onRoomShift, canInteract,
   currentUserId, ownerUserId, entryAnimStyle = {}, viewportW, viewportH, isResizing = false,
   inspectorOpen = false, onEditActivate, onEditorFacts, activePart, phoneEditor = false, onPartMoved, wallButton,
 }: Props) {
@@ -1082,6 +1086,16 @@ function ProfileCard({
     if (cx !== card.x) patch.x = cx;
     if (cy !== card.y) patch.y = cy;
     if (Object.keys(patch).length > 0) updateProfile(card.id, patch);
+    // Re-centering for ANOTHER screen moves the card's center: the room goes
+    // with it, so the composition (and the public profile / Compartir, which
+    // use the saved places) never breaks. Growth alone keeps the center:
+    // nothing else moves (2026-11-27, a room arranged on a wide screen got its
+    // card dropped in the middle of its pictures on a narrower one).
+    // Measured at the card's CURRENT size: the part of the move that comes
+    // from a different screen, never the part that comes from growing.
+    const same = centerCardPosition(viewportW, viewportH, card.w, card.h, CANVAS_TOP_OFFSET);
+    const dcx = Math.round(same.x - card.x), dcy = Math.round(same.y - card.y);
+    if ((dcx !== 0 || dcy !== 0) && onRoomShift) onRoomShift(dcx, dcy);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canInteract, layout, isResizing, drag, cardH, card.h, card.w, card.x, card.y, card.id, viewportW, viewportH]);
 
