@@ -77,6 +77,8 @@ interface EditorHostProps {
   /** Where focus returns when Capas closes (the rail button, or "+"). */
   layersReturnFocus?: () => HTMLElement | null;
   canvas?:   { w: number; h: number; topOffset: number };
+  /** Editor de celular: the folded sheet is the Estudio (PhoneStudio.tsx). */
+  studio?:   { onPickPhoto: () => void };
   top:       number;
   layout:    EditorHostLayout;
   memory:    SelectionMemory;
@@ -92,7 +94,7 @@ interface EditorHostProps {
 // ProfileCard no longer mounts it. Phase B hosted the ProfileCard inspector;
 // Tu sala (D), Capas (E) and Texto / Imagen / Música (G) joined it.
 export function EditorHost({
-  target, profile, facts, room, layers, text, image, music, layersReturnFocus, canvas, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
+  target, profile, facts, room, layers, text, image, music, layersReturnFocus, canvas, studio, top, layout, memory, onSelectObject, updateProfile, onClose, onExpand,
 }: EditorHostProps) {
   if (typeof document === "undefined") return null;
   // Editor v3 Phase D: "Tu sala" — the inspector with nothing selected.
@@ -168,6 +170,7 @@ export function EditorHost({
       height={layout.height}
       collapsed={layout.collapsed}
       onExpand={onExpand}
+      studio={studio}
     />,
     document.body,
   );

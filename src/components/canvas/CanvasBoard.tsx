@@ -79,6 +79,8 @@ import { SHORTCUTS_BAR_H } from "./ShortcutsBar";
 import ExplorePanel, { ExploreButton } from "@/components/explore/ExplorePanel";
 import PhoneTabs, { PhoneHome, PHONE_TABS_H, type PhoneTab } from "@/components/explore/PhoneTabs";
 import { isFinished as cardIsFinished } from "@/lib/explore";
+import { PHONE_STUDIO_H, studioCovers } from "./PhoneStudio";
+import type { ObjectId } from "@/lib/inspectorObjects";
 import { guideSteps, PhoneGuidePill, CardReadySheet, DesktopTipSheet, seen as guideSeen, markSeen as guideMarkSeen } from "@/components/explore/PhoneGuide";
 import { track, trackOnce, markVisit } from "@/lib/track";
 import {
@@ -734,7 +736,7 @@ export default function CanvasBoard({
   const [phoneZoom, setPhoneZoom] = useState<{ cx: number; cy: number; k: number } | null>(null);
   const phoneFitRef = useRef<{ s: number; areaH: number; vw: number } | null>(null);
   const phoneScreenH = viewerScreen?.h ?? viewportH;
-  const phoneSheetH = !phoneEdit ? 0 : phonePreview ? PHONE_TABS_H + 70 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : INSPECTOR_SHEET_COLLAPSED_H;
+  const phoneSheetH = !phoneEdit ? 0 : phonePreview ? PHONE_TABS_H + 70 : phoneSheetOpen ? Math.round(Math.max(240, Math.min(phoneScreenH * 0.52, phoneScreenH - phoneBarH - 230))) : PHONE_STUDIO_H;
   const viewFit = phoneEdit ? (() => {
     // Editor de celular: the card (and its stickers) fitted between the top
     // bar and the sheet — the same geometry the phone profile uses.
@@ -3538,7 +3540,9 @@ export default function CanvasBoard({
     if (phoneEdit) {
       e.stopPropagation();
       closePhoneTip("done");
-      setPhoneSheetOpen(true);
+      // The Estudio edits photo / name / links / background / effects itself:
+      // the card stays big. Any other part opens the full sheet.
+      if (part?.role && !studioCovers(part.role as ObjectId)) setPhoneSheetOpen(true);
       try { navigator.vibrate?.(8); } catch { /* no haptics */ }
       setPhoneFocusTick(n => n + 1);
       if (!selIdsRef.current.has(id)) setSelectedIds(new Set([id]));
@@ -3930,7 +3934,8 @@ export default function CanvasBoard({
       {phoneEdit && phoneTab === "editar" && !phoneSheetOpen && !isLoading && !shareOpen && !wallOpen && !readyOpen && visProfiles[0] && (
         <PhoneGuidePill steps={steps} top={phoneBarH + 8} onGo={st => {
           const id = visProfiles[0].id;
-          setPhoneSheetOpen(true); setSelectedIds(new Set([id]));
+          if (!studioCovers(st.part)) setPhoneSheetOpen(true);
+          setSelectedIds(new Set([id]));
           if (inspectorCardIdRef.current === id) setInspectorObject(st.part); else { editorSel.memory.setActiveObject(id, st.part); openProfile(id); }
           setPhoneFocusTick(t => t + 1);
         }} />
@@ -3956,22 +3961,8 @@ export default function CanvasBoard({
           onComments={() => { setPhoneSheetOpen(false); openWall(unreadActivity > 0 ? "news" : "wall"); }}
           unreadComments={unreadActivity > 0} />
       )}
-      {phoneEdit && !phonePreview && !phoneSheetOpen && !isLoading && !shareOpen && !!viewerScreen && (
-        <div data-mnemo-ui="" className="mn-phonezoom" role="group" aria-label="Zoom" style={{ bottom: phoneSheetOpen ? phoneSheetH + 12 : INSPECTOR_SHEET_COLLAPSED_H + 14 }}>
-          <button type="button" className="mn-gbtn" aria-label="Alejar" aria-disabled={!phoneZoom || undefined}
-            onClick={() => setPhoneZoom(z => (!z || z.k / 1.5 < 1.1 ? null : { ...z, k: z.k / 1.5 }))}>
-            <Icon name="minus" size={18} />
-          </button>
-          <button type="button" className="mn-gbtn" aria-label="Acercar" aria-disabled={(phoneZoom?.k ?? 1) >= 4 || undefined}
-            onClick={() => setPhoneZoom(z => {
-              if (z) return { ...z, k: Math.min(4, z.k * 1.5) };
-              const c = visProfiles[0];
-              return c ? { cx: c.x + c.w / 2, cy: c.y + c.h / 2, k: 1.5 } : null;
-            })}>
-            <Icon name="plus" size={18} />
-          </button>
-        </div>
-      )}
+      {/* Estudio (2026-11-27): no − / + over the card — tapping a part zooms to it
+          and tapping outside the card goes back to the whole card. */}
       {phoneEdit && phoneTip && !phonePreview && !isLoading && steps.every(st => st.done) && (
         <div data-mnemo-ui="" role="status" className="mn-phonetip" style={{ bottom: phoneSheetH + 10 }}>
           <span>Tocá una parte de tu card para editarla, o arrastrala para moverla. Todo se guarda solo.</span>
@@ -4337,7 +4328,7 @@ export default function CanvasBoard({
           activePart={inspectorEnabled && inspectorCardId===prof.id && editorSel.target?.kind==="profile" ? editorSel.target.objectId : undefined}
           phoneEditor={phoneEdit && !phonePreview}
           wallButton={i === 0 ? wallButtonProp : undefined}
-          onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); setPhoneFocusTick(n => n + 1); }) : undefined} />);
+          onPartMoved={phoneEdit ? (key => { closePhoneTip("done"); if (!studioCovers(BLOCK_PART[key] as ObjectId)) setPhoneSheetOpen(true); openProfilePart(prof.id, BLOCK_PART[key] as PartRole); setPhoneFocusTick(n => n + 1); }) : undefined} />);
       })}
 
 
@@ -4740,7 +4731,7 @@ export default function CanvasBoard({
           onClosed={() => { setWallOpen(false); setWallClosing(false); }}
           right={canEdit && inspectorShown && !phoneEdit ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
           newTab={canEdit}
-          bottom={phoneEdit ? (phoneSheetOpen ? phoneSheetH : INSPECTOR_SHEET_COLLAPSED_H) : 0}
+          bottom={phoneEdit ? (phoneSheetOpen ? phoneSheetH : PHONE_STUDIO_H) : 0}
         />
       )}
       {shareOpen && visProfiles[0] && (() => {
@@ -4860,6 +4851,7 @@ export default function CanvasBoard({
           // grows); Tu sala closes back to the card's inspector.
           onClose={phoneEdit ? () => { if (editorSel.target?.kind === "profile") setPhoneSheetOpen(false); else { const c = visProfiles[0]; if (c) { setSelectedIds(new Set([c.id])); openProfile(c.id); } else closeInspector(); } } : handleInspectorClose}
           onExpand={phoneEdit ? () => setPhoneSheetOpen(true) : expandInspector}
+          studio={phoneEdit ? { onPickPhoto: () => { const c = visProfiles[0]; if (c) { phonePhotoCardRef.current = c.id; phonePhotoInputRef.current?.click(); } } } : undefined}
         />
       )}
 

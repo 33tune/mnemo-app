@@ -1895,3 +1895,70 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
 @media (pointer: coarse) {
   :where([data-mnemo-editor]).mn-panel--sheet .mn-inspector__header:has(.mn-partpicker):not([data-searching]) .mn-partpicker > :first-child .mn-seg__btn { font-size: 0 !important; gap: 0 !important; }
 }
+/* Editor de celular — Estudio (2026-11-27, PhoneStudio.tsx): the card stays
+   big; at the bottom ONE slider, ONE row of options for the thumb and the
+   categories. 52px+ targets, no scrollbar, safe-area aware. */
+.mn-studio[data-mnemo-editor] {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 780; box-sizing: border-box;
+  height: calc(196px + env(safe-area-inset-bottom, 0px)); padding: 6px 0 env(safe-area-inset-bottom, 0px);
+  display: flex; flex-direction: column; background: var(--ui-surface-panel-opaque); color: var(--ui-text-primary);
+  border-top: 1px solid var(--ui-line-panel); font-family: var(--ui-font-sans);
+  border-radius: var(--ui-radius-sheet) var(--ui-radius-sheet) 0 0; box-shadow: var(--ui-shadow-panel);
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__slider { height: 44px; display: flex; align-items: center; padding: 0 18px; flex-shrink: 0; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__slider label { flex: 1; display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 650; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__slider label > span { min-width: 64px; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__hint { font-size: 13px; font-weight: 600; color: var(--ui-text-secondary); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__range {
+  flex: 1; -webkit-appearance: none; appearance: none; height: 30px; background: transparent; margin: 0; touch-action: pan-x;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__range::-webkit-slider-runnable-track {
+  height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--ui-accent-edit) var(--p, 50%), var(--ui-surface-control) var(--p, 50%));
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__range::-moz-range-track { height: 8px; border-radius: 4px; background: var(--ui-surface-control); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__range::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--ui-accent-edit); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 28px; margin-top: -10px; border-radius: 50%; border: none;
+  background: var(--ui-accent-knob); box-shadow: var(--ui-shadow-well);
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__range::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; border: none; background: var(--ui-accent-knob); box-shadow: var(--ui-shadow-well); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__row {
+  flex: 1; min-height: 0; display: flex; align-items: center; gap: 10px; padding: 0 14px; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__row::-webkit-scrollbar { display: none; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__opt {
+  flex: none; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0; border: none; background: none;
+  color: var(--ui-text-secondary); font: 600 11.5px var(--ui-font-sans); cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__tile {
+  width: 60px; height: 60px; border-radius: 18px; display: grid; place-items: center; background: var(--ui-surface-control);
+  color: var(--ui-text-primary); box-sizing: border-box; border: 2px solid transparent;
+  transition: transform var(--ui-motion-fast) var(--ui-motion-spring), border-color var(--ui-motion-fast) ease;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__opt[data-small] .mn-studio__tile { width: 48px; height: 48px; border-radius: 24px; }
+:where([data-mnemo-editor]).mn-studio .mn-studio__opt:active .mn-studio__tile { transform: scale(0.9); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__opt[data-on] { color: var(--ui-text-primary); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__opt[data-on] .mn-studio__tile { border-color: var(--ui-accent-edit); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__opt[data-focus] .mn-studio__tile { box-shadow: 0 0 0 4px var(--ui-accent-soft); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__opt[data-accent] .mn-studio__tile { background: var(--ui-accent-edit); color: var(--ui-accent-ink); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__opt:focus-visible .mn-studio__tile { box-shadow: var(--ui-shadow-ring); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__font {
+  flex: none; height: 56px; padding: 0 16px; border-radius: 16px; border: 2px solid transparent; background: var(--ui-surface-control);
+  color: var(--ui-text-primary); font-size: 21px; white-space: nowrap; cursor: pointer;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__font[aria-pressed="true"] { border-color: var(--ui-accent-edit); }
+:where([data-mnemo-editor]).mn-studio .mn-studio__cats {
+  height: 58px; flex-shrink: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--ui-line-panel);
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__cats button {
+  flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: none; background: none;
+  color: var(--ui-text-tertiary); font: 600 11px var(--ui-font-sans); cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+:where([data-mnemo-editor]).mn-studio .mn-studio__cats button[aria-current] { color: var(--ui-text-primary); }
+@media (forced-colors: active) {
+  .mn-studio[data-mnemo-editor] { border-top: 1px solid CanvasText; }
+  :where([data-mnemo-editor]).mn-studio .mn-studio__opt[data-on] .mn-studio__tile,
+  :where([data-mnemo-editor]).mn-studio .mn-studio__font[aria-pressed="true"] { border-color: Highlight; }
+}
+@media (prefers-reduced-motion: reduce) { :where([data-mnemo-editor]).mn-studio .mn-studio__tile { transition: none; } }

@@ -12,6 +12,7 @@ import type { SelectionMemory } from "@/lib/editorSelection";
 import { INSPECTOR_TITLE_ID } from "@/ui/InspectorShell";
 import { ObjectList, partIcon } from "./ObjectList";
 import ProfileConfigMenu from "./ProfileConfigMenu";
+import PhoneStudio from "./PhoneStudio";
 
 interface ProfileInspectorProps {
   /** The aside's id ("Editar"'s aria-controls). */
@@ -37,6 +38,8 @@ interface ProfileInspectorProps {
   height?:    number;
   collapsed:  boolean;
   onExpand:   () => void;
+  /** Editor de celular: folded = the Estudio (PhoneStudio.tsx), not a bar. */
+  studio?:    { onPickPhoto: () => void };
 }
 
 // The ProfileCard inspector = InspectorShell (docked aside or bottom sheet,
@@ -46,7 +49,7 @@ interface ProfileInspectorProps {
 // and records the body scroll per object (session memory).
 export default function ProfileInspector({
   id, card, baseColor, linksFits, buttonsFits, viewCount, canvas, object, onSelectObject, memory,
-  onChange, onClose, returnFocusTo, top, width, mode, height, collapsed, onExpand,
+  onChange, onClose, returnFocusTo, top, width, mode, height, collapsed, onExpand, studio,
 }: ProfileInspectorProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   // A hover preview never outlives the panel or a change of part.
@@ -85,6 +88,15 @@ export default function ProfileInspector({
     const body = bodyRef.current;
     if (body) body.scrollTop = memory.scrollOf(card.id, object);
   }, [object, card.id, collapsed, memory]);
+
+  if (studio && mode === "sheet" && collapsed) {
+    return (
+      <CardPaletteProvider value={cardPalette(card, effective)}>
+        <PhoneStudio card={card} effective={effective} object={object} onSelectObject={onSelectObject} onChange={onChange}
+          onMore={o => { if (o !== object) onSelectObject(o); onExpand(); }} onPickPhoto={studio.onPickPhoto} />
+      </CardPaletteProvider>
+    );
+  }
 
   return (
     <CardTryOnContext.Provider value={true}>

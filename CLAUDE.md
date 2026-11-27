@@ -790,6 +790,20 @@ planeado acá hasta confirmarlo.
 >     `profiles_welcome_email` eliminado). Hook "Send Email" de Supabase Auth → edge function `send-email`: Resend y, si
 >     falla o se pasa del límite, Brevo (probado). Reenviar código: espera creciente y máx. 2 por mail por día.
 >
+> **Estudio en el editor de celular (2026-11-27, propuesta "A · Estudio de fotos" elegida por el usuario; rama
+>   `claude/adoring-edison-j7pzhk`, NO en `main` hasta su OK):** la hoja plegada del editor de celular pasó a ser
+>   `PhoneStudio.tsx` (lo monta `ProfileInspector` cuando `studio` y la hoja está plegada; `EditorHost` › `studio`): la card
+>   queda grande y abajo hay UN deslizador, UNA fila de opciones para el pulgar y las categorías Efectos · Fondo · Texto ·
+>   Foto · Redes (cada una = una parte: `cardFx`, `cardBg`, `name`, `photo`, `links`). Efectos: Nada / Holo / Reflejo /
+>   Glitter / Strass / Aura / Polvo / Canto / Flotar (toque = sumar, otro toque = sacar; deslizador del efecto en uso).
+>   Fondo: degradé + colores (un color sólido saca el degradé) + Opacidad. Texto: fuentes del nombre escritas con el
+>   nombre + Tamaño. Foto: Subir/Cambiar (la galería del teléfono) + forma + Tamaño. Redes: íconos, Agregar, Botones,
+>   Tamaño de íconos. "Más" abre la hoja completa en esa parte (no se pierde ningún ajuste); cerrarla vuelve al Estudio.
+>   Escribe con los mismos caminos que los menús (`useCardEffectActions`, `patchEffectGroup`, campos de la card): deshacer
+>   y guardado automático iguales. Tocar una parte de la card cubierta por el Estudio cambia de categoría (no abre la
+>   hoja); las demás partes abren la hoja. Sin los botones − / + sobre la card. Estilos `.mn-studio*` en `editor.css`.
+>   Probado en iPhone emulado con una cuenta de prueba (borrada); sin QA en un iPhone real.
+>
 > **Efectos de la card v3 (2026-11-11, pedido del usuario; lista aprobada con "ok"):**
 >   - **Rendimiento:** todo efecto que sigue la "luz" se dibuja UNA vez y después solo se MUEVE (`src/lib/lightLayers.ts`:
 >     cada capa dice cómo se mueve en `data-lm` y `useCardInteractions` › `applyLight` le escribe un `transform` por
