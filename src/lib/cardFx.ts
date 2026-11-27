@@ -49,6 +49,8 @@ export const FX_KEYFRAMES_CSS = `
 /* Off screen (or the device can't keep up): everything on the card waits. */
 [data-fx-paused] * { animation-play-state: paused !important; }
 [data-fxq="low"] [data-fx-heavy] { display: none !important; }
+/* Low quality: the ambient loops of the effect layers wait where they are. */
+[data-fxq="low"] [data-fx], [data-fxq="low"] [data-fx] * { animation-play-state: paused !important; }
 `;
 
 /** Any of these on = the shared keyframes are needed. */

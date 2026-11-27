@@ -11,6 +11,7 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { deviceKey } from "@/lib/viewer";
 import { startCrashProbe, crumb } from "@/lib/crashProbe";
+import { startFxQuality } from "@/lib/fxQuality";
 
 function device(): "mobile" | "tablet" | "desktop" {
   const ua = navigator.userAgent;
@@ -22,6 +23,8 @@ export default function PresencePing() {
   const path = usePathname() || "/";
   // Crash probe (src/lib/crashProbe.ts): once per page load; every route is a crumb.
   useEffect(() => startCrashProbe(), []);
+  // Page-level automatic quality (src/lib/fxQuality.ts).
+  useEffect(() => startFxQuality(), []);
   useEffect(() => { crumb(`go:${path.split("/").slice(0, 2).join("/") || "/"}`); }, [path]);
   useEffect(() => {
     if (path.startsWith("/admin")) return;
