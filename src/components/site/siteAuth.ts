@@ -54,6 +54,9 @@ function friendly(message: string): Result {
   if (m.includes("already registered") || m.includes("already exists")) return { error: "Ese email ya tiene una cuenta.", kind: "exists" };
   if (m.includes("invalid login credentials")) return { error: "Email o contraseña incorrectos.", kind: "creds" };
   if (m.includes("email not confirmed")) return { error: "Confirmá tu email: te mandamos un link para activar tu cuenta.", kind: "" };
+  // Too many sign-ups in the hour across all of myLand (the mail limit), not
+  // this person's fault: Google needs no email at all.
+  if (m.includes("email rate limit")) return { error: "Hay muchísima gente registrándose ahora. Entrá con Google (un toque) o probá de nuevo en unos minutos.", kind: "" };
   if (m.includes("for security purposes") || m.includes("rate limit")) return { error: "Demasiados intentos. Esperá un minuto y probá de nuevo.", kind: "" };
   if (m.includes("password")) return { error: "La contraseña no es válida: usá al menos 8 caracteres.", kind: "" };
   if (m.includes("fetch") || m.includes("network")) return { error: "No pudimos conectarnos. Revisá tu internet y probá de nuevo.", kind: "network" };

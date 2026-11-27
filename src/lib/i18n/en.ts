@@ -6,6 +6,7 @@
  * A text that is missing here simply stays in Spanish.
  */
 export const EN: Record<string, string> = {
+  "Hay muchísima gente registrándose ahora. Entrá con Google (un toque) o probá de nuevo en unos minutos.": "Lots of people are signing up right now. Continue with Google (one tap) or try again in a few minutes.",
   "myLand está en beta: lo mejoramos todos los días.": "myLand is in beta: we improve it every day.",
   "BETA": "BETA",
   "Texto": "Text",
