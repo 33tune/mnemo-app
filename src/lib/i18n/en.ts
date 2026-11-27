@@ -300,10 +300,23 @@ export const EN: Record<string, string> = {
   "Tu perfil,": "Your profile,", "100 % a tu gusto.": "100% your way.", "Cómo funciona": "How it works", "En 3 pasos": "In 3 steps",
   "Cards reales de la comunidad": "Real community cards", "Cards reales hechas en myLand. No hay dos iguales.": "Real cards made on myLand. No two are alike.",
   "Abrí myLand en una compu": "Open myLand on a computer",
+  // Verificación (2026-11-27)
+  "Verificá tu cuenta": "Verify your account", "· aparecé en Explorar": "· show up in Explore", "Ahora no": "Not now",
+  "Te mandamos un código a tu mail. Tarda 30 segundos.": "We'll email you a code. Takes 30 seconds.",
+  "Aparecé en Explorar": "Show up in Explore", "Tu card se muestra a la comunidad y te recomendamos a otros.": "Your card is shown to the community and recommended to others.",
+  "Tilde de verificado": "Verified check", "Al lado de tu @ en tu perfil.": "Next to your @ on your profile.",
+  "Nunca perdés tu cuenta": "Never lose your account", "Si te olvidás la contraseña, la recuperás por mail.": "If you forget your password, you get it back by email.",
+  "Mandarme el código": "Send me the code", "Mandando…": "Sending…", "Escribí el código": "Enter the code", "Mirá también en spam.": "Check spam too.",
+  "Verificar": "Verify", "Verificando…": "Verifying…", "Mandar otro código": "Send another code", "¡Listo, estás verificado!": "Done, you're verified!",
+  "Tu card ya puede aparecer en Explorar.": "Your card can now show up in Explore.", "Genial": "Great",
+  "Tu card todavía no aparece acá": "Your card isn't here yet", "Verificá tu cuenta y te mostramos a la comunidad.": "Verify your account and we'll show you to the community.",
+  "Cuenta verificada": "Verified account", "No se pudieron cargar. Reintentar": "Couldn't load. Retry",
+  "Esperá un minuto y pedí otro código.": "Wait a minute and ask for another code.", "Ese código no es o ya venció. Pedí uno nuevo.": "That code is wrong or expired. Ask for a new one.",
 };
 
 /** Texts that carry a value: "2/4 · Tu foto", "Sala de @x en myLand"… */
 export const EN_PATTERNS: [RegExp, (m: RegExpMatchArray, t: (s: string) => string) => string][] = [
+  [/^Mandar otro \((\d+)\)$/, m => `Send another (${m[1]})`],
   [/^(\d+)\/(\d+) · (.+)$/, (m, t) => `${m[1]}/${m[2]} · ${t(m[3])}`],
   [/^(\d+) de (\d+) listos\. Falta: (.+)$/, (m, t) => `${m[1]} of ${m[2]} done. Next: ${t(m[3])}`],
   [/^Sala de (@\S+) en myLand$/, m => `${m[1]}'s room on myLand`],

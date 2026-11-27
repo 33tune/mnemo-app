@@ -6,12 +6,24 @@
  * vuelve a la página anterior si se llegó desde myLand; si se entró directo
  * con el link, lleva al inicio.
  */
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { VerifiedMark } from "@/components/verify/Verify";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
 import { T } from "@/ui";
 
-export default function PublicBrandPill({ handle }: { handle?: string }) {
+export default function PublicBrandPill({ handle, ownerId }: { handle?: string; ownerId?: string }) {
   const router = useRouter();
+  // Verificación (2026-11-27): the tilde next to the @ of a verified account.
+  const [verified, setVerified] = useState(false);
+  useEffect(() => {
+    if (!ownerId) return;
+    let alive = true;
+    createClient().from("verified_users").select("user_id").eq("user_id", ownerId).maybeSingle()
+      .then(({ data }) => { if (alive) setVerified(!!data); }, () => {});
+    return () => { alive = false; };
+  }, [ownerId]);
   const back = () => {
     let sameSite = false;
     try { sameSite = !!document.referrer && new URL(document.referrer).origin === window.location.origin; } catch { /* no referrer */ }
@@ -30,7 +42,7 @@ export default function PublicBrandPill({ handle }: { handle?: string }) {
       </button>
       <img src="/logo.png" alt="" width={34} height={34} draggable={false} className="mn-capsule__logo" />
       <span className="mn-capsule__name">myLand</span>
-      {handle && <span className="mn-capsule__path">@{handle}</span>}
+      {handle && <span className="mn-capsule__path" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>@{handle}{verified && <span title="Cuenta verificada" aria-label="Cuenta verificada" style={{ display: "inline-flex" }}><VerifiedMark size={15} /></span>}</span>}
     </div>
     </div>
   );

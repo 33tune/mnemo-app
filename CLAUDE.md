@@ -866,6 +866,19 @@ planeado acá hasta confirmarlo.
 >   - **Fotos de las cards existentes:** 167 cards terminadas, sacadas del perfil público en vista de celular y subidas con
 >     una función temporal (`explore-backfill`, ya responde 410). Medido: 108 celdas sin errores.
 >
+> **Verificación opcional (2026-11-27, pedido del usuario):** base `supabase/migrations/20261127020000_verified_users.sql`
+>   (APLICADA): `verified_users` (lectura pública) y `mark_verified()`, que marca la cuenta SOLO si la sesión actual se hizo
+>   con código / link por mail o Google (lee el `amr` del JWT, nunca un valor que mande la app). Todas las cuentas con mail
+>   confirmado al 27/11 quedaron verificadas (367). **Explorar muestra solo cuentas verificadas** (`explore_list`).
+>   UI (`src/components/verify/Verify.tsx` + `src/lib/verify.ts`): pastilla "Verificá tu cuenta · aparecé en Explorar"
+>   (compu: donde estaba "Tocá algo para editarlo", que se sacó; celular: arriba a la izquierda en Inicio; ✕ la oculta por
+>   la visita), aviso en Explorar "Tu card todavía no aparece acá", y la ventana: beneficios (Explorar, tilde, recuperar la
+>   cuenta) → "Mandarme el código" (`signInWithOtp`, mail "magiclink" de `send-email`) → 6 números (`verifyOtp`) →
+>   `mark_verified`. Tilde azul al lado del @ en la pastilla del perfil público de compu (`PublicBrandPill`, `ownerId`).
+>   **Pendiente del usuario (para que el registro deje de mandar mail):** apagar "Confirm email" en Supabase (Authentication
+>   › Sign In / Providers › Email). El registro ya entra directo si Supabase devuelve sesión (`siteAuth.register`).
+>   Recomendado antes: Cloudflare Turnstile en el registro (anti-bots), no implementado.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

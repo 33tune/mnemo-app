@@ -81,6 +81,7 @@ import PhoneTabs, { PhoneHome, PHONE_TABS_H, type PhoneTab } from "@/components/
 import { isFinished as cardIsFinished, publicCardOf } from "@/lib/explore";
 import { publishExploreThumb } from "@/lib/export/exploreThumb";
 import { stickerEditing } from "@/lib/stickerEditing";
+import { VerifyPill } from "@/components/verify/Verify";
 import { PHONE_STUDIO_H, studioCovers } from "./PhoneStudio";
 import type { ObjectId } from "@/lib/inspectorObjects";
 import { guideSteps, PhoneGuidePill, CardReadySheet, DesktopTipSheet, seen as guideSeen, markSeen as guideMarkSeen } from "@/components/explore/PhoneGuide";
@@ -4002,10 +4003,13 @@ export default function CanvasBoard({
         )}
       </div>
       {/* Perfil público en compu: la pastilla (volver, logo, myLand, @usuario), sin la barra vieja. */}
-      {!canEdit && !mobileFit && <PublicBrandPill handle={userHandle} />}
+      {!canEdit && !mobileFit && <PublicBrandPill handle={userHandle} ownerId={ownerUserId} />}
       {phoneEdit && phoneTab === "inicio" && !shareOpen && !wallOpen && !isLoading && (
         <PhoneHome handle={(userHandle || "").replace(/^@/, "")} onShare={visProfiles.length ? openShare : undefined}
           onNotices={() => openWall("news")} unread={unreadActivity} />
+      )}
+      {phoneEdit && phoneTab === "inicio" && !shareOpen && !wallOpen && !isLoading && (
+        <VerifyPill compact style={{ top: "calc(env(safe-area-inset-top, 0px) + 18px)", left: 14, zIndex: 2147481100 }} />
       )}
       {phoneEdit && phoneTab === "explorar" && <ExplorePanel mode="screen" bottom={PHONE_TABS_H} />}
       {phoneEdit && phoneTab !== "editar" && !shareOpen && !isLoading && !wallOpen && (
@@ -4097,12 +4101,11 @@ export default function CanvasBoard({
       {/* Liquid glass (L5, DS .lg-hint): with nothing selected, a pill at
           the bottom says how to start. Visual only (the canvas already has
           its keyboard help in aria-describedby); never in a public render. */}
-      {railShown && !tourStep && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && (
-        <div data-mnemo-ui="" aria-hidden="true" className="mn-hint"
-          style={{ left: railW + (viewportW - railW) / 2, bottom: 24 + SHORTCUTS_BAR_H }}>
-          <span className="mn-hint__well"><Icon name="pointer" size={14} /></span>
-          Tocá algo para editarlo<kbd>A</kbd>agregar
-        </div>
+      {/* Verificación opcional (2026-11-27): the old "Tocá algo para editarlo"
+          hint pill was removed (user decision); in its place, for accounts
+          that are not verified, the invitation to verify. */}
+      {railShown && !tourStep && !isActive && (
+        <VerifyPill style={{ left: railW + (viewportW - railW) / 2, bottom: 24 + SHORTCUTS_BAR_H, transform: "translateX(-50%)" }} />
       )}
 
       {(creatingCard||rotating||addingText)&&(

@@ -184,5 +184,7 @@ test("Liquid glass L5: floating rail capsule, dock 16px from the top, Agregar me
   // The card always exists (created blank on load), so Agregar never offers it.
   assert.ok(!BOARD.includes('label:"Card de presentación"'), "no 'Card de presentación' in Agregar");
   assert.ok(BOARD.includes('enqueueOp({ type: "add_profile", profile: p }, { record: false })'), "the blank card is not an undo step");
-  assert.ok(BOARD.includes("{railShown && !tourStep && selectedIds.size === 0 && !menuOpen && !inspectorShown && !addingText && !isActive && ("), "the hint only with nothing selected");
+  // The "Tocá algo para editarlo" hint was removed (2026-11-27, user decision); the verify pill takes its place.
+  assert.ok(!BOARD.includes("Tocá algo para editarlo"), "no empty-canvas hint");
+  assert.ok(BOARD.includes("<VerifyPill style={{ left: railW + (viewportW - railW) / 2"), "the verify invitation where the hint was");
 });
