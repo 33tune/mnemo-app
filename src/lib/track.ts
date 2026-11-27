@@ -14,7 +14,8 @@ export type TrackEvent =
   | "landing_view" | "claim_click" | "login_view" | "signup_submit" | "signup_google" | "login_done"
   | "setup_view" | "setup_done" | "editor_open" | "tour_done" | "tour_skip" | "publish"
   | "note_post" | "favorite_add" | "favorite_remove" | "share_open" | "share_save" | "share_copy_link"
-  | "search" | "profile_view" | "bug_report" | "crash";
+  | "search" | "profile_view" | "bug_report" | "crash"
+  | "arrive" | "explore_open" | "explore_tab" | "explore_card" | "wall_flip" | "wall_post" | "wall_like";
 
 function send(name: string, props?: Record<string, unknown>) {
   try {
@@ -40,6 +41,20 @@ export function markVisit(signedIn?: boolean) {
     localStorage.setItem(key, day);
   } catch { /* storage blocked: count it anyway */ }
   send("visit");
+}
+
+/** Where this device came from, once ever (retención: TikTok, Instagram, the
+ * link of another card…). Only the referrer's host, utm_source and the path. */
+export function trackArrival() {
+  try {
+    if (localStorage.getItem("ml_arrived")) return;
+    localStorage.setItem("ml_arrived", "1");
+    let ref: string | null = null;
+    try { ref = document.referrer ? new URL(document.referrer).host.slice(0, 60) : null; } catch { ref = null; }
+    if (ref === location.host) ref = null;
+    const q = new URLSearchParams(location.search);
+    track("arrive", { ref, utm: (q.get("utm_source") || "").slice(0, 40) || null, path: location.pathname.slice(0, 60) });
+  } catch { /* storage blocked: unknown */ }
 }
 
 /** Once per page load (React strict mode / remounts don't double it). */

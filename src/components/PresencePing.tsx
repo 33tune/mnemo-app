@@ -12,6 +12,8 @@ import { createClient } from "@/lib/supabase/client";
 import { deviceKey } from "@/lib/viewer";
 import { startCrashProbe, crumb } from "@/lib/crashProbe";
 import { startFxQuality } from "@/lib/fxQuality";
+import { startVisitTrail } from "@/lib/visitTrail";
+import { trackArrival } from "@/lib/track";
 
 function device(): "mobile" | "tablet" | "desktop" {
   const ua = navigator.userAgent;
@@ -25,6 +27,8 @@ export default function PresencePing() {
   useEffect(() => startCrashProbe(), []);
   // Page-level automatic quality (src/lib/fxQuality.ts).
   useEffect(() => startFxQuality(), []);
+  // Retención: one summary per visit (visitTrail.ts) and where the device came from.
+  useEffect(() => { trackArrival(); return startVisitTrail(); }, []);
   useEffect(() => { crumb(`go:${path.split("/").slice(0, 2).join("/") || "/"}`); }, [path]);
   useEffect(() => {
     if (path.startsWith("/admin")) return;

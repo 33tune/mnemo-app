@@ -11,6 +11,7 @@
  * Never throws; nothing personal (only fixed names and the path).
  */
 import { track } from "@/lib/track";
+import { trail } from "@/lib/visitTrail";
 
 const KEY = "ml_alive";
 const MAX_CRUMBS = 10;
@@ -27,6 +28,7 @@ function write(a: Alive | null) {
 /** Something the person did, kept with the flag (only short fixed names). */
 export function crumb(name: string) {
   if (typeof window === "undefined") return;
+  trail(name);
   const a = read();
   if (!a) return;
   a.crumbs = [...a.crumbs, `${name.slice(0, 24)}@${Math.round((Date.now() - a.t) / 1000)}s`].slice(-MAX_CRUMBS);

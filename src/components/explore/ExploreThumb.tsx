@@ -16,11 +16,11 @@ export interface ExploreItem { userId: string; handle: string; name: string; isN
 export const EXPLORE_THUMB_W = 480;
 export const EXPLORE_THUMB_H = 600;
 
-export default function ExploreThumb({ item, onFavorite, canFavorite }: {
-  item: ExploreItem; onFavorite: (item: ExploreItem) => void; canFavorite: boolean;
+export default function ExploreThumb({ item, onFavorite, canFavorite, onOpen }: {
+  item: ExploreItem; onFavorite: (item: ExploreItem) => void; canFavorite: boolean; onOpen?: () => void;
 }) {
   return (
-    <a href={`/${item.handle}`} data-explore-card="" aria-label={`${item.name} (@${item.handle})`}
+    <a href={`/${item.handle}`} onClick={onOpen} data-explore-card="" aria-label={`${item.name} (@${item.handle})`}
       style={{ position: "relative", display: "block", aspectRatio: "4 / 5", borderRadius: 18, overflow: "hidden", textDecoration: "none", color: "#fff",
         background: "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.09)",
         // Off-screen cells are skipped by the browser (paint and decoded picture).

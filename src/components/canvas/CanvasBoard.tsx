@@ -973,9 +973,11 @@ export default function CanvasBoard({
   const unreadActivity = useUnreadActivity(canEdit && phoneEdit);
   const openWall = useCallback((tab: "wall" | "feed" | "news" = "wall") => { setWallTab(tab); setWallClosing(false); setWallOpen(true); }, []);
   const toggleWall = useCallback(() => { if (wallOpen) setWallClosing(true); else openWall(); }, [wallOpen, openWall]);
-  useEffect(() => { if (wallOpen) crumb("wall"); }, [wallOpen]);
+  useEffect(() => { if (wallOpen) { crumb("wall"); track("wall_flip", { own: !!canEdit, tab: wallTab }); } }, [wallOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (shareOpen) crumb("share"); }, [shareOpen]);
-  useEffect(() => { if (exploreOpen) crumb("explore"); }, [exploreOpen]);
+  // Retención (visitTrail): which editor panel is open (room, layers, image, text…).
+  useEffect(() => { const k = editorSel.target?.kind; if (k && k !== "profile") crumb(`panel:${k}`); }, [editorSel.target?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (exploreOpen) { crumb("explore"); track("explore_open", { own: !!canEdit, phone: !!phoneEdit }); } }, [exploreOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   /** Muro v2: the editor's Tarjeta › Muro part is open — the card shows its back while you edit it. */
   const editingObject = canEdit && !phonePreview && editorSel.target?.kind === "profile" ? editorSel.target.objectId : null;
   /** Muro v3: a part of the Muro tab is open (Botón lives on the front; the rest show the back). */

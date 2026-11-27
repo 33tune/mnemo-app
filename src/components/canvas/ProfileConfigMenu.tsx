@@ -7,6 +7,7 @@ import { clampProfileCardSize, profileCardMinSize } from "@/lib/profileCardLayou
 import { getTextMeasurer } from "@/lib/textMeasure";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import type { ObjectId } from "@/lib/inspectorObjects";
+import { crumb } from "@/lib/crashProbe";
 import ProfileIdentityMenu, { type IdentityPart } from "./ProfileIdentityMenu";
 import ProfileMetadataMenu, { type MetadataPart } from "./ProfileMetadataMenu";
 import ProfileContactLinksMenu from "./ProfileContactLinksMenu";
@@ -198,8 +199,10 @@ export default function ProfileConfigMenu({ object, ...ctx }: ProfileConfigMenuP
   // Liquid glass (DS accordion): one card open per part, remembered per part
   // while the inspector is open.
   const [openByObject, setOpenByObject] = React.useState<Partial<Record<ObjectId, string | null>>>({});
+  // Retención (visitTrail): which part and which section people open.
+  React.useEffect(() => { crumb(`part:${object}`); }, [object]);
   return (
-    <Accordion open={openByObject[object] ?? null} onOpenChange={k => setOpenByObject(m => ({ ...m, [object]: k }))}>
+    <Accordion open={openByObject[object] ?? null} onOpenChange={k => { if (k) crumb(`sec:${k}`); setOpenByObject(m => ({ ...m, [object]: k })); }}>
       <div key={object} className="mn-swap" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {OBJECT_SECTIONS[object].map(s => <SectionNumber key={s.key} value={s.num ?? null}>{s.render(c)}</SectionNumber>)}
       </div>

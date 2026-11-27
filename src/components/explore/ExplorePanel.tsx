@@ -281,7 +281,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
                   </div>
                 ) : favs.length ? (
                   <HRow label="Tus favoritos">
-                    {favs.map(s => <FavAvatar key={s.userId} s={s} changed={changed.has(s.userId)} onOpen={markSeen} />)}
+                    {favs.map(s => <FavAvatar key={s.userId} s={s} changed={changed.has(s.userId)} onOpen={x => { track("explore_card", { tab: "fav" }); markSeen(x); }} />)}
                   </HRow>
                 ) : (
                   <p style={{ margin: 0, color: "rgba(246,243,248,.6)", font: `500 13.5px ${font}` }}>Tocá el corazón de una card y aparece acá.</p>
@@ -293,7 +293,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             <div role="tablist" aria-label="Ordenar cards" style={{ marginBottom: 12 }}>
               <HRow gap={6}>
                 {EXPLORE_TABS.map(t => (
-                  <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} style={chip(tab === t.id)}>{t.label}</button>
+                  <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => { if (t.id !== tab) { setTab(t.id); track("explore_tab", { tab: t.id }); } }} style={chip(tab === t.id)}>{t.label}</button>
                 ))}
               </HRow>
             </div>
@@ -307,7 +307,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
               <p style={{ color: "rgba(246,243,248,.6)" }}>Todavía no hay cards acá.</p>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {items.map(it => <ExploreThumb key={it.userId} item={it} canFavorite={!!viewer} onFavorite={toggleFavorite} />)}
+                {items.map((it, i) => <ExploreThumb key={it.userId} item={it} canFavorite={!!viewer} onFavorite={toggleFavorite} onOpen={() => track("explore_card", { tab, pos: i })} />)}
               </div>
             )}
             <div ref={endRef} aria-hidden style={{ height: 1 }} />
