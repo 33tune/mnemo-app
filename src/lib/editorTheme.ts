@@ -21,7 +21,8 @@ export type EditorTheme = (typeof EDITOR_THEMES)[number];
 
 export const EDITOR_THEME_KEY = "myland.editorTheme";
 export const EDITOR_THEME_ATTR = "data-editor-theme";
-export const DEFAULT_EDITOR_THEME: EditorTheme = "dark";
+// Lima oscuro since 2026-11-28 (the "Grafito" touches live on the Lima themes).
+export const DEFAULT_EDITOR_THEME: EditorTheme = "limeDark";
 /** Same-tab change notification (the `storage` event only fires in OTHER tabs). */
 export const EDITOR_THEME_EVENT = "myland:editortheme";
 

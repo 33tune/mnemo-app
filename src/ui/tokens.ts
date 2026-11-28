@@ -58,6 +58,10 @@ const LIGHT = {
   materialBlur: "blur(28px) saturate(190%)",
   /** The accent used as TEXT / a glyph on the panel (lit card icons). */
   accentText: "#D42A70",
+  /** Grafito touches (2026-11-28, "combinar"): only the Lima themes draw them
+   * (editor.css scopes the rules); the others carry neutral values. */
+  gel: "none", gelInk: "#FFFFFF", gelEdge: "none", sheen: "none", gem: "none", pin: "none",
+  tileEdge: "none", knobGloss: "none", trackInset: "none",
 };
 type ThemePalette = { readonly [K in keyof typeof LIGHT]: string };
 
@@ -90,6 +94,10 @@ const DARK: ThemePalette = {
   selEdge: "transparent",
   materialBlur: "blur(28px) saturate(190%)",
   accentText: "#FF4F94",
+  /** Grafito touches (2026-11-28, "combinar"): only the Lima themes draw them
+   * (editor.css scopes the rules); the others carry neutral values. */
+  gel: "none", gelInk: "#FFFFFF", gelEdge: "none", sheen: "none", gem: "none", pin: "none",
+  tileEdge: "none", knobGloss: "none", trackInset: "none",
 };
 
 // OG: the light pearl glass, nearly opaque (OG was the flat white editor),
@@ -136,6 +144,14 @@ const LIME_DARK: ThemePalette = {
   glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.20), inset 0 0 0 0.5px rgba(255,255,255,0.10)",
   danger: "#FFADA7",
   materialBlur: "blur(30px) saturate(150%)",
+  gel: "linear-gradient(180deg, #F4FFCC 0%, #D6FB5E 45%, #BFE92A 52%, #D2F852 100%)", gelInk: "#2B3A00",
+  gelEdge: "inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(80,110,0,0.25), 0 0 0 0.5px rgba(70,100,0,0.6), 0 2px 8px rgba(150,210,0,0.25)",
+  gem: "radial-gradient(circle at 35% 28%, #FBFFE0, #C6F432 45%, #6FA50A)",
+  knobGloss: "radial-gradient(circle at 50% 25%, #FFFFFF, #D9DBDE 70%)",
+  sheen: "linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0) 55%)",
+  pin: "repeating-linear-gradient(180deg, rgba(255,255,255,0.018) 0 1px, rgba(0,0,0,0) 1px 3px)",
+  tileEdge: "inset 0 1px 0 rgba(255,255,255,0.35), 0 0 0 0.5px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4)",
+  trackInset: "inset 0 1px 3px rgba(0,0,0,0.7)",
 };
 const LIME_LIGHT: ThemePalette = {
   ...LIGHT,
@@ -160,6 +176,14 @@ const LIME_LIGHT: ThemePalette = {
   glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(0,0,0,0.08)",
   danger: "#8E1B16", dangerTint: "rgba(142,27,22,0.10)",
   materialBlur: "blur(30px) saturate(150%)",
+  gel: "linear-gradient(180deg, #F4FFCC 0%, #D6FB5E 45%, #BFE92A 52%, #D2F852 100%)", gelInk: "#2B3A00",
+  gelEdge: "inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(80,110,0,0.25), 0 0 0 0.5px rgba(70,100,0,0.6), 0 2px 8px rgba(150,210,0,0.25)",
+  gem: "radial-gradient(circle at 35% 28%, #FBFFE0, #C6F432 45%, #6FA50A)",
+  knobGloss: "radial-gradient(circle at 50% 25%, #FFFFFF, #D9DBDE 70%)",
+  sheen: "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 60%)",
+  pin: "repeating-linear-gradient(180deg, rgba(255,255,255,0.55) 0 1px, rgba(0,0,0,0) 1px 3px)",
+  tileEdge: "inset 0 1px 0 rgba(255,255,255,0.45), 0 0 0 0.5px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.18)",
+  trackInset: "inset 0 1px 2px rgba(0,0,0,0.22)",
 };
 
 /** Editor font stacks: next/font (layout.tsx) defines --font-display/-sans/
@@ -339,6 +363,17 @@ export const T = {
       success:  th("success"),
       /** The accent as text / glyph on the panel (Lima claro darkens it). */
       text:     th("accentText"),
+    },
+    /** Grafito touches on the Lima themes (2026-11-28): Aqua gel for what is
+     * chosen, a top sheen on round controls / icon tiles, lime gems for
+     * "modified", a faint pinstripe on the panel, colored icon tiles. */
+    gloss: {
+      gel: th("gel"), gelInk: th("gelInk"), gelEdge: th("gelEdge"), sheen: th("sheen"), gem: th("gem"), pin: th("pin"),
+      tileEdge: th("tileEdge"), knob: th("knobGloss"), trackInset: th("trackInset"),
+      tileBlue: "linear-gradient(180deg, #8AD1FF, #2F7FE0)", tilePink: "linear-gradient(180deg, #FF8FC4, #E2367F)",
+      tileLime: "linear-gradient(180deg, #D8FF74, #7FB10F)", tileGrey: "linear-gradient(180deg, #A3A7AE, #5A5E65)",
+      tileOrange: "linear-gradient(180deg, #FFC27A, #F07A1A)", tileViolet: "linear-gradient(180deg, #C3A8FF, #7A4DF0)",
+      tileTeal: "linear-gradient(180deg, #7EE8D8, #149C8C)", tileInk: "#FFFFFF", tileLimeInk: "#2B3A00",
     },
     /** Section number tones 01–04 (MenuSection `tone`). */
     tone: { n1: th("n1"), n2: th("n2"), n3: th("n3"), n4: th("n4") },

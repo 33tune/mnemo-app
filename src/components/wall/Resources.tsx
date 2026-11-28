@@ -29,6 +29,7 @@ import {
   setResourceMeta, deleteResourceData, downloadResource,
 } from "@/hooks/useResources";
 import HRow from "@/components/explore/HRow";
+import GfThemeButton, { CloseGlyph } from "@/components/gf/GfThemeButton";
 import { Avatar, CloseIcon, FlagIcon, MoreIcon, SendIcon, TrashIcon, roundBtn, UI_FONT } from "./WallParts";
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -144,13 +145,12 @@ function Badge({ children, left }: { children: React.ReactNode; left?: boolean }
 
 // ── The viewer ───────────────────────────────────────────────────────────────
 // Grafito (2026-11-28): the viewer is a light old-Mac window; Aqua gel buttons, the main one in lime.
-const GEL = "linear-gradient(180deg,#fdfdfd,#e6e8ea 50%,#dadde0 51%,#e9ebed)";
-const GEL_LIMA = "linear-gradient(180deg,#f2ffc4 0%,#d4fa5a 46%,#bde826 52%,#d0f74e 100%)";
+// Grafito v2 (2026-11-28): Aqua gel buttons (main one in lime), light or dark (grafito.css vars).
 const btn = (on?: boolean, danger?: boolean): React.CSSProperties => ({
   display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 38, padding: "0 12px", borderRadius: 999, cursor: "pointer", border: "none",
-  background: danger ? "linear-gradient(180deg,#ff8a80,#ff3b30)" : on ? GEL_LIMA : GEL,
-  color: danger ? "#fff" : on ? "#2B3A00" : "#2c2f33", textShadow: danger ? "none" : "0 1px 0 rgba(255,255,255,.6)",
-  boxShadow: on ? "inset 0 1px 0 rgba(255,255,255,.85), 0 0 0 .5px rgba(70,100,0,.55), 0 2px 6px rgba(110,160,0,.25)" : "inset 0 1px 0 #fff, 0 0 0 .5px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.08)",
+  background: danger ? "linear-gradient(180deg,#ff8a80,#ff3b30)" : on ? "var(--gf-gel-lima)" : "var(--gf-gel)",
+  color: danger ? "#fff" : on ? "var(--gf-lima-ink)" : "var(--gf-gel-ink)", textShadow: danger ? "none" : on ? "0 1px 0 rgba(255,255,255,.45)" : "var(--gf-gel-shadow)",
+  boxShadow: on ? "var(--gf-gel-lima-edge)" : "var(--gf-gel-edge)",
   font: `600 13.5px var(--gf-font)`, flex: "1 1 0", minWidth: 0,
 });
 
@@ -220,8 +220,8 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
 
   const image = (
     <div style={{ position: "relative", flex: wide ? "1 1 55%" : "none", minHeight: wide ? 0 : 220, maxHeight: wide ? "none" : "46vh", display: "grid", placeItems: "center",
-      background: "rgba(255,255,255,.4) repeating-conic-gradient(rgba(0,0,0,.045) 0 25%, transparent 0 50%) 0 0 / 18px 18px", overflow: "hidden",
-      borderRight: wide ? ".5px solid rgba(0,0,0,.2)" : "none", borderBottom: wide ? "none" : ".5px solid rgba(0,0,0,.2)" }}>
+      background: "var(--gf-check)", overflow: "hidden",
+      borderRight: wide ? ".5px solid var(--gf-hair)" : "none", borderBottom: wide ? "none" : ".5px solid var(--gf-hair)" }}>
       <img src={target.src} alt={s.caption ?? ""} draggable={false}
         onContextMenu={s.noDownload && !own ? e => e.preventDefault() : undefined}
         style={{ maxWidth: "100%", maxHeight: wide ? "min(76vh, 640px)" : "46vh", objectFit: "contain", display: "block", userSelect: "none", filter: "drop-shadow(0 14px 22px rgba(0,0,0,.25))",
@@ -243,27 +243,27 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
       style={{ position: "fixed", inset: 0, zIndex: 2147482600, background: "rgba(10,11,14,.55)", display: "grid", placeItems: wide ? "center" : "stretch",
         padding: wide ? 24 : 0 }}>
       <div ref={shell} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Recurso" className="gf-win"
-        style={{ outline: "none", borderRadius: wide ? 14 : 0, display: "flex", flexDirection: wide ? "row" : "column",
+        style={{ outline: "none", borderRadius: wide ? 26 : 0, display: "flex", flexDirection: wide ? "row" : "column",
           width: wide ? "min(940px, 100%)" : "100%", height: wide ? "min(640px, 100%)" : "100%", overflow: "hidden" }}>
         {!wide && (
-          <div className="gf-bar gf-bar--phone">
-            <span className="gf-bar__title" aria-hidden>Fragmento</span>
-            <span style={{ flex: 1 }} />
-            <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar">Listo</button>
+          <div className="gf-head gf-head--phone">
+            <h2 className="gf-title gf-title--sm">Fragmento</h2>
+            <GfThemeButton />
+            <button type="button" className="gf-btn gf-btn--round" onClick={onClose} aria-label="Cerrar" title="Cerrar"><CloseGlyph /></button>
           </div>
         )}
         {image}
         <div style={{ flex: wide ? "1 1 45%" : 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
           {wide && (
-            <div className="gf-bar">
-              <span className="gf-bar__title" aria-hidden>Fragmento</span>
-              <span style={{ flex: 1 }} />
-              <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar">Listo</button>
+            <div className="gf-head">
+              <h2 className="gf-title gf-title--sm">Fragmento</h2>
+              <GfThemeButton />
+              <button type="button" className="gf-btn gf-btn--round" onClick={onClose} aria-label="Cerrar" title="Cerrar"><CloseGlyph /></button>
             </div>
           )}
           {/* Who uploaded it */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 12px 10px 16px" }}>
-            {owner ? <Avatar a={owner} size={36} round /> : <span style={{ width: 36, height: 36, borderRadius: 99, background: "#c9ccd0" }} />}
+            {owner ? <Avatar a={owner} size={36} round /> : <span style={{ width: 36, height: 36, borderRadius: 99, background: "var(--gf-hair)" }} />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div data-no-i18n="" style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{target.ownerHandle || "?"}</div>
               {profileHref && !own && (
@@ -276,7 +276,7 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
                 {menu && (
                   <div role="menu" className="gf-group" style={{ position: "absolute", right: 0, top: 36, zIndex: 3, padding: 4, minWidth: 140, boxShadow: "0 0 0 .5px rgba(0,0,0,.2), 0 10px 24px rgba(0,0,0,.2)" }}>
                     <button type="button" role="menuitem" onClick={async () => { setMenu(false); flash((await reportResource(target.ownerId, target.key, target.src)) ? "Reportado. Gracias." : "No se pudo reportar."); }}
-                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px", border: "none", borderRadius: 8, background: "transparent", color: "#15171A", cursor: "pointer", font: `500 13.5px var(--gf-font)` }}>
+                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px", border: "none", borderRadius: 8, background: "transparent", color: "var(--gf-ink)", cursor: "pointer", font: `500 13.5px var(--gf-font)` }}>
                       <FlagIcon /> Reportar
                     </button>
                   </div>
@@ -309,7 +309,7 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
 
             {/* Actions */}
             <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-              <button type="button" onClick={like} aria-pressed={s.liked} aria-label="Me gusta" style={{ ...btn(), flex: "none", width: 44, padding: 0, color: s.liked ? "#FF3D8B" : "#2c2f33" }}>
+              <button type="button" onClick={like} aria-pressed={s.liked} aria-label="Me gusta" style={{ ...btn(), flex: "none", width: 44, padding: 0, color: s.liked ? "#FF3D8B" : "var(--gf-gel-ink)" }}>
                 <HeartIcon size={17} filled={s.liked} />
               </button>
               {!own && (
@@ -322,7 +322,7 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
                 {s.noDownload && !own ? <LockIcon /> : <DownloadIcon />} {busy === "dl" ? "…" : "Descargar"}
               </button>
             </div>
-            {msg && <p role="status" style={{ margin: "-4px 0 10px", color: "#4b6a00", fontSize: 13, fontWeight: 600 }}>{msg}</p>}
+            {msg && <p role="status" style={{ margin: "-4px 0 10px", color: "var(--gf-lima-text)", fontSize: 13, fontWeight: 600 }}>{msg}</p>}
 
             {/* The owner's options */}
             {own && (
@@ -373,7 +373,7 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
           </div>
 
           {/* Write */}
-          <form onSubmit={send} style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 12px calc(12px + env(safe-area-inset-bottom, 0px))", borderTop: ".5px solid rgba(0,0,0,.15)" }}>
+          <form onSubmit={send} style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 12px calc(12px + env(safe-area-inset-bottom, 0px))", borderTop: ".5px solid var(--gf-hair)" }}>
             {viewer === null ? (
               <a href={loginHref} style={{ ...btn(true), textDecoration: "none" }}>Iniciá sesión para comentar</a>
             ) : (
@@ -391,16 +391,13 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
   return typeof document === "undefined" ? null : createPortal(node, document.body);
 }
 
-const optBtn: React.CSSProperties = { display: "block", width: "100%", textAlign: "left", padding: "10px", border: "none", borderRadius: 8, background: "transparent", color: "#15171A", cursor: "pointer", font: `500 14px var(--gf-font)` };
+const optBtn: React.CSSProperties = { display: "block", width: "100%", textAlign: "left", padding: "10px", border: "none", borderRadius: 8, background: "transparent", color: "var(--gf-ink)", cursor: "pointer", font: `500 14px var(--gf-font)` };
 
 function OptRow({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
   return (
     <button type="button" role="switch" aria-checked={on} onClick={onToggle} style={{ ...optBtn, display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ flex: 1 }}>{label}</span>
-      <span aria-hidden style={{ width: 40, height: 24, borderRadius: 99, background: on ? GEL_LIMA : "linear-gradient(180deg,#c9ccd0,#e2e4e7)", position: "relative", transition: "background .15s",
-        boxShadow: "inset 0 1px 2px rgba(0,0,0,.25), 0 0 0 .5px rgba(0,0,0,.3)" }}>
-        <span style={{ position: "absolute", top: 2, left: on ? 18 : 2, width: 20, height: 20, borderRadius: 99, background: "linear-gradient(180deg,#fff,#e6e8ea)", boxShadow: "0 1px 2px rgba(0,0,0,.3)", transition: "left .15s" }} />
-      </span>
+      <span aria-hidden className="gf-switch" data-on={on || undefined}><i /></span>
     </button>
   );
 }

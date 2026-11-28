@@ -25,14 +25,13 @@ import { useViewerId } from "@/lib/viewer";
 import { isVerifyError, requestVerify } from "@/lib/verify";
 import { track } from "@/lib/track";
 import { markFeedSeen } from "./feedBadge";
+import { useGfTheme, gfInk } from "@/lib/gfTheme";
+import GfThemeButton, { CloseGlyph } from "@/components/gf/GfThemeButton";
 
 export const FEED_PANEL_ID = "mnemo-feed";
 export const FEED_DOCK_W = 560;
 // Grafito (2026-11-28): a solid old-Mac window; white groups; pink only for a given heart.
 const ACC = "#FF3D8B";
-const ON = "#4b6a00";
-const INK = "#15171A";
-const BG = "#ffffff";
 const font = "var(--gf-font)";
 const PULL = 70;
 
@@ -40,6 +39,9 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
   mode: "dock" | "screen"; onClose?: () => void; top?: number; bottom?: number; right?: number; newTab?: boolean;
 }) {
   const viewer = useViewerId();
+  const [gfT] = useGfTheme();
+  const { ink: INK, bg: BG } = gfInk(gfT);
+  const ON = gfT === "dark" ? "#C6F432" : "#4b6a00";
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [sugg, setSugg] = useState<SuggestedPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -173,7 +175,7 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
 
   const dock = mode === "dock";
   const shell: React.CSSProperties = dock
-    ? { position: "fixed", top, right, bottom, width: `min(${FEED_DOCK_W}px, calc(100vw - 28px))`, borderRadius: 14, zIndex: 2147481050 }
+    ? { position: "fixed", top, right, bottom, width: `min(${FEED_DOCK_W}px, calc(100vw - 28px))`, borderRadius: 26, zIndex: 2147481050 }
     : { position: "fixed", inset: 0, bottom, zIndex: 2147481050 };
   const pad = dock ? 16 : 12;
   const thumbBtn: React.CSSProperties = { position: "relative", padding: 0, border: "none", borderRadius: 9, overflow: "hidden", cursor: "pointer" };
@@ -182,24 +184,24 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
     <section id={FEED_PANEL_ID} data-mnemo-ui="" data-export-skip="" aria-label="Feed" className="gf-win"
       onMouseDown={e => e.stopPropagation()} onKeyDown={e => { if (e.key !== "Escape") e.stopPropagation(); }}
       style={{ ...shell, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div className={dock ? "gf-bar" : "gf-bar gf-bar--phone"}>
-        <button type="button" className="gf-btn" onClick={() => refresh("button")} aria-label="Actualizar" title="Actualizar" disabled={refreshing}>
+      <div className={dock ? "gf-head" : "gf-head gf-head--phone"}>
+        <h2 className="gf-title">Feed</h2>
+        <GfThemeButton />
+        <button type="button" className="gf-btn gf-btn--round" onClick={() => refresh("button")} aria-label="Actualizar" title="Actualizar" disabled={refreshing}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
             style={{ animation: refreshing ? "mnemo-feed-spin .8s linear infinite" : undefined }}><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 4v5h-5" /></svg>
         </button>
-        <span className="gf-bar__title" aria-hidden>Feed</span>
-        <span style={{ flex: 1 }} />
-        {onClose && <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar Feed">Listo</button>}
+        {onClose && <button type="button" className="gf-btn gf-btn--round" onClick={onClose} aria-label="Cerrar Feed" title="Cerrar"><CloseGlyph /></button>}
       </div>
       <style>{`@keyframes mnemo-feed-spin{to{transform:rotate(360deg)}}`}</style>
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: `0 ${pad}px 24px`, WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
-        <h2 className="gf-big" style={{ margin: `14px 4px 8px` }}>Feed</h2>
+        <div style={{ height: 14 }} />
         {/* Pull to refresh */}
         <div aria-hidden={!pull && !refreshing} style={{ height: refreshing ? 40 : pull, overflow: "hidden", display: "grid", placeItems: "center", transition: pull ? "none" : "height .2s",
           color: "var(--gf-ink3)", font: `500 12.5px ${font}` }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 16, height: 16, borderRadius: 8, border: "2px solid rgba(21,23,26,.14)", borderTopColor: "#6a6e74",
+            <span style={{ width: 16, height: 16, borderRadius: 8, border: "2px solid var(--gf-hair)", borderTopColor: "var(--gf-ink2)",
               animation: refreshing ? "mnemo-feed-spin .8s linear infinite" : undefined, transform: refreshing ? undefined : `rotate(${pull * 4}deg)` }} />
             {refreshing ? "Actualizando…" : pull >= PULL ? "Soltá para actualizar" : "Tirá para actualizar"}
           </span>
@@ -257,7 +259,7 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
                               onClick={() => (rest ? setExpanded(s => new Set(s).add(e.key)) : openRes(r))}
                               style={{ ...thumbBtn, aspectRatio: "1" }}>
                               <img src={thumbOf(r.src, 200)} alt="" loading="lazy" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
-                              {rest > 0 && <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(240,242,244,.72)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", font: `600 18px ${font}`, color: INK }}>+{rest}</span>}
+                              {rest > 0 && <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "var(--gf-more)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", font: `600 18px ${font}`, color: INK }}>+{rest}</span>}
                             </button>
                           );
                         })}
@@ -297,7 +299,7 @@ export function FeedButton({ open, onToggle, count, compact }: { open: boolean; 
     <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={FEED_PANEL_ID} aria-label={count ? `Feed, ${count} nuevos` : "Feed"}
       data-mnemo-ui="" data-export-skip="" className={compact ? "gf-glass gf-dockbtn" : "gf-dockbtn"}
       style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: compact ? 44 : 42, padding: compact ? 0 : "0 18px", width: compact ? 44 : undefined,
-        borderRadius: 999, cursor: "pointer", border: "none", font: `500 15px ${font}`, color: open ? INK : "var(--gf-ink2)",
+        borderRadius: 999, cursor: "pointer", border: "none", font: `500 15px ${font}`, color: open ? "var(--gf-ink)" : "var(--gf-ink2)",
         ...(compact ? {} : { background: open ? undefined : "transparent", boxShadow: open ? undefined : "none" }) }}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <rect x="4" y="3.5" width="16" height="7" rx="2.2" /><rect x="4" y="13.5" width="16" height="7" rx="2.2" /></svg>

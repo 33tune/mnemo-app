@@ -164,6 +164,9 @@ export function paraWeight(c: ExploreCandidate, now: number): number {
     + Math.min(2, act / 6);
 }
 
+/** Nuevas: weight of a card made `ageDays` ago inside the rotating day (4 → 1). */
+export const newWeight = (ageDays: number) => 1 + 3 * Math.max(0, 1 - ageDays / NEW_ROTATE_DAYS);
+
 export function rankExplore(list: ExploreCandidate[], o: RankOptions): ExploreCandidate[] {
   const finished = (c: ExploreCandidate) => c.finished ?? (!!c.card && isFinished(c.card, c.state));
   const collection = (c: ExploreCandidate) => c.collection ?? (!!c.card && hasCollectionFx(c.card));
@@ -175,9 +178,10 @@ export function rankExplore(list: ExploreCandidate[], o: RankOptions): ExploreCa
   const score = (c: ExploreCandidate) => {
     const shuffle = hash01(`${o.seed}:${c.userId}`);
     switch (o.tab) {
-      // Nuevas: the last day's cards rotate at random on top (each visit a new
-      // order, so a card is not buried by the next ones); then newest first.
-      case "nuevas": return ageDays(c) < NEW_ROTATE_DAYS ? 1000 + shuffle : -ageDays(c);
+      // Nuevas: the last day's cards rotate on top (each visit a new order, so
+      // a card is not buried by the next ones), the newest more often (weighted
+      // draw: just made ≈ 4×, a day old ≈ 1×); then newest first.
+      case "nuevas": return ageDays(c) < NEW_ROTATE_DAYS ? 1000 + Math.pow(Math.max(1e-9, shuffle), 1 / newWeight(ageDays(c))) : -ageDays(c);
       case "vivo": return o.live?.get(c.userId) ?? 0;
       case "visitadas": return c.signals.views14 + shuffle * 0.5;
       // Weighted random order (Efraimidis–Spirakis): key = u^(1/w).

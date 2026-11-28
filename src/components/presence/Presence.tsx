@@ -51,7 +51,7 @@ export function PresencePill({ userId }: { userId?: string | null }) {
   return (
     <div data-export-skip="" data-mnemo-ui="" className="gf-glass" style={{ position: "fixed", top: "calc(10px + env(safe-area-inset-top, 0px))", left: "50%", transform: "translateX(-50%)", zIndex: 2147480000,
       display: "flex", alignItems: "center", gap: 7, height: 32, padding: "0 13px", borderRadius: 999,
-      font: "500 13px var(--gf-font)", color: isLive(t) ? "#15171A" : "rgba(21,23,26,.7)", pointerEvents: "none" }}>
+      font: "500 13px var(--gf-font)", color: isLive(t) ? "var(--gf-ink)" : "var(--gf-ink2)", pointerEvents: "none" }}>
       <PresenceDot live={isLive(t)} />{label}
     </div>
   );

@@ -960,6 +960,22 @@ planeado acá hasta confirmarlo.
 >   lima. El dorso de la card sigue con el estilo del dueño; solo sus pestañas pasan a un control segmentado Aqua.
 >   Maquetas: scratchpad `mock5/`.
 >
+> **Grafito v2 = "combinar" (2026-11-28, aprobado por el usuario con capturas; en la rama `claude/adoring-edison-j7pzhk`, NO en
+>   `main`) — REEMPLAZA del bloque anterior la barra metálica, el título grande aparte y "Listo":**
+>   - **Menú del editor** = el actual con toques del viejo, SOLO en los temas Lima (reglas `:root[data-editor-theme^="lime"]`
+>     al final de `editor.css`, colores en tokens `T.ui.gloss` / claves `gel`, `sheen`, `gem`, `pin`… de cada paleta): lo
+>     elegido (pestaña del grupo, parte) en gel lima con brillo, reflejo arriba en botones redondos, íconos de cada fila de
+>     colores (por `data-icon`), puntitos de "modificado" = gemas lima, etiquetas en mayúscula chica, interruptor y
+>     deslizador con relieve, rayitas suaves en el panel. **El tema por defecto pasó a `limeDark`** (`DEFAULT_EDITOR_THEME`;
+>     quien ya había guardado otro lo conserva). Botón claro / oscuro en el encabezado del menú (`ThemeSwitch` en
+>     `InspectorHeader.tsx`: Lima oscuro ⇄ Lima claro).
+>   - **Feed / Explorar / visor** = Grafito con toques del menú: encabezado con título grande y botones redondos (claro /
+>     oscuro, actualizar, cerrar), bordes de 26 px, pestañas de Explorar en una pastilla (`HRow pills` + `.gf-pills`). Sin
+>     barra de Mac ni los tres puntitos. **Claro / oscuro propio** (`src/lib/gfTheme.ts`, `myland.gfTheme`,
+>     `<html data-gf-theme>`; script en `layout.tsx` antes de pintar; botón `GfThemeButton`); `grafito.css` usa variables
+>     con su juego oscuro. Por defecto claro.
+>   - **Nuevas:** dentro de las últimas 24 h el sorteo pesa la antigüedad (`newWeight`: recién hecha ≈ 4×, de casi un día 1×).
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

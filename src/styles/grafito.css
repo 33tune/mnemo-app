@@ -1,28 +1,82 @@
 /*
- * "Grafito" (2026-11-28, aprobado por el usuario con capturas): the look of the
- * social panels (Feed, Explorar, the resource viewer, the card's back tabs,
- * the phone tab bar). Old Mac OS X Aqua graphite + iOS 6, modernized:
- *   - windows are SOLID light grey with fine pinstripes and a brushed-metal
- *     title bar (three graphite lights, the first one lime);
- *   - glass ONLY on what floats (bottom buttons, brand capsule, name tags);
- *   - lime #C6F432 gel for what is on / primary / new; greys elsewhere; pink
- *     only for a given heart.
+ * "Grafito" (2026-11-28, approved by the user with screenshots; v2 the same day,
+ * "combinar"): the look of the social panels (Feed, Explorar, the resource
+ * viewer, the card's back tabs, the phone tab bar).
+ *   - From old Mac OS X / iOS 6: a body with fine pinstripes, white grouped
+ *     cells, Aqua gel buttons (lime when chosen), small-caps section labels,
+ *     lime gems for "live" / "new".
+ *   - From the editor menu: the rounded shape, a header with a big title and
+ *     round buttons (no Mac title bar, no traffic lights), pill tabs.
+ *   - Light and dark (`<html data-gf-theme="dark">`, lib/gfTheme.ts), switched
+ *     from the panels' own header.
+ *   - Glass only on what floats; pink only for a given heart.
  * Every class is prefixed gf- and only styles elements that opt in.
  */
 :root {
+  --gf-font: var(--font-gf, "Inter"), var(--font-sans, system-ui), -apple-system, "Segoe UI", sans-serif;
+  --gf-lima: #c6f432;
+  --gf-lima-ink: #2b3a00;
+  --gf-heart: #ff3d8b;
+  --gf-gel-lima: linear-gradient(180deg, #f4ffcc 0%, #d6fb5e 45%, #bfe92a 52%, #d2f852 100%);
+  --gf-gel-lima-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(80, 110, 0, 0.25), 0 0 0 0.5px rgba(70, 100, 0, 0.6), 0 2px 8px rgba(150, 210, 0, 0.22);
+
+  /* light (default) */
   --gf-ink: #15171a;
   --gf-ink2: rgba(21, 23, 26, 0.64);
   --gf-ink3: rgba(21, 23, 26, 0.44);
-  --gf-lima: #c6f432;
-  --gf-lima-ink: #2b3a00;
   --gf-lima-text: #4b6a00;
-  --gf-heart: #ff3d8b;
-  --gf-font: var(--font-gf, "Inter"), var(--font-sans, system-ui), -apple-system, "Segoe UI", sans-serif;
-  --gf-pin: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0 1px, rgba(0, 0, 0, 0) 1px 3px);
-  --gf-metal: linear-gradient(180deg, #f4f5f6 0%, #dcdfe2 48%, #cfd2d6 52%, #d9dcdf 100%);
+  --gf-hair: rgba(20, 22, 26, 0.12);
+  --gf-body: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0 1px, rgba(0, 0, 0, 0) 1px 3px), linear-gradient(180deg, #eef0f2, #e3e5e8);
+  --gf-head: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.25));
+  --gf-outer: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 24px 60px rgba(0, 0, 0, 0.45);
+  --gf-group: #ffffff;
+  --gf-group-edge: 0 0 0 0.5px rgba(0, 0, 0, 0.14), 0 1px 2px rgba(0, 0, 0, 0.05);
   --gf-gel: linear-gradient(180deg, #fdfdfd, #e4e6e9 50%, #d8dbde 51%, #e8eaec);
-  --gf-gel-lima: linear-gradient(180deg, #f2ffc4 0%, #d4fa5a 46%, #bde826 52%, #d0f74e 100%);
-  --gf-lift: 0 1px 1px rgba(0, 0, 0, 0.08), 0 22px 54px -14px rgba(0, 0, 0, 0.45);
+  --gf-gel-edge: inset 0 1px 0 #ffffff, 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.08);
+  --gf-gel-ink: #2c2f33;
+  --gf-gel-shadow: 0 1px 0 #ffffff;
+  --gf-field: #ffffff;
+  --gf-field-edge: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.22);
+  --gf-well: rgba(20, 22, 26, 0.07);
+  --gf-well-edge: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+  --gf-foot: #6a6e74;
+  --gf-foot-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  --gf-check: #f3f4f5 repeating-conic-gradient(rgba(0, 0, 0, 0.045) 0 25%, transparent 0 50%) 0 0 / 12px 12px;
+  --gf-skel: linear-gradient(180deg, #f7f8f9, #eceef0);
+  --gf-more: rgba(240, 242, 244, 0.72);
+  --gf-glass-bg: rgba(238, 240, 242, 0.84);
+  --gf-glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 0.5px rgba(255, 255, 255, 0.55), 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 12px 30px -8px rgba(0, 0, 0, 0.35);
+  --gf-switch-off: linear-gradient(180deg, #c9ccd0, #e2e4e7);
+  --gf-menu: #ffffff;
+}
+:root[data-gf-theme="dark"] {
+  --gf-ink: #f3f4f5;
+  --gf-ink2: rgba(243, 244, 245, 0.68);
+  --gf-ink3: rgba(243, 244, 245, 0.46);
+  --gf-lima-text: #c6f432;
+  --gf-hair: rgba(255, 255, 255, 0.08);
+  --gf-body: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0 1px, rgba(0, 0, 0, 0) 1px 3px), linear-gradient(180deg, #1c1d20, #161719);
+  --gf-head: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
+  --gf-outer: 0 0 0 0.5px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06), 0 24px 60px rgba(0, 0, 0, 0.6);
+  --gf-group: #26282c;
+  --gf-group-edge: 0 0 0 0.5px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(0, 0, 0, 0.4);
+  --gf-gel: linear-gradient(180deg, #4b4e54, #36393e 50%, #2b2d31 51%, #33363a);
+  --gf-gel-edge: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.7), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --gf-gel-ink: #e6e7e9;
+  --gf-gel-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6);
+  --gf-field: #121315;
+  --gf-field-edge: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  --gf-well: rgba(255, 255, 255, 0.05);
+  --gf-well-edge: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --gf-foot: rgba(243, 244, 245, 0.46);
+  --gf-foot-shadow: none;
+  --gf-check: #2c2e32 repeating-conic-gradient(rgba(255, 255, 255, 0.04) 0 25%, transparent 0 50%) 0 0 / 12px 12px;
+  --gf-skel: linear-gradient(180deg, #2a2c30, #232528);
+  --gf-more: rgba(20, 21, 24, 0.72);
+  --gf-glass-bg: rgba(30, 31, 34, 0.84);
+  --gf-glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 12px 30px -8px rgba(0, 0, 0, 0.5);
+  --gf-switch-off: linear-gradient(180deg, #141517, #26272b);
+  --gf-menu: #2a2c30;
 }
 
 /* ── Window ─────────────────────────────────────────────────────────────── */
@@ -31,130 +85,111 @@
   font: 400 15px/1.35 var(--gf-font);
   letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
-  background: var(--gf-pin), linear-gradient(180deg, #eceef0, #e3e5e8);
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.7), 0 0 0 0.5px rgba(0, 0, 0, 0.28), var(--gf-lift);
+  background: var(--gf-body);
+  box-shadow: var(--gf-outer);
 }
-.gf-bar {
+/* The header, like the editor menu's: a big title and round buttons. */
+.gf-head {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 44px;
-  padding: 0 10px;
-  position: relative;
-  background: var(--gf-metal);
-  border-bottom: 0.5px solid rgba(0, 0, 0, 0.28);
-  box-shadow: inset 0 1px 0 #fff;
+  gap: 8px;
+  padding: 16px 14px 12px 20px;
+  background: var(--gf-head);
+  border-bottom: 0.5px solid var(--gf-hair);
 }
-.gf-bar--phone { height: calc(48px + env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px); }
-.gf-bar__title {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 44px;
-  line-height: 44px;
-  text-align: center;
-  font-weight: 600;
-  font-size: 14.5px;
-  color: #2c2f33;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
-  pointer-events: none;
-}
-.gf-bar--phone .gf-bar__title { height: 48px; line-height: 48px; }
-.gf-lights { display: flex; gap: 7px; margin: 0 6px 0 4px; position: relative; z-index: 1; }
-.gf-lights i {
-  width: 12px;
-  height: 12px;
-  border-radius: 6px;
-  background: radial-gradient(circle at 50% 30%, #fdfdfd, #b8bcc1 55%, #8d9298);
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.35), inset 0 -1px 1px rgba(255, 255, 255, 0.6);
-}
-.gf-lights i:first-child {
-  background: radial-gradient(circle at 50% 30%, #fbffe8, #c6f432 50%, #7fb10f);
-  box-shadow: inset 0 0 0 0.5px rgba(50, 80, 0, 0.55), inset 0 -1px 1px rgba(255, 255, 255, 0.5);
-}
-.gf-big { margin: 14px 20px 4px; font: 300 32px/1.1 var(--gf-font); letter-spacing: -0.03em; color: var(--gf-ink); }
+.gf-head--phone { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.gf-title { margin: 0; flex: 1; min-width: 0; font: 300 30px/1.05 var(--gf-font); letter-spacing: -0.03em; color: var(--gf-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gf-title--sm { font-size: 22px; font-weight: 400; }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 .gf-btn {
   position: relative;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 28px;
-  min-width: 28px;
-  padding: 0 10px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 12px;
   border: none;
-  border-radius: 7px;
+  border-radius: 999px;
   cursor: pointer;
   font: 500 13.5px var(--gf-font);
-  color: #2c2f33;
-  text-shadow: 0 1px 0 #fff;
+  color: var(--gf-gel-ink);
+  text-shadow: var(--gf-gel-shadow);
   background: var(--gf-gel);
-  box-shadow: inset 0 1px 0 #fff, 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--gf-gel-edge);
 }
-.gf-btn:active { background: linear-gradient(180deg, #d2d5d9, #dfe2e5); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(0, 0, 0, 0.35); }
+.gf-btn:active { filter: brightness(0.94); }
 .gf-btn:disabled { opacity: 0.55; cursor: default; }
-.gf-btn--pill { border-radius: 999px; height: 40px; padding: 0 16px; font-size: 15px; }
-.gf-btn--lima {
+.gf-btn--pill { height: 40px; padding: 0 16px; font-size: 15px; }
+.gf-btn--round { width: 34px; height: 34px; padding: 0; }
+.gf-btn--lima, .gf-btn[aria-pressed="true"].gf-btn--toggle {
   color: var(--gf-lima-ink);
   font-weight: 600;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
   background: var(--gf-gel-lima);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 0 0 0.5px rgba(70, 100, 0, 0.55), 0 3px 8px rgba(110, 160, 0, 0.25);
+  box-shadow: var(--gf-gel-lima-edge);
 }
-.gf-btn--lima:active { background: linear-gradient(180deg, #b9e322, #cdf54e); }
-.gf-btn--round { width: 30px; height: 30px; padding: 0; border-radius: 50%; }
-.gf-btn--danger { color: #b3261e; }
+.gf-btn--lima:active { filter: brightness(0.95); }
+.gf-btn--danger { color: #ffffff; text-shadow: none; background: linear-gradient(180deg, #ff8a80, #ff3b30); box-shadow: 0 0 0 0.5px rgba(120, 0, 0, 0.5); }
 .gf-link { border: none; background: transparent; padding: 0; cursor: pointer; color: var(--gf-lima-text); font: 600 13px var(--gf-font); text-decoration: none; }
 
 /* ── Content ────────────────────────────────────────────────────────────── */
-.gf-group {
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.06);
-}
+.gf-group { border-radius: 16px; background: var(--gf-group); box-shadow: var(--gf-group-edge); }
 .gf-foot {
   display: flex;
   align-items: center;
   gap: 6px;
-  font: 600 11.5px var(--gf-font);
-  letter-spacing: 0.06em;
+  font: 600 10.5px var(--gf-font);
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #5c6066;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: var(--gf-foot);
+  text-shadow: var(--gf-foot-shadow);
 }
 .gf-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
-  padding: 0 12px;
+  height: 38px;
+  padding: 0 14px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--gf-field);
   color: var(--gf-ink3);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: var(--gf-field-edge);
 }
 .gf-search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--gf-ink); font: 400 16px var(--gf-font); }
-.gf-field {
-  border: none;
-  outline: none;
-  border-radius: 999px;
-  background: #fff;
-  color: var(--gf-ink);
-  font: 400 16px var(--gf-font);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.25);
-}
-.gf-check {
-  background: #f3f4f5 repeating-conic-gradient(rgba(0, 0, 0, 0.045) 0 25%, transparent 0 50%) 0 0 / 12px 12px;
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
-}
-.gf-skel { background: linear-gradient(180deg, #f7f8f9, #eceef0); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.1); }
+.gf-field { border: none; outline: none; border-radius: 999px; background: var(--gf-field); color: var(--gf-ink); font: 400 16px var(--gf-font); box-shadow: var(--gf-field-edge); }
+.gf-search input::placeholder, .gf-field::placeholder { color: var(--gf-ink3); opacity: 1; }
+.gf-check { background: var(--gf-check); box-shadow: inset 0 0 0 0.5px var(--gf-hair); }
+.gf-skel { background: var(--gf-skel); box-shadow: 0 0 0 0.5px var(--gf-hair); }
 
-/* Aqua chips and segmented control: grey gel, the chosen one in lime gel. */
+/* Pill tabs (like the editor menu's), the chosen one in lime gel. */
+.gf-pills { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--gf-well); box-shadow: var(--gf-well-edge); }
+.gf-pills > button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  font: 500 13px var(--gf-font);
+  color: var(--gf-ink2);
+}
+.gf-pills > button[aria-selected="true"], .gf-pills > button[aria-pressed="true"] {
+  color: var(--gf-lima-ink);
+  font-weight: 600;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: var(--gf-gel-lima);
+  box-shadow: var(--gf-gel-lima-edge);
+}
+/* Aqua chips (Fijar / Visible). */
 .gf-chip {
   flex: none;
   display: inline-flex;
@@ -167,44 +202,36 @@
   cursor: pointer;
   white-space: nowrap;
   font: 500 13px var(--gf-font);
-  color: #2c2f33;
-  text-shadow: 0 1px 0 #fff;
+  color: var(--gf-gel-ink);
+  text-shadow: var(--gf-gel-shadow);
   background: var(--gf-gel);
-  box-shadow: inset 0 1px 0 #fff, 0 0 0 0.5px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--gf-gel-edge);
 }
 .gf-chip[aria-selected="true"], .gf-chip[aria-pressed="true"] {
   color: var(--gf-lima-ink);
   font-weight: 600;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
   background: var(--gf-gel-lima);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 0 0 0.5px rgba(70, 100, 0, 0.55);
+  box-shadow: var(--gf-gel-lima-edge);
 }
-.gf-seg { display: flex; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.08); }
+/* Segmented control on the card's back (follows the owner's colors around it). */
+.gf-seg { display: flex; border-radius: 999px; padding: 2px; gap: 2px; background: rgba(0, 0, 0, 0.18); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 0 0 0.5px rgba(255, 255, 255, 0.08); }
 .gf-seg > button {
   position: relative;
-  flex: 1;
   height: 28px;
   min-width: 0;
   padding: 0 10px;
   border: none;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
   cursor: pointer;
-  font: 500 13px var(--gf-font);
-  color: #2c2f33;
-  text-shadow: 0 1px 0 #fff;
-  background: var(--gf-gel);
+  color: inherit;
+  opacity: 0.7;
+  background: transparent;
 }
-.gf-seg > button + button { border-left: 0.5px solid rgba(0, 0, 0, 0.28); }
-.gf-seg > button[aria-selected="true"] {
-  color: var(--gf-lima-ink);
-  font-weight: 600;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-  background: linear-gradient(180deg, #eaffa0, #c6f432 50%, #b2e01c 51%, #cdf550);
-  box-shadow: inset 0 1px 2px rgba(60, 90, 0, 0.25);
-}
+.gf-seg > button[aria-selected="true"] { opacity: 1; color: var(--gf-lima-ink); background: var(--gf-gel-lima); box-shadow: var(--gf-gel-lima-edge); }
 
 .gf-badge {
   min-width: 19px;
@@ -228,20 +255,21 @@
   background: radial-gradient(circle at 35% 28%, #fbffe0, #c6f432 45%, #6fa50a 100%);
   box-shadow: 0 0 0 0.5px rgba(60, 90, 0, 0.5), 0 0 7px rgba(198, 244, 50, 0.9);
 }
-.gf-gem--off { background: radial-gradient(circle at 35% 28%, #fff, #b8bcc1 50%, #8d9298); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3); }
+.gf-gem--off { background: radial-gradient(circle at 35% 28%, #ffffff, #b8bcc1 50%, #8d9298); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3); }
+.gf-switch { position: relative; flex: none; width: 42px; height: 25px; border-radius: 13px; background: var(--gf-switch-off); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 0.5px var(--gf-hair); transition: background 0.15s; }
+.gf-switch[data-on] { background: var(--gf-gel-lima); box-shadow: var(--gf-gel-lima-edge); }
+.gf-switch > i { position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 11px; background: radial-gradient(circle at 50% 25%, #ffffff, #d9dbde 70%); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); transition: left 0.15s; }
+.gf-switch[data-on] > i { left: 19px; }
 
-/* ── Floating glass (light) ─────────────────────────────────────────────── */
+/* ── Floating glass ─────────────────────────────────────────────────────── */
 .gf-glass {
   color: var(--gf-ink);
-  background: rgba(238, 240, 242, 0.84);
+  background: var(--gf-glass-bg);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
   backdrop-filter: blur(28px) saturate(170%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 0.5px rgba(255, 255, 255, 0.55), 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 12px 30px -8px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--gf-glass-edge);
 }
-.gf-glass--on, .gf-dockbtn[aria-expanded="true"] {
-  background: var(--gf-gel);
-  box-shadow: inset 0 1px 0 #fff, 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15), 0 12px 30px -8px rgba(0, 0, 0, 0.3);
-}
+.gf-glass--on, .gf-dockbtn[aria-expanded="true"] { background: var(--gf-gel); box-shadow: var(--gf-gel-edge); }
 
 /* ── Phone tab bar: old-iOS graphite gloss ──────────────────────────────── */
 .gf-tabbar {
@@ -267,16 +295,10 @@
   cursor: pointer;
   padding: 0;
 }
-.gf-tabbar > button[aria-current="page"] {
-  color: var(--gf-lima);
-  background: rgba(255, 255, 255, 0.09);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
+.gf-tabbar > button[aria-current="page"] { color: var(--gf-lima); background: rgba(255, 255, 255, 0.09); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); }
 .gf-tabbar > button[aria-current="page"] svg { filter: drop-shadow(0 0 5px rgba(198, 244, 50, 0.55)); }
 
 @media (forced-colors: active) {
-  .gf-win, .gf-bar, .gf-glass, .gf-tabbar { background: Canvas; color: CanvasText; }
-  .gf-chip[aria-selected="true"], .gf-seg > button[aria-selected="true"] { outline: 2px solid Highlight; }
+  .gf-win, .gf-head, .gf-glass, .gf-tabbar { background: Canvas; color: CanvasText; }
+  .gf-chip[aria-selected="true"], .gf-pills > button[aria-selected="true"], .gf-seg > button[aria-selected="true"] { outline: 2px solid Highlight; }
 }
-
-.gf-search input::placeholder, .gf-field::placeholder { color: var(--gf-ink3); opacity: 1; }

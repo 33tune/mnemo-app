@@ -2013,3 +2013,43 @@ html[data-phone-edit] img { -webkit-user-drag: none; }
 /* Acomodar: every part of the card shows as something to grab. */
 /* (The card is outside the editor tokens: its own text color draws the frame.) */
 html[data-arrange] [data-profile-card] [data-role] { outline: 2px dashed currentColor !important; outline-offset: 2px !important; border-radius: 6px; }
+
+/* ── Grafito touches on the Lima themes (2026-11-28, user decision "combinar":
+   the current menu stays — glass, shape, header, round parts, one card per
+   setting — and gets the old Mac / iOS 6 details): Aqua lime gel for what is
+   chosen, a top sheen on round controls and icon tiles, colored icon tiles
+   (old Settings), lime gems for "modified", small-caps section labels, a
+   relief switch / slider and a faint pinstripe on the dock. ─────────────── */
+:root[data-editor-theme^="lime"] .mn-panel.mn-panel--docked[data-mnemo-editor] { background-image: var(--ui-gloss-pin); }
+/* The thumb is positioned inline (Tabs.tsx); its paint is overridden here. */
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__thumb { background: var(--ui-gloss-gel) !important; box-shadow: var(--ui-gloss-gel-edge) !important; }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-seg__btn[aria-checked="true"] { color: var(--ui-gloss-gel-ink); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor]) .mn-part { background-image: var(--ui-gloss-sheen); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor]) .mn-part[aria-selected="true"] { background: var(--ui-gloss-gel); color: var(--ui-gloss-gel-ink); box-shadow: var(--ui-gloss-gel-edge); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor]) .mn-part__dot { width: 10px; height: 10px; border: none; background: var(--ui-gloss-gem); top: 1px; right: 1px; }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__dot { width: 8px; height: 8px; border: none; background: var(--ui-gloss-gem); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) :is(.mn-gbtn, .mn-iconbtn, .mn-inspector__icon) { background-image: var(--ui-gloss-sheen); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon {
+  position: relative; overflow: hidden; color: var(--ui-gloss-tile-ink); background: var(--ui-gloss-tile-grey); box-shadow: var(--ui-gloss-tile-edge);
+}
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon::after {
+  content: ""; position: absolute; inset: 0 0 50% 0; background: var(--ui-gloss-sheen); pointer-events: none;
+}
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon:is([data-icon="palette"], [data-icon="blend"]) { background: var(--ui-gloss-tile-blue); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon:is([data-icon="case"], [data-icon="type"]) { background: var(--ui-gloss-tile-pink); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon:is([data-icon="sparkles"], [data-icon="sun"]) { background: var(--ui-gloss-tile-lime); color: var(--ui-gloss-tile-lime-ink); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon:is([data-icon="maximize"], [data-icon="move"], [data-icon="spacing"], [data-icon="align-center"]) { background: var(--ui-gloss-tile-orange); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon:is([data-icon="link"], [data-icon="globe"], [data-icon="pointer"]) { background: var(--ui-gloss-tile-violet); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon:is([data-icon="image"], [data-icon="music"], [data-icon="eye"]) { background: var(--ui-gloss-tile-teal); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card--pinned > .mn-label,
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-label {
+  font-size: 10.5px; line-height: 14px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ui-text-tertiary);
+}
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch { box-shadow: var(--ui-gloss-track-inset); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] { background: var(--ui-gloss-gel); box-shadow: var(--ui-gloss-gel-edge); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch__knob { background: var(--ui-gloss-knob); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-lslider { box-shadow: var(--ui-gloss-track-inset); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-lslider__fill { background: var(--ui-gloss-gel); }
+@media (forced-colors: active) {
+  :root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon::after { display: none; }
+}

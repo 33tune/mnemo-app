@@ -51,6 +51,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             from src/ui/tokens.ts — the single source. editor.css only
             references them. */}
         <style id="mnemo-ui-tokens" dangerouslySetInnerHTML={{ __html: uiCssVarsStylesheet() }} />
+        {/* Grafito (2026-11-28): Feed / Explorar claro u oscuro (lib/gfTheme.ts), before paint. */}
+        <script id="myland-gf-theme" dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem("myland.gfTheme")==="dark")document.documentElement.setAttribute("data-gf-theme","dark")}catch(e){}` }} />
       </head>
       <body>
         <AppErrorBoundary>{children}</AppErrorBoundary>

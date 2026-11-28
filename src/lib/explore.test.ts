@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isFinished, contentScore, careScore, rankExplore, hasCollectionFx, hash01, MIN_CARE, isExploreTab, type ExploreCandidate } from "./explore";
+import { isFinished, contentScore, careScore, rankExplore, hasCollectionFx, hash01, MIN_CARE, isExploreTab, newWeight, NEW_ROTATE_DAYS, type ExploreCandidate } from "./explore";
 import type { CanvasState, ProfileCardData } from "@/types";
 
 const base = { photo: "https://x/p.webp", name: "Ana", contactLinks: [{ id: "1", url: "https://instagram.com/ana" }] } as unknown as ProfileCardData;
@@ -107,4 +107,16 @@ test("Para vos leaves out the viewer's favorites and favors better-made cards wi
   assert.ok(firsts.size >= 6, `different first cards: ${firsts.size}`);
   // Other tabs still show favorites.
   assert.ok(rankExplore(list, { tab: "nuevas", now, seed: "s", excludeIds: new Set(["fav"]) }).some(c => c.userId === "fav"));
+});
+
+test("nuevas: inside the rotating day the newest comes first more often", () => {
+  const now = Date.parse("2026-11-28T12:00:00Z");
+  const busy = sig({ editMinutes: 40, edits: 150 });
+  const rich4 = { ...base, status: "a", bio: "b", effects: { bg: { color: "#000" }, gradient: {} } } as unknown as ProfileCardData;
+  const mk = (id: string, hoursAgo: number) => cand(id, rich4, { createdAt: new Date(now - hoursAgo * 3600000).toISOString(), signals: busy });
+  const fresh = mk("fresh", 0.5), day = mk("day", 23);
+  let freshFirst = 0;
+  for (let i = 0; i < 400; i++) if (rankExplore([fresh, day], { tab: "nuevas", now, seed: `s${i}` })[0].userId === "fresh") freshFirst++;
+  assert.ok(freshFirst > 260 && freshFirst < 380, String(freshFirst));
+  assert.equal(newWeight(0), 4); assert.equal(newWeight(NEW_ROTATE_DAYS), 1);
 });

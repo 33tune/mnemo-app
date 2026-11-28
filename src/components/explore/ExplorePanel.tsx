@@ -19,12 +19,12 @@ import { createClient } from "@/lib/supabase/client";
 import { useViewerId } from "@/lib/viewer";
 import { track } from "@/lib/track";
 import { loadExplore, saveExplore, markExploreReopen } from "@/lib/exploreMemory";
+import GfThemeButton, { CloseGlyph } from "@/components/gf/GfThemeButton";
 
 export const EXPLORE_PANEL_ID = "mnemo-explore";
 /** The dock's width on a computer (2026-11-28: wider, more presence). */
 export const EXPLORE_DOCK_W = 640;
 // Grafito (2026-11-28): a solid old-Mac window, Aqua chips, lime for what is on.
-const INK = "#15171A";
 const font = "var(--gf-font)";
 
 let fontLinked = false;
@@ -51,8 +51,8 @@ function FavAvatar({ s, changed, onOpen }: { s: Shortcut; changed: boolean; onOp
     <a href={`/${s.handle}`} draggable={false} onClick={() => onOpen(s)} title={`@${s.handle}`} aria-label={`@${s.handle}${changed ? ", cambió su card" : ""}`}
       style={{ width: 66, flex: "none", textAlign: "center", textDecoration: "none", color: "var(--gf-ink2)", font: `500 12px ${font}` }}>
       <span style={{ width: 58, height: 58, borderRadius: 29, margin: "0 auto 5px", display: "grid", placeItems: "center", padding: 2.5, boxSizing: "border-box",
-        background: changed ? "conic-gradient(#C6F432, #eaffa0, #9BEA2A, #C6F432)" : "#c9ccd0", boxShadow: changed ? "0 0 8px rgba(198,244,50,.6)" : "none" }}>
-      <span style={{ width: "100%", height: "100%", borderRadius: "50%", display: "grid", placeItems: "center", overflow: "hidden", border: "2.5px solid #fff", boxSizing: "border-box",
+        background: changed ? "conic-gradient(#C6F432, #eaffa0, #9BEA2A, #C6F432)" : "var(--gf-hair)", boxShadow: changed ? "0 0 8px rgba(198,244,50,.6)" : "none" }}>
+      <span style={{ width: "100%", height: "100%", borderRadius: "50%", display: "grid", placeItems: "center", overflow: "hidden", border: "2.5px solid var(--gf-group)", boxSizing: "border-box",
         background: s.bg, color: s.nameColor, font: `700 18px ${font}` }}>
         {s.photo ? <img src={s.photo} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : (s.name || s.handle).slice(0, 1).toUpperCase()}
       </span></span>
@@ -202,21 +202,21 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const shell: React.CSSProperties = dock
     // Solid (no backdrop blur): the room behind animates, and the blur was
     // redone on every frame while scrolling the cards.
-    ? { position: "fixed", top, right, bottom, width: `min(${EXPLORE_DOCK_W}px, calc(100vw - 28px))`, borderRadius: 14, zIndex: 2147481050 }
+    ? { position: "fixed", top, right, bottom, width: `min(${EXPLORE_DOCK_W}px, calc(100vw - 28px))`, borderRadius: 26, zIndex: 2147481050 }
     : { position: "fixed", inset: 0, bottom, zIndex: 2147481050 };
   const pad = dock ? 16 : 12;
 
   return (
     <section id={EXPLORE_PANEL_ID} data-mnemo-ui="" data-export-skip="" aria-label="Explorar" className="gf-win"
       style={{ ...shell, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div className={dock ? "gf-bar" : "gf-bar gf-bar--phone"}>
-        <span className="gf-bar__title" aria-hidden>Explorar</span>
-        <span style={{ flex: 1 }} />
-        {onClose && <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar Explorar">Listo</button>}
+      <div className={dock ? "gf-head" : "gf-head gf-head--phone"}>
+        <h2 className="gf-title">Explorar</h2>
+        <GfThemeButton />
+        {onClose && <button type="button" className="gf-btn gf-btn--round" onClick={onClose} aria-label="Cerrar Explorar" title="Cerrar"><CloseGlyph /></button>}
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: `0 ${pad}px 24px`, WebkitOverflowScrolling: "touch" }}>
-        <h2 className="gf-big" style={{ margin: "14px 4px 10px" }}>Explorar</h2>
+        <div style={{ height: 14 }} />
         <label className="gf-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4.5 4.5" /></svg>
           <input value={q} onChange={e => setQ(e.target.value)} maxLength={40} placeholder="Buscar @usuario o nombre" aria-label="Buscar cards" />
@@ -227,7 +227,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             {hits === null && <p style={{ color: "var(--gf-ink3)", margin: 0, padding: "12px 0" }}>Buscando…</p>}
             {hits && hits.length === 0 && <p style={{ color: "var(--gf-ink2)", margin: 0, padding: "12px 0" }}>No hay cards con “{q.trim()}”.</p>}
             {hits && hits.map(h => (
-              <a key={h.handle} href={`/${h.handle}`} onClick={leaving} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "0.5px solid rgba(20,22,26,.1)", color: INK, textDecoration: "none" }}>
+              <a key={h.handle} href={`/${h.handle}`} onClick={leaving} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "0.5px solid var(--gf-hair)", color: "var(--gf-ink)", textDecoration: "none" }}>
                 <span style={{ width: 46, height: 46, borderRadius: 23, background: h.bg, flex: "none", overflow: "hidden", display: "grid", placeItems: "center" }}>
                   {h.photo && <img src={h.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                 </span>
@@ -272,9 +272,9 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             <Label>Cards de la comunidad</Label>
             <VerifyExploreNotice />
             <div role="tablist" aria-label="Ordenar cards" style={{ marginBottom: 12 }}>
-              <HRow gap={6}>
+              <HRow gap={2} pills>
                 {EXPLORE_TABS.map(t => (
-                  <button key={t.id} type="button" role="tab" className="gf-chip" aria-selected={tab === t.id} onClick={() => { if (t.id !== tab) { setTab(t.id); track("explore_tab", { tab: t.id }); if (t.id === "vivo") track("live_open"); } }}>{t.id === "vivo" && <span className="gf-gem" aria-hidden style={{ width: 7, height: 7 }} />}{t.label}</button>
+                  <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => { if (t.id !== tab) { setTab(t.id); track("explore_tab", { tab: t.id }); if (t.id === "vivo") track("live_open"); } }}>{t.id === "vivo" && <span className="gf-gem" aria-hidden style={{ width: 7, height: 7 }} />}{t.label}</button>
                 ))}
               </HRow>
             </div>
@@ -331,7 +331,7 @@ export function ExploreButton({ open, onToggle, left = 0, right = 0, bottom = 16
       aria-label={anyChanged ? "Explorar (hay favoritos con cambios)" : "Explorar"} className={docked ? "gf-dockbtn" : "gf-glass gf-dockbtn"}
       style={{ ...(inline ? { position: "relative" as const } : { position: "fixed" as const, ...(at ?? { left: center, transform: "translateX(-50%)", bottom }) }), zIndex: 2147480900, height: compact ? 44 : 42, borderRadius: 999,
         display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: iconOnly ? 0 : favs.length ? "0 6px 0 18px" : compact ? "0 16px" : "0 18px", cursor: "pointer",
-        ...(iconOnly ? { width: 44 } : {}), border: "none", color: open ? INK : "var(--gf-ink2)", font: `500 15px ${font}`,
+        ...(iconOnly ? { width: 44 } : {}), border: "none", color: open ? "var(--gf-ink)" : "var(--gf-ink2)", font: `500 15px ${font}`,
         ...(docked && !open ? { background: "transparent", boxShadow: "none" } : {}) }}>
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></svg>
       {!iconOnly && "Explorar"}
@@ -339,7 +339,7 @@ export function ExploreButton({ open, onToggle, left = 0, right = 0, bottom = 16
         <span aria-hidden style={{ display: "flex", marginLeft: 4 }}>
           {favs.map((s, i) => (
             <span key={s.userId} style={{ width: 28, height: 28, borderRadius: 14, marginLeft: i ? -9 : 0, overflow: "hidden", background: s.bg,
-              boxShadow: "0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,.2)" }}>
+              boxShadow: "0 0 0 2px var(--gf-group), 0 1px 3px rgba(0,0,0,.2)" }}>
               {s.photo && <img src={s.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
             </span>
           ))}

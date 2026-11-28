@@ -19,23 +19,23 @@ test("contract: key, attribute, themes, default dark", () => {
   assert.equal(EDITOR_THEME_KEY, "myland.editorTheme");
   assert.equal(EDITOR_THEME_ATTR, "data-editor-theme");
   assert.deepEqual([...EDITOR_THEMES], ["light", "dark", "og", "limeDark", "limeLight"]);
-  assert.equal(DEFAULT_EDITOR_THEME, "dark");
+  assert.equal(DEFAULT_EDITOR_THEME, "limeDark");
 });
 
 test("parse: only light|dark|og; anything else is dark", () => {
   for (const t of EDITOR_THEMES) assert.equal(parseEditorTheme(t), t);
   for (const bad of [null, undefined, "", "Dark", "LIGHT", "sepia", 1, {}, " og"]) {
-    assert.equal(parseEditorTheme(bad), "dark", String(bad));
+    assert.equal(parseEditorTheme(bad), "limeDark", String(bad));
     assert.equal(isEditorTheme(bad), false);
   }
 });
 
 test("read: missing / invalid / absent / throwing storage -> dark", () => {
-  assert.equal(readEditorTheme(memory()), "dark");
-  assert.equal(readEditorTheme(memory({ [EDITOR_THEME_KEY]: "neon" })), "dark");
-  assert.equal(readEditorTheme(null), "dark");
-  assert.equal(readEditorTheme(undefined), "dark"); // node: no window -> default storage is null
-  assert.equal(readEditorTheme(throwing), "dark");
+  assert.equal(readEditorTheme(memory()), "limeDark");
+  assert.equal(readEditorTheme(memory({ [EDITOR_THEME_KEY]: "neon" })), "limeDark");
+  assert.equal(readEditorTheme(null), "limeDark");
+  assert.equal(readEditorTheme(undefined), "limeDark"); // node: no window -> default storage is null
+  assert.equal(readEditorTheme(throwing), "limeDark");
   assert.equal(readEditorTheme(memory({ [EDITOR_THEME_KEY]: "og" })), "og");
   assert.equal(readEditorTheme(memory({ [EDITOR_THEME_KEY]: "light" })), "light");
 });
@@ -56,7 +56,7 @@ test("apply: sets the html attribute (invalid -> dark)", () => {
   applyEditorTheme("og", root);
   assert.equal(attrs[EDITOR_THEME_ATTR], "og");
   applyEditorTheme("bogus" as never, root);
-  assert.equal(attrs[EDITOR_THEME_ATTR], "dark");
+  assert.equal(attrs[EDITOR_THEME_ATTR], "limeDark");
 });
 
 /** Runs the inline boot script against a fake window/document. */
@@ -71,10 +71,10 @@ function boot(storage: unknown): string | undefined {
 test("boot script: applies the stored theme before hydration, dark on any failure", () => {
   assert.equal(boot(memory({ [EDITOR_THEME_KEY]: "light" })), "light");
   assert.equal(boot(memory({ [EDITOR_THEME_KEY]: "og" })), "og");
-  assert.equal(boot(memory({ [EDITOR_THEME_KEY]: "<script>" })), "dark");
-  assert.equal(boot(memory()), "dark");
-  assert.equal(boot(throwing), "dark");
-  assert.equal(boot("absent"), "dark");
+  assert.equal(boot(memory({ [EDITOR_THEME_KEY]: "<script>" })), "limeDark");
+  assert.equal(boot(memory()), "limeDark");
+  assert.equal(boot(throwing), "limeDark");
+  assert.equal(boot("absent"), "limeDark");
   const src = editorThemeBootScript();
   assert.ok(!src.includes("</"), "safe to inline in a <script> tag");
 });

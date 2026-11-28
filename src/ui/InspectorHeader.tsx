@@ -3,6 +3,18 @@ import React from "react";
 import { T, uv } from "./tokens";
 import { IconButton } from "./IconButton";
 import { Icon, type IconName } from "./icons";
+import { useEditorTheme } from "@/lib/useEditorTheme";
+
+/** Claro / oscuro (2026-11-28): flips the editor between Lima claro and Lima
+ * oscuro (the themes with the Grafito touches). */
+export function ThemeSwitch({ size = 36 }: { size?: number }) {
+  const [theme, setTheme] = useEditorTheme();
+  const light = theme === "light" || theme === "og" || theme === "limeLight";
+  return (
+    <IconButton icon={light ? "moon" : "sun"} aria-label={light ? "Modo oscuro" : "Modo claro"} title={light ? "Modo oscuro" : "Modo claro"}
+      size={size} iconSize={16} className="mn-iconbtn--filled" onClick={() => setTheme(light ? "limeDark" : "limeLight")} />
+  );
+}
 
 interface InspectorHeaderProps {
   /** Route in mono ("tarjeta / nombre", "sala · nada seleccionado"). */
@@ -66,6 +78,7 @@ export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose,
             </span>
           )}
         </div>
+        {!searchRow && <ThemeSwitch size={btn} />}
         {onSearch && !searchRow && (
           <IconButton icon="search" aria-label="Buscar ajuste" title="Buscar ajuste   /" size={btn} iconSize={16}
             className="mn-iconbtn--filled" onClick={() => onSearch()} />
