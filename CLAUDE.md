@@ -1002,6 +1002,9 @@ planeado acá hasta confirmarlo.
 >   card ya no se selecciona ni se arrastra como imagen ni abre el menú de mantener apretado (`globals.css`,
 >   `@media (pointer: coarse)` sobre `[data-profile-card]`: la lupa de selección de iOS es una foto ampliada de todas las
 >   capas), y el foco de luz escribe `--spot-x/y` en su propia capa (`[data-spot]`), no en toda la card.
+>   Seguía al arrastrar el dedo; con `?sin=interactions.hoverGlow` andaba perfecto: el culpable es el **brillo al tocar**
+>   (sombra de 48 px con fundido de opacidad → capa propia sobre la card en 3D). En táctil se prende sin fundido
+>   (`[data-hover-glow]` en `globals.css`), así se dibuja con la card.
 >
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)

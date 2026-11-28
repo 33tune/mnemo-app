@@ -351,7 +351,7 @@ export default function CardLayers({
                mouseenter/leave; independent of the static Glow effect above,
                though it reuses the same color when one's configured) ── */}
           {hoverGlowOn && (
-            <div style={{
+            <div data-hover-glow="" style={{
               position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
               boxShadow: `0 0 24px ${glowColor}80, 0 0 48px ${glowColor}40`,
               opacity: "var(--hover-glow, 0)",

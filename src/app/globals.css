@@ -102,3 +102,10 @@ input::placeholder, textarea::placeholder { color: var(--text-ghost); }
     -webkit-user-select: text; user-select: text;
   }
 }
+/* Phones (2026-11-28, @valo): the hover glow's fade made Safari give its big
+   shadow a layer of its own, on top of a 3D-tilted card with holo / dust /
+   aura, and the page reloaded when a finger touched the card. On touch it
+   turns on at once (painted with the card, no extra layer). */
+@media (pointer: coarse) {
+  [data-hover-glow] { transition: none !important; }
+}
