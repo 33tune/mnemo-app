@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { hydratePosts, type PostRow } from "@/server/wallPosts";
 import { wallAuthors, unknownAuthor } from "@/server/wallAuthors";
-import type { FeedItem } from "@/lib/feed";
+import type { FeedItem, SuggestedPost } from "@/lib/feed";
 
 const PAGE = 30;
 
@@ -36,5 +36,17 @@ export async function GET(req: Request) {
       items.push({ ...base, resource: { ownerId: r.owner_id, ownerHandle: who.get(r.owner_id)?.handle ?? "", key: r.rkey, src: r.src, owner: who.get(r.owner_id) } });
     }
   }
-  return NextResponse.json({ items, more: rows.length > PAGE, cursor: page[page.length - 1]?.at ?? null }, { headers: { "Cache-Control": "private, no-store" } });
+  // Sugeridos (2026-11-28): with the first page, a few posts from people I don't
+  // keep in favorites (feed_suggested), sprinkled by the app (lib/feed.ts).
+  let suggested: SuggestedPost[] = [];
+  if (!before) {
+    const { data: sg } = await supabase.rpc("feed_suggested", { p_limit: 8 });
+    const sgRows = (sg ?? []) as { id: string; liked_by_favs: number }[];
+    if (sgRows.length) {
+      const { data: sp } = await supabase.from("comments").select("id, profile_user_id, author_user_id, parent_id, body, style, created_at, pinned").in("id", sgRows.map(r => r.id));
+      const hyd = new Map((await hydratePosts(supabase, (sp ?? []) as PostRow[], true)).map(p => [p.id, p]));
+      suggested = sgRows.flatMap(r => { const post = hyd.get(r.id); return post ? [{ post, likedByFavs: Number(r.liked_by_favs) }] : []; });
+    }
+  }
+  return NextResponse.json({ items, suggested, more: rows.length > PAGE, cursor: page[page.length - 1]?.at ?? null }, { headers: { "Cache-Control": "private, no-store" } });
 }

@@ -63,6 +63,20 @@ test("tabs: nuevas by date, visitadas by views, holo filters", () => {
   assert.deepEqual(rankExplore([old, fresh], { tab: "holo", now, seed: "s" }).map(c => c.userId), ["fresh"]);
 });
 
+test("nuevas: the last day's cards rotate on top; en vivo = who is here, newest moment first", () => {
+  const busy = sig({ editMinutes: 40, edits: 150 });
+  const rich4 = { ...base, status: "a", bio: "b", effects: { bg: { color: "#000" }, gradient: {} } } as unknown as ProfileCardData;
+  const now = Date.parse("2026-11-26T12:00:00Z");
+  const young = Array.from({ length: 10 }, (_, i) => cand(`y${i}`, rich4, { createdAt: new Date(now - (i + 1) * 3600000).toISOString(), signals: busy }));
+  const older = cand("older", rich4, { createdAt: "2026-11-20T00:00:00Z", signals: busy });
+  const orders = new Set(["a", "b", "c", "d"].map(seed => rankExplore([...young, older], { tab: "nuevas", now, seed }).map(c => c.userId).join()));
+  assert.ok(orders.size > 1, "rotates with the seed");
+  for (const seed of ["a", "b"]) assert.equal(rankExplore([...young, older], { tab: "nuevas", now, seed }).at(-1)?.userId, "older");
+  const live = new Map([["y3", now - 1000], ["y7", now - 60000]]);
+  assert.deepEqual(rankExplore([...young, older], { tab: "vivo", now, seed: "a", live }).map(c => c.userId), ["y3", "y7"]);
+  assert.equal(isExploreTab("vivo"), true);
+});
+
 test("helpers", () => {
   assert.equal(hasCollectionFx({ ...base, effects: { glitter: { enabled: false } } } as unknown as ProfileCardData), false);
   assert.equal(hasCollectionFx({ ...base, effects: { strass: {} } } as unknown as ProfileCardData), true);

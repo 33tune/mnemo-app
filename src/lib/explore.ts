@@ -13,18 +13,22 @@
  * likelier to come first, but any good card can; the viewer's own favorites
  * are left out (they already have them in Tus favoritos); "nuevas" is newest
  * first; "visitadas" is most visited in 14 days; "holo" is the cards with
- * collection effects (holo, glare, glitter, strass).
+ * collection effects (holo, glare, glitter, strass); "vivo" (2026-11-28) is who is on
+ * myLand right now. "nuevas" rotates the last day's cards at random on top.
  */
 import type { CanvasState, ProfileCardData } from "@/types";
 
-export type ExploreTab = "para" | "nuevas" | "visitadas" | "holo";
+export type ExploreTab = "para" | "nuevas" | "visitadas" | "vivo" | "holo";
 export const EXPLORE_TABS: { id: ExploreTab; label: string }[] = [
   { id: "para", label: "Para vos" },
   { id: "nuevas", label: "Nuevas" },
   { id: "visitadas", label: "Más visitadas" },
+  { id: "vivo", label: "En vivo" },
   { id: "holo", label: "Con holo" },
 ];
-export const isExploreTab = (v: unknown): v is ExploreTab => v === "para" || v === "nuevas" || v === "visitadas" || v === "holo";
+export const isExploreTab = (v: unknown): v is ExploreTab => v === "para" || v === "nuevas" || v === "visitadas" || v === "vivo" || v === "holo";
+/** Nuevas (2026-11-28): cards younger than this rotate at random on top (a new mix each visit). */
+export const NEW_ROTATE_DAYS = 1;
 
 export interface ExploreSignals {
   views14: number;
@@ -142,6 +146,8 @@ export interface RankOptions {
   excludeUserId?: string | null;
   /** Para vos: cards the viewer already has in favorites (left out). */
   excludeIds?: ReadonlySet<string>;
+  /** En vivo: who is on myLand now (user id → last moment, ms). */
+  live?: ReadonlyMap<string, number>;
 }
 
 /** Para vos: how likely a card is to come up first (1 … ~10). Care counts most;
@@ -163,12 +169,16 @@ export function rankExplore(list: ExploreCandidate[], o: RankOptions): ExploreCa
   const collection = (c: ExploreCandidate) => c.collection ?? (!!c.card && hasCollectionFx(c.card));
   const pool = list.filter(c => c.userId !== o.excludeUserId && finished(c) && careScore(c) >= MIN_CARE)
     .filter(c => o.tab !== "para" || !o.excludeIds?.has(c.userId))
-    .filter(c => o.tab !== "holo" || collection(c));
+    .filter(c => o.tab !== "holo" || collection(c))
+    .filter(c => o.tab !== "vivo" || !!o.live?.has(c.userId));
   const ageDays = (c: ExploreCandidate) => Math.max(0, (o.now - Date.parse(c.createdAt)) / 86400000);
   const score = (c: ExploreCandidate) => {
     const shuffle = hash01(`${o.seed}:${c.userId}`);
     switch (o.tab) {
-      case "nuevas": return -ageDays(c);
+      // Nuevas: the last day's cards rotate at random on top (each visit a new
+      // order, so a card is not buried by the next ones); then newest first.
+      case "nuevas": return ageDays(c) < NEW_ROTATE_DAYS ? 1000 + shuffle : -ageDays(c);
+      case "vivo": return o.live?.get(c.userId) ?? 0;
       case "visitadas": return c.signals.views14 + shuffle * 0.5;
       // Weighted random order (Efraimidis–Spirakis): key = u^(1/w).
       default: return Math.pow(Math.max(1e-9, shuffle), 1 / paraWeight(c, o.now));

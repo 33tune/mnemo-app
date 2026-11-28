@@ -9,6 +9,8 @@ import {
 import { wellHex } from "@/ui/ColorPopover";
 import { useEditorTheme } from "@/lib/useEditorTheme";
 import { getLang, setLang, type Lang } from "@/lib/i18n/lang";
+import { usePresenceSetting } from "@/components/presence/Presence";
+import { useViewerId } from "@/lib/viewer";
 import { EDITOR_THEMES, type EditorTheme } from "@/lib/editorTheme";
 
 /** "Ejemplos en lo vacío": wallpapers made for myLand (public/editor/wallpapers). */
@@ -187,8 +189,23 @@ export default function RoomInspector(p: RoomInspectorProps) {
           <Tabs label="Idioma" active={lang} onChange={id => { const v = id as Lang; setLangState(v); setLang(v); }}
             tabs={[{ id: "es", label: "Español" }, { id: "en", label: "English" }]} />
         </MenuSection>
+
+        {/* Presencia (2026-11-28): "En vivo" / "Activo hace 3 h" in my room and Explorar › En vivo. */}
+        <PresenceSection />
       </div>
       </Accordion>
     </InspectorShell>
+  );
+}
+
+function PresenceSection() {
+  const viewer = useViewerId();
+  const p = usePresenceSetting(viewer);
+  if (!viewer) return null;
+  return (
+    <MenuSection label="Conexión" icon="eye" summary={p.shown ? "Visible" : "Oculta"}>
+      <SwitchRow label="Mostrar cuándo estoy conectado" icon="eye" value={p.shown} onChange={v => p.set(v)} />
+      <MenuNote>Muestra &quot;En vivo&quot; o &quot;Activo hace…&quot; en tu sala y te pone en Explorar › En vivo.</MenuNote>
+    </MenuSection>
   );
 }

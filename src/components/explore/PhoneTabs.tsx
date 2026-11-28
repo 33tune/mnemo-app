@@ -1,34 +1,41 @@
 "use client";
 /**
- * Celular (2026-11-26, pedido del usuario): three tabs at the bottom of your
+ * Celular (2026-11-26, pedido del usuario; Feed since 2026-11-28): tabs at the bottom of your
  * own myLand on a phone — Inicio (your room as visitors see it, with copy link,
  * share and the notices bell), Explorar and Editar (the card editor).
  */
 import React, { useState } from "react";
 
 export const PHONE_TABS_H = 64;
-export type PhoneTab = "inicio" | "explorar" | "editar";
+export type PhoneTab = "inicio" | "explorar" | "feed" | "editar";
 const INK = "#F6F3F8";
 const font = "var(--font-sans, system-ui), -apple-system, 'Segoe UI', sans-serif";
 
 const ICON: Record<PhoneTab, React.ReactNode> = {
   inicio: <path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z" />,
   explorar: <><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" fill="currentColor" /></>,
+  feed: <><rect x="4" y="3.5" width="16" height="7" rx="2.2" /><rect x="4" y="13.5" width="16" height="7" rx="2.2" /></>,
   editar: <path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3" />,
 };
-const LABEL: Record<PhoneTab, string> = { inicio: "Inicio", explorar: "Explorar", editar: "Editar" };
+const LABEL: Record<PhoneTab, string> = { inicio: "Inicio", explorar: "Explorar", feed: "Feed", editar: "Editar" };
 
-export default function PhoneTabs({ tab, onTab }: { tab: PhoneTab; onTab: (t: PhoneTab) => void }) {
+export default function PhoneTabs({ tab, onTab, feedCount = 0 }: { tab: PhoneTab; onTab: (t: PhoneTab) => void; feedCount?: number }) {
   return (
     <nav data-mnemo-ui="" data-export-skip="" aria-label="Secciones"
       style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 2147481100, height: `calc(${PHONE_TABS_H}px + env(safe-area-inset-bottom, 0px))`,
         paddingBottom: "env(safe-area-inset-bottom, 0px)", display: "flex", justifyContent: "space-around", alignItems: "stretch",
         background: "rgba(14,12,18,.92)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", borderTop: "1px solid rgba(255,255,255,.1)" }}>
-      {(["inicio", "explorar", "editar"] as PhoneTab[]).map(t => (
+      {(["inicio", "explorar", "feed", "editar"] as PhoneTab[]).map(t => (
         <button key={t} type="button" onClick={() => onTab(t)} aria-current={tab === t ? "page" : undefined}
           style={{ flex: 1, border: "none", background: "transparent", color: tab === t ? INK : "rgba(246,243,248,.45)", display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center", gap: 3, font: `600 11px ${font}`, cursor: "pointer", padding: 0 }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden>{ICON[t]}</svg>
+          <span style={{ position: "relative", display: "flex" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden>{ICON[t]}</svg>
+            {t === "feed" && feedCount > 0 && tab !== "feed" && (
+              <span aria-hidden style={{ position: "absolute", top: -5, right: -9, minWidth: 17, height: 17, padding: "0 4px", borderRadius: 9, background: "#FF4F94", color: "#fff",
+                font: `700 10px/17px ${font}`, textAlign: "center", boxSizing: "border-box" }}>{feedCount > 9 ? "9+" : feedCount}</span>
+            )}
+          </span>
           {LABEL[t]}
         </button>
       ))}

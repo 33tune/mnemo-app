@@ -56,15 +56,21 @@ export async function GET(req: Request) {
     const { data: favs } = await supabase.from("favorites").select("target_user_id").eq("user_id", user.id).limit(2000);
     mine = new Set((favs ?? []).map(f => f.target_user_id as string));
   }
+  // En vivo (2026-11-28): who is here now — for the tab and the green badge on every card.
+  const live = new Map<string, number>();
+  {
+    const { data: rows } = await supabase.rpc("live_now", { p_limit: 300 });
+    for (const r of (rows ?? []) as { user_id: string; last_seen: string }[]) live.set(r.user_id, Date.parse(r.last_seen));
+  }
   // The viewer's favorites are not suggested again in Para vos (they are in Tus favoritos).
-  const ranked = rankExplore(list, { tab, now: Date.now(), seed: `${seed}:${user?.id ?? "anon"}`, excludeUserId: user?.id ?? null, excludeIds: mine }) as Candidate[];
+  const ranked = rankExplore(list, { tab, now: Date.now(), seed: `${seed}:${user?.id ?? "anon"}`, excludeUserId: user?.id ?? null, excludeIds: mine, live }) as Candidate[];
   const page = ranked.slice(offset, offset + limit);
   const newCut = Date.now() - 7 * 86400000;
   return NextResponse.json({
     items: page.map(c => ({
       userId: c.userId, handle: c.handle, name: c.name, thumb: c.thumb,
-      isNew: Date.parse(c.createdAt) > newCut, favorite: mine.has(c.userId),
+      isNew: Date.parse(c.createdAt) > newCut, favorite: mine.has(c.userId), live: live.has(c.userId),
     })),
     more: offset + limit < ranked.length,
-  }, { headers: { "Cache-Control": "private, max-age=30" } });
+  }, { headers: { "Cache-Control": tab === "vivo" ? "private, no-store" : "private, max-age=30" } });
 }

@@ -8,7 +8,6 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ExploreThumb, { type ExploreItem } from "./ExploreThumb";
-import ExploreFeed from "./ExploreFeed";
 import HRow from "./HRow";
 import { VerifyExploreNotice } from "@/components/verify/Verify";
 import { isVerifyError, requestVerify } from "@/lib/verify";
@@ -72,7 +71,8 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const [mem] = useState(() => loadExplore<ExploreItem>());
   const [tab, setTab] = useState<ExploreTab>(() => (mem && EXPLORE_TABS.some(t => t.id === mem.tab) ? mem.tab as ExploreTab : "para"));
   // Feed (2026-11-28): Explorar has two sections, the cards and the Feed.
-  const [section, setSection] = useState<"cards" | "feed">(mem?.section ?? "cards");
+  // (The Feed has its own panel since 2026-11-28; Explorar = the cards.)
+  const section = "cards" as const;
   const [items, setItems] = useState<ExploreItem[] | null>(mem?.items ?? null);
   const [more, setMore] = useState(mem?.more ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -226,15 +226,6 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: INK, font: `500 16px ${font}` }} />
           {q && <button type="button" onClick={() => setQ("")} aria-label="Borrar búsqueda" style={{ border: "none", background: "transparent", color: "rgba(246,243,248,.6)", cursor: "pointer", font: `600 13px ${font}` }}>Borrar</button>}
         </label>
-        {!query && (
-          <div role="tablist" aria-label="Sección de Explorar" style={{ display: "flex", gap: 4, padding: 4, marginTop: 12, borderRadius: 14, background: "rgba(255,255,255,.06)" }}>
-            {([["cards", "Cards"], ["feed", "Feed"]] as const).map(([id, label]) => (
-              <button key={id} type="button" role="tab" aria-selected={section === id} onClick={() => { setSection(id); track("explore_tab", { tab: id }); }}
-                style={{ flex: 1, height: 36, borderRadius: 11, border: "none", cursor: "pointer", font: `700 13.5px ${font}`,
-                  background: section === id ? INK : "transparent", color: section === id ? "#141118" : "rgba(246,243,248,.7)" }}>{label}</button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: dock ? "0 18px 18px" : "0 16px 24px", WebkitOverflowScrolling: "touch" }}>
@@ -254,8 +245,6 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
               </a>
             ))}
           </div>
-        ) : section === "feed" ? (
-          <ExploreFeed />
         ) : (
           <>
             {viewer && sc.list && (
@@ -292,7 +281,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             <div role="tablist" aria-label="Ordenar cards" style={{ marginBottom: 12 }}>
               <HRow gap={6}>
                 {EXPLORE_TABS.map(t => (
-                  <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => { if (t.id !== tab) { setTab(t.id); track("explore_tab", { tab: t.id }); } }} style={chip(tab === t.id)}>{t.label}</button>
+                  <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => { if (t.id !== tab) { setTab(t.id); track("explore_tab", { tab: t.id }); if (t.id === "vivo") track("live_open"); } }} style={chip(tab === t.id)}>{t.label}</button>
                 ))}
               </HRow>
             </div>
@@ -303,7 +292,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             ) : items.length === 0 && failed ? (
               <button type="button" onClick={() => { setItems(null); load(tab, 0); }} style={{ ...chip(false), width: "100%", height: 44, justifyContent: "center" }}>No se pudieron cargar. Reintentar</button>
             ) : items.length === 0 ? (
-              <p style={{ color: "rgba(246,243,248,.6)" }}>Todavía no hay cards acá.</p>
+              <p style={{ color: "rgba(246,243,248,.6)" }}>{tab === "vivo" ? "Nadie en vivo ahora. Volvé en un rato." : "Todavía no hay cards acá."}</p>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: dock ? "repeat(3, 1fr)" : "1fr 1fr", gap: 10 }}>
                 {items.map((it, i) => <ExploreThumb key={it.userId} item={it} canFavorite={!!viewer} onFavorite={toggleFavorite} onOpen={() => { track("explore_card", { tab, pos: i }); leaving(); }} />)}
@@ -328,10 +317,14 @@ function chip(on: boolean): React.CSSProperties {
 }
 
 /** The button that opens Explorar: replaces the favorites bar (computer). */
-export function ExploreButton({ open, onToggle, left = 0, right = 0, bottom = 16, at, compact = false }: {
+export function ExploreButton({ open, onToggle, left = 0, right = 0, bottom = 16, at, compact = false, inline = false, iconOnly = false }: {
   open: boolean; onToggle: () => void; left?: number; right?: number; bottom?: number | string;
   /** Explicit position (a phone: next to the other buttons) instead of centered. */
   at?: React.CSSProperties; compact?: boolean;
+  /** Inside a row (BottomDock, next to the Feed button): no position of its own. */
+  inline?: boolean;
+  /** A round icon button (phone profile, next to Feed, heart and Compartir). */
+  iconOnly?: boolean;
 }) {
   const viewer = useViewerId();
   const sc = useShortcuts(!!viewer);
@@ -346,13 +339,14 @@ export function ExploreButton({ open, onToggle, left = 0, right = 0, bottom = 16
   return (
     <button type="button" data-mnemo-ui="" data-export-skip="" onClick={onToggle} aria-expanded={open} aria-controls={open ? EXPLORE_PANEL_ID : undefined}
       aria-label={anyChanged ? "Explorar (hay favoritos con cambios)" : "Explorar"}
-      style={{ position: "fixed", ...(at ?? { left: center, transform: "translateX(-50%)", bottom }), zIndex: 2147480900, height: compact ? 44 : 50, borderRadius: 999,
-        display: "flex", alignItems: "center", gap: 10, padding: favs.length ? "0 8px 0 18px" : compact ? "0 16px" : "0 20px", cursor: "pointer",
+      style={{ ...(inline ? { position: "relative" as const } : { position: "fixed" as const, ...(at ?? { left: center, transform: "translateX(-50%)", bottom }) }), zIndex: 2147480900, height: compact ? 44 : 50, borderRadius: 999,
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: iconOnly ? 0 : favs.length ? "0 8px 0 18px" : compact ? "0 16px" : "0 20px", cursor: "pointer",
+        ...(iconOnly ? { width: 44 } : {}),
         background: open ? "rgba(246,243,248,.95)" : "rgba(14,12,18,.86)", color: open ? "#141118" : INK,
         border: "1px solid rgba(255,255,255,.12)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)",
         boxShadow: "0 12px 34px rgba(0,0,0,.35)", font: `700 ${compact ? 14 : 15}px ${font}` }}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" fill="currentColor" /></svg>
-      Explorar
+      {!iconOnly && "Explorar"}
       {favs.length > 0 && (
         <span aria-hidden style={{ display: "flex", marginLeft: 4 }}>
           {favs.map((s, i) => (

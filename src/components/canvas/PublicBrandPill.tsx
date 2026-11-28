@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { VerifiedMark } from "@/components/verify/Verify";
 import { EDITOR_UI_ATTR } from "@/lib/editorGuards";
 import { T } from "@/ui";
+import { PresenceLabel } from "@/components/presence/Presence";
 
 export default function PublicBrandPill({ handle, ownerId }: { handle?: string; ownerId?: string }) {
   const router = useRouter();
@@ -43,6 +44,8 @@ export default function PublicBrandPill({ handle, ownerId }: { handle?: string; 
       <img src="/logo.png" alt="" width={34} height={34} draggable={false} className="mn-capsule__logo" />
       <span className="mn-capsule__name">myLand</span>
       {handle && <span className="mn-capsule__path" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>@{handle}{verified && <span title="Cuenta verificada" aria-label="Cuenta verificada" style={{ display: "inline-flex" }}><VerifiedMark size={15} /></span>}</span>}
+      {/* Presencia (2026-11-28): En vivo / Activo hace… */}
+      {ownerId && <span style={{ marginLeft: 6, marginRight: 4 }}><PresenceLabel userId={ownerId} /></span>}
     </div>
     </div>
   );

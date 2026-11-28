@@ -36,6 +36,7 @@ import EditorTour, { TOUR_KEY, type TourStep } from "./EditorTour";
 import NewsDialog, { NEWS_KEY } from "./NewsDialog";
 import PhoneEditorBar from "./PhoneEditorBar";
 import PublicBrandPill from "./PublicBrandPill";
+import { PresencePill } from "@/components/presence/Presence";
 import { EditorBeta } from "@/components/beta/BetaBits";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { mobileView, cardViewRect, phoneScreenRect, onPhoneScreen, type MobileFit } from "@/lib/mobileFit";
@@ -79,6 +80,8 @@ import { wallShown } from "@/lib/wall";
 import { cardIsLight } from "@/lib/cardColors";
 import { SHORTCUTS_BAR_H } from "./ShortcutsBar";
 import ExplorePanel, { ExploreButton, EXPLORE_DOCK_W } from "@/components/explore/ExplorePanel";
+import FeedPanel, { FeedButton, FEED_DOCK_W } from "@/components/feed/FeedPanel";
+import { useFeedBadge } from "@/components/feed/feedBadge";
 import PhoneTabs, { PhoneHome, PHONE_TABS_H, type PhoneTab } from "@/components/explore/PhoneTabs";
 import { isFinished as cardIsFinished, publicCardOf } from "@/lib/explore";
 import { publishExploreThumb } from "@/lib/export/exploreThumb";
@@ -734,6 +737,11 @@ export default function CanvasBoard({
   useEffect(() => { if (phoneEdit) crumb(phoneSheetOpen ? "sheet:open" : "sheet:closed"); }, [phoneEdit, phoneSheetOpen]);
   // Explorar (2026-11-26): the panel that replaced the favorites bar.
   const [exploreOpen, setExploreOpen] = useState(false);
+  // Feed (2026-11-28): its own panel next to Explorar (only one open at a time).
+  const [feedOpen, setFeedOpen] = useState(false);
+  const feedCount = useFeedBadge(!!currentUserId && !feedOpen);
+  const toggleExplore = useCallback(() => { setFeedOpen(false); setExploreOpen(o => !o); }, []);
+  const toggleFeed = useCallback(() => { setExploreOpen(false); setFeedOpen(o => !o); }, []);
   // The notch / status bar (env(safe-area-inset-top)): the top bar grows by it.
   const [safeTop, setSafeTop] = useState(0);
   useEffect(() => {
@@ -886,12 +894,16 @@ export default function CanvasBoard({
   const handleEditActivate = useCallback((cardId: string) => {
     if (inspectorCardIdRef.current !== cardId) {
       setInspectorCollapseReq(false);
+      // The gear is on the card even when it is not selected: select it first
+      // (the menu only opens for the selection).
+      setSelectedIds(new Set([cardId]));
       openProfile(cardId);
       return;
     }
     if (inspectorCollapsedRef.current) { expandInspectorRef.current(); return; }
-    document.getElementById(INSPECTOR_TITLE_ID)?.focus({ preventScroll: true });
-  }, [openProfile]);
+    // Engranaje (2026-11-28, pedido del usuario): the card's gear opens AND closes its menu.
+    closeInspector();
+  }, [openProfile, closeInspector]);
   // Phase G: "Editar" of a free text / image / Music — same contract as the
   // card's (opens; already open → expands / focuses the h2; never closes).
   const handleElementEdit = useCallback((kind: ElementTargetKind, id: string) => {
@@ -1377,7 +1389,8 @@ export default function CanvasBoard({
   // Explorar over the whole phone screen: the room behind sleeps (hidden +
   // effects paused), so the phone only draws the grid — the same reason the
   // card sleeps behind the Muro (iPhones reload the page when out of memory).
-  const phoneExploreShown = (phoneEdit && phoneTab === "explorar") || (!canEdit && !!mobileFit && exploreOpen);
+  // (Feed too, 2026-11-28: a full screen over the room.)
+  const phoneExploreShown = (phoneEdit && (phoneTab === "explorar" || phoneTab === "feed")) || (!canEdit && !!mobileFit && (exploreOpen || feedOpen));
   useEffect(() => {
     const el = canvasWrapperRef.current;
     if (!el || !phoneExploreShown) return;
@@ -4027,6 +4040,7 @@ export default function CanvasBoard({
       </div>
       {/* Perfil público en compu: la pastilla (volver, logo, myLand, @usuario), sin la barra vieja. */}
       {!canEdit && !mobileFit && <PublicBrandPill handle={userHandle} ownerId={ownerUserId} />}
+      {!canEdit && mobileFit && !exploreOpen && !feedOpen && <PresencePill userId={ownerUserId} />}
       {phoneEdit && phoneTab === "inicio" && !shareOpen && !wallOpen && !isLoading && (
         <PhoneHome handle={(userHandle || "").replace(/^@/, "")} onShare={visProfiles.length ? openShare : undefined}
           onNotices={() => openWall("news")} unread={unreadActivity} />
@@ -4035,8 +4049,9 @@ export default function CanvasBoard({
         <VerifyPill compact style={{ top: "calc(env(safe-area-inset-top, 0px) + 18px)", left: 14, zIndex: 2147481100 }} />
       )}
       {phoneEdit && phoneTab === "explorar" && <ExplorePanel mode="screen" bottom={PHONE_TABS_H} />}
+      {phoneEdit && phoneTab === "feed" && <FeedPanel mode="screen" bottom={PHONE_TABS_H} />}
       {phoneEdit && phoneTab !== "editar" && !shareOpen && !isLoading && !wallOpen && (
-        <PhoneTabs tab={phoneTab} onTab={t => { setPhoneZoom(null); if (t !== "editar") setWallOpen(false); goPhoneTab(t); }} />
+        <PhoneTabs tab={phoneTab} feedCount={feedCount} onTab={t => { setPhoneZoom(null); if (t !== "editar") setWallOpen(false); goPhoneTab(t); }} />
       )}
       {phoneEdit && <input ref={phonePhotoInputRef} type="file" accept="image/*" hidden onChange={onPhonePhotoPicked} />}
       {phoneEdit && phoneTab === "editar" && !phoneSheetOpen && !isLoading && !shareOpen && !wallOpen && !readyOpen && visProfiles[0] && (
@@ -4786,20 +4801,40 @@ export default function CanvasBoard({
       {/* Acceso directo (2026-11-06): the bar of profiles I gave a favorite —
           in the editor (beside the rail, clear of the dock) and on other
           people's profiles while signed in (computer). */}
-      {railShown && !tourStep && (
-        <ExploreButton open={exploreOpen} left={0} right={exploreOpen ? EXPLORE_DOCK_W + 14 : inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
-          onToggle={() => setExploreOpen(o => { if (!o) { closeInspector(); setMenuOpen(false); } return !o; })} />
-      )}
+      {/* Explorar + Feed (2026-11-28): two buttons side by side, centered in what the dock leaves free. */}
+      {railShown && !tourStep && (() => {
+        const right = exploreOpen ? EXPLORE_DOCK_W + 14 : feedOpen ? FEED_DOCK_W + 14 : inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0;
+        return (
+          <div data-export-skip="" style={{ position: "fixed", bottom: 16, left: `calc((100vw - ${right}px) / 2)`, transform: "translateX(-50%)", zIndex: 2147480900, display: "flex", gap: 10 }}>
+            <ExploreButton inline open={exploreOpen} onToggle={() => { if (!exploreOpen) { closeInspector(); setMenuOpen(false); } toggleExplore(); }} />
+            <FeedButton open={feedOpen} count={feedCount} onToggle={() => { if (!feedOpen) { closeInspector(); setMenuOpen(false); } toggleFeed(); }} />
+          </div>
+        );
+      })()}
       {railShown && !tourStep && exploreOpen && (
         <ExplorePanel mode="dock" top={sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin} onClose={() => setExploreOpen(false)} />
       )}
+      {railShown && !tourStep && feedOpen && (
+        <FeedPanel mode="dock" newTab top={sheetMode ? UIT.ui.size.editorTopbarH + UIT.ui.size.dockMargin : UIT.ui.size.dockMargin} onClose={() => setFeedOpen(false)} />
+      )}
       {!canEdit && !shareOpen && !wallOpen && visProfiles.length > 0 && (
-        mobileFit
-          ? <ExploreButton compact open={exploreOpen} onToggle={() => setExploreOpen(o => !o)}
-              at={{ left: 70, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }} />
-          : <ExploreButton open={exploreOpen} left={0} right={exploreOpen ? EXPLORE_DOCK_W + 14 : 0} onToggle={() => setExploreOpen(o => !o)} />
+        mobileFit ? (
+          <div data-export-skip="" style={{ position: "fixed", left: 70, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", zIndex: 2147480900, display: "flex", gap: 8 }}>
+            <ExploreButton inline compact iconOnly={!!currentUserId} open={exploreOpen} onToggle={toggleExplore} />
+            {!!currentUserId && <FeedButton compact open={feedOpen} count={feedCount} onToggle={toggleFeed} />}
+          </div>
+        ) : (() => {
+          const right = exploreOpen ? EXPLORE_DOCK_W + 14 : feedOpen ? FEED_DOCK_W + 14 : 0;
+          return (
+            <div data-export-skip="" style={{ position: "fixed", bottom: 16, left: `calc((100vw - ${right}px) / 2)`, transform: "translateX(-50%)", zIndex: 2147480900, display: "flex", gap: 10 }}>
+              <ExploreButton inline open={exploreOpen} onToggle={toggleExplore} />
+              {!!currentUserId && <FeedButton open={feedOpen} count={feedCount} onToggle={toggleFeed} />}
+            </div>
+          );
+        })()
       )}
       {!canEdit && exploreOpen && (mobileFit ? <ExplorePanel mode="screen" onClose={() => setExploreOpen(false)} /> : <ExplorePanel mode="dock" onClose={() => setExploreOpen(false)} />)}
+      {!canEdit && feedOpen && (mobileFit ? <FeedPanel mode="screen" onClose={() => setFeedOpen(false)} /> : <FeedPanel mode="dock" onClose={() => setFeedOpen(false)} />)}
       {/* Muro (2026-11-25): tu card en miniatura (bottom-left, everywhere) → tu celular. */}
       {!shareOpen && !tourStep && !phoneEdit && (
         canEdit

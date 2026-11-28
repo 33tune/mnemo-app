@@ -929,6 +929,27 @@ planeado acá hasta confirmarlo.
 >     nuevos, después del tutorial; en el celular también con la card sin terminar); "Ver mis fragmentos" da vuelta tu card.
 >   - Cuentas de prueba `qarec_a` / `qarec_b` (qa-recursos-*@myland.lol) creadas para la QA: BORRARLAS con el OK del usuario.
 >
+> **Feed propio, En vivo, presencia y engranaje (2026-11-28, pedido del usuario; en la rama `claude/adoring-edison-j7pzhk`,
+>   NO en `main` hasta su QA) — REEMPLAZA del bloque Recursos "Feed vive en Explorar":**
+>   - **Feed** (`src/components/feed/FeedPanel.tsx`): botón propio al lado de Explorar (compu: dock de 560 px; celular:
+>     pestaña Inicio · Explorar · **Feed** · Editar, y botones redondos en el perfil público). Arriba "¿Qué estás pensando?"
+>     publica en TU muro; tirar para actualizar (dedo, o seguir girando la rueda arriba de todo) + botón; número de novedades
+>     (`feedBadge.ts`, `feed_count_since`, visto en `localStorage` `ml_feed_seen`). Reposts de imágenes de una persona con
+>     < 30 min entre sí = UN bloque ("@x reposteó 7 cosas", `groupFeed` en `src/lib/feed.ts`, con test); sugeridos de gente
+>     que no tenés en favoritos cada 6 (`feed_suggested`: likes + respuestas + reposts + likes de tus favoritos, 7 días;
+>     `withSuggested`). Comentar ahí mismo (`PostThread.tsx`): nunca manda al perfil; también en los reposts del muro.
+>   - **Explorar › En vivo** (`ExploreTab` "vivo"): las cards de quien está conectado (últimos 3 min, `live_now`), con
+>     etiqueta EN VIVO en todas las pestañas. **Nuevas**: las cards de las últimas 24 h rotan al azar arriba en cada visita
+>     (`NEW_ROTATE_DAYS`), después por fecha.
+>   - **Presencia** (`user_presence`, escrita por `ping()`; `last_seen_of`; `src/lib/presence.ts` con test): "En vivo" /
+>     "Activo hace 5 min / 3 h / 2 días / más de una semana" en la pastilla del perfil (compu) y arriba en el celular.
+>     Tu sala › Conexión › "Mostrar cuándo estoy conectado" (`profiles.presence_hidden`, `set_presence_hidden`).
+>   - **Engranaje** en la card del editor de compu (siempre visible, reemplaza el lápiz "Editar"): abre Y cierra el menú.
+>   - **Admin › Comunidad** (`AdminCommunity.tsx`, `admin_community_stats`): reposts, descargas, recursos abiertos, Feed,
+>     publicado desde el Feed, En vivo, por día (14), recursos más reposteados y quiénes más repostean. Eventos nuevos:
+>     `feed_post`, `feed_refresh`, `feed_reply`, `live_open`.
+>   - Base: `supabase/migrations/20261128030000_feed_live_presence.sql` (APLICADA). `ExploreFeed.tsx` se borró.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

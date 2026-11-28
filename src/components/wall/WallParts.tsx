@@ -18,6 +18,7 @@ import {
 } from "@/lib/wall";
 import { usePostStyle, postKey, type WallState } from "@/hooks/useWall";
 import { PostText, FX_LABEL, useCss as usePostCss } from "./PostText";
+import { PostThread } from "./PostThread";
 
 export const UI_FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
@@ -408,10 +409,14 @@ export function WallBody({ w, ink, accent, wallBg, ownerHandle, newTab, loginHre
               repostedBy={post.repost ? ownerHandle : undefined}
               onRepost={w.viewer && post.wallOwner !== w.viewer ? () => w.repost(post.id) : undefined}
               onLike={() => w.like(post.id)}
-              threadOpen={!post.repost && thread === post.id} onThread={post.repost ? undefined : () => toggleThread(post)}
-              onReply={post.repost && post.wallHandle ? () => { const u = `/${post.wallHandle}?muro=1`; if (newTab) window.open(u, "_blank"); else location.href = u; } : undefined}
+              threadOpen={thread === postKey(post)}
+              onThread={post.repost ? () => setThread(t => (t === postKey(post) ? null : postKey(post))) : () => toggleThread(post)}
               onDelete={() => w.remove(post.id)} onReport={() => w.report(post.id)} onBlock={() => w.block(post.author.id)}
               onPin={post.repost ? undefined : () => w.pin(post.id, !post.pinned)} />
+            {/* A repost answers on the post's own wall, right here (PostThread). */}
+            {post.repost && thread === postKey(post) && (
+              <PostThread post={post} viewer={w.viewer} ink={ink} accent={accent} wallBg={wallBg} newTab={newTab} />
+            )}
             {thread === post.id && !post.repost && (
               <div style={{ marginLeft: 38, paddingLeft: 10, borderLeft: `2px solid ${hexAlpha(ink, 0.14)}` }}>
                 {(w.replies[post.id] ?? []).map(r => (

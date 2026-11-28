@@ -1381,11 +1381,14 @@ function ProfileCard({
             focus on <body>, so Esc + Backspace deleted the card). Placed by
             resolveOpenerSpot: clear of the nw handle's 24px target and
             of the fixed topbar. Focus returns here when the panel closes. */}
-        {isSel && canInteract && (
+        {/* Engranaje (2026-11-28, pedido del usuario): always on the card in the
+            computer editor (not only when selected), and it opens AND closes
+            the card's menu. */}
+        {canInteract && (
           <CanvasChromeButton
             id={profileEditButtonId(card.id)}
-            icon="pencil"
-            label="Editar card de presentación"
+            icon="gear"
+            label={menuOpen ? "Cerrar el menú de la card" : "Abrir el menú de la card"}
             expanded={menuOpen}
             controls={panelId}
             style={{ top: openerPos.top, left: openerPos.left }}

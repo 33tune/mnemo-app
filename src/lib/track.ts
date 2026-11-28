@@ -16,7 +16,8 @@ export type TrackEvent =
   | "note_post" | "favorite_add" | "favorite_remove" | "share_open" | "share_save" | "share_copy_link"
   | "search" | "profile_view" | "bug_report" | "crash"
   | "arrive" | "explore_open" | "explore_tab" | "explore_card" | "wall_flip" | "wall_post" | "wall_like"
-  | "repost" | "resource_open" | "resource_download" | "resource_like" | "resource_comment" | "feed_open";
+  | "repost" | "resource_open" | "resource_download" | "resource_like" | "resource_comment" | "feed_open"
+  | "feed_post" | "feed_refresh" | "feed_reply" | "live_open";
 
 function send(name: string, props?: Record<string, unknown>) {
   try {

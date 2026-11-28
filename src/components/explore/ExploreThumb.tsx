@@ -10,7 +10,7 @@
 import React from "react";
 import { HeartIcon } from "@/components/canvas/StatsRow";
 
-export interface ExploreItem { userId: string; handle: string; name: string; isNew: boolean; favorite: boolean; thumb: string }
+export interface ExploreItem { userId: string; handle: string; name: string; isNew: boolean; favorite: boolean; thumb: string; live?: boolean }
 
 /** Picture size (explore thumbnail, 4:5). */
 export const EXPLORE_THUMB_W = 480;
@@ -32,7 +32,12 @@ export default function ExploreThumb({ item, onFavorite, canFavorite, onOpen }: 
         font: "700 12px var(--font-sans, system-ui), sans-serif", background: "rgba(0,0,0,.6)", padding: "4px 9px", borderRadius: 99 }}>
         @{item.handle}
       </span>
-      {item.isNew && (
+      {item.live ? (
+        <span style={{ position: "absolute", right: 8, top: 8, display: "flex", alignItems: "center", gap: 5, font: "800 10.5px var(--font-sans, system-ui), sans-serif", letterSpacing: ".04em",
+          background: "rgba(0,0,0,.62)", color: "#5fe39a", padding: "4px 8px", borderRadius: 99 }}>
+          <span aria-hidden style={{ width: 7, height: 7, borderRadius: 4, background: "#34d27b", boxShadow: "0 0 0 3px rgba(52,210,123,.25)" }} />EN VIVO
+        </span>
+      ) : item.isNew && (
         <span style={{ position: "absolute", right: 8, top: 8, font: "700 11px var(--font-sans, system-ui), sans-serif", background: "rgba(0,0,0,.6)", padding: "3px 8px", borderRadius: 99 }}>Nueva</span>
       )}
       {canFavorite && (
