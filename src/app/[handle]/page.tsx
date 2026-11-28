@@ -135,7 +135,12 @@ function phoneDebug(s: CanvasState, sp: Record<string, string | string[] | undef
   if (sin.length) {
     s = { ...s, profiles: (s.profiles ?? []).map(p => {
       const fx = { ...(p.effects ?? {}) } as Record<string, unknown>;
-      for (const k of sin) delete fx[k];
+      for (const k of sin) {
+        const [a, b] = k.split(".");
+        if (!b) { delete fx[a]; continue; }
+        const g = fx[a];
+        if (g && typeof g === "object") { const c = { ...(g as Record<string, unknown>) }; delete c[b]; fx[a] = c; }
+      }
       return { ...p, effects: fx };
     }) } as CanvasState;
   }

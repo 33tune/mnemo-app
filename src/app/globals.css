@@ -86,3 +86,19 @@ input::placeholder, textarea::placeholder { color: var(--text-ghost); }
 .mnemo-empty-slot { animation: mnemo-empty-breathe 2.2s ease-in-out infinite; }
 @keyframes mnemo-empty-breathe { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .mnemo-empty-slot { animation: none; } }
+
+/* Phones (2026-11-28, @valo): holding a finger on the card and dragging made
+   iOS start a text selection (with its magnifier — a zoomed snapshot of all
+   the card's layers) or a native image drag, and Safari reloaded the page.
+   On touch screens the card is never selectable / draggable; its links and
+   buttons still work. */
+@media (pointer: coarse) {
+  [data-profile-card], [data-profile-card] * {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  [data-profile-card] img { -webkit-user-drag: none; }
+  [data-profile-card] input, [data-profile-card] textarea, [data-profile-card] [contenteditable="true"] {
+    -webkit-user-select: text; user-select: text;
+  }
+}

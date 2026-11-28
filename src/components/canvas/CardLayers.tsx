@@ -340,7 +340,7 @@ export default function CardLayers({
 
           {/* ── Layer 2: Spotlight (follows cursor via CSS vars on parent) ── */}
           {spotOn && (
-            <div style={{
+            <div data-spot="" style={{
               position: "absolute", inset: 0, borderRadius: rad, pointerEvents: "none",
               background: `radial-gradient(circle at var(--spot-x,50%) var(--spot-y,30%),${spotlightColor} 0%,transparent ${spotlightSize}%)`,
             }} />

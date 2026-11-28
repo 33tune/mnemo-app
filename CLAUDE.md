@@ -998,6 +998,10 @@ planeado acá hasta confirmarlo.
 >   aspecto: el polvo titila en la misma capa que se mueve (6 → 3 capas; en táctil 2, con las mismas partículas,
 >   `dustLayers(..., lite)`), el aura sin máscara cuando el fondo de la card es opaco (`cardBgOpaque`), y las bandas del
 >   holo con el margen justo de su deslizamiento en cada eje (`band` en `cardFoil.ts`). Estimado en @valo: 88 → 60 MB de capas.
+>   Después cargó, pero se reiniciaba al mantener el dedo y arrastrar sobre la card (el giroscopio andaba): en táctil la
+>   card ya no se selecciona ni se arrastra como imagen ni abre el menú de mantener apretado (`globals.css`,
+>   `@media (pointer: coarse)` sobre `[data-profile-card]`: la lupa de selección de iOS es una foto ampliada de todas las
+>   capas), y el foco de luz escribe `--spot-x/y` en su propia capa (`[data-spot]`), no en toda la card.
 >
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)

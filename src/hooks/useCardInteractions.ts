@@ -203,8 +203,11 @@ export function useCardInteractions(
       startLerpLoop();
     }
     if (spotlightOn) {
-      el.style.setProperty("--spot-x", `${nx * 100}%`);
-      el.style.setProperty("--spot-y", `${ny * 100}%`);
+      // On the spotlight's own layer (2026-11-28): on the card, every move of
+      // a finger restyled every element inside it.
+      const spot = spotLayer(el);
+      spot.style.setProperty("--spot-x", `${nx * 100}%`);
+      spot.style.setProperty("--spot-y", `${ny * 100}%`);
     }
   }, [tiltOn, spotlightOn, lightOn, maxTilt, cardRef, startLerpLoop]);
 
@@ -237,8 +240,9 @@ export function useCardInteractions(
     startLerpLoop();
     setLightHeld(el, "0");
 
-    el.style.setProperty("--spot-x", "-200%");
-    el.style.setProperty("--spot-y", "-200%");
+    const spot = spotLayer(el);
+    spot.style.setProperty("--spot-x", "-200%");
+    spot.style.setProperty("--spot-y", "-200%");
     el.style.setProperty("--hover-glow", "0");
     el.style.setProperty("--hover-scale", "1");
   }, [cardRef, startLerpLoop]);
@@ -385,6 +389,8 @@ export function useGyroTilt(
 function useEffectOnce(enabled: boolean, run: () => void | (() => void)) {
   useEffect(() => (enabled ? run() : undefined), [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 }
+
+const spotLayer = (card: HTMLElement) => card.querySelector<HTMLElement>("[data-spot]") ?? card;
 
 /** --la (the light is "held": brighter foil / glare) goes only on the
  * layers that read it; it changes on enter / leave, never per frame. */
