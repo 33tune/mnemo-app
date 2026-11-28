@@ -41,10 +41,12 @@ export async function generateMetadata(
 }
 
 export default async function PublicPage({
-  params,
+  params, searchParams,
 }: {
   params: Promise<{ handle: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const sp = await searchParams;
   const { handle } = await params;
 
   if (RESERVED.has(handle)) notFound();
@@ -104,7 +106,7 @@ export default async function PublicPage({
       canEdit={false}
       viewerLoggedIn={!isMobileUA && !!viewer && viewer.id !== profile.user_id}
       userHandle={profile.handle}
-      initialState={fit ? phonePictures(fit.state, process.env.NEXT_PUBLIC_SUPABASE_URL || "") : state}
+      initialState={fit ? phoneDebug(phonePictures(fit.state, process.env.NEXT_PUBLIC_SUPABASE_URL || ""), sp) : state}
       ownerUserId={profile.user_id}
       mobileFit={fit ?? undefined}
     />
@@ -120,4 +122,27 @@ function withLists(s: CanvasState): CanvasState {
     socialCards: s.socialCards ?? [], musicCards: s.musicCards ?? [], linksCards: s.linksCards ?? [],
     statsCards: s.statsCards ?? [],
   };
+}
+
+/**
+ * TEMPORARY (2026-11-28): switches to find what reloads Safari on a phone
+ * profile (@valo). ?dbg=fx (no effects), st (no stickers), img (no pictures at
+ * all), wall (no wall button). Combinable: ?dbg=fx,st. Remove once found.
+ */
+function phoneDebug(s: CanvasState, sp: Record<string, string | string[] | undefined>): CanvasState {
+  const d = String(sp.dbg ?? "").split(",");
+  if (!d[0]) return s;
+  return {
+    ...s,
+    wallpaper: d.includes("img") ? "" : s.wallpaper,
+    images: d.includes("img") ? [] : s.images,
+    profiles: (s.profiles ?? []).map(p => ({
+      ...p,
+      effects: d.includes("fx") ? { bg: p.effects?.bg ? { ...p.effects.bg, image: d.includes("img") ? undefined : p.effects.bg.image } : undefined } : (d.includes("img") && p.effects?.bg ? { ...p.effects, bg: { ...p.effects.bg, image: undefined } } : p.effects),
+      stickers: d.includes("st") || d.includes("img") ? [] : p.stickers,
+      logo: d.includes("img") ? undefined : p.logo,
+      photo: d.includes("img") ? "" : p.photo,
+      commentsBox: d.includes("wall") ? { ...p.commentsBox, hidden: true } : p.commentsBox,
+    })),
+  } as CanvasState;
 }
