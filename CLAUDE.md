@@ -953,7 +953,7 @@ planeado acá hasta confirmarlo.
 > **Diseño "Grafito" (2026-11-28, aprobado por el usuario con capturas; en la rama `claude/adoring-edison-j7pzhk`, NO en `main`
 >   hasta su OK):** Mac OS X viejo (Aqua grafito) + iOS 6, modernizado, para lo social: `src/styles/grafito.css` (clases `gf-*`,
 >   importado en `layout.tsx`; Inter por next/font como `--font-gf`). Ventanas SÓLIDAS gris claro con rayitas y barra metálica
->   (tres luces, la primera lima): Feed, Explorar y el visor de fragmentos; título grande en Inter 300; grupos blancos. Vidrio
+>   (sin las tres luces, el usuario las sacó): Feed, Explorar y el visor de fragmentos; título grande en Inter 300; grupos blancos. Vidrio
 >   claro SOLO en lo que flota (barra Explorar · Feed, botones redondos del celular, Copiar link / Compartir, presencia).
 >   Lima `#C6F432` con brillo de gel = lo activo / principal / nuevo (chips, segmentos, Repostear, Enviar, números, gema "en
 >   vivo"); grises para el resto; rosa SOLO en el corazón dado. Celular: barra de pestañas grafito brillante con la activa en

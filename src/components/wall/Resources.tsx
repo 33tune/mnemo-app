@@ -256,7 +256,6 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
         <div style={{ flex: wide ? "1 1 45%" : 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
           {wide && (
             <div className="gf-bar">
-              <span className="gf-lights" aria-hidden><i /><i /><i /></span>
               <span className="gf-bar__title" aria-hidden>Fragmento</span>
               <span style={{ flex: 1 }} />
               <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar">Listo</button>

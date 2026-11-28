@@ -183,7 +183,6 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
       onMouseDown={e => e.stopPropagation()} onKeyDown={e => { if (e.key !== "Escape") e.stopPropagation(); }}
       style={{ ...shell, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div className={dock ? "gf-bar" : "gf-bar gf-bar--phone"}>
-        {dock && <span className="gf-lights" aria-hidden><i /><i /><i /></span>}
         <button type="button" className="gf-btn" onClick={() => refresh("button")} aria-label="Actualizar" title="Actualizar" disabled={refreshing}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
             style={{ animation: refreshing ? "mnemo-feed-spin .8s linear infinite" : undefined }}><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 4v5h-5" /></svg>

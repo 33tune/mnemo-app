@@ -210,7 +210,6 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
     <section id={EXPLORE_PANEL_ID} data-mnemo-ui="" data-export-skip="" aria-label="Explorar" className="gf-win"
       style={{ ...shell, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div className={dock ? "gf-bar" : "gf-bar gf-bar--phone"}>
-        {dock && <span className="gf-lights" aria-hidden><i /><i /><i /></span>}
         <span className="gf-bar__title" aria-hidden>Explorar</span>
         <span style={{ flex: 1 }} />
         {onClose && <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar Explorar">Listo</button>}
