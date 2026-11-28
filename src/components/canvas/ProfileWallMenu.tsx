@@ -9,6 +9,7 @@
  * Every part but Botón shows the back of the card while you edit it
  * (CanvasBoard); Botón shows the front, where the button lives.
  */
+import { useResourceSettings } from "@/hooks/useResources";
 import React from "react";
 import type { CardEffects, CommentsBoxStyle, ProfileCardData, WallButtonIcon } from "@/types";
 import { SliderRow, ColorRow, SwitchRow, GroupLabel, Tabs, ChoiceTiles, UploadField, FontField, MenuNote } from "@/ui";
@@ -42,6 +43,7 @@ const stack: React.CSSProperties = { display: "flex", flexDirection: "column", g
 export function WallMainSection(p: SectionProps) {
   const { raw, setStyle } = useWallStyle(p);
   const w = useWallSettings();
+  const r = useResourceSettings();
   return (
     <div style={stack}>
       <SwitchRow label="Mostrar el muro" icon="eye" value={!raw?.hidden} onChange={v => setStyle({ hidden: v ? undefined : true })} />
@@ -50,6 +52,15 @@ export function WallMainSection(p: SectionProps) {
           <GroupLabel>Quién puede escribir</GroupLabel>
           <Tabs label="Quién puede escribir" variant="pill" active={w.off ? "me" : "all"} onChange={id => w.setOff(id === "me")}
             tabs={[{ id: "all", label: "Todos" }, { id: "me", label: "Solo yo" }]} />
+        </div>
+      )}
+      {/* Recursos (2026-11-28): the switches for all of them at once (each one also has its own, in the viewer). */}
+      <SwitchRow label="Mostrar mis recursos" icon="eye" value={!r.hidden} onChange={v => r.set({ hidden: !v })} />
+      {!r.hidden && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <GroupLabel>Permitir descargas</GroupLabel>
+          <Tabs label="Permitir descargas" variant="pill" active={r.locked ? "none" : "all"} onChange={id => r.set({ locked: id === "none" })}
+            tabs={[{ id: "all", label: "Todas" }, { id: "none", label: "Ninguna" }]} />
         </div>
       )}
     </div>

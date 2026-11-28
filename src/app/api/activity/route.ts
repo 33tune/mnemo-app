@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { wallAuthors, unknownAuthor } from "@/server/wallAuthors";
 import type { ActivityItem } from "@/lib/wall";
+import { publicStateOf } from "@/lib/publishedState";
+import { resourcesOf } from "@/lib/resources";
+import type { CanvasState } from "@/types";
 
 // Avisos (2026-11-25): who wrote on my wall, replied to me or liked my posts;
 // and (2026-11-26) who added me to their favorites.
@@ -19,10 +22,28 @@ export async function GET() {
     const { data: back } = await supabase.from("favorites").select("target_user_id").eq("user_id", user.id).in("target_user_id", favActors);
     mine = new Set((back ?? []).map(b => b.target_user_id as string));
   }
-  const items: ActivityItem[] = rows.map(r => ({
-    kind: r.kind, postId: r.post_id ?? "", body: r.kind === "favorite" ? "te agregó a favoritos" : r.body, at: r.at,
-    wallHandle: who.get(r.wall_owner)?.handle ?? "", actor: who.get(r.actor) ?? unknownAuthor(r.actor),
-    ...(r.kind === "favorite" ? { mutual: mine.has(r.actor) } : {}),
-  }));
+  // Recursos (2026-11-28): notices about my resources carry its key; the
+  // picture comes from my own room.
+  const resourceKind = (r: (typeof rows)[number]) => r.kind === "rlike" || r.kind === "rcomment" || (r.kind === "repost" && !r.post_id);
+  let srcOf = new Map<string, string>();
+  if (rows.some(resourceKind)) {
+    const { data: room } = await supabase.from("canvases").select("data").eq("user_id", user.id).eq("type", "space").order("created_at", { ascending: true }).limit(1).maybeSingle();
+    const state = room?.data ? publicStateOf(room.data as CanvasState) : null;
+    const card = state ? (state.profiles ?? []).find(c => c.isPublic) ?? (state.profiles ?? [])[0] : undefined;
+    srcOf = new Map(resourcesOf(card?.stickers, state?.images).map(x => [x.key, x.src]));
+  }
+  const items: ActivityItem[] = rows.flatMap((r): ActivityItem[] => {
+    const base = { kind: r.kind, postId: r.post_id ?? "", at: r.at, wallHandle: who.get(r.wall_owner)?.handle ?? "", actor: who.get(r.actor) ?? unknownAuthor(r.actor) };
+    if (resourceKind(r)) {
+      const sp = (r.body ?? "").indexOf(" ");
+      const key = sp < 0 ? r.body ?? "" : r.body.slice(0, sp);
+      const src = srcOf.get(key);
+      if (!src) return [];
+      const body = r.kind === "rcomment" ? r.body.slice(sp + 1) : r.kind === "rlike" ? "le gustó tu recurso" : "reposteó tu recurso";
+      return [{ ...base, body, src }];
+    }
+    if (r.kind === "repost") return [{ ...base, body: r.body }];
+    return [{ ...base, body: r.kind === "favorite" ? "te agregó a favoritos" : r.body, ...(r.kind === "favorite" ? { mutual: mine.has(r.actor) } : {}) }];
+  });
   return NextResponse.json({ items }, { headers: { "Cache-Control": "private, no-store" } });
 }

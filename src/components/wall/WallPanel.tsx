@@ -7,15 +7,15 @@
  * same for every card). The owner can give it its own background, font and
  * colors, or turn the card's effects off for the back (card.commentsBox).
  *
- * Tabs: the wall (what everyone sees) and — only on your own card — Feed and
- * Avisos, which nobody else sees.
+ * Tabs: the wall and the card's Recursos (what everyone sees) and — only on
+ * your own card — Avisos. (The Feed moved to Explorar, 2026-11-28.)
  */
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CardEffects, ProfileCardData } from "@/types";
 import CardLayers from "@/components/canvas/CardLayers";
 import { HeartIcon, CommentIcon } from "@/components/canvas/StatsRow";
 import { useCardInteractions } from "@/hooks/useCardInteractions";
-import { useWall, useFeed, useActivity, useUnreadActivity } from "@/hooks/useWall";
+import { useWall, useActivity, useUnreadActivity } from "@/hooks/useWall";
 import { useCommentCount } from "@/hooks/useComments";
 import { getProfileCardEffects } from "@/lib/profileCardEffects";
 import { cardIsLight } from "@/lib/cardColors";
@@ -23,7 +23,9 @@ import { fxCardColors } from "@/lib/cardPalette";
 import { hexAlpha, timeAgo } from "@/lib/comments";
 import { resolveWallLook, readableOn, postFontFamily, wallBackEffects, WALL_W, WALL_H } from "@/lib/wall";
 import { formatViewCount } from "@/lib/profileCardLayout";
-import { WallBody, PostView, Avatar, BackIcon, WallIcon, FeedIcon, BellIcon, ReplyArrow, roundBtn, UI_FONT } from "./WallParts";
+import { WallBody, Avatar, BackIcon, WallIcon, BellIcon, ReplyArrow, roundBtn, UI_FONT } from "./WallParts";
+import { ResourcesTab, GemIcon, RepostIcon, thumbOf } from "./Resources";
+import type { Resource } from "@/lib/resources";
 import { useViewerId } from "@/lib/viewer";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/track";
@@ -52,7 +54,7 @@ export function turn(el: HTMLElement, from: number, to: number, ms: number, easi
 /** The back's effects (wall.ts › wallBackEffects). */
 export const backEffects = wallBackEffects;
 
-type Tab = "wall" | "feed" | "news";
+type Tab = "wall" | "resources" | "news";
 
 export interface WallPanelProps {
   card: ProfileCardData;
@@ -67,8 +69,14 @@ export interface WallPanelProps {
   /** Px kept free at the right (the editor's dock) and at the bottom. */
   right?: number;
   bottom?: number;
+  /** Px kept free at the top (the phone editor's bar). */
+  top?: number;
   /** Open on this tab (Avisos from the dot). */
-  startTab?: Tab;
+  startTab?: Tab | "feed";
+  /** Recursos: the card's stickers + the room's public images. */
+  resources?: Resource[];
+  /** Editor: take a resource out of the card / room (Borrar). */
+  onDeleteResource?: (key: string) => void;
 }
 
 export default function WallPanel(p: WallPanelProps) {
@@ -77,7 +85,7 @@ export default function WallPanel(p: WallPanelProps) {
   const count = useCommentCount(p.ownerUserId);
   const own = w.isOwner;
   const unread = useUnreadActivity(own);
-  const [tab, setTab] = useState<Tab>(p.startTab ?? "wall");
+  const [tab, setTab] = useState<Tab>(p.startTab === "news" || p.startTab === "resources" ? p.startTab : "wall");
   const shell = useRef<HTMLDivElement>(null);
   const face = useRef<HTMLDivElement>(null);
   const cardAnim = useRef<Animation | null>(null);
@@ -96,7 +104,8 @@ export default function WallPanel(p: WallPanelProps) {
   // Where it sits: centered on the card, the wall's fixed size, scaled down only to fit the screen.
   useLayoutEffect(() => {
     const place = () => {
-      const vw = window.innerWidth - (p.right ?? 0), vh = window.innerHeight - (p.bottom ?? 0);
+      const top0 = p.top ?? 0;
+      const vw = window.innerWidth - (p.right ?? 0), vh = window.innerHeight - (p.bottom ?? 0) - top0;
       const scale = Math.min(1, (vw - 24) / WALL_W, (vh - 32) / WALL_H);
       const width = WALL_W * scale, height = WALL_H * scale;
       const r = p.getCard()?.getBoundingClientRect();
@@ -104,14 +113,14 @@ export default function WallPanel(p: WallPanelProps) {
       setBox({
         scale,
         left: Math.max(12, Math.min(vw - width - 12, cx - width / 2)),
-        top: Math.max(16, Math.min(vh - height - 16, cy - height / 2)),
+        top: top0 + Math.max(16, Math.min(vh - height - 16, cy - top0 - height / 2)),
       });
     };
     place();
     window.addEventListener("resize", place);
     return () => window.removeEventListener("resize", place);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.right, p.bottom]);
+  }, [p.right, p.bottom, p.top]);
 
   // Open: the card turns away, then the back turns in.
   useEffect(() => {
@@ -164,8 +173,8 @@ export default function WallPanel(p: WallPanelProps) {
   if (!box) return null;
   const tabs: { id: Tab; label: string; icon: React.ReactNode; dot?: boolean }[] = [
     { id: "wall", label: "Muro", icon: <WallIcon size={17} /> },
-    { id: "feed", label: "Feed", icon: <FeedIcon size={17} /> },
-    { id: "news", label: "Avisos", icon: <BellIcon size={17} />, dot: unread > 0 },
+    { id: "resources", label: "Recursos", icon: <GemIcon size={17} /> },
+    ...(own ? [{ id: "news" as const, label: "Avisos", icon: <BellIcon size={17} />, dot: unread > 0 }] : []),
   ];
   const owner = { handle: p.ownerHandle, photo: typeof p.card.photo === "string" && /^https?:\/\//.test(p.card.photo) ? p.card.photo : null,
     pfpRadius: `${Math.max(0, Math.min(100, p.card.pfpRadius ?? 100)) / 2}%`, bg: look.bg, nameColor: ink };
@@ -191,8 +200,8 @@ export default function WallPanel(p: WallPanelProps) {
               <span style={{ fontFamily: postFontFamily(look.font), fontWeight: 700, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>@{p.ownerHandle}</span>
               {count > 0 && <span style={{ color: hexAlpha(ink, 0.6), fontWeight: 600 }}>{formatViewCount(count)}</span>}
               <span style={{ flex: 1 }} />
-              {own && (
-                <div role="tablist" aria-label="Tu muro" style={{ display: "flex", gap: 2, padding: 2, borderRadius: 12, background: hexAlpha(ink, 0.08) }}>
+              {(
+                <div role="tablist" aria-label="Dorso de la card" style={{ display: "flex", gap: 2, padding: 2, borderRadius: 12, background: hexAlpha(ink, 0.08) }}>
                   {tabs.map(t => (
                     <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} aria-label={t.label} title={t.label} onClick={() => setTab(t.id)}
                       style={{ ...roundBtn, position: "relative", width: 34, height: 30, borderRadius: 10, color: tab === t.id ? ink : hexAlpha(ink, 0.55),
@@ -212,8 +221,11 @@ export default function WallPanel(p: WallPanelProps) {
                 <WallBody w={w} ink={ink} accent={look.accent} wallBg={look.bg} ownerHandle={p.ownerHandle} newTab={p.newTab}
                   loginHref={`/login?next=${typeof location !== "undefined" ? encodeURIComponent(location.pathname + "?muro=1") : "/"}`} />
               )}
-              {tab === "feed" && own && <FeedTab meId={p.ownerUserId} ink={ink} accent={look.accent} wallBg={look.bg} newTab={p.newTab} />}
-              {tab === "news" && own && <NewsTab ink={ink} accent={look.accent} newTab={p.newTab} />}
+              {tab === "resources" && (
+                <ResourcesTab ownerId={p.ownerUserId} ownerHandle={p.ownerHandle} owner={{ id: p.ownerUserId, name: p.ownerHandle, ...owner }} resources={p.resources ?? []}
+                  ink={ink} accent={look.accent} own={own} newTab={p.newTab} onDeleteResource={p.onDeleteResource} />
+              )}
+              {tab === "news" && own && <NewsTab ink={ink} accent={look.accent} newTab={p.newTab} onResources={() => setTab("resources")} />}
             </div>
           </div>
         </CardLayers>
@@ -224,23 +236,6 @@ export default function WallPanel(p: WallPanelProps) {
 
 function Empty({ icon, ink }: { icon: React.ReactNode; ink: string }) {
   return <div style={{ display: "grid", placeItems: "center", padding: "64px 16px", color: hexAlpha(ink, 0.4) }}>{icon}</div>;
-}
-
-/** Feed: what the cards I gave a heart to posted on their OWN walls. */
-function FeedTab({ meId, ink, accent, wallBg, newTab }: { meId: string; ink: string; accent: string; wallBg: string; newTab?: boolean }) {
-  const f = useFeed(true);
-  return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "4px 14px 10px", overscrollBehavior: "contain" }}>
-      {!f.loaded && <Empty ink={ink} icon={<FeedIcon size={28} />} />}
-      {f.loaded && f.posts.length === 0 && <Empty ink={ink} icon={<HeartIcon size={30} />} />}
-      {f.posts.map(post => (
-        <PostView key={post.id} post={post} ink={ink} accent={accent} wallBg={wallBg} viewer={meId} newTab={newTab}
-          onLike={() => f.like(post.id)}
-          onReply={() => { const url = `/${post.author.handle}?muro=1`; if (newTab) window.open(url, "_blank"); else location.href = url; }} />
-      ))}
-      {f.more && <button type="button" onClick={f.loadMore} aria-label="Ver más" style={{ display: "block", margin: "8px auto", ...roundBtn, color: hexAlpha(ink, 0.6) }}>···</button>}
-    </div>
-  );
 }
 
 /** Avisos: posts on my wall, replies to me, likes on my posts. */
@@ -261,26 +256,29 @@ function FavBack({ userId, accent, mutual }: { userId: string; accent: string; m
   );
 }
 
-function NewsTab({ ink, accent, newTab }: { ink: string; accent: string; newTab?: boolean }) {
+function NewsTab({ ink, accent, newTab, onResources }: { ink: string; accent: string; newTab?: boolean; onResources: () => void }) {
   const a = useActivity(true);
-  const kindIcon = (k: string) => (k === "like" || k === "favorite" ? <HeartIcon size={11} filled /> : k === "reply" ? <ReplyArrow size={11} /> : <CommentIcon size={11} />);
+  const kindIcon = (k: string) => (k === "like" || k === "favorite" || k === "rlike" ? <HeartIcon size={11} filled /> : k === "reply" ? <ReplyArrow size={11} /> : k === "repost" ? <RepostIcon size={11} /> : <CommentIcon size={11} />);
+  const hot = (k: string) => k === "like" || k === "favorite" || k === "rlike" || k === "repost";
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "4px 8px 10px", overscrollBehavior: "contain" }}>
       {!a.loaded && <Empty ink={ink} icon={<BellIcon size={28} />} />}
       {a.loaded && a.items.length === 0 && <Empty ink={ink} icon={<BellIcon size={30} />} />}
       {a.items.map((it, i) => (
-        <a key={`${it.postId}-${it.kind}-${i}`} href={it.kind === "favorite" ? (it.actor.handle ? `/${it.actor.handle}` : undefined) : it.wallHandle ? `/${it.wallHandle}?muro=1` : undefined} target={newTab ? "_blank" : undefined} rel="noreferrer"
+        <a key={`${it.postId}-${it.kind}-${i}`} href={it.kind === "favorite" ? (it.actor.handle ? `/${it.actor.handle}` : undefined) : it.src ? (it.wallHandle ? `/${it.wallHandle}?muro=recursos` : undefined) : it.wallHandle ? `/${it.wallHandle}?muro=1` : undefined} target={newTab && !it.src ? "_blank" : undefined} rel="noreferrer"
+          onClick={it.src ? e => { e.preventDefault(); onResources(); } : undefined}
           aria-label={`${it.actor.handle ? "@" + it.actor.handle : "alguien"} · ${it.body}`}
           style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 8px", borderRadius: 14, color: ink, textDecoration: "none" }}>
           <span style={{ position: "relative", flex: "none" }}>
             <Avatar a={it.actor} size={36} />
             <span aria-hidden style={{ position: "absolute", right: -4, bottom: -4, width: 19, height: 19, borderRadius: 99, display: "grid", placeItems: "center",
-              background: it.kind === "like" || it.kind === "favorite" ? accent : "#2c2b33", color: "#fff", boxShadow: "0 0 0 2px rgba(0,0,0,.4)" }}>{kindIcon(it.kind)}</span>
+              background: hot(it.kind) ? accent : "#2c2b33", color: "#fff", boxShadow: "0 0 0 2px rgba(0,0,0,.4)" }}>{kindIcon(it.kind)}</span>
           </span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: "block", fontWeight: 650, fontSize: 13 }}>@{it.actor.handle || "?"}</span>
-            <span style={{ display: "block", color: hexAlpha(ink, 0.65), fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-no-i18n={it.kind === "favorite" ? undefined : ""}>{it.body}</span>
+            <span style={{ display: "block", color: hexAlpha(ink, 0.65), fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-no-i18n={it.kind === "favorite" || it.kind === "rlike" || (it.kind === "repost" && it.src) ? undefined : ""}>{it.kind === "repost" && !it.src ? `reposteó: ${it.body}` : it.body}</span>
           </span>
+          {it.src && <img src={thumbOf(it.src, 96)} alt="" width={36} height={36} draggable={false} style={{ flex: "none", width: 36, height: 36, borderRadius: 8, objectFit: "cover" }} />}
           {it.kind === "favorite"
             ? <FavBack userId={it.actor.id} accent={accent} mutual={it.mutual} />
             : <span style={{ color: hexAlpha(ink, 0.5), fontSize: 11.5, flex: "none" }}>{timeAgo(it.at)}</span>}

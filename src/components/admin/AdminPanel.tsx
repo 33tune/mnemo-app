@@ -404,6 +404,7 @@ function Reports() {
   return (
     <div style={{ display: "grid", gap: 8 }}>
       <PostReports />
+      <ResourceReports />
       <h3 style={{ margin: "10px 0 0", fontSize: 14 }}>Errores reportados</h3>
       {rows.length === 0 && <Box><span style={{ color: C.dim }}>No hay reportes.</span></Box>}
       {rows.map(r => (
@@ -443,6 +444,34 @@ function PostReports() {
             <button type="button" onClick={() => { if (confirm("¿Borrar este post?")) createClient().rpc("admin_delete_comment", { p_id: r.comment_id }).then(load); }}
               style={{ marginTop: 8, padding: "5px 12px", borderRadius: 8, border: `1px solid ${C.red}`, background: "transparent", color: C.red, cursor: "pointer" }}>Borrar post</button>
           ) : <div style={{ marginTop: 6, color: C.dim, fontSize: 12 }}>Ya no está.</div>}
+        </Box>
+      ))}
+    </>
+  );
+}
+
+/** Recursos (2026-11-28): reported resources — hide them for everyone (and drop their reposts) or bring them back. */
+type ResourceReport = { owner: string; handle: string | null; rkey: string; src: string | null; reports: number; last: string; removed: boolean };
+function ResourceReports() {
+  const [rows, setRows] = useState<ResourceReport[] | null>(null);
+  const load = () => createClient().rpc("admin_resource_reports", { p_limit: 100 }).then(({ data }) => setRows((data ?? []) as ResourceReport[]));
+  useEffect(() => { load(); }, []);
+  if (!rows) return null;
+  return (
+    <>
+      <h3 style={{ margin: "10px 0 0", fontSize: 14 }}>Recursos reportados</h3>
+      {rows.length === 0 && <Box><span style={{ color: C.dim }}>Ninguno.</span></Box>}
+      {rows.map(r => (
+        <Box key={r.owner + r.rkey}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            {r.src && <a href={r.src} target="_blank" rel="noreferrer"><img src={r.src} alt="" style={{ width: 72, height: 72, objectFit: "contain", borderRadius: 8, background: "#222", opacity: r.removed ? 0.4 : 1 }} /></a>}
+            <div style={{ flex: 1, minWidth: 0, color: C.dim, fontSize: 12.5, display: "grid", gap: 4 }}>
+              <span>de {r.handle ? <a href={`/${r.handle}?muro=recursos`} target="_blank" rel="noreferrer" style={{ color: C.text }}>@{r.handle}</a> : "?"} · {fmtN(r.reports)} {r.reports === 1 ? "reporte" : "reportes"}</span>
+              <span>último: {fmtD(r.last)}{r.removed ? " · quitado" : ""}</span>
+            </div>
+            <button type="button" onClick={() => { if (r.removed || confirm("¿Quitar este recurso para todos? También se borran sus reposts.")) createClient().rpc("admin_remove_resource", { p_owner: r.owner, p_rkey: r.rkey, p_removed: !r.removed }).then(load); }}
+              style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${r.removed ? C.dim : C.red}`, background: "transparent", color: r.removed ? C.text : C.red, cursor: "pointer" }}>{r.removed ? "Devolver" : "Quitar"}</button>
+          </div>
         </Box>
       ))}
     </>

@@ -8,6 +8,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ExploreThumb, { type ExploreItem } from "./ExploreThumb";
+import ExploreFeed from "./ExploreFeed";
 import { VerifyExploreNotice } from "@/components/verify/Verify";
 import { isVerifyError, requestVerify } from "@/lib/verify";
 import { EXPLORE_TABS, type ExploreTab } from "@/lib/explore";
@@ -115,6 +116,8 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const viewer = useViewerId();
   const sc = useShortcuts(true);
   const [tab, setTab] = useState<ExploreTab>("para");
+  // Feed (2026-11-28): Explorar has two sections, the cards and the Feed.
+  const [section, setSection] = useState<"cards" | "feed">("cards");
   const [items, setItems] = useState<ExploreItem[] | null>(null);
   const [more, setMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -172,7 +175,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
     }, { rootMargin: "600px 0px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [load, items === null, !!query]);
+  }, [load, items === null, !!query, section]);
 
   useEffect(() => {
     if (!query) { setHits(null); return; }
@@ -212,7 +215,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const favs = sc.list ? barShortcuts(sc.list) : [];
   const dock = mode === "dock";
   const shell: React.CSSProperties = dock
-    ? { position: "fixed", top, right, bottom, width: "min(400px, calc(100vw - 28px))", borderRadius: 24, zIndex: 2147481050,
+    ? { position: "fixed", top, right, bottom, width: "min(460px, calc(100vw - 28px))", borderRadius: 24, zIndex: 2147481050,
         // Solid (no backdrop blur): the room behind animates, and the blur was
         // redone on every frame while scrolling the cards.
         background: "rgba(16,14,21,.985)",
@@ -238,6 +241,15 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: INK, font: `500 16px ${font}` }} />
           {q && <button type="button" onClick={() => setQ("")} aria-label="Borrar búsqueda" style={{ border: "none", background: "transparent", color: "rgba(246,243,248,.6)", cursor: "pointer", font: `600 13px ${font}` }}>Borrar</button>}
         </label>
+        {!query && (
+          <div role="tablist" aria-label="Sección de Explorar" style={{ display: "flex", gap: 4, padding: 4, marginTop: 12, borderRadius: 14, background: "rgba(255,255,255,.06)" }}>
+            {([["cards", "Cards"], ["feed", "Feed"]] as const).map(([id, label]) => (
+              <button key={id} type="button" role="tab" aria-selected={section === id} onClick={() => { setSection(id); track("explore_tab", { tab: id }); }}
+                style={{ flex: 1, height: 36, borderRadius: 11, border: "none", cursor: "pointer", font: `700 13.5px ${font}`,
+                  background: section === id ? INK : "transparent", color: section === id ? "#141118" : "rgba(246,243,248,.7)" }}>{label}</button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: dock ? "0 18px 18px" : "0 16px 24px", WebkitOverflowScrolling: "touch" }}>
@@ -257,6 +269,8 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
               </a>
             ))}
           </div>
+        ) : section === "feed" ? (
+          <ExploreFeed />
         ) : (
           <>
             {viewer && sc.list && (

@@ -24,12 +24,20 @@ export async function GET(req: Request) {
   let q = supabase.from("comments").select(cols).eq("profile_user_id", owner).is("parent_id", null);
   q = later ? q.eq("pinned", false).lt("created_at", before!) : q.order("pinned", { ascending: false });
   q = q.order("created_at", { ascending: false }).limit(WALL_PAGE + 1);
-  const [{ data: rows }, { data: prof }] = await Promise.all([
+  const [{ data: rows }, { data: prof }, { data: reps }] = await Promise.all([
     q, supabase.from("profiles").select("comments_off").eq("user_id", owner).maybeSingle(),
+    // Recursos (2026-11-28): the posts this card reposted show on its wall too, at the time they were reposted.
+    supabase.rpc("post_reposts_of", { p_user: owner, p_before: later ? before : null, p_limit: WALL_PAGE + 1 }),
   ]);
-  const page = ((rows ?? []) as Row[]).slice(0, WALL_PAGE);
+  const own = (rows ?? []) as Row[];
+  const reposted = ((reps ?? []) as Row[]).filter(r => r.repost_id && r.repost_at);
+  const at = (r: Row) => r.repost_at ?? r.created_at;
+  const pinned = !later ? own.filter(r => r.pinned) : [];
+  const merged = [...own.filter(r => !pinned.includes(r)), ...reposted].sort((a, b) => (at(a) < at(b) ? 1 : at(a) > at(b) ? -1 : 0));
+  const rest = WALL_PAGE - pinned.length;
+  const page = [...pinned, ...merged.slice(0, rest)];
   return NextResponse.json(
-    { posts: await hydratePosts(supabase, page), more: (rows ?? []).length > WALL_PAGE, off: !!prof?.comments_off },
+    { posts: await hydratePosts(supabase, page), more: merged.length > rest, off: !!prof?.comments_off },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

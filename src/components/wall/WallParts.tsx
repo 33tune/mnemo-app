@@ -16,7 +16,7 @@ import {
   POST_MAX, POST_COLORS, POST_BGS, POST_SIZES, POST_FX, postFontFamily, postLength, resolvePostStyle, sameStyle, cleanPostStyle, bubbleNeedsEdge,
   type PostAuthor, type PostStyle, type WallPost, type PostFx,
 } from "@/lib/wall";
-import { usePostStyle, type WallState } from "@/hooks/useWall";
+import { usePostStyle, postKey, type WallState } from "@/hooks/useWall";
 import { PostText, FX_LABEL, useCss as usePostCss } from "./PostText";
 
 export const UI_FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
@@ -38,6 +38,7 @@ export const PinIcon = ({ size = 15 }: { size?: number }) => svg(<><path d="M9 4
 export const ReplyArrow = ({ size = 13 }: { size?: number }) => svg(<><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 6 6v5" /></>, size);
 export const FeedIcon = ({ size = 18 }: { size?: number }) => svg(<><rect x="4" y="3.5" width="16" height="7" rx="2.2" /><rect x="4" y="13.5" width="16" height="7" rx="2.2" /></>, size);
 export const BellIcon = ({ size = 18 }: { size?: number }) => svg(<><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" /><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0" /></>, size);
+export const RepostGlyph = ({ size = 13 }: { size?: number }) => svg(<><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></>, size);
 export const SparkIcon = ({ size = 16 }: { size?: number }) => svg(<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" />, size);
 
 export const roundBtn: React.CSSProperties = {
@@ -74,6 +75,10 @@ export interface PostViewProps {
   onReport?: () => void;
   onBlock?: () => void;
   onPin?: () => void;
+  /** Recursos (2026-11-28): repost it on my own wall. */
+  onRepost?: () => void;
+  /** It is here because @this reposted it. */
+  repostedBy?: string;
 }
 
 export function PostView(p: PostViewProps) {
@@ -100,6 +105,12 @@ export function PostView(p: PostViewProps) {
   const lastTap = useRef(0);
 
   return (
+    <div>
+    {p.repostedBy && (
+      <div data-no-i18n="" style={{ display: "flex", alignItems: "center", gap: 6, margin: "8px 0 -4px 40px", color: dim, fontSize: 11.5, fontWeight: 650, minWidth: 0 }}>
+        <RepostGlyph /> <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{p.repostedBy} reposteó{post.wallHandle && post.wallHandle !== post.author.handle ? ` · muro de @${post.wallHandle}` : ""}</span>
+      </div>
+    )}
     <article aria-label={`${who}: ${post.body}`} style={{ display: "flex", gap: 9, padding: p.compact ? "6px 0" : "10px 2px" }}>
       <a href={href} target={p.newTab ? "_blank" : undefined} rel="noreferrer" aria-label={who} tabIndex={-1} style={{ textDecoration: "none" }}>
         <Avatar a={post.author} size={avatar} ink={ink} />
@@ -137,6 +148,13 @@ export function PostView(p: PostViewProps) {
               <CommentIcon size={15} />{post.replies > 0 && <span>{formatViewCount(post.replies)}</span>}
             </button>
           )}
+          {p.onRepost && p.viewer && (
+            <button type="button" onClick={p.onRepost} aria-pressed={!!post.reposted}
+              aria-label={`${post.reposted ? "Quitar repost" : "Repostear en mi muro"} (${post.reposts ?? 0})`} title={post.reposted ? "Quitar repost" : "Repostear"}
+              style={{ ...roundBtn, width: "auto", height: 28, padding: "0 6px", gap: 4, display: "flex", color: post.reposted ? p.accent : dim }}>
+              <RepostGlyph size={15} />{(post.reposts ?? 0) > 0 && <span>{formatViewCount(post.reposts ?? 0)}</span>}
+            </button>
+          )}
           {(canDelete || canReport || canPin) && (
             <div ref={menuRef} style={{ position: "relative" }}>
               <button type="button" onClick={() => setMenu(m => !m)} aria-expanded={menu} aria-label="Más" style={{ ...roundBtn, width: 28, height: 28, color: dim }}>
@@ -157,6 +175,7 @@ export function PostView(p: PostViewProps) {
         </div>
       </div>
     </article>
+    </div>
   );
 }
 
@@ -384,13 +403,16 @@ export function WallBody({ w, ink, accent, wallBg, ownerHandle, newTab, loginHre
           </div>
         )}
         {w.posts.map(post => (
-          <div key={post.id}>
-            <PostView post={post} ink={ink} accent={accent} wallBg={wallBg} viewer={w.viewer} wallOwner={w.isOwner} newTab={newTab}
+          <div key={postKey(post)}>
+            <PostView post={post} ink={ink} accent={accent} wallBg={wallBg} viewer={w.viewer} wallOwner={w.isOwner && !post.repost} newTab={newTab}
+              repostedBy={post.repost ? ownerHandle : undefined}
+              onRepost={w.viewer && post.wallOwner !== w.viewer ? () => w.repost(post.id) : undefined}
               onLike={() => w.like(post.id)}
-              threadOpen={thread === post.id} onThread={() => toggleThread(post)}
+              threadOpen={!post.repost && thread === post.id} onThread={post.repost ? undefined : () => toggleThread(post)}
+              onReply={post.repost && post.wallHandle ? () => { const u = `/${post.wallHandle}?muro=1`; if (newTab) window.open(u, "_blank"); else location.href = u; } : undefined}
               onDelete={() => w.remove(post.id)} onReport={() => w.report(post.id)} onBlock={() => w.block(post.author.id)}
-              onPin={() => w.pin(post.id, !post.pinned)} />
-            {thread === post.id && (
+              onPin={post.repost ? undefined : () => w.pin(post.id, !post.pinned)} />
+            {thread === post.id && !post.repost && (
               <div style={{ marginLeft: 38, paddingLeft: 10, borderLeft: `2px solid ${hexAlpha(ink, 0.14)}` }}>
                 {(w.replies[post.id] ?? []).map(r => (
                   <PostView key={r.id} post={r} compact ink={ink} accent={accent} wallBg={wallBg} viewer={w.viewer} wallOwner={w.isOwner} newTab={newTab}

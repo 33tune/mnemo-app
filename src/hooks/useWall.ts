@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useViewerId } from "@/lib/viewer";
 import { bumpCommentCount } from "@/hooks/useComments";
-import { cleanPostStyle, wallError, type ActivityItem, type PostAuthor, type PostStyle, type WallPost } from "@/lib/wall";
+import { cleanPostStyle, wallError, postSortAt, type ActivityItem, type PostAuthor, type PostStyle, type WallPost } from "@/lib/wall";
 import { isVerifyError, requestVerify } from "@/lib/verify";
 import { track } from "@/lib/track";
 
@@ -60,9 +60,21 @@ export interface WallState {
   report: (id: string) => Promise<boolean>;
   block: (authorId: string) => Promise<boolean>;
   pin: (id: string, on: boolean) => void;
+  repost: (id: string) => void;
 }
 
 const patchPost = (list: WallPost[], id: string, f: (p: WallPost) => WallPost) => list.map(p => (p.id === id ? f(p) : p));
+/** A post's place in a list (the same post can show once written and once reposted). */
+export const postKey = (p: WallPost) => (p.repost ? `r:${p.repost.id}` : p.id);
+
+/** Repost / un-repost a wall post on my own wall (Recursos, 2026-11-28). */
+export async function togglePostRepost(id: string): Promise<{ reposted: boolean; n: number } | null> {
+  const { data, error } = await createClient().rpc("toggle_post_repost", { p_post: id });
+  if (error) { if (isVerifyError(error)) requestVerify(); return null; }
+  track("repost", { kind: "post" });
+  const row = (Array.isArray(data) ? data[0] : data) as { reposted: boolean; n: number } | undefined;
+  return row ? { reposted: !!row.reposted, n: Number(row.n) } : null;
+}
 
 export function useWall(owner: string | undefined, open: boolean): WallState {
   const viewer = useViewerId();
@@ -114,9 +126,9 @@ export function useWall(owner: string | undefined, open: boolean): WallState {
   const loadMore = useCallback(() => {
     const last = posts[posts.length - 1];
     if (!last) return;
-    fetchPage(last.createdAt).then(d => {
+    fetchPage(postSortAt(last)).then(d => {
       if (!d) return;
-      setPosts(prev => [...prev, ...d.posts.filter(c => !prev.some(p => p.id === c.id))]);
+      setPosts(prev => [...prev, ...d.posts.filter(c => !prev.some(p => postKey(p) === postKey(c)))]);
       setMore(d.more);
     });
   }, [posts, fetchPage]);
@@ -176,9 +188,20 @@ export function useWall(owner: string | undefined, open: boolean): WallState {
     createClient().rpc("pin_post", { p_id: id, p_on: on }).then(({ error }) => { if (error) reload(); });
   }, [isOwner, reload]);
 
+  const repost = useCallback((id: string) => {
+    const flip = (p: WallPost) => ({ ...p, reposted: !p.reposted, reposts: Math.max(0, (p.reposts ?? 0) + (p.reposted ? -1 : 1)) });
+    setPosts(prev => patchPost(prev, id, flip));
+    togglePostRepost(id).then(res => {
+      if (!res) { setPosts(prev => patchPost(prev, id, flip)); return; }
+      setPosts(prev => patchPost(prev, id, p => ({ ...p, reposted: res.reposted, reposts: res.n })));
+      // My own wall shows what I repost: reload it.
+      if (isOwner) reload();
+    });
+  }, [isOwner, reload]);
+
   return {
     posts, loaded, more, off, viewer, isOwner, canWrite: !!viewer && (isOwner || !off), replies,
-    loadMore, loadReplies, post, like, remove, report, block, pin,
+    loadMore, loadReplies, post, like, remove, report, block, pin, repost,
   };
 }
 
@@ -277,34 +300,6 @@ export function markActivitySeen() {
 }
 
 // ── Feed and Avisos ──────────────────────────────────────────────────────────
-
-export function useFeed(open: boolean): { posts: WallPost[]; loaded: boolean; more: boolean; loadMore: () => void; like: (id: string) => void } {
-  const [posts, setPosts] = useState<WallPost[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [more, setMore] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    json<{ posts: WallPost[]; more: boolean }>("/api/feed").then(d => { setPosts(d?.posts ?? []); setMore(!!d?.more); setLoaded(true); });
-  }, [open]);
-  const loadMore = useCallback(() => {
-    const last = posts[posts.length - 1];
-    if (!last) return;
-    json<{ posts: WallPost[]; more: boolean }>(`/api/feed?before=${encodeURIComponent(last.createdAt)}`).then(d => {
-      if (!d) return;
-      setPosts(prev => [...prev, ...d.posts.filter(c => !prev.some(p => p.id === c.id))]);
-      setMore(d.more);
-    });
-  }, [posts]);
-  const like = useCallback((id: string) => {
-    const flip = (p: WallPost) => ({ ...p, liked: !p.liked, likes: Math.max(0, p.likes + (p.liked ? -1 : 1)) });
-    setPosts(prev => patchPost(prev, id, flip));
-    togglePostLike(id).then(res => {
-      if (!res) setPosts(prev => patchPost(prev, id, flip));
-      else setPosts(prev => patchPost(prev, id, p => ({ ...p, liked: res.liked, likes: res.n })));
-    });
-  }, []);
-  return { posts, loaded, more, loadMore, like };
-}
 
 export function useActivity(open: boolean): { items: ActivityItem[]; loaded: boolean } {
   const [items, setItems] = useState<ActivityItem[]>([]);

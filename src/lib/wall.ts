@@ -27,11 +27,20 @@ export interface WallPost {
   replies: number;
   liked: boolean;
   pinned?: boolean;
+  /** Recursos (2026-11-28): how many people reposted it, and whether I did. */
+  reposts?: number;
+  reposted?: boolean;
+  /** Shown on a wall because the wall's owner reposted it (not written there). */
+  repost?: { id: string; at: string };
 }
+/** Where a post sits in its wall's order (a repost: when it was reposted). */
+export const postSortAt = (p: WallPost): string => p.repost?.at ?? p.createdAt;
 export interface ActivityItem {
-  kind: "wall" | "reply" | "like" | "favorite"; postId: string; wallHandle: string; body: string; at: string; actor: PostAuthor;
+  kind: "wall" | "reply" | "like" | "favorite" | "repost" | "rcomment" | "rlike"; postId: string; wallHandle: string; body: string; at: string; actor: PostAuthor;
   /** "favorite" (2026-11-26): I already gave them a favorite back. */
   mutual?: boolean;
+  /** repost of a resource / comment or like on a resource: its picture. */
+  src?: string;
 }
 
 /** Fonts offered when writing (a short, legible set; any card font is accepted). */

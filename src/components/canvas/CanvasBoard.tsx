@@ -72,6 +72,7 @@ import { HeartPill } from "./StatsRow";
 import { useCommentCount } from "@/hooks/useComments";
 import { useUnreadActivity } from "@/hooks/useWall";
 import WallPanel from "@/components/wall/WallPanel";
+import { resourcesOf } from "@/lib/resources";
 import AvatarDock from "@/components/wall/AvatarDock";
 import { wallShown } from "@/lib/wall";
 import { cardIsLight } from "@/lib/cardColors";
@@ -967,11 +968,11 @@ export default function CanvasBoard({
   // card at the bottom-left: Feed, Mi muro, Avisos).
   const [wallOpen, setWallOpen] = useState(false);
   const [wallClosing, setWallClosing] = useState(false);
-  const [wallTab, setWallTab] = useState<"wall" | "feed" | "news">("wall");
+  const [wallTab, setWallTab] = useState<"wall" | "resources" | "news">("wall");
   const wallOwnerId = canEdit ? currentUserId : ownerUserId;
   const wallCount = useCommentCount(wallOwnerId || undefined);
   const unreadActivity = useUnreadActivity(canEdit && phoneEdit);
-  const openWall = useCallback((tab: "wall" | "feed" | "news" = "wall") => { setWallTab(tab); setWallClosing(false); setWallOpen(true); }, []);
+  const openWall = useCallback((tab: "wall" | "resources" | "news" = "wall") => { setWallTab(tab); setWallClosing(false); setWallOpen(true); }, []);
   const toggleWall = useCallback(() => { if (wallOpen) setWallClosing(true); else openWall(); }, [wallOpen, openWall]);
   useEffect(() => { if (wallOpen) { crumb("wall"); track("wall_flip", { own: !!canEdit, tab: wallTab }); } }, [wallOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (shareOpen) crumb("share"); }, [shareOpen]);
@@ -1422,12 +1423,24 @@ export default function CanvasBoard({
   const muroParamDone = useRef(false);
   useEffect(() => {
     if (muroParamDone.current || isLoading || !wallOn || !wallCard) return;
-    if (typeof window === "undefined" || new URLSearchParams(location.search).get("muro") !== "1") { muroParamDone.current = true; return; }
+    const muroQ = typeof window === "undefined" ? null : new URLSearchParams(location.search).get("muro");
+    if (muroQ !== "1" && muroQ !== "recursos") { muroParamDone.current = true; return; }
     muroParamDone.current = true;
     const tabQ = new URLSearchParams(location.search).get("tab");
-    const t = window.setTimeout(() => openWall(tabQ === "news" || tabQ === "feed" ? tabQ : "wall"), 900);
+    // ?muro=recursos (2026-11-28) opens the Recursos tab; the Feed moved to Explorar.
+    const t = window.setTimeout(() => openWall(muroQ === "recursos" ? "resources" : tabQ === "news" ? "news" : "wall"), 900);
     return () => window.clearTimeout(t);
   }, [isLoading, wallOn, wallCard, openWall]);
+  // Recursos (2026-11-28): what the back's Recursos tab shows — the card's
+  // stickers and the room's visible images (never the photo nor the card's background).
+  const wallResources = useMemo(() => resourcesOf(visProfiles[0]?.stickers, visImages), [visProfiles, visImages]);
+  /** Borrar (editor): out of the card / room; the viewer already removed its reposts and comments. */
+  const deleteResource = useCallback((key: string) => {
+    const prof = visProfiles[0];
+    if (key.startsWith("st:") && prof) updateProfile(prof.id, { stickers: (prof.stickers ?? []).filter(st => st.id !== key.slice(3)) });
+    else if (key.startsWith("im:")) enqueueOp({ type: "delete_image", id: key.slice(3) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visProfiles]);
   // A sideways swipe on the card (touch) turns it.
   useEffect(() => {
     if (!wallOn || !wallCard || (canEdit && !phonePreview)) return;
@@ -4819,15 +4832,18 @@ export default function CanvasBoard({
         <WallPanel
           card={visProfiles[0]}
           ownerUserId={wallOwnerId}
-          ownerHandle={(visProfiles[0].handle || userHandle || "").replace(/^@/, "")}
+          ownerHandle={(userHandle || visProfiles[0].handle || "").replace(/^@/, "")}
           getCard={() => document.querySelector<HTMLElement>(`[data-profile-card][data-card-id="${visProfiles[0].id}"]`)}
           closing={wallClosing}
           editing={wallPartOpen}
           startTab={wallTab}
+          resources={wallResources}
+          onDeleteResource={canEdit ? deleteResource : undefined}
           onClosed={() => { setWallOpen(false); setWallClosing(false); }}
           right={canEdit && inspectorShown && !phoneEdit ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
           newTab={canEdit}
           bottom={phoneEdit ? (phoneSheetOpen ? phoneSheetH : PHONE_STUDIO_H) : 0}
+          top={phoneEdit && !phonePreview ? phoneBarH : 0}
         />
       )}
       {shareOpen && visProfiles[0] && (() => {
