@@ -80,6 +80,8 @@ export interface PostViewProps {
   onRepost?: () => void;
   /** It is here because @this reposted it. */
   repostedBy?: string;
+  /** Color for "on" states other than the heart (reposted, pinned). Defaults to accent. */
+  onColor?: string;
 }
 
 export function PostView(p: PostViewProps) {
@@ -104,6 +106,7 @@ export function PostView(p: PostViewProps) {
   const canPin = !!p.wallOwner && !post.parentId && !!p.onPin;
   const avatar = p.compact ? 24 : 30;
   const lastTap = useRef(0);
+  const on = p.onColor ?? p.accent;
 
   return (
     <div>
@@ -121,7 +124,7 @@ export function PostView(p: PostViewProps) {
           <a href={href} target={p.newTab ? "_blank" : undefined} rel="noreferrer"
             style={{ color: ink, fontWeight: 650, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{who}</a>
           <span style={{ color: dim, flex: "none" }}>{timeAgo(post.createdAt)}</span>
-          {post.pinned && <span aria-label="Fijado" title="Fijado" style={{ color: p.accent, display: "flex" }}><PinIcon size={13} /></span>}
+          {post.pinned && <span aria-label="Fijado" title="Fijado" style={{ color: on, display: "flex" }}><PinIcon size={13} /></span>}
         </div>
         <div
           // Double tap = like (phones).
@@ -152,7 +155,7 @@ export function PostView(p: PostViewProps) {
           {p.onRepost && p.viewer && (
             <button type="button" onClick={p.onRepost} aria-pressed={!!post.reposted}
               aria-label={`${post.reposted ? "Quitar repost" : "Repostear en mi muro"} (${post.reposts ?? 0})`} title={post.reposted ? "Quitar repost" : "Repostear"}
-              style={{ ...roundBtn, width: "auto", height: 28, padding: "0 6px", gap: 4, display: "flex", color: post.reposted ? p.accent : dim }}>
+              style={{ ...roundBtn, width: "auto", height: 28, padding: "0 6px", gap: 4, display: "flex", color: post.reposted ? on : dim }}>
               <RepostGlyph size={15} />{(post.reposts ?? 0) > 0 && <span>{formatViewCount(post.reposts ?? 0)}</span>}
             </button>
           )}
@@ -265,8 +268,10 @@ function FxGrid({ value, onPick, color }: { value?: PostFx; onPick: (f?: PostFx)
 }
 
 // ── Composer (write with a style) ────────────────────────────────────────────
-export function Composer({ ink, accent, onSend, placeholder, replyTo, onCancelReply, autoFocus, wallBg }: {
+export function Composer({ ink, accent, onSend, placeholder, replyTo, onCancelReply, autoFocus, wallBg, lima }: {
   ink: string; accent: string; wallBg: string;
+  /** Grafito panels (Feed): the send button in lime gel. */
+  lima?: boolean;
   onSend: (body: string, style: PostStyle) => Promise<string | null>;
   placeholder: string;
   replyTo?: PostAuthor | null;
@@ -330,8 +335,9 @@ export function Composer({ ink, accent, onSend, placeholder, replyTo, onCancelRe
             </span>
           )}
         </div>
-        <button type="submit" disabled={!text.trim() || sending || len > POST_MAX} aria-label="Enviar"
-          style={{ ...roundBtn, width: 42, height: 42, flex: "none", background: accent, color: "#fff", opacity: !text.trim() || sending || len > POST_MAX ? 0.4 : 1 }}>
+        <button type="submit" disabled={!text.trim() || sending || len > POST_MAX} aria-label="Enviar" className={lima ? "gf-btn gf-btn--lima" : undefined}
+          style={lima ? { width: 42, height: 42, padding: 0, flex: "none", borderRadius: 21, opacity: !text.trim() || sending || len > POST_MAX ? 0.5 : 1 }
+            : { ...roundBtn, width: 42, height: 42, flex: "none", background: accent, color: "#fff", opacity: !text.trim() || sending || len > POST_MAX ? 0.4 : 1 }}>
           <SendIcon />
         </button>
       </div>
@@ -355,7 +361,7 @@ export function Composer({ ink, accent, onSend, placeholder, replyTo, onCancelRe
             ))}
           </div>
           <button type="button" aria-label={`Animación${st.fx ? `: ${FX_LABEL[st.fx]}` : ""}`} aria-expanded={pop?.kind === "fx"} onClick={e => togglePop("fx", e.currentTarget)}
-            style={{ ...tool(pop?.kind === "fx" || !!st.fx), color: st.fx ? accent : ink }}>
+            style={{ ...tool(pop?.kind === "fx" || !!st.fx), color: st.fx ? (lima ? "#4b6a00" : accent) : ink }}>
             <SparkIcon />
           </button>
           {ps.recent.filter(r => !sameStyle(r, ps.style)).slice(0, 3).map((r, i) => {

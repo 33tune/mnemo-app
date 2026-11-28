@@ -28,10 +28,12 @@ import { markFeedSeen } from "./feedBadge";
 
 export const FEED_PANEL_ID = "mnemo-feed";
 export const FEED_DOCK_W = 560;
-const ACC = "#FF4F94";
-const INK = "#F6F3F8";
-const BG = "#100e15";
-const font = "var(--font-sans, system-ui), -apple-system, 'Segoe UI', sans-serif";
+// Grafito (2026-11-28): a solid old-Mac window; white groups; pink only for a given heart.
+const ACC = "#FF3D8B";
+const ON = "#4b6a00";
+const INK = "#15171A";
+const BG = "#ffffff";
+const font = "var(--gf-font)";
 const PULL = 70;
 
 export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right = 14, newTab }: {
@@ -160,65 +162,62 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
 
   const renderPost = (p: WallPost, key: string) => (
     <>
-      <PostView post={p} ink={INK} accent={ACC} wallBg={BG} viewer={viewer} newTab={newTab}
+      <PostView post={p} ink={INK} accent={ACC} onColor={ON} wallBg={BG} viewer={viewer} newTab={newTab}
         onLike={() => like(p)}
         onRepost={viewer && p.wallOwner !== viewer ? () => repost(p) : undefined}
         threadOpen={thread === key} onThread={() => setThread(t => (t === key ? null : key))} />
-      {thread === key && <PostThread post={p} viewer={viewer} ink={INK} accent={ACC} wallBg={BG} newTab={newTab}
+      {thread === key && <PostThread post={p} viewer={viewer} ink={INK} accent={ACC} wallBg={BG} newTab={newTab} lima
         onReplied={() => patchPost(p.id, x => ({ ...x, replies: x.replies + 1 }))} />}
     </>
   );
 
   const dock = mode === "dock";
   const shell: React.CSSProperties = dock
-    ? { position: "fixed", top, right, bottom, width: `min(${FEED_DOCK_W}px, calc(100vw - 28px))`, borderRadius: 24, zIndex: 2147481050,
-        background: "rgba(16,14,21,.985)", border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 24px 60px rgba(0,0,0,.45)" }
-    : { position: "fixed", inset: 0, bottom, zIndex: 2147481050, background: "#0E0C12" };
+    ? { position: "fixed", top, right, bottom, width: `min(${FEED_DOCK_W}px, calc(100vw - 28px))`, borderRadius: 14, zIndex: 2147481050 }
+    : { position: "fixed", inset: 0, bottom, zIndex: 2147481050 };
+  const pad = dock ? 16 : 12;
+  const thumbBtn: React.CSSProperties = { position: "relative", padding: 0, border: "none", borderRadius: 9, overflow: "hidden", cursor: "pointer" };
 
   return (
-    <section id={FEED_PANEL_ID} data-mnemo-ui="" data-export-skip="" aria-label="Feed"
+    <section id={FEED_PANEL_ID} data-mnemo-ui="" data-export-skip="" aria-label="Feed" className="gf-win"
       onMouseDown={e => e.stopPropagation()} onKeyDown={e => { if (e.key !== "Escape") e.stopPropagation(); }}
-      style={{ ...shell, color: INK, font: `500 14px ${font}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ padding: dock ? "18px 18px 10px" : "calc(env(safe-area-inset-top, 0px) + 18px) 16px 10px", display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-        <h2 style={{ margin: 0, font: "800 22px 'Unbounded', var(--font-sans), sans-serif", letterSpacing: "-.01em" }}>Feed</h2>
-        <span style={{ flex: 1 }} />
-        <button type="button" onClick={() => refresh("button")} aria-label="Actualizar" title="Actualizar" disabled={refreshing}
-          style={{ width: 36, height: 36, borderRadius: 18, border: "none", background: "rgba(255,255,255,.08)", color: INK, display: "grid", placeItems: "center", cursor: "pointer" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden
+      style={{ ...shell, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div className={dock ? "gf-bar" : "gf-bar gf-bar--phone"}>
+        {dock && <span className="gf-lights" aria-hidden><i /><i /><i /></span>}
+        <button type="button" className="gf-btn" onClick={() => refresh("button")} aria-label="Actualizar" title="Actualizar" disabled={refreshing}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
             style={{ animation: refreshing ? "mnemo-feed-spin .8s linear infinite" : undefined }}><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 4v5h-5" /></svg>
         </button>
-        {onClose && (
-          <button type="button" onClick={onClose} aria-label="Cerrar Feed"
-            style={{ width: 36, height: 36, borderRadius: 18, border: "none", background: "rgba(255,255,255,.08)", color: INK, display: "grid", placeItems: "center", cursor: "pointer" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M18 6 6 18M6 6l12 12" /></svg>
-          </button>
-        )}
+        <span className="gf-bar__title" aria-hidden>Feed</span>
+        <span style={{ flex: 1 }} />
+        {onClose && <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar Feed">Listo</button>}
       </div>
       <style>{`@keyframes mnemo-feed-spin{to{transform:rotate(360deg)}}`}</style>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: dock ? "0 18px 18px" : "0 16px 24px", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: `0 ${pad}px 24px`, WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
+        <h2 className="gf-big" style={{ margin: `14px 4px 8px` }}>Feed</h2>
         {/* Pull to refresh */}
-        <div aria-hidden={!pull && !refreshing} style={{ height: refreshing ? 44 : pull, overflow: "hidden", display: "grid", placeItems: "center", transition: pull ? "none" : "height .2s",
-          color: "rgba(246,243,248,.6)", font: `600 12px ${font}` }}>
+        <div aria-hidden={!pull && !refreshing} style={{ height: refreshing ? 40 : pull, overflow: "hidden", display: "grid", placeItems: "center", transition: pull ? "none" : "height .2s",
+          color: "var(--gf-ink3)", font: `500 12.5px ${font}` }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 18, height: 18, borderRadius: 9, border: "2.5px solid rgba(255,255,255,.16)", borderTopColor: ACC,
+            <span style={{ width: 16, height: 16, borderRadius: 8, border: "2px solid rgba(21,23,26,.14)", borderTopColor: "#6a6e74",
               animation: refreshing ? "mnemo-feed-spin .8s linear infinite" : undefined, transform: refreshing ? undefined : `rotate(${pull * 4}deg)` }} />
             {refreshing ? "Actualizando…" : pull >= PULL ? "Soltá para actualizar" : "Tirá para actualizar"}
           </span>
         </div>
 
         {viewer === null ? (
-          <p style={{ color: "rgba(246,243,248,.65)", marginTop: 16 }}>Iniciá sesión para ver lo que publican tus favoritos.</p>
+          <p style={{ color: "var(--gf-ink2)", margin: "16px 4px" }}>Iniciá sesión para ver lo que publican tus favoritos.</p>
         ) : (
           <>
             {viewer && (
-              <div style={{ padding: 10, borderRadius: 18, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", marginBottom: 6 }}>
-                <Composer ink={INK} accent={ACC} wallBg={BG} placeholder="¿Qué estás pensando?" onSend={postMine} />
+              <div className="gf-group" style={{ padding: 10, marginBottom: 12 }}>
+                <Composer ink={INK} accent={ACC} wallBg={BG} lima placeholder="¿Qué estás pensando?" onSend={postMine} />
               </div>
             )}
-            {items === null && <div style={{ marginTop: 14, display: "grid", gap: 10 }}>{[0, 1, 2].map(i => <div key={i} style={{ height: 86, borderRadius: 16, background: "rgba(255,255,255,.05)" }} />)}</div>}
+            {items === null && <div style={{ display: "grid", gap: 10 }}>{[0, 1, 2].map(i => <div key={i} className="gf-skel" style={{ height: 96, borderRadius: 12 }} />)}</div>}
             {items && entries.length === 0 && !failed && (
-              <div style={{ display: "grid", placeItems: "center", gap: 10, padding: "48px 12px", color: "rgba(246,243,248,.6)", textAlign: "center" }}>
+              <div style={{ display: "grid", placeItems: "center", gap: 10, padding: "48px 12px", color: "var(--gf-ink2)", textAlign: "center" }}>
                 <HeartIcon size={28} />
                 <span>Dale corazón a las cards que te gustan: lo que publiquen y reposteen aparece acá.</span>
               </div>
@@ -227,10 +226,12 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
               if (e.type === "suggested") {
                 const fav = e.s.likedByFavs;
                 return (
-                  <div key={e.key} style={{ borderBottom: "1px solid rgba(255,255,255,.06)", padding: "6px 0 4px" }}>
-                    <Meta><span style={{ padding: "2px 8px", borderRadius: 99, background: "rgba(255,79,148,.14)", color: "#ff8ab8" }}>Sugerido</span>
-                      <span>{fav > 0 ? (fav === 1 ? "le gustó a 1 de tus favoritos" : `le gustó a ${fav} de tus favoritos`) : "popular en myLand"}</span></Meta>
-                    {renderPost(e.s.post, e.key)}
+                  <div key={e.key} style={{ marginBottom: 12 }}>
+                    <div className="gf-foot" style={{ padding: "4px 12px 6px" }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" /></svg>
+                      <span>Sugerido · {fav > 0 ? (fav === 1 ? "le gustó a 1 de tus favoritos" : `le gustó a ${fav} de tus favoritos`) : "popular en myLand"}</span>
+                    </div>
+                    <div className="gf-group" style={{ padding: "2px 14px 4px" }}>{renderPost(e.s.post, e.key)}</div>
                   </div>
                 );
               }
@@ -240,26 +241,24 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
                 const n = e.resources.length;
                 const shown = all ? e.resources : e.resources.slice(0, 4);
                 return (
-                  <div key={e.key} style={{ borderBottom: "1px solid rgba(255,255,255,.06)", padding: "10px 0 12px" }}>
-                    <Meta><RepostGlyph /><span data-no-i18n="">{n === 1 ? `${by} reposteó un recurso de @${e.resources[0].ownerHandle || "?"}` : `${by} reposteó ${n} cosas`}</span>
-                      <span style={{ marginLeft: "auto", flex: "none" }}>{timeAgo(e.at)}</span></Meta>
+                  <div key={e.key} className="gf-group" style={{ padding: "10px 14px 14px", marginBottom: 12 }}>
+                    <Meta><RepostGlyph /><span data-no-i18n="" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n === 1 ? `${by} reposteó un recurso de @${e.resources[0].ownerHandle || "?"}` : `${by} reposteó ${n} cosas`}</span>
+                      <span style={{ marginLeft: "auto", flex: "none", color: "var(--gf-ink3)", fontWeight: 400 }}>{timeAgo(e.at)}</span></Meta>
                     {n === 1 ? (
-                      <button type="button" aria-label={`Abrir recurso de @${e.resources[0].ownerHandle}`} onClick={() => openRes(e.resources[0])}
-                        style={{ display: "block", width: "100%", marginTop: 6, padding: 0, border: "1px solid rgba(255,255,255,.08)", borderRadius: 16, overflow: "hidden", cursor: "pointer",
-                          background: "repeating-conic-gradient(rgba(255,255,255,.05) 0 25%, transparent 0 50%) 0 0 / 16px 16px" }}>
+                      <button type="button" className="gf-check" aria-label={`Abrir recurso de @${e.resources[0].ownerHandle}`} onClick={() => openRes(e.resources[0])}
+                        style={{ ...thumbBtn, display: "block", width: "100%", marginTop: 10, borderRadius: 12 }}>
                         <img src={thumbOf(e.resources[0].src, 480)} alt="" loading="lazy" draggable={false} style={{ display: "block", width: "100%", maxHeight: 340, objectFit: "contain" }} />
                       </button>
                     ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginTop: 6 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginTop: 10 }}>
                         {shown.map((r, i) => {
                           const rest = !all && i === 3 && n > 4 ? n - 3 : 0;
                           return (
-                            <button key={`${r.ownerId}:${r.key}:${i}`} type="button" aria-label={rest ? `Ver las ${n}` : `Abrir recurso de @${r.ownerHandle}`}
+                            <button key={`${r.ownerId}:${r.key}:${i}`} type="button" className="gf-check" aria-label={rest ? `Ver las ${n}` : `Abrir recurso de @${r.ownerHandle}`}
                               onClick={() => (rest ? setExpanded(s => new Set(s).add(e.key)) : openRes(r))}
-                              style={{ position: "relative", aspectRatio: "1", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer", border: "1px solid rgba(255,255,255,.08)",
-                                background: "repeating-conic-gradient(rgba(255,255,255,.05) 0 25%, transparent 0 50%) 0 0 / 14px 14px" }}>
-                              <img src={thumbOf(r.src, 200)} alt="" loading="lazy" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                              {rest > 0 && <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,.6)", font: `800 20px ${font}`, color: "#fff" }}>+{rest}</span>}
+                              style={{ ...thumbBtn, aspectRatio: "1" }}>
+                              <img src={thumbOf(r.src, 200)} alt="" loading="lazy" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+                              {rest > 0 && <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(240,242,244,.72)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", font: `600 18px ${font}`, color: INK }}>+{rest}</span>}
                             </button>
                           );
                         })}
@@ -272,15 +271,15 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
               if (!it.post) return null;
               const by = it.actor.handle ? `@${it.actor.handle}` : "alguien";
               return (
-                <div key={e.key} style={{ borderBottom: "1px solid rgba(255,255,255,.06)", padding: "2px 0 4px" }}>
+                <div key={e.key} className="gf-group" style={{ padding: "2px 14px 4px", marginBottom: 12 }}>
                   {it.kind === "repost_post" && <Meta><RepostGlyph /><span data-no-i18n="">{by} reposteó</span></Meta>}
                   {renderPost(it.post, e.key)}
                 </div>
               );
             })}
             <div ref={endRef} aria-hidden style={{ height: 1 }} />
-            {failed && <button type="button" onClick={() => load(items?.length ? cursor : null)} style={{ display: "block", width: "100%", height: 42, marginTop: 10, borderRadius: 999, border: "none", background: "rgba(255,255,255,.08)", color: INK, cursor: "pointer", font: `600 13px ${font}` }}>Reintentar</button>}
-            {busy && !!items?.length && !refreshing && <p style={{ textAlign: "center", color: "rgba(246,243,248,.5)" }}>Cargando…</p>}
+            {failed && <button type="button" className="gf-btn gf-btn--pill" onClick={() => load(items?.length ? cursor : null)} style={{ display: "flex", width: "100%", marginTop: 10 }}>Reintentar</button>}
+            {busy && !!items?.length && !refreshing && <p style={{ textAlign: "center", color: "var(--gf-ink3)" }}>Cargando…</p>}
           </>
         )}
       </div>
@@ -290,22 +289,21 @@ export default function FeedPanel({ mode, onClose, top = 14, bottom = 14, right 
 }
 
 function Meta({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(246,243,248,.55)", font: `650 11.5px ${font}`, marginTop: 8, minWidth: 0 }}>{children}</div>;
+  return <div style={{ display: "flex", alignItems: "center", gap: 7, color: "var(--gf-ink2)", font: `500 13px ${font}`, marginTop: 8, minWidth: 0 }}>{children}</div>;
 }
 
-/** The button next to Explorar (computer) — with the count of new things. */
+/** The button next to Explorar (computer: inside the glass dock; phone: a round glass button) — with the count of new things. */
 export function FeedButton({ open, onToggle, count, compact }: { open: boolean; onToggle: () => void; count: number; compact?: boolean }) {
   return (
     <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={FEED_PANEL_ID} aria-label={count ? `Feed, ${count} nuevos` : "Feed"}
-      data-mnemo-ui="" data-export-skip=""
-      style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, height: compact ? 44 : 48, padding: compact ? 0 : "0 20px", width: compact ? 44 : undefined, borderRadius: 999, cursor: "pointer",
-        font: `700 15px ${font}`, border: "1px solid rgba(255,255,255,.14)", boxShadow: "0 10px 30px rgba(0,0,0,.35)",
-        background: open ? INK : "rgba(14,13,18,.86)", color: open ? "#141118" : "#fff", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      data-mnemo-ui="" data-export-skip="" className={compact ? "gf-glass gf-dockbtn" : "gf-dockbtn"}
+      style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: compact ? 44 : 42, padding: compact ? 0 : "0 18px", width: compact ? 44 : undefined,
+        borderRadius: 999, cursor: "pointer", border: "none", font: `500 15px ${font}`, color: open ? INK : "var(--gf-ink2)",
+        ...(compact ? {} : { background: open ? undefined : "transparent", boxShadow: open ? undefined : "none" }) }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <rect x="4" y="3.5" width="16" height="7" rx="2.2" /><rect x="4" y="13.5" width="16" height="7" rx="2.2" /></svg>
       {!compact && "Feed"}
-      {count > 0 && <span style={{ minWidth: 20, height: 20, padding: "0 6px", borderRadius: 10, background: ACC, color: "#fff", font: `700 11.5px ${font}`, display: "grid", placeItems: "center",
-        ...(compact ? { position: "absolute", top: -5, right: -5, minWidth: 18, height: 18, fontSize: 10.5 } : {}) }}>{count > 99 ? "99+" : count}</span>}
+      {count > 0 && <span className="gf-badge" style={compact ? { position: "absolute", top: -5, right: -5, minWidth: 18, height: 18, fontSize: 10.5 } : undefined}>{count > 99 ? "99+" : count}</span>}
     </button>
   );
 }

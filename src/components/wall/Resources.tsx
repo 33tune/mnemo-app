@@ -143,10 +143,15 @@ function Badge({ children, left }: { children: React.ReactNode; left?: boolean }
 }
 
 // ── The viewer ───────────────────────────────────────────────────────────────
-const PANEL_BG = "#141318";
-const btn = (on?: boolean, accent?: string): React.CSSProperties => ({
-  display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 38, padding: "0 12px", borderRadius: 999, cursor: "pointer",
-  border: "1px solid rgba(255,255,255,.14)", background: on ? (accent ?? "#fff") : "rgba(255,255,255,.06)", color: "#fff", font: `650 13px ${UI_FONT}`, flex: "1 1 0", minWidth: 0,
+// Grafito (2026-11-28): the viewer is a light old-Mac window; Aqua gel buttons, the main one in lime.
+const GEL = "linear-gradient(180deg,#fdfdfd,#e6e8ea 50%,#dadde0 51%,#e9ebed)";
+const GEL_LIMA = "linear-gradient(180deg,#f2ffc4 0%,#d4fa5a 46%,#bde826 52%,#d0f74e 100%)";
+const btn = (on?: boolean, danger?: boolean): React.CSSProperties => ({
+  display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 38, padding: "0 12px", borderRadius: 999, cursor: "pointer", border: "none",
+  background: danger ? "linear-gradient(180deg,#ff8a80,#ff3b30)" : on ? GEL_LIMA : GEL,
+  color: danger ? "#fff" : on ? "#2B3A00" : "#2c2f33", textShadow: danger ? "none" : "0 1px 0 rgba(255,255,255,.6)",
+  boxShadow: on ? "inset 0 1px 0 rgba(255,255,255,.85), 0 0 0 .5px rgba(70,100,0,.55), 0 2px 6px rgba(110,160,0,.25)" : "inset 0 1px 0 #fff, 0 0 0 .5px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.08)",
+  font: `600 13.5px var(--gf-font)`, flex: "1 1 0", minWidth: 0,
 });
 
 export function ResourceViewer({ target, accent, newTab, initial, onChange, onClose, onDeleted, onDeleteResource }: {
@@ -215,10 +220,11 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
 
   const image = (
     <div style={{ position: "relative", flex: wide ? "1 1 55%" : "none", minHeight: wide ? 0 : 220, maxHeight: wide ? "none" : "46vh", display: "grid", placeItems: "center",
-      background: "repeating-conic-gradient(rgba(255,255,255,.05) 0 25%, transparent 0 50%) 0 0 / 18px 18px", borderRadius: wide ? "18px 0 0 18px" : 0, overflow: "hidden" }}>
+      background: "rgba(255,255,255,.4) repeating-conic-gradient(rgba(0,0,0,.045) 0 25%, transparent 0 50%) 0 0 / 18px 18px", overflow: "hidden",
+      borderRight: wide ? ".5px solid rgba(0,0,0,.2)" : "none", borderBottom: wide ? "none" : ".5px solid rgba(0,0,0,.2)" }}>
       <img src={target.src} alt={s.caption ?? ""} draggable={false}
         onContextMenu={s.noDownload && !own ? e => e.preventDefault() : undefined}
-        style={{ maxWidth: "100%", maxHeight: wide ? "min(76vh, 640px)" : "46vh", objectFit: "contain", display: "block", userSelect: "none",
+        style={{ maxWidth: "100%", maxHeight: wide ? "min(76vh, 640px)" : "46vh", objectFit: "contain", display: "block", userSelect: "none", filter: "drop-shadow(0 14px 22px rgba(0,0,0,.25))",
           WebkitTouchCallout: s.noDownload && !own ? "none" : undefined } as React.CSSProperties} />
     </div>
   );
@@ -234,43 +240,50 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
     <div data-mnemo-ui="" data-export-skip="" onMouseDown={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} onWheel={e => e.stopPropagation()}
       onKeyDown={e => { if (e.key !== "Escape") e.stopPropagation(); }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      style={{ position: "fixed", inset: 0, zIndex: 2147482600, background: "rgba(6,6,10,.72)", display: "grid", placeItems: wide ? "center" : "stretch",
-        padding: wide ? 24 : 0, font: `500 14px ${UI_FONT}`, color: "#f4f2f7" }}>
-      <div ref={shell} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Recurso"
-        style={{ outline: "none", background: PANEL_BG, borderRadius: wide ? 18 : 0, border: wide ? "1px solid rgba(255,255,255,.12)" : "none",
-          boxShadow: "0 30px 80px rgba(0,0,0,.55)", display: "flex", flexDirection: wide ? "row" : "column",
+      style={{ position: "fixed", inset: 0, zIndex: 2147482600, background: "rgba(10,11,14,.55)", display: "grid", placeItems: wide ? "center" : "stretch",
+        padding: wide ? 24 : 0 }}>
+      <div ref={shell} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Recurso" className="gf-win"
+        style={{ outline: "none", borderRadius: wide ? 14 : 0, display: "flex", flexDirection: wide ? "row" : "column",
           width: wide ? "min(940px, 100%)" : "100%", height: wide ? "min(640px, 100%)" : "100%", overflow: "hidden" }}>
         {!wide && (
-          <div style={{ display: "flex", alignItems: "center", padding: "calc(8px + env(safe-area-inset-top, 0px)) 8px 8px" }}>
+          <div className="gf-bar gf-bar--phone">
+            <span className="gf-bar__title" aria-hidden>Fragmento</span>
             <span style={{ flex: 1 }} />
-            <button type="button" onClick={onClose} aria-label="Cerrar" style={{ ...roundBtn, color: "#fff" }}><CloseIcon /></button>
+            <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar">Listo</button>
           </div>
         )}
         {image}
-        <div style={{ flex: wide ? "1 1 45%" : 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", borderLeft: wide ? "1px solid rgba(255,255,255,.08)" : "none" }}>
+        <div style={{ flex: wide ? "1 1 45%" : 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          {wide && (
+            <div className="gf-bar">
+              <span className="gf-lights" aria-hidden><i /><i /><i /></span>
+              <span className="gf-bar__title" aria-hidden>Fragmento</span>
+              <span style={{ flex: 1 }} />
+              <button type="button" className="gf-btn" onClick={onClose} aria-label="Cerrar">Listo</button>
+            </div>
+          )}
           {/* Who uploaded it */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 12px 10px 16px" }}>
-            {owner ? <Avatar a={owner} size={34} /> : <span style={{ width: 34, height: 34, borderRadius: 99, background: "#2a2830" }} />}
+            {owner ? <Avatar a={owner} size={36} round /> : <span style={{ width: 36, height: 36, borderRadius: 99, background: "#c9ccd0" }} />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div data-no-i18n="" style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{target.ownerHandle || "?"}</div>
               {profileHref && !own && (
-                <a href={profileHref} target={newTab ? "_blank" : undefined} rel="noreferrer" style={{ color: accent, fontSize: 12.5, fontWeight: 650, textDecoration: "none" }}>Ver perfil</a>
+                <a href={profileHref} target={newTab ? "_blank" : undefined} rel="noreferrer" className="gf-link">Ver perfil ›</a>
               )}
             </div>
             {!own && viewer && (
               <div style={{ position: "relative" }}>
-                <button type="button" onClick={() => setMenu(m => !m)} aria-expanded={menu} aria-label="Más" style={{ ...roundBtn, color: "#fff" }}><MoreIcon /></button>
+                <button type="button" className="gf-btn gf-btn--round" onClick={() => setMenu(m => !m)} aria-expanded={menu} aria-label="Más"><MoreIcon /></button>
                 {menu && (
-                  <div role="menu" style={{ position: "absolute", right: 0, top: 36, zIndex: 3, background: "#1d1b22", borderRadius: 12, border: "1px solid rgba(255,255,255,.12)", padding: 4, minWidth: 140 }}>
+                  <div role="menu" className="gf-group" style={{ position: "absolute", right: 0, top: 36, zIndex: 3, padding: 4, minWidth: 140, boxShadow: "0 0 0 .5px rgba(0,0,0,.2), 0 10px 24px rgba(0,0,0,.2)" }}>
                     <button type="button" role="menuitem" onClick={async () => { setMenu(false); flash((await reportResource(target.ownerId, target.key, target.src)) ? "Reportado. Gracias." : "No se pudo reportar."); }}
-                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px", border: "none", borderRadius: 8, background: "transparent", color: "#fff", cursor: "pointer", font: `600 13px ${UI_FONT}` }}>
+                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px", border: "none", borderRadius: 8, background: "transparent", color: "#15171A", cursor: "pointer", font: `500 13.5px var(--gf-font)` }}>
                       <FlagIcon /> Reportar
                     </button>
                   </div>
                 )}
               </div>
             )}
-            {wide && <button type="button" onClick={onClose} aria-label="Cerrar" style={{ ...roundBtn, color: "#fff" }}><CloseIcon /></button>}
           </div>
 
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", padding: "0 16px 10px" }}>
@@ -279,29 +292,29 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
               <form onSubmit={async e => { e.preventDefault(); const v = caption.trim().slice(0, CAPTION_MAX); setEditing(false); set({ caption: v || null }); if (!(await setResourceMeta(target.key, { caption: v || null }))) flash("No se pudo guardar."); }}
                 style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
                 <textarea value={caption} onChange={e => setCaption(e.target.value.slice(0, CAPTION_MAX))} rows={3} autoFocus aria-label="Descripción"
-                  placeholder="Contá algo de esta imagen" style={{ resize: "none", borderRadius: 12, border: "1px solid rgba(255,255,255,.16)", background: "rgba(255,255,255,.05)", color: "#fff", padding: 10, font: `500 16px ${UI_FONT}`, outline: "none" }} />
+                  placeholder="Contá algo de esta imagen" className="gf-field" style={{ resize: "none", borderRadius: 12, padding: 10 }} />
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <span style={{ flex: 1, color: "rgba(255,255,255,.45)", fontSize: 11.5 }}>{caption.length}/{CAPTION_MAX}</span>
+                  <span style={{ flex: 1, color: "var(--gf-ink3)", fontSize: 11.5 }}>{caption.length}/{CAPTION_MAX}</span>
                   <button type="button" onClick={() => setEditing(false)} style={{ ...btn(), flex: "none" }}>Cancelar</button>
-                  <button type="submit" style={{ ...btn(true, accent), flex: "none", border: "none" }}>Guardar</button>
+                  <button type="submit" style={{ ...btn(true), flex: "none" }}>Guardar</button>
                 </div>
               </form>
             ) : s.caption ? (
-              <p data-no-i18n="" style={{ margin: "0 0 10px", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.4 }}>{s.caption}</p>
+              <p data-no-i18n="" style={{ margin: "0 0 10px", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.4, fontSize: 15.5 }}>{s.caption}</p>
             ) : null}
 
             {/* Numbers */}
-            <div aria-label="Estadísticas" style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", color: "rgba(255,255,255,.6)", fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>
+            <div aria-label="Estadísticas" style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", color: "var(--gf-ink3)", fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
               {stats.map(x => <span key={x.label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>{x.icon}<span>{formatViewCount(x.n)}</span><span>{x.label}</span></span>)}
             </div>
 
             {/* Actions */}
             <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-              <button type="button" onClick={like} aria-pressed={s.liked} aria-label="Me gusta" style={{ ...btn(), flex: "none", width: 44, padding: 0, color: s.liked ? accent : "#fff" }}>
+              <button type="button" onClick={like} aria-pressed={s.liked} aria-label="Me gusta" style={{ ...btn(), flex: "none", width: 44, padding: 0, color: s.liked ? "#FF3D8B" : "#2c2f33" }}>
                 <HeartIcon size={17} filled={s.liked} />
               </button>
               {!own && (
-                <button type="button" onClick={repost} aria-pressed={s.reposted} disabled={busy === "rp"} style={btn(s.reposted, accent)}>
+                <button type="button" onClick={repost} aria-pressed={s.reposted} disabled={busy === "rp"} style={btn(!s.reposted)}>
                   <RepostIcon /> {s.reposted ? "Reposteado" : "Repostear"}
                 </button>
               )}
@@ -310,26 +323,26 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
                 {s.noDownload && !own ? <LockIcon /> : <DownloadIcon />} {busy === "dl" ? "…" : "Descargar"}
               </button>
             </div>
-            {msg && <p role="status" style={{ margin: "-4px 0 10px", color: accent, fontSize: 12.5, fontWeight: 600 }}>{msg}</p>}
+            {msg && <p role="status" style={{ margin: "-4px 0 10px", color: "#4b6a00", fontSize: 13, fontWeight: 600 }}>{msg}</p>}
 
             {/* The owner's options */}
             {own && (
-              <div aria-label="Opciones del recurso" style={{ display: "flex", flexDirection: "column", gap: 2, padding: 6, borderRadius: 14, background: "rgba(255,255,255,.04)", marginBottom: 14 }}>
+              <div aria-label="Opciones del recurso" className="gf-group" style={{ display: "flex", flexDirection: "column", gap: 2, padding: 6, marginBottom: 14 }}>
                 <OptRow label="Permitir descargas" on={!s.noDownload} onToggle={async () => { const v = !s.noDownload; set({ noDownload: v }); if (!(await setResourceMeta(target.key, { noDownload: v }))) set({ noDownload: !v }); }} />
                 <OptRow label="Ocultar de recursos" on={s.hidden} onToggle={async () => { const v = !s.hidden; set({ hidden: v }); if (!(await setResourceMeta(target.key, { hidden: v }))) set({ hidden: !v }); }} />
                 <button type="button" onClick={() => { setCaption(s.caption ?? ""); setEditing(true); }} style={optBtn}>{s.caption ? "Editar descripción" : "Agregar descripción"}</button>
                 {onDeleteResource && (
                   confirmDel ? (
-                    <div role="alertdialog" aria-label="Borrar recurso" style={{ padding: 10, borderRadius: 12, background: "rgba(255,59,48,.12)", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div role="alertdialog" aria-label="Borrar recurso" style={{ padding: 10, borderRadius: 10, background: "rgba(255,59,48,.08)", display: "flex", flexDirection: "column", gap: 8 }}>
                       <span style={{ fontSize: 13, lineHeight: 1.4 }}>Se borra de tu card o tu sala, y de todos los que lo repostearon. No se puede deshacer.</span>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button type="button" onClick={() => setConfirmDel(false)} style={btn()}>Cancelar</button>
                         <button type="button" onClick={async () => { await deleteResourceData(target.key); onDeleteResource(target.key); onDeleted?.(); }}
-                          style={{ ...btn(true, "#ff3b30"), border: "none" }}><TrashIcon /> Borrar</button>
+                          style={btn(false, true)}><TrashIcon /> Borrar</button>
                       </div>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => setConfirmDel(true)} style={{ ...optBtn, color: "#ff6b62", display: "flex", alignItems: "center", gap: 8 }}><TrashIcon /> Borrar</button>
+                    <button type="button" onClick={() => setConfirmDel(true)} style={{ ...optBtn, color: "#c62a20", display: "flex", alignItems: "center", gap: 8 }}><TrashIcon /> Borrar</button>
                   )
                 )}
               </div>
@@ -338,7 +351,7 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
             {/* Comments */}
             <div aria-label="Comentarios" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {c.loaded && c.list.length === 0 && !own && s.noDownload && (
-                <p style={{ margin: 0, color: "rgba(255,255,255,.5)", fontSize: 12.5 }}>¿La querés? Pedíselo en un comentario.</p>
+                <p style={{ margin: 0, color: "var(--gf-ink3)", fontSize: 13 }}>¿La querés? Pedíselo en un comentario.</p>
               )}
               {c.list.map(cm => (
                 <div key={cm.id} style={{ display: "flex", gap: 8 }}>
@@ -346,11 +359,11 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", gap: 6, fontSize: 12, alignItems: "center" }}>
                       <span data-no-i18n="" style={{ fontWeight: 650 }}>@{cm.author.handle || "?"}</span>
-                      <span style={{ color: "rgba(255,255,255,.45)" }}>{timeAgo(cm.at)}</span>
+                      <span style={{ color: "var(--gf-ink3)" }}>{timeAgo(cm.at)}</span>
                       <span style={{ flex: 1 }} />
                       {viewer && (viewer === cm.author.id || own) && (
                         <button type="button" aria-label="Borrar comentario" onClick={async () => { c.setList(l => l.filter(x => x.id !== cm.id)); set({ comments: Math.max(0, s.comments - 1) }); if (!(await deleteResourceComment(cm.id))) c.reload(); }}
-                          style={{ ...roundBtn, width: 24, height: 24, color: "rgba(255,255,255,.5)" }}><TrashIcon size={13} /></button>
+                          style={{ ...roundBtn, width: 24, height: 24, color: "var(--gf-ink3)" }}><TrashIcon size={13} /></button>
                       )}
                     </div>
                     <p data-no-i18n="" style={{ margin: "2px 0 0", fontSize: 13.5, lineHeight: 1.35, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{cm.body}</p>
@@ -361,14 +374,14 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
           </div>
 
           {/* Write */}
-          <form onSubmit={send} style={{ display: "flex", gap: 6, padding: "10px 12px calc(12px + env(safe-area-inset-bottom, 0px))", borderTop: "1px solid rgba(255,255,255,.08)" }}>
+          <form onSubmit={send} style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 12px calc(12px + env(safe-area-inset-bottom, 0px))", borderTop: ".5px solid rgba(0,0,0,.15)" }}>
             {viewer === null ? (
-              <a href={loginHref} style={{ flex: 1, textAlign: "center", padding: 11, borderRadius: 999, background: accent, color: "#fff", fontWeight: 650, textDecoration: "none" }}>Iniciá sesión para comentar</a>
+              <a href={loginHref} style={{ ...btn(true), textDecoration: "none" }}>Iniciá sesión para comentar</a>
             ) : (
               <>
                 <input value={text} onChange={e => setText(e.target.value.slice(0, RESOURCE_COMMENT_MAX))} placeholder="Escribí un comentario" aria-label="Escribí un comentario"
-                  style={{ flex: 1, minWidth: 0, height: 40, borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.05)", color: "#fff", padding: "0 14px", font: `500 16px ${UI_FONT}`, outline: "none" }} />
-                <button type="submit" disabled={!text.trim()} aria-label="Enviar" style={{ ...roundBtn, width: 40, height: 40, background: text.trim() ? accent : "rgba(255,255,255,.08)", color: "#fff" }}><SendIcon /></button>
+                  className="gf-field" style={{ flex: 1, minWidth: 0, height: 38, padding: "0 14px" }} />
+                <button type="submit" disabled={!text.trim()} style={{ ...btn(true), flex: "none", height: 34, padding: "0 14px", opacity: text.trim() ? 1 : 0.55 }}>Enviar</button>
               </>
             )}
           </form>
@@ -379,14 +392,15 @@ export function ResourceViewer({ target, accent, newTab, initial, onChange, onCl
   return typeof document === "undefined" ? null : createPortal(node, document.body);
 }
 
-const optBtn: React.CSSProperties = { display: "block", width: "100%", textAlign: "left", padding: "10px", border: "none", borderRadius: 10, background: "transparent", color: "#fff", cursor: "pointer", font: `600 13px ${UI_FONT}` };
+const optBtn: React.CSSProperties = { display: "block", width: "100%", textAlign: "left", padding: "10px", border: "none", borderRadius: 8, background: "transparent", color: "#15171A", cursor: "pointer", font: `500 14px var(--gf-font)` };
 
 function OptRow({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
   return (
     <button type="button" role="switch" aria-checked={on} onClick={onToggle} style={{ ...optBtn, display: "flex", alignItems: "center", gap: 10 }}>
       <span style={{ flex: 1 }}>{label}</span>
-      <span aria-hidden style={{ width: 36, height: 22, borderRadius: 99, background: on ? "#34c759" : "rgba(255,255,255,.18)", position: "relative", transition: "background .15s" }}>
-        <span style={{ position: "absolute", top: 2, left: on ? 16 : 2, width: 18, height: 18, borderRadius: 99, background: "#fff", transition: "left .15s" }} />
+      <span aria-hidden style={{ width: 40, height: 24, borderRadius: 99, background: on ? GEL_LIMA : "linear-gradient(180deg,#c9ccd0,#e2e4e7)", position: "relative", transition: "background .15s",
+        boxShadow: "inset 0 1px 2px rgba(0,0,0,.25), 0 0 0 .5px rgba(0,0,0,.3)" }}>
+        <span style={{ position: "absolute", top: 2, left: on ? 18 : 2, width: 20, height: 20, borderRadius: 99, background: "linear-gradient(180deg,#fff,#e6e8ea)", boxShadow: "0 1px 2px rgba(0,0,0,.3)", transition: "left .15s" }} />
       </span>
     </button>
   );

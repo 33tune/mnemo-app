@@ -201,18 +201,18 @@ export default function WallPanel(p: WallPanelProps) {
               {count > 0 && <span style={{ color: hexAlpha(ink, 0.6), fontWeight: 600 }}>{formatViewCount(count)}</span>}
               <span style={{ flex: 1 }} />
               {(
-                <div role="tablist" aria-label="Dorso de la card" style={{ display: "flex", gap: 2, padding: 2, borderRadius: 12, background: hexAlpha(ink, 0.08) }}>
+                // Grafito (2026-11-28): an Aqua segmented control, the chosen tab in lime gel.
+                <div role="tablist" aria-label="Dorso de la card" className="gf-seg" style={{ flex: "none" }}>
                   {tabs.map(t => (
                     <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} aria-label={t.label} title={t.label} onClick={() => setTab(t.id)}
-                      style={{ ...roundBtn, position: "relative", width: 34, height: 30, borderRadius: 10, color: tab === t.id ? ink : hexAlpha(ink, 0.55),
-                        background: tab === t.id ? hexAlpha(ink, 0.16) : "transparent" }}>
+                      style={{ width: 40, padding: 0 }}>
                       {t.icon}
-                      {t.dot && tab !== t.id && <span aria-hidden style={{ position: "absolute", top: 3, right: 5, width: 7, height: 7, borderRadius: 99, background: look.accent }} />}
+                      {t.dot && tab !== t.id && <span aria-hidden className="gf-gem" style={{ position: "absolute", top: 3, right: 5, width: 7, height: 7 }} />}
                     </button>
                   ))}
                 </div>
               )}
-              <button type="button" onClick={close} aria-label="Volver al frente" title="Volver al frente" style={{ ...roundBtn }}>
+              <button type="button" className="gf-btn gf-btn--round" onClick={close} aria-label="Volver al frente" title="Volver al frente" style={{ flex: "none" }}>
                 <BackIcon />
               </button>
             </div>
@@ -249,8 +249,7 @@ function FavBack({ userId, accent, mutual }: { userId: string; accent: string; m
         e.preventDefault(); e.stopPropagation(); setDone(true); track("favorite_add", { from: "notice" });
         createClient().from("favorites").insert({ user_id: viewer, target_user_id: userId }).then(({ error }) => { if (error && error.code !== "23505") { setDone(false); if (isVerifyError(error)) requestVerify(); } });
       }}
-      style={{ flex: "none", height: 30, padding: "0 12px", borderRadius: 999, border: "none", cursor: done ? "default" : "pointer",
-        background: done ? "rgba(255,255,255,.12)" : accent, color: "#fff", font: "700 12px system-ui, sans-serif" }}>
+      className={done ? "gf-btn" : "gf-btn gf-btn--lima"} style={{ flex: "none", borderRadius: 999, height: 28, padding: "0 12px", fontSize: 12.5, cursor: done ? "default" : "pointer" }}>
       {done ? "Agregado" : "Agregar"}
     </button>
   );

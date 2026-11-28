@@ -86,7 +86,8 @@ test("layout.tsx: theme boot script BEFORE the tokens, dark default on <html>, n
   for (const v of ["--font-display", "--font-sans", "--font-mono", "--font-serif"]) assert.ok(layout.includes(`variable: "${v}"`), v);
   for (const f of ["Bricolage_Grotesque", "Geist", "Geist_Mono", "Instrument_Serif"]) assert.ok(layout.includes(f), f);
   // r2 (Regression-1): never preloaded on every route (the public page doesn't use them).
-  assert.equal((layout.match(/preload: false/g) ?? []).length, 4, "the 4 editor families must not be preloaded");
+  // + Inter for the Grafito panels (2026-11-28), not preloaded either.
+  assert.equal((layout.match(/preload: false/g) ?? []).length, 5, "the 4 editor families + Grafito's Inter must not be preloaded");
   // globals.css (the canvas fonts) is untouched: still imported, never replaced.
   assert.ok(layout.includes('import "./globals.css"'));
 });

@@ -1,9 +1,11 @@
 import Translator from "@/components/i18n/Translator";
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono, Instrument_Serif, Inter } from "next/font/google";
 import "./globals.css";
 // Block 2: editor-only stylesheet, every rule scoped to [data-mnemo-editor]/[data-mnemo-ui] — see its header.
 import "@/ui/editor.css";
+// "Grafito" (2026-11-28): the social panels' look (Feed, Explorar, viewer, phone tabs) — gf-* classes only.
+import "@/styles/grafito.css";
 import { uiCssVarsStylesheet } from "@/ui/tokens";
 import { DEFAULT_EDITOR_THEME, editorThemeBootScript } from "@/lib/editorTheme";
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
@@ -27,13 +29,15 @@ export const metadata: Metadata = {
 const fontDisplay = Bricolage_Grotesque({ subsets: ["latin"], preload: false, variable: "--font-display", display: "swap" });
 const fontSans = Geist({ subsets: ["latin"], preload: false, variable: "--font-sans", display: "swap" });
 const fontMono = Geist_Mono({ subsets: ["latin"], preload: false, variable: "--font-mono", display: "swap" });
+// Grafito panels (Feed, Explorar…): Inter, loaded only when that text renders.
+const fontGf = Inter({ subsets: ["latin"], preload: false, variable: "--font-gf", display: "swap" });
 const fontSerif = Instrument_Serif({ subsets: ["latin"], preload: false, weight: "400", style: ["normal", "italic"], variable: "--font-serif", display: "swap" });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      className={`dark ${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} ${fontSerif.variable}`}
+      className={`dark ${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} ${fontSerif.variable} ${fontGf.variable}`}
       // Editor theme (Light/Dark/OG): dark for no-JS; the boot script below
       // swaps it to the stored preference before hydration (no flash).
       data-editor-theme={DEFAULT_EDITOR_THEME}

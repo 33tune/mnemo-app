@@ -22,9 +22,9 @@ export function useLastSeen(userId: string | undefined | null): number | null {
   return t;
 }
 
+/** Grafito (2026-11-28): live = the lime gem; otherwise a graphite one. */
 export function PresenceDot({ live, size = 8 }: { live: boolean; size?: number }) {
-  return <span aria-hidden style={{ flex: "none", width: size, height: size, borderRadius: size, background: live ? "#34d27b" : "rgba(246,243,248,.45)",
-    boxShadow: live ? "0 0 0 3px rgba(52,210,123,.22)" : "none" }} />;
+  return <span aria-hidden className={live ? "gf-gem" : "gf-gem gf-gem--off"} style={{ width: size, height: size, borderRadius: size }} />;
 }
 
 /** The inline label (inside a pill). */
@@ -37,7 +37,7 @@ export function PresenceLabel({ userId }: { userId?: string | null }) {
   const live = isLive(t, now);
   return (
     <span data-presence="" style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: 12.5, fontWeight: 650,
-      color: live ? "#5fe39a" : "rgba(246,243,248,.62)" }}>
+      color: "inherit", opacity: live ? 0.9 : 0.62 }}>
       <PresenceDot live={live} />{label}
     </span>
   );
@@ -49,10 +49,9 @@ export function PresencePill({ userId }: { userId?: string | null }) {
   const label = presenceLabel(t);
   if (!label) return null;
   return (
-    <div data-export-skip="" data-mnemo-ui="" style={{ position: "fixed", top: "calc(10px + env(safe-area-inset-top, 0px))", left: "50%", transform: "translateX(-50%)", zIndex: 2147480000,
-      display: "flex", alignItems: "center", gap: 7, height: 32, padding: "0 13px", borderRadius: 999, background: "rgba(14,13,18,.72)",
-      border: "1px solid rgba(255,255,255,.12)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
-      font: "650 12.5px system-ui, -apple-system, sans-serif", color: isLive(t) ? "#5fe39a" : "rgba(246,243,248,.8)", pointerEvents: "none" }}>
+    <div data-export-skip="" data-mnemo-ui="" className="gf-glass" style={{ position: "fixed", top: "calc(10px + env(safe-area-inset-top, 0px))", left: "50%", transform: "translateX(-50%)", zIndex: 2147480000,
+      display: "flex", alignItems: "center", gap: 7, height: 32, padding: "0 13px", borderRadius: 999,
+      font: "500 13px var(--gf-font)", color: isLive(t) ? "#15171A" : "rgba(21,23,26,.7)", pointerEvents: "none" }}>
       <PresenceDot live={isLive(t)} />{label}
     </div>
   );

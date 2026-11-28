@@ -23,8 +23,10 @@ export async function replyToPost(post: Pick<WallPost, "id" | "wallOwner">, body
   return null;
 }
 
-export function PostThread({ post, viewer, ink, accent, wallBg, newTab, onReplied }: {
+export function PostThread({ post, viewer, ink, accent, wallBg, newTab, onReplied, lima }: {
   post: WallPost; viewer: string | null | undefined; ink: string; accent: string; wallBg: string; newTab?: boolean;
+  /** Grafito panels (Feed): lime send button. */
+  lima?: boolean;
   onReplied?: () => void;
 }) {
   const [list, setList] = useState<WallPost[] | null>(null);
@@ -46,7 +48,7 @@ export function PostThread({ post, viewer, ink, accent, wallBg, newTab, onReplie
       ))}
       {viewer && (
         <div style={{ padding: "6px 0 4px" }}>
-          <Composer ink={ink} accent={accent} wallBg={wallBg} autoFocus placeholder={`Responder a @${post.author.handle || "?"}`}
+          <Composer ink={ink} accent={accent} wallBg={wallBg} lima={lima} autoFocus placeholder={`Responder a @${post.author.handle || "?"}`}
             onSend={async (body, style) => { const e = await replyToPost(post, body, style); if (!e) { load(); onReplied?.(); } return e; }} />
         </div>
       )}

@@ -4805,7 +4805,7 @@ export default function CanvasBoard({
       {railShown && !tourStep && (() => {
         const right = exploreOpen ? EXPLORE_DOCK_W + 14 : feedOpen ? FEED_DOCK_W + 14 : inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0;
         return (
-          <div data-export-skip="" style={{ position: "fixed", bottom: 16, left: `calc((100vw - ${right}px) / 2)`, transform: "translateX(-50%)", zIndex: 2147480900, display: "flex", gap: 10 }}>
+          <div data-export-skip="" className="gf-glass" style={{ position: "fixed", bottom: 16, left: `calc((100vw - ${right}px) / 2)`, transform: "translateX(-50%)", zIndex: 2147480900, display: "flex", gap: 2, padding: 4, borderRadius: 999 }}>
             <ExploreButton inline open={exploreOpen} onToggle={() => { if (!exploreOpen) { closeInspector(); setMenuOpen(false); } toggleExplore(); }} />
             <FeedButton open={feedOpen} count={feedCount} onToggle={() => { if (!feedOpen) { closeInspector(); setMenuOpen(false); } toggleFeed(); }} />
           </div>
@@ -4826,7 +4826,7 @@ export default function CanvasBoard({
         ) : (() => {
           const right = exploreOpen ? EXPLORE_DOCK_W + 14 : feedOpen ? FEED_DOCK_W + 14 : 0;
           return (
-            <div data-export-skip="" style={{ position: "fixed", bottom: 16, left: `calc((100vw - ${right}px) / 2)`, transform: "translateX(-50%)", zIndex: 2147480900, display: "flex", gap: 10 }}>
+            <div data-export-skip="" className="gf-glass" style={{ position: "fixed", bottom: 16, left: `calc((100vw - ${right}px) / 2)`, transform: "translateX(-50%)", zIndex: 2147480900, display: "flex", gap: 2, padding: 4, borderRadius: 999 }}>
               <ExploreButton inline open={exploreOpen} onToggle={toggleExplore} />
               {!!currentUserId && <FeedButton open={feedOpen} count={feedCount} onToggle={toggleFeed} />}
             </div>
