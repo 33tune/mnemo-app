@@ -73,11 +73,12 @@ import { useCommentCount } from "@/hooks/useComments";
 import { useUnreadActivity } from "@/hooks/useWall";
 import WallPanel from "@/components/wall/WallPanel";
 import { resourcesOf } from "@/lib/resources";
+import { takeExploreReopen } from "@/lib/exploreMemory";
 import AvatarDock from "@/components/wall/AvatarDock";
 import { wallShown } from "@/lib/wall";
 import { cardIsLight } from "@/lib/cardColors";
 import { SHORTCUTS_BAR_H } from "./ShortcutsBar";
-import ExplorePanel, { ExploreButton } from "@/components/explore/ExplorePanel";
+import ExplorePanel, { ExploreButton, EXPLORE_DOCK_W } from "@/components/explore/ExplorePanel";
 import PhoneTabs, { PhoneHome, PHONE_TABS_H, type PhoneTab } from "@/components/explore/PhoneTabs";
 import { isFinished as cardIsFinished, publicCardOf } from "@/lib/explore";
 import { publishExploreThumb } from "@/lib/export/exploreThumb";
@@ -978,6 +979,9 @@ export default function CanvasBoard({
   useEffect(() => { if (shareOpen) crumb("share"); }, [shareOpen]);
   // Retención (visitTrail): which editor panel is open (room, layers, image, text…).
   useEffect(() => { const k = editorSel.target?.kind; if (k && k !== "profile") crumb(`panel:${k}`); }, [editorSel.target?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Explorar recuerda dónde estabas (2026-11-28): a card opened from Explorar
+  // opens with Explorar still there on a computer (phones show the profile).
+  useEffect(() => { if (!canEdit && !mobileFit && takeExploreReopen()) setExploreOpen(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (exploreOpen) { crumb("explore"); track("explore_open", { own: !!canEdit, phone: !!phoneEdit }); } }, [exploreOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   /** Muro v2: the editor's Tarjeta › Muro part is open — the card shows its back while you edit it. */
   const editingObject = canEdit && !phonePreview && editorSel.target?.kind === "profile" ? editorSel.target.objectId : null;
@@ -4788,7 +4792,7 @@ export default function CanvasBoard({
           in the editor (beside the rail, clear of the dock) and on other
           people's profiles while signed in (computer). */}
       {railShown && !tourStep && (
-        <ExploreButton open={exploreOpen} left={0} right={exploreOpen ? 414 : inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
+        <ExploreButton open={exploreOpen} left={0} right={exploreOpen ? EXPLORE_DOCK_W + 14 : inspectorShown ? (inspectorCollapsed ? INSPECTOR_COLLAPSED_W : inspLayout.width + UIT.ui.size.dockMargin) : 0}
           onToggle={() => setExploreOpen(o => { if (!o) { closeInspector(); setMenuOpen(false); } return !o; })} />
       )}
       {railShown && !tourStep && exploreOpen && (
@@ -4798,7 +4802,7 @@ export default function CanvasBoard({
         mobileFit
           ? <ExploreButton compact open={exploreOpen} onToggle={() => setExploreOpen(o => !o)}
               at={{ left: 70, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }} />
-          : <ExploreButton open={exploreOpen} left={0} right={exploreOpen ? 414 : 0} onToggle={() => setExploreOpen(o => !o)} />
+          : <ExploreButton open={exploreOpen} left={0} right={exploreOpen ? EXPLORE_DOCK_W + 14 : 0} onToggle={() => setExploreOpen(o => !o)} />
       )}
       {!canEdit && exploreOpen && (mobileFit ? <ExplorePanel mode="screen" onClose={() => setExploreOpen(false)} /> : <ExplorePanel mode="dock" onClose={() => setExploreOpen(false)} />)}
       {/* Muro (2026-11-25): tu card en miniatura (bottom-left, everywhere) → tu celular. */}

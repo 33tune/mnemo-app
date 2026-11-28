@@ -40,7 +40,7 @@ const svg = (d: React.ReactNode, size = 18, sw = 2) => (
 export const RepostIcon = ({ size = 16 }: { size?: number }) => svg(<><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></>, size);
 export const DownloadIcon = ({ size = 16 }: { size?: number }) => svg(<><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>, size);
 export const LockIcon = ({ size = 14 }: { size?: number }) => svg(<><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>, size);
-export const GemIcon = ({ size = 18 }: { size?: number }) => svg(<><path d="M6 3h12l4 6-10 12L2 9z" /><path d="M2 9h20M12 21 8 9l4-6 4 6z" /></>, size, 1.8);
+export const ResourcesIcon = ({ size = 18 }: { size?: number }) => svg(<><rect x="7" y="3" width="14" height="14" rx="2.5" /><path d="M3 7.5V19a2 2 0 0 0 2 2h11.5" /><circle cx="12" cy="8" r="1.6" /><path d="m21 13.5-3.6-3.6a1.4 1.4 0 0 0-2 0L9 16.4" /></>, size);
 const EyeOffIcon = ({ size = 14 }: { size?: number }) => svg(<><path d="M3 3l18 18" /><path d="M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a9 9 0 0 1-2.2 3.2M6.6 6.6C4.4 8 3 10.3 3 12c0 2 4 7 9 7 1.6 0 3-.4 4.3-1" /></>, size);
 
 /** What the viewer opens. */
@@ -65,7 +65,7 @@ export function ResourcesTab({ ownerId, ownerHandle, owner, resources, ink, acce
       {showMine && (
         <section aria-label={own ? "Tus recursos" : `Recursos de @${ownerHandle}`} style={{ opacity: allHidden ? 0.5 : 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px 8px", color: dim, font: `700 10.5px ${UI_FONT}`, letterSpacing: ".08em", textTransform: "uppercase" }}>
-            <GemIcon size={13} /> {own ? "Fragmentos de tu alma" : "Fragmentos"}
+            <ResourcesIcon size={13} /> {own ? "Fragmentos de tu alma" : "Fragmentos"}
             {allHidden && <span title="Ocultos" aria-label="Ocultos" style={{ display: "flex" }}><EyeOffIcon size={13} /></span>}
           </div>
           {r.loaded && mine.length === 0 ? (

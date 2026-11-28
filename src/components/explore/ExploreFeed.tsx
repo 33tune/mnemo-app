@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { FeedItem } from "@/lib/feed";
 import type { WallPost } from "@/lib/wall";
 import { timeAgo } from "@/lib/comments";
-import { PostView, Avatar, RepostGlyph } from "@/components/wall/WallParts";
+import { PostView, RepostGlyph } from "@/components/wall/WallParts";
 import { ResourceViewer, thumbOf, type ResourceTarget } from "@/components/wall/Resources";
 import { HeartIcon } from "@/components/canvas/StatsRow";
 import { togglePostLike, togglePostRepost } from "@/hooks/useWall";
@@ -21,7 +21,7 @@ const INK = "#F6F3F8";
 const BG = "#100e15";
 const font = "var(--font-sans, system-ui), -apple-system, 'Segoe UI', sans-serif";
 
-const keyOf = (it: FeedItem, i: number) => `${it.kind}-${it.at}-${it.post?.id ?? it.resource?.key ?? it.target?.id ?? i}`;
+const keyOf = (it: FeedItem, i: number) => `${it.kind}-${it.at}-${it.post?.id ?? it.resource?.key ?? i}`;
 
 export default function ExploreFeed({ newTab }: { newTab?: boolean }) {
   const viewer = useViewerId();
@@ -107,22 +107,6 @@ export default function ExploreFeed({ newTab }: { newTab?: boolean }) {
                 <img src={thumbOf(r.src, 480)} alt="" loading="lazy" draggable={false} style={{ display: "block", width: "100%", maxHeight: 340, objectFit: "contain" }} />
               </button>
             </div>
-          );
-        }
-        if (it.target) {
-          const t = it.target;
-          return (
-            <a key={keyOf(it, i)} href={`/${t.handle}`} target={newTab ? "_blank" : undefined} rel="noreferrer"
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,.06)", color: INK, textDecoration: "none" }}>
-              <span style={{ position: "relative", flex: "none" }}>
-                <Avatar a={t} size={40} />
-                <span aria-hidden style={{ position: "absolute", right: -4, bottom: -4, width: 19, height: 19, borderRadius: 99, display: "grid", placeItems: "center", background: ACC, color: "#fff" }}><HeartIcon size={11} filled /></span>
-              </span>
-              <span style={{ flex: 1, minWidth: 0, font: `500 13.5px ${font}` }} data-no-i18n="">
-                <b>{by}</b> agregó a <b>@{t.handle}</b> a favoritos
-              </span>
-              <span style={{ color: "rgba(246,243,248,.5)", fontSize: 11.5, flex: "none" }}>{timeAgo(it.at)}</span>
-            </a>
           );
         }
         return null;

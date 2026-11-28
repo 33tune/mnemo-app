@@ -24,7 +24,7 @@ import { hexAlpha, timeAgo } from "@/lib/comments";
 import { resolveWallLook, readableOn, postFontFamily, wallBackEffects, WALL_W, WALL_H } from "@/lib/wall";
 import { formatViewCount } from "@/lib/profileCardLayout";
 import { WallBody, Avatar, BackIcon, WallIcon, BellIcon, ReplyArrow, roundBtn, UI_FONT } from "./WallParts";
-import { ResourcesTab, GemIcon, RepostIcon, thumbOf } from "./Resources";
+import { ResourcesTab, ResourcesIcon, RepostIcon, thumbOf } from "./Resources";
 import type { Resource } from "@/lib/resources";
 import { useViewerId } from "@/lib/viewer";
 import { createClient } from "@/lib/supabase/client";
@@ -173,7 +173,7 @@ export default function WallPanel(p: WallPanelProps) {
   if (!box) return null;
   const tabs: { id: Tab; label: string; icon: React.ReactNode; dot?: boolean }[] = [
     { id: "wall", label: "Muro", icon: <WallIcon size={17} /> },
-    { id: "resources", label: "Recursos", icon: <GemIcon size={17} /> },
+    { id: "resources", label: "Recursos", icon: <ResourcesIcon size={17} /> },
     ...(own ? [{ id: "news" as const, label: "Avisos", icon: <BellIcon size={17} />, dot: unread > 0 }] : []),
   ];
   const owner = { handle: p.ownerHandle, photo: typeof p.card.photo === "string" && /^https?:\/\//.test(p.card.photo) ? p.card.photo : null,

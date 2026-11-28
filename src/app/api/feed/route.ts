@@ -7,8 +7,8 @@ import type { FeedItem } from "@/lib/feed";
 const PAGE = 30;
 
 // Feed (2026-11-25; v2 2026-11-28, now in Explorar): from the cards I keep in
-// favorites — what they wrote on their own walls, what they reposted (posts and
-// resources) and who they added to their favorites.
+// favorites — what they wrote on their own walls and what they reposted (posts
+// and resources). Who favorites whom is not shown (2026-11-28).
 export async function GET(req: Request) {
   const before = new URL(req.url).searchParams.get("before");
   const supabase = await createClient();
@@ -34,9 +34,6 @@ export async function GET(req: Request) {
       if (post) items.push({ ...base, post });
     } else if (r.kind === "repost_resource" && r.owner_id && r.rkey && r.src) {
       items.push({ ...base, resource: { ownerId: r.owner_id, ownerHandle: who.get(r.owner_id)?.handle ?? "", key: r.rkey, src: r.src, owner: who.get(r.owner_id) } });
-    } else if (r.kind === "favorite" && r.target) {
-      const t = author(r.target);
-      if (t?.handle) items.push({ ...base, target: t });
     }
   }
   return NextResponse.json({ items, more: rows.length > PAGE, cursor: page[page.length - 1]?.at ?? null }, { headers: { "Cache-Control": "private, no-store" } });

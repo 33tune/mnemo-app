@@ -18,8 +18,11 @@ import { cleanSearchQuery, type SearchHit } from "@/lib/userSearch";
 import { createClient } from "@/lib/supabase/client";
 import { useViewerId } from "@/lib/viewer";
 import { track } from "@/lib/track";
+import { loadExplore, saveExplore, markExploreReopen } from "@/lib/exploreMemory";
 
 export const EXPLORE_PANEL_ID = "mnemo-explore";
+/** The dock's width on a computer (2026-11-28: wider, more presence). */
+export const EXPLORE_DOCK_W = 640;
 const ACC = "#FF4F94";
 const INK = "#F6F3F8";
 const font = "var(--font-sans, system-ui), -apple-system, 'Segoe UI', sans-serif";
@@ -115,11 +118,13 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   useDisplayFont();
   const viewer = useViewerId();
   const sc = useShortcuts(true);
-  const [tab, setTab] = useState<ExploreTab>("para");
+  // Explorar recuerda dónde estabas (exploreMemory.ts): what it showed last time.
+  const [mem] = useState(() => loadExplore<ExploreItem>());
+  const [tab, setTab] = useState<ExploreTab>(() => (mem && EXPLORE_TABS.some(t => t.id === mem.tab) ? mem.tab as ExploreTab : "para"));
   // Feed (2026-11-28): Explorar has two sections, the cards and the Feed.
-  const [section, setSection] = useState<"cards" | "feed">("cards");
-  const [items, setItems] = useState<ExploreItem[] | null>(null);
-  const [more, setMore] = useState(false);
+  const [section, setSection] = useState<"cards" | "feed">(mem?.section ?? "cards");
+  const [items, setItems] = useState<ExploreItem[] | null>(mem?.items ?? null);
+  const [more, setMore] = useState(mem?.more ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [failed, setFailed] = useState(false);
   const [q, setQ] = useState("");
@@ -129,7 +134,32 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const query = cleanSearchQuery(q);
   const reqId = useRef(0);
   // Para vos: one random seed per visit (a new mix each time Explorar opens).
-  const seed = useRef(Math.random().toString(36).slice(2, 12));
+  const seed = useRef(mem?.seed || Math.random().toString(36).slice(2, 12));
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const memRef = useRef({ section, tab, items, more });
+  memRef.current = { section, tab, items, more };
+  const lastScroll = useRef(mem?.scroll ?? 0);
+  const remember = useCallback(() => {
+    const m = memRef.current;
+    saveExplore({ ...m, seed: seed.current, scroll: lastScroll.current });
+  }, []);
+  /** A card was opened: keep the place, and (computer) reopen Explorar on the next page. */
+  const leaving = useCallback(() => { if (scrollRef.current) lastScroll.current = scrollRef.current.scrollTop; remember(); markExploreReopen(); }, [remember]);
+  // Back where it was: the scroll, once the remembered cards are on screen.
+  useEffect(() => {
+    if (mem?.scroll && scrollRef.current) scrollRef.current.scrollTop = mem.scroll;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Kept while scrolling (throttled) and when the panel closes.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let t = 0;
+    const on = () => { lastScroll.current = el.scrollTop; if (!t) t = window.setTimeout(() => { t = 0; remember(); }, 400); };
+    el.addEventListener("scroll", on, { passive: true });
+    return () => { el.removeEventListener("scroll", on); if (t) window.clearTimeout(t); remember(); };
+  }, [remember]);
+  useEffect(() => { remember(); }, [section, tab, items, more, remember]);
 
   useEffect(() => { track("search", { explore: mode }); }, [mode]);
   useEffect(() => {
@@ -159,7 +189,12 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
     }
     finally { if (id === reqId.current) setLoadingMore(false); }
   }, []);
-  useEffect(() => { setItems(null); load(tab, 0); }, [tab, load]);
+  const firstLoad = useRef(!!(mem?.items?.length));
+  useEffect(() => {
+    // Restored from memory: keep those cards (the next page loads on scroll).
+    if (firstLoad.current) { firstLoad.current = false; return; }
+    setItems(null); load(tab, 0);
+  }, [tab, load]);
   // Infinite scroll: the next page loads when the end of the grid comes near.
   const endRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef({ more, loadingMore, failed, n: 0, tab });
@@ -215,7 +250,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
   const favs = sc.list ? barShortcuts(sc.list) : [];
   const dock = mode === "dock";
   const shell: React.CSSProperties = dock
-    ? { position: "fixed", top, right, bottom, width: "min(460px, calc(100vw - 28px))", borderRadius: 24, zIndex: 2147481050,
+    ? { position: "fixed", top, right, bottom, width: `min(${EXPLORE_DOCK_W}px, calc(100vw - 28px))`, borderRadius: 24, zIndex: 2147481050,
         // Solid (no backdrop blur): the room behind animates, and the blur was
         // redone on every frame while scrolling the cards.
         background: "rgba(16,14,21,.985)",
@@ -252,13 +287,13 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
         )}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: dock ? "0 18px 18px" : "0 16px 24px", WebkitOverflowScrolling: "touch" }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: dock ? "0 18px 18px" : "0 16px 24px", WebkitOverflowScrolling: "touch" }}>
         {query ? (
           <div style={{ marginTop: 12 }}>
             {hits === null && <p style={{ opacity: .6 }}>Buscando…</p>}
             {hits && hits.length === 0 && <p style={{ opacity: .65 }}>No hay cards con “{q.trim()}”.</p>}
             {hits && hits.map(h => (
-              <a key={h.handle} href={`/${h.handle}`} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 4px", borderBottom: "1px solid rgba(255,255,255,.07)", color: INK, textDecoration: "none" }}>
+              <a key={h.handle} href={`/${h.handle}`} onClick={leaving} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 4px", borderBottom: "1px solid rgba(255,255,255,.07)", color: INK, textDecoration: "none" }}>
                 <span style={{ width: 46, height: 46, borderRadius: 23, background: h.bg, flex: "none", overflow: "hidden", display: "grid", placeItems: "center" }}>
                   {h.photo && <img src={h.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                 </span>
@@ -295,7 +330,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
                   </div>
                 ) : favs.length ? (
                   <HRow label="Tus favoritos">
-                    {favs.map(s => <FavAvatar key={s.userId} s={s} changed={changed.has(s.userId)} onOpen={x => { track("explore_card", { tab: "fav" }); markSeen(x); }} />)}
+                    {favs.map(s => <FavAvatar key={s.userId} s={s} changed={changed.has(s.userId)} onOpen={x => { track("explore_card", { tab: "fav" }); markSeen(x); leaving(); }} />)}
                   </HRow>
                 ) : (
                   <p style={{ margin: 0, color: "rgba(246,243,248,.6)", font: `500 13.5px ${font}` }}>Tocá el corazón de una card y aparece acá.</p>
@@ -312,7 +347,7 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
               </HRow>
             </div>
             {items === null ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: dock ? "repeat(3, 1fr)" : "1fr 1fr", gap: 10 }}>
                 {Array.from({ length: 6 }, (_, i) => <div key={i} style={{ aspectRatio: "4 / 5", borderRadius: 18, background: "rgba(255,255,255,.05)" }} />)}
               </div>
             ) : items.length === 0 && failed ? (
@@ -320,8 +355,8 @@ export default function ExplorePanel({ mode, onClose, top = 14, bottom = 14, rig
             ) : items.length === 0 ? (
               <p style={{ color: "rgba(246,243,248,.6)" }}>Todavía no hay cards acá.</p>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {items.map((it, i) => <ExploreThumb key={it.userId} item={it} canFavorite={!!viewer} onFavorite={toggleFavorite} onOpen={() => track("explore_card", { tab, pos: i })} />)}
+              <div style={{ display: "grid", gridTemplateColumns: dock ? "repeat(3, 1fr)" : "1fr 1fr", gap: 10 }}>
+                {items.map((it, i) => <ExploreThumb key={it.userId} item={it} canFavorite={!!viewer} onFavorite={toggleFavorite} onOpen={() => { track("explore_card", { tab, pos: i }); leaving(); }} />)}
               </div>
             )}
             <div ref={endRef} aria-hidden style={{ height: 1 }} />
