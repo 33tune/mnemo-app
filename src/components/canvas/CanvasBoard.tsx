@@ -1334,11 +1334,10 @@ export default function CanvasBoard({
     // card is known (below): only someone with a finished card gets them.
     if (phoneEdit) return;
     try {
-      if (!localStorage.getItem(TOUR_KEY)) {
-        setTourStep("card");
-        // A first visit gets the tour, not the news about what changed.
-        localStorage.setItem(NEWS_KEY, "1");
-      } else if (!localStorage.getItem(NEWS_KEY)) setNewsOpen(true);
+      if (!localStorage.getItem(TOUR_KEY)) setTourStep("card");
+      // Novedades 2026-11-28: everyone gets them, newcomers too (shown once
+      // the tour is over — the dialog waits while tourStep is set).
+      if (!localStorage.getItem(NEWS_KEY)) setNewsOpen(true);
     } catch { /* storage blocked: no tour, no news */ }
   }, [authResolved, canEdit]);
   const closeNews = useCallback(() => { try { localStorage.setItem(NEWS_KEY, "1"); } catch { /* ignore */ } setNewsOpen(false); }, []);
@@ -1371,13 +1370,9 @@ export default function CanvasBoard({
   useEffect(() => {
     if (!phoneEdit || isLoading || phoneTabDecided.current || !visProfiles.length) return;
     phoneTabDecided.current = true;
-    if (cardIsFinished(visProfiles[0], { images, texts, wallpaper } as unknown as CanvasState)) {
-      setPhoneTab("inicio");
-      try { if (!localStorage.getItem(NEWS_KEY)) setNewsOpen(true); } catch { /* storage blocked: no news */ }
-    } else {
-      // A new card gets the guide; the news are about things it never saw.
-      try { localStorage.setItem(NEWS_KEY, "1"); } catch { /* ignore */ }
-    }
+    if (cardIsFinished(visProfiles[0], { images, texts, wallpaper } as unknown as CanvasState)) setPhoneTab("inicio");
+    // Novedades 2026-11-28: on phones too, for everyone (new cards included).
+    try { if (!localStorage.getItem(NEWS_KEY)) setNewsOpen(true); } catch { /* storage blocked: no news */ }
   }, [phoneEdit, isLoading, visProfiles, images, texts, wallpaper]);
   // Explorar over the whole phone screen: the room behind sleeps (hidden +
   // effects paused), so the phone only draws the grid — the same reason the
@@ -5092,7 +5087,7 @@ export default function CanvasBoard({
       )}
 
       {/* ── Novedades (once per browser, NewsDialog.tsx) ── */}
-      {newsOpen && (railShown || (phoneEdit && !isLoading)) && !tourStep && <NewsDialog onClose={closeNews} />}
+      {newsOpen && (railShown || (phoneEdit && !isLoading)) && !tourStep && <NewsDialog onClose={closeNews} onOpenFragments={visProfiles[0] && wallOn ? () => openWall("resources") : undefined} />}
 
       {/* ── SpaceMusic global player ── */}
       {spaceMusic?.url && (

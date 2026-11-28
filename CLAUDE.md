@@ -902,6 +902,33 @@ planeado acá hasta confirmarlo.
 >   post), números de verificación en Resumen (`VerifySummary`) y filtro + insignias + botones Verificar / Quitar
 >   verificación en Usuarios. Sin QA en navegador con una cuenta admin (las funciones se probaron en una transacción).
 >
+> **Recursos — "Compartí fragmentos de tu alma" (2026-11-28, pedido del usuario; en `main`):**
+>   - **Dorso de la card:** pestañas Muro | Fragmentos (+ Avisos en tu card). Fragmentos (`src/components/wall/Resources.tsx`):
+>     arriba los recursos de la card = sus stickers + las imágenes públicas de la sala (`resourcesOf` en `src/lib/resources.ts`;
+>     nunca la foto ni el fondo de la card), en una fila con flechas / rueda / arrastre (`HRow.tsx`, compartida con Explorar);
+>     abajo, en grilla, lo que esa card reposteó ("vía @x"). Miniaturas por `/api/thumb`.
+>   - **Visor** (`ResourceViewer`): imagen, quién la subió, Ver perfil, números, comentarios, Repostear / Descargar (candado si
+>     el dueño no deja) / me gusta / Reportar. El dueño: Permitir descargas, descripción (≤ 200), Ocultar de recursos y, SOLO en
+>     el editor, Borrar (confirma; saca el sticker / la imagen de la card / sala y borra reposts, likes y comentarios). No se
+>     puede repostear lo propio. Sin "usar en mi card" (decisión del usuario).
+>   - **Reposts de posts del muro:** aparecen en el muro de quien repostea ("@x reposteó"), ordenados por la fecha del repost.
+>   - **Nada se copia:** un repost guarda el link al archivo original; si el dueño saca la imagen de su sala, sus reposts dejan
+>     de mostrarse (`resource_src_ok`) y la limpieza diaria borra el archivo como siempre.
+>   - **Feed** salió del dorso y vive en Explorar (Cards | Feed, `ExploreFeed.tsx`, `/api/feed` → `my_feed_v2`): posts propios
+>     y reposts de tus favoritos; SIN "quién le dio favorito a quién" (pedido del usuario).
+>   - **Explorar:** 640 px en la compu, 3 columnas, tapa la card (la card NO se corre — decisión del usuario). Recuerda dónde
+>     estabas (`src/lib/exploreMemory.ts`, sessionStorage 30 min): abrir una card desde Explorar abre el perfil nuevo con
+>     Explorar en el mismo lugar (compu); en el celular se retoma al volver a abrirlo.
+>   - **Avisos:** reposts de lo tuyo, me gusta y comentarios en tus recursos (`my_activity` manda la clave del recurso en `body`).
+>   - **Editor del Muro** (parte Muro): Mostrar mis recursos · Permitir descargas Todas / Ninguna (`set_resource_settings`).
+>   - **Admin › Reportes:** recursos reportados (Quitar = oculto para todos + borra reposts / Devolver).
+>   - **Base** (APLICADAS): `supabase/migrations/20261128000000_resources.sql` (resource_meta, reposts, resource_likes,
+>     resource_comments, resource_reports, profiles.resources_hidden / resources_locked, RPCs), `20261128010000_track_resources.sql`,
+>     `20261128020000_feed_no_favorites.sql`. Clave de recurso: `st:<id sticker>` / `im:<id imagen>`.
+>   - **Novedades** (`NewsDialog.tsx`, `mnemo_news_2026_11_28`): "Compartí fragmentos de tu alma", para TODOS (también los
+>     nuevos, después del tutorial; en el celular también con la card sin terminar); "Ver mis fragmentos" da vuelta tu card.
+>   - Cuentas de prueba `qarec_a` / `qarec_b` (qa-recursos-*@myland.lol) creadas para la QA: BORRARLAS con el OK del usuario.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

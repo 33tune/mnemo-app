@@ -28,6 +28,7 @@ import {
   toggleResourceRepost, toggleResourceLike, postResourceComment, deleteResourceComment, reportResource,
   setResourceMeta, deleteResourceData, downloadResource,
 } from "@/hooks/useResources";
+import HRow from "@/components/explore/HRow";
 import { Avatar, CloseIcon, FlagIcon, MoreIcon, SendIcon, TrashIcon, roundBtn, UI_FONT } from "./WallParts";
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -73,12 +74,13 @@ export function ResourcesTab({ ownerId, ownerHandle, owner, resources, ink, acce
               {own ? "Compartí fragmentos de tu alma: los stickers de tu card y las imágenes de tu sala aparecen acá." : "Todavía no hay recursos."}
             </p>
           ) : (
-            <div role="list" style={{ display: "flex", gap: 8, overflowX: "auto", padding: "0 14px 4px", scrollSnapType: "x proximity", overscrollBehaviorX: "contain" }}>
+            // Sideways with a finger, the wheel, dragging with the mouse or the arrows (HRow).
+            <div style={{ padding: "0 14px 4px" }}><HRow label={own ? "Tus recursos" : "Recursos"}>
               {mine.map(res => {
                 const st = r.stats.get(res.key);
                 const locked = st ? st.noDownload : r.settings.locked;
                 return (
-                  <button key={res.key} type="button" role="listitem" aria-label={`Abrir recurso${locked ? " (sin descarga)" : ""}`}
+                  <button key={res.key} type="button" aria-label={`Abrir recurso${locked ? " (sin descarga)" : ""}`}
                     onClick={() => openOne({ ownerId, ownerHandle, owner, key: res.key, src: res.src })}
                     style={{ flex: "none", position: "relative", width: 92, height: 92, padding: 0, borderRadius: 14, overflow: "hidden", cursor: "pointer", scrollSnapAlign: "start",
                       border: `1px solid ${hexAlpha(ink, 0.12)}`, background: `repeating-conic-gradient(${hexAlpha(ink, 0.07)} 0 25%, transparent 0 50%) 0 0 / 14px 14px`,
@@ -89,7 +91,7 @@ export function ResourcesTab({ ownerId, ownerHandle, owner, resources, ink, acce
                   </button>
                 );
               })}
-            </div>
+            </HRow></div>
           )}
         </section>
       )}
