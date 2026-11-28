@@ -131,6 +131,14 @@ function withLists(s: CanvasState): CanvasState {
  */
 function phoneDebug(s: CanvasState, sp: Record<string, string | string[] | undefined>): CanvasState {
   const d = String(sp.dbg ?? "").split(",");
+  const sin = String(sp.sin ?? "").split(",").filter(Boolean);
+  if (sin.length) {
+    s = { ...s, profiles: (s.profiles ?? []).map(p => {
+      const fx = { ...(p.effects ?? {}) } as Record<string, unknown>;
+      for (const k of sin) delete fx[k];
+      return { ...p, effects: fx };
+    }) } as CanvasState;
+  }
   if (!d[0]) return s;
   return {
     ...s,
