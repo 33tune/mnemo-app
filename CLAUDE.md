@@ -981,6 +981,10 @@ planeado acá hasta confirmarlo.
 >     hoja no entraba y tiraba la X a otra fila); un archivo con nombre UUID se muestra como "Cargada".
 >   - **Nuevas:** dentro de las últimas 24 h el sorteo pesa la antigüedad (`newWeight`: recién hecha ≈ 4×, de casi un día 1×).
 >
+> **Merge a `main` (OK del usuario, 2026-11-28):** Feed propio, En vivo, presencia, engranaje, métricas de comunidad,
+>   Grafito y Grafito v2 (menú combinado, claro / oscuro, menú más simple, Nuevas con peso) están en `main`
+>   (fast-forward desde `claude/adoring-edison-j7pzhk`, `08f22cf`). Los "NO en `main`" de esos bloques describen el estado previo.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas
