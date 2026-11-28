@@ -985,6 +985,14 @@ planeado acá hasta confirmarlo.
 >   Grafito y Grafito v2 (menú combinado, claro / oscuro, menú más simple, Nuevas con peso) están en `main`
 >   (fast-forward desde `claude/adoring-edison-j7pzhk`, `08f22cf`). Los "NO en `main`" de esos bloques describen el estado previo.
 >
+> **Perfil que reinicia Safari en iPhone (2026-11-28, `@valo`):** su card tenía 7 stickers GIF / WebP animados, logo y
+>   botón del muro animados: ~220 MB de cuadros decodificados (un sticker de 2048 px mostrado a ~100 px, un botón de 151
+>   cuadros). Ahora el perfil público en el celular pide TODAS las imágenes de nuestro storage (foto, logo, stickers, botón
+>   del muro, fondos de la card / el muro, imágenes de la sala, wallpaper) por `/api/thumb?anim=1` al ~doble del tamaño en
+>   que se ven en el teléfono más ancho (`phonePictures` en `thumbImages.ts`, con test): conserva la animación, y ante
+>   cualquier falla redirige al original. En @valo: 219 → 94 MB. Los recursos siguen nombrando el archivo original
+>   (`originalSrc` en `resourcesOf`: repostear / descargar no cambian). La compu no cambia. Sin QA en un iPhone real.
+>
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
 >   y `src/components/i18n/Translator.tsx` (montado en `layout.tsx`): con inglés, cambia los textos y las etiquetas

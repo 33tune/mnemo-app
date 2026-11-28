@@ -6,6 +6,7 @@ import { fitRoomToCard } from "@/lib/mobileFit";
 import { publicStateOf } from "@/lib/publishedState";
 import { dropOutsideRoom } from "@/lib/roomBounds";
 import { isMobileUserAgent } from "@/lib/deviceGate";
+import { phonePictures } from "@/lib/thumbImages";
 import type { CanvasState } from "@/types";
 import type { Metadata } from "next";
 
@@ -103,7 +104,7 @@ export default async function PublicPage({
       canEdit={false}
       viewerLoggedIn={!isMobileUA && !!viewer && viewer.id !== profile.user_id}
       userHandle={profile.handle}
-      initialState={fit ? fit.state : state}
+      initialState={fit ? phonePictures(fit.state, process.env.NEXT_PUBLIC_SUPABASE_URL || "") : state}
       ownerUserId={profile.user_id}
       mobileFit={fit ?? undefined}
     />

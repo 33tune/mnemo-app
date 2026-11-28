@@ -9,6 +9,7 @@
  */
 import type { CanvasImage, CardSticker } from "@/types";
 import type { PostAuthor } from "@/lib/wall";
+import { originalSrc } from "@/lib/thumbImages";
 
 export interface Resource { key: string; src: string; kind: "sticker" | "image"; aspect: number }
 export interface ResourceStats {
@@ -26,12 +27,16 @@ const httpSrc = (s: unknown): s is string => typeof s === "string" && /^https?:\
 export function resourcesOf(stickers: CardSticker[] | undefined, images: CanvasImage[] | undefined): Resource[] {
   const out: Resource[] = [];
   const seen = new Set<string>();
-  for (const s of stickers ?? []) {
+  // The phone profile draws resized copies (thumbImages.ts › phonePictures):
+  // a resource always names the owner's own file.
+  for (const raw of stickers ?? []) {
+    const s = raw && { ...raw, src: originalSrc(raw.src) };
     if (!s || s.hidden || !ID.test(s.id) || !httpSrc(s.src) || seen.has(s.src)) continue;
     seen.add(s.src);
     out.push({ key: `st:${s.id}`, src: s.src, kind: "sticker", aspect: s.aspect > 0 ? s.aspect : 1 });
   }
-  for (const i of images ?? []) {
+  for (const rawI of images ?? []) {
+    const i = rawI && { ...rawI, src: originalSrc(rawI.src) };
     if (!i || i.isPublic === false || !ID.test(i.id) || !httpSrc(i.src) || seen.has(i.src)) continue;
     seen.add(i.src);
     out.push({ key: `im:${i.id}`, src: i.src, kind: "image", aspect: i.w > 0 && i.h > 0 ? i.w / i.h : 1 });
