@@ -145,6 +145,20 @@ export function rippleColor(fx: CardEffects | undefined): string {
 // ── Aura ───────────────────────────────────────────────────────────────────
 export const AURA_DEFAULTS = { intensity: 0.6, size: 0.5 } as const;
 /** Soft blobs of color around the card (radial gradients: no blur filter). */
+/** The card's own background hides what is under it (a solid color, fully
+ * opaque, no glass / blur): the aura then needs no hole (a mask the halo's
+ * size, as much memory again on a phone, 2026-11-28). */
+export function cardBgOpaque(fx: CardEffects | undefined): boolean {
+  const bg = fx?.bg;
+  if (!bg?.color || bg.glass || (bg.blur ?? 0) > 0 || (bg.opacity ?? 1) < 0.99) return false;
+  const c = bg.color.trim().toLowerCase();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(c) || /^#[0-9a-f]{6}ff$/.test(c)) return true;
+  const m = /^rgba?\(([^)]*)\)$/.exec(c);
+  if (!m) return false;
+  const parts = m[1].split(/[\s,/]+/).filter(Boolean);
+  return parts.length === 3 || (parts.length === 4 && parseFloat(parts[3]) >= 0.99);
+}
+
 export function auraSpec(fx: CardEffects | undefined, box: FoilBox, cardColors?: readonly string[]):
   { wrap: CSSProperties; pulse: CSSProperties; blobs: CSSProperties } | null {
   const a = fx?.aura;
@@ -221,29 +235,37 @@ export const DUST_DEFAULTS = { amount: 0.5, size: 0.4, speed: 1 } as const;
 export type DustLayer = { style: CSSProperties; inner: CSSProperties };
 /** Polvo de estrellas: three sheets of fine dots drifting up at different
  * speeds (the picture repeats, so the loop has no seam). */
-export function dustLayers(fx: CardEffects | undefined, box: FoilBox, cardColors?: readonly string[]): DustLayer[] {
+export function dustLayers(fx: CardEffects | undefined, box: FoilBox, cardColors?: readonly string[], lite = false): DustLayer[] {
   const d = fx?.dust;
   if (!d?.enabled) return [];
   const colors = fxColors(d, DUST_AUTO, cardColors);
   const amount = clamp01(d.amount ?? DUST_DEFAULTS.amount), size = 0.5 + clamp01(d.size ?? DUST_DEFAULTS.size) * 1.6;
   const speed = speedOf(d.speed);
   const W = Math.round(box.w), H = Math.round(box.h);
-  return [0, 1, 2].map(i => {
-    const r = rand(300 + i * 71);
-    const n = Math.max(3, Math.round(((W * H) / 22000) * (0.3 + amount * 1.7) * (i === 0 ? 1.3 : 1)));
+  // Phones (2026-11-28, memory): two moving sheets instead of three — the
+  // third one's specks ride on the second, so there are as many as before.
+  const sheets = lite ? [[0], [1, 2]] : [[0], [1], [2]];
+  return sheets.map((group, i) => {
     const dots: string[] = [];
-    for (let k = 0; k < n; k++) {
-      const x = r() * W, y = r() * H, rad = (0.5 + r() * 1.1) * size * (1 + i * 0.35), c = colors[Math.floor(r() * colors.length)], o = 0.45 + r() * 0.55;
-      // Drawn twice (y and y+H) by the repeat; halo for a soft glow.
-      dots.push(`<circle cx='${f1(x)}' cy='${f1(y)}' r='${f1(rad * 2.6)}' fill='${c}' opacity='${(o * 0.16).toFixed(2)}'/><circle cx='${f1(x)}' cy='${f1(y)}' r='${f1(rad)}' fill='${c}' opacity='${o.toFixed(2)}'/>`);
+    for (const j of group) {
+      const r = rand(300 + j * 71);
+      const n = Math.max(3, Math.round(((W * H) / 22000) * (0.3 + amount * 1.7) * (j === 0 ? 1.3 : 1)));
+      for (let k = 0; k < n; k++) {
+        const x = r() * W, y = r() * H, rad = (0.5 + r() * 1.1) * size * (1 + j * 0.35), c = colors[Math.floor(r() * colors.length)], o = 0.45 + r() * 0.55;
+        // Drawn twice (y and y+H) by the repeat; halo for a soft glow.
+        dots.push(`<circle cx='${f1(x)}' cy='${f1(y)}' r='${f1(rad * 2.6)}' fill='${c}' opacity='${(o * 0.16).toFixed(2)}'/><circle cx='${f1(x)}' cy='${f1(y)}' r='${f1(rad)}' fill='${c}' opacity='${o.toFixed(2)}'/>`);
+      }
     }
     const image = svgUri(`<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}'>${dots.join("")}</svg>`);
     return {
-      style: { position: "absolute", inset: 0, overflow: "hidden", animation: `mnemo-twinkle ${(5 + i * 2.3).toFixed(1)}s ease-in-out ${(-i * 1.7).toFixed(1)}s infinite` } as CSSProperties,
+      // One layer per sheet (2026-11-28, iPhone memory): the twinkle rides on
+      // the moving sheet itself — a wrapper animating opacity was a second
+      // card-sized layer for each of the three.
+      style: { position: "absolute", inset: 0, overflow: "hidden" } as CSSProperties,
       inner: {
         position: "absolute", left: 0, top: 0, width: W, height: H * 2, backgroundImage: image, backgroundSize: `${W}px ${H}px`, backgroundRepeat: "repeat",
         willChange: "transform", ["--dust-h" as string]: `${-H}px`,
-        animation: `mnemo-dust ${((22 + i * 13) / speed).toFixed(1)}s linear infinite`,
+        animation: `mnemo-dust ${((22 + i * 13) / speed).toFixed(1)}s linear infinite, mnemo-twinkle ${(5 + i * 2.3).toFixed(1)}s ease-in-out ${(-i * 1.7).toFixed(1)}s infinite`,
       } as CSSProperties,
     };
   });

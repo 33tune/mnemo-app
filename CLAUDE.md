@@ -992,6 +992,12 @@ planeado acá hasta confirmarlo.
 >   que se ven en el teléfono más ancho (`phonePictures` en `thumbImages.ts`, con test): conserva la animación, y ante
 >   cualquier falla redirige al original. En @valo: 219 → 94 MB. Los recursos siguen nombrando el archivo original
 >   (`originalSrc` en `resourcesOf`: repostear / descargar no cambian). La compu no cambia. Sin QA en un iPhone real.
+>   **No alcanzó:** seguía reiniciándose. Con `?dbg=` / `?sin=` (interruptores TEMPORALES en `[handle]/page.tsx`, borrar
+>   cuando se confirme) el usuario probó en su iPhone 14 Pro: carga sin efectos, sin aura + polvo o sin holo + profundidad;
+>   no carga sin retro ni sin brillos/movimiento. No es un efecto roto: es la SUMA de capas. Optimizado sin cambiar el
+>   aspecto: el polvo titila en la misma capa que se mueve (6 → 3 capas; en táctil 2, con las mismas partículas,
+>   `dustLayers(..., lite)`), el aura sin máscara cuando el fondo de la card es opaco (`cardBgOpaque`), y las bandas del
+>   holo con el margen justo de su deslizamiento en cada eje (`band` en `cardFoil.ts`). Estimado en @valo: 88 → 60 MB de capas.
 >
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)

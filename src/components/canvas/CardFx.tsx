@@ -14,7 +14,8 @@ import type { CardEffects } from "@/types";
 import {
   holoLayers, holoGroupStyle, glareLayers, glareGroupStyle, ringMask, holoRingWidth, holoScopeOf, type FoilLayer, type FoilBox,
 } from "@/lib/cardFoil";
-import { auraSpec, dustLayers, edgeSpec, sparkleField, borderRunSpec, sweepColor } from "@/lib/cardFx";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { auraSpec, cardBgOpaque, dustLayers, edgeSpec, sparkleField, borderRunSpec, sweepColor } from "@/lib/cardFx";
 import { lm } from "@/lib/lightLayers";
 import { rgba } from "@/lib/fxPalette";
 
@@ -120,7 +121,7 @@ export function AuraHalo({ fx, box, radius, cardColors }: { fx: CardEffects; box
   const side = Number(spec.wrap.width), inset = Math.ceil(radius * 0.3) + 1;
   const hole = `${(side - box.h) / 2 + inset}px ${(side - box.w) / 2 + inset}px`;
   return (
-    <div data-fx="aura" aria-hidden style={{ ...spec.wrap, ...ringMask(0), padding: hole }}>
+    <div data-fx="aura" aria-hidden style={cardBgOpaque(fx) ? spec.wrap : { ...spec.wrap, ...ringMask(0), padding: hole }}>
       <div style={spec.pulse}><div style={spec.blobs} /></div>
     </div>
   );
@@ -129,10 +130,11 @@ export function AuraHalo({ fx, box, radius, cardColors }: { fx: CardEffects; box
 /** Polvo de estrellas. */
 export function DustField({ fx, box, radius, cardColors }: { fx: CardEffects; box: FoilBox; radius: number; cardColors?: readonly string[] }) {
   const d = fx.dust;
+  const touch = useIsMobile();
   const layers = useMemo(
-    () => dustLayers(fx, box, cardColors),
+    () => dustLayers(fx, box, cardColors, touch),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [box.w, box.h, d?.enabled, d?.palette, keyOf(d?.colors), d?.amount, d?.size, d?.speed, keyOf(cardColors)],
+    [box.w, box.h, d?.enabled, d?.palette, keyOf(d?.colors), d?.amount, d?.size, d?.speed, keyOf(cardColors), touch],
   );
   if (!layers.length || box.w <= 0) return null;
   return (

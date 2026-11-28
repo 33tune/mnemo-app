@@ -228,11 +228,16 @@ function pxStops(colors: string[], period: number): string {
 
 /** A band of colors that slides along its own direction with the light. */
 function band(key: string, colors: string[], angle: number, period: number, cx: number, cy: number, box: FoilBox, blend?: string, opacity?: number): FoilLayer {
-  const m = Math.ceil(period / 2) + 2;
+  // The sheet slides along its gradient's axis by at most ±period/2 (the
+  // shift wraps), so it only needs that much bleed projected on x and on y —
+  // not half a period on both (2026-11-28: a card-and-a-half less layer on a
+  // phone, where these layers were what ran Safari out of memory).
+  const a = (angle * Math.PI) / 180;
+  const mx = Math.ceil(Math.abs(Math.sin(a)) * period / 2) + 2, my = Math.ceil(Math.abs(Math.cos(a)) * period / 2) + 2;
   return {
     key, lm: lm.shift(angle, cx, cy, period),
     style: {
-      position: "absolute", left: -m, top: -m, width: box.w + 2 * m, height: box.h + 2 * m, willChange: "transform",
+      position: "absolute", left: -mx, top: -my, width: box.w + 2 * mx, height: box.h + 2 * my, willChange: "transform",
       backgroundImage: `repeating-linear-gradient(${angle}deg, ${pxStops(colors, period)})`,
       ...(blend ? { mixBlendMode: blend as CSSProperties["mixBlendMode"] } : {}),
       ...(opacity != null ? { opacity } : {}),

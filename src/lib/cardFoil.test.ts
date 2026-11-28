@@ -178,3 +178,20 @@ test("sparkle field is split in twinkling sheets", () => {
   assert.ok(f.lit.startsWith('url("data:image/svg+xml,'));
   assert.deepEqual(sparkleField({ glitter: { enabled: true } }, BOX, "border"), sparkleField({ glitter: { enabled: true } }, BOX, "border"), "deterministic");
 });
+
+test("phone memory (2026-11-28): opaque card bg, dust on phones", async () => {
+  const { cardBgOpaque, dustLayers } = await import("./cardFx");
+  assert.equal(cardBgOpaque({ bg: { color: "#3d4d0c", opacity: 1 } }), true);
+  assert.equal(cardBgOpaque({ bg: { color: "#3d4d0c", glass: true } }), false);
+  assert.equal(cardBgOpaque({ bg: { color: "#3d4d0c", opacity: 0.5 } }), false);
+  assert.equal(cardBgOpaque({ bg: { color: "rgba(0,0,0,0.4)" } }), false);
+  assert.equal(cardBgOpaque({ bg: { color: "rgb(0,0,0)" } }), true);
+  assert.equal(cardBgOpaque({}), false);
+  const fx = { dust: { enabled: true, amount: 1 } };
+  assert.equal(dustLayers(fx, { w: 300, h: 400 }).length, 3);
+  const lite = dustLayers(fx, { w: 300, h: 400 }, undefined, true);
+  assert.equal(lite.length, 2);
+  const dots = (l: { inner: { backgroundImage?: unknown } }) => (String(l.inner.backgroundImage).match(/circle/g) ?? []).length;
+  const full = dustLayers(fx, { w: 300, h: 400 });
+  assert.equal(dots(lite[0]) + dots(lite[1]), full.reduce((s, l) => s + dots(l), 0)); // same specks
+});
