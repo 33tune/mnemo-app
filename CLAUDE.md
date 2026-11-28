@@ -992,8 +992,7 @@ planeado acá hasta confirmarlo.
 >   que se ven en el teléfono más ancho (`phonePictures` en `thumbImages.ts`, con test): conserva la animación, y ante
 >   cualquier falla redirige al original. En @valo: 219 → 94 MB. Los recursos siguen nombrando el archivo original
 >   (`originalSrc` en `resourcesOf`: repostear / descargar no cambian). La compu no cambia. Sin QA en un iPhone real.
->   **No alcanzó:** seguía reiniciándose. Con `?dbg=` / `?sin=` (interruptores TEMPORALES en `[handle]/page.tsx`, borrar
->   cuando se confirme) el usuario probó en su iPhone 14 Pro: carga sin efectos, sin aura + polvo o sin holo + profundidad;
+>   **No alcanzó:** seguía reiniciándose. Con `?dbg=` / `?sin=` (interruptores temporales, ya borrados) el usuario probó en su iPhone 14 Pro: carga sin efectos, sin aura + polvo o sin holo + profundidad;
 >   no carga sin retro ni sin brillos/movimiento. No es un efecto roto: es la SUMA de capas. Optimizado sin cambiar el
 >   aspecto: el polvo titila en la misma capa que se mueve (6 → 3 capas; en táctil 2, con las mismas partículas,
 >   `dustLayers(..., lite)`), el aura sin máscara cuando el fondo de la card es opaco (`cardBgOpaque`), y las bandas del
@@ -1004,7 +1003,7 @@ planeado acá hasta confirmarlo.
 >   capas), y el foco de luz escribe `--spot-x/y` en su propia capa (`[data-spot]`), no en toda la card.
 >   Seguía al arrastrar el dedo; con `?sin=interactions.hoverGlow` andaba perfecto: el culpable es el **brillo al tocar**
 >   (sombra de 48 px con fundido de opacidad → capa propia sobre la card en 3D). En táctil se prende sin fundido
->   (`[data-hover-glow]` en `globals.css`), así se dibuja con la card.
+>   (`[data-hover-glow]` en `globals.css`), así se dibuja con la card. **Confirmado por el usuario en su iPhone 14 Pro.**
 >
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,
 >   clave `myland-lang` — la misma que ya usaba la landing; primera visita = idioma del navegador: español → es, otro → en)
