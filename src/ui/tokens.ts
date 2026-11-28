@@ -143,6 +143,8 @@ const LIME_DARK: ThemePalette = {
   popShadow: "inset 0 0.5px 0 rgba(255,255,255,0.20), inset 0 0 0 0.5px rgba(255,255,255,0.10), 0 12px 32px rgba(0,0,0,0.5)",
   glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.20), inset 0 0 0 0.5px rgba(255,255,255,0.10)",
   danger: "#FFADA7",
+  // Grafito v2: one accent — what was mint ("success": tiles on, chips, the slider knob) is lime.
+  success: "#C6F432",
   materialBlur: "blur(30px) saturate(150%)",
   gel: "linear-gradient(180deg, #F4FFCC 0%, #D6FB5E 45%, #BFE92A 52%, #D2F852 100%)", gelInk: "#2B3A00",
   gelEdge: "inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(80,110,0,0.25), 0 0 0 0.5px rgba(70,100,0,0.6), 0 2px 8px rgba(150,210,0,0.25)",
@@ -175,6 +177,7 @@ const LIME_LIGHT: ThemePalette = {
   popShadow: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(0,0,0,0.08), 0 8px 24px -8px rgba(0,0,0,0.26)",
   glassEdge: "inset 0 0.5px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(0,0,0,0.08)",
   danger: "#8E1B16", dangerTint: "rgba(142,27,22,0.10)",
+  success: "#C6F432",
   materialBlur: "blur(30px) saturate(150%)",
   gel: "linear-gradient(180deg, #F4FFCC 0%, #D6FB5E 45%, #BFE92A 52%, #D2F852 100%)", gelInk: "#2B3A00",
   gelEdge: "inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(80,110,0,0.25), 0 0 0 0.5px rgba(70,100,0,0.6), 0 2px 8px rgba(150,210,0,0.25)",

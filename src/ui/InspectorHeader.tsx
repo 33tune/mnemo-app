@@ -69,8 +69,9 @@ export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose,
           }}>
             {title}
           </h2>
+          {/* The route repeated the title and the chosen part (2026-11-28): only for screen readers now. */}
           {path && (
-            <span className="mn-inspector__path" style={{
+            <span className="mn-inspector__path mn-sr-only" style={{
               fontFamily: T.uiFont.mono, fontSize: 11.5, lineHeight: "16px", fontWeight: 500, color: uv("text-tertiary"),
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
@@ -78,7 +79,8 @@ export function InspectorHeader({ path, title, titleId, titleRef, icon, onClose,
             </span>
           )}
         </div>
-        {!searchRow && <ThemeSwitch size={btn} />}
+        {/* Phone sheet: the switch lives in Más (the header row has no room for a third button). */}
+        {!searchRow && !sheet && <ThemeSwitch size={btn} />}
         {onSearch && !searchRow && (
           <IconButton icon="search" aria-label="Buscar ajuste" title="Buscar ajuste   /" size={btn} iconSize={16}
             className="mn-iconbtn--filled" onClick={() => onSearch()} />

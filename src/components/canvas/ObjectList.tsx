@@ -67,8 +67,11 @@ export function ObjectList({ active, onSelect, ctx, panelId, sheet }: ObjectList
   return (
     <div className="mn-partpicker" data-sheet={sheet || undefined}>
       <Tabs label="Grupo de partes" active={group.id} onChange={selectGroup}
-        // Four groups: the active one shows its name, the others only their icon (fits 320 px, like iOS).
-        tabs={PART_GROUPS.map(g => ({ id: g.id, label: g.label, icon: GROUP_ICON[g.id], withText: g.id === group.id }))} />
+        // Computer: the four groups by name (2026-11-28, "más intuitivo": icons alone did not say
+        // where things are). Phone sheet: the icons, the chosen one with its name (it fits).
+        tabs={PART_GROUPS.map(g => (sheet
+          ? { id: g.id, label: g.label, icon: GROUP_ICON[g.id], withText: g.id === group.id }
+          : { id: g.id, label: g.label }))} />
       <div role="tablist" aria-label={`Partes: ${group.label}`} aria-orientation="horizontal" onKeyDown={onKeyDown} className="mn-parts">
         {group.parts.map(p => {
           const o = inspectorObject(p);

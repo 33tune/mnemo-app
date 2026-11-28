@@ -2049,7 +2049,11 @@ html[data-arrange] [data-profile-card] [data-role] { outline: 2px dashed current
 :root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch[aria-checked="true"] { background: var(--ui-gloss-gel); box-shadow: var(--ui-gloss-gel-edge); }
 :root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-switch__knob { background: var(--ui-gloss-knob); }
 :root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-lslider { box-shadow: var(--ui-gloss-track-inset); }
-:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-lslider__fill { background: var(--ui-gloss-gel); }
+/* What is "on" (effect tiles, choices, swatches, finishes, fonts, a lit group) in the same lime gel. */
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) :is(.mn-tile, .mn-choice, .mn-swatch, .mn-finish, .mn-fontstrip__item)[data-on],
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-group__icon[data-lit] { background: var(--ui-gloss-gel); color: var(--ui-gloss-gel-ink); box-shadow: var(--ui-gloss-gel-edge); }
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-tile:not([data-on]),
+:root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-choice:not([data-on]) { background-image: var(--ui-gloss-sheen); }
 @media (forced-colors: active) {
   :root[data-editor-theme^="lime"] :where([data-mnemo-editor], [data-mnemo-ui]) .mn-card__icon::after { display: none; }
 }

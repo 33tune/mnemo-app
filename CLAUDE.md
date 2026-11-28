@@ -974,6 +974,11 @@ planeado acá hasta confirmarlo.
 >     barra de Mac ni los tres puntitos. **Claro / oscuro propio** (`src/lib/gfTheme.ts`, `myland.gfTheme`,
 >     `<html data-gf-theme>`; script en `layout.tsx` antes de pintar; botón `GfThemeButton`); `grafito.css` usa variables
 >     con su juego oscuro. Por defecto claro.
+>   - **Menú más simple (2026-11-28, mismo pedido):** en la compu los 4 grupos con nombre (Tarjeta · Perfil · Contenido ·
+>     Muro; antes solo el elegido tenía nombre y "Contenido" salía cortado); la ruta mono bajo el título solo para lectores de
+>     pantalla; todo lo "encendido" (tiles de efectos, elecciones, fuentes, el indicador del deslizador) en el mismo lima con
+>     brillo (`success` de los temas Lima = lima: antes era verde menta); en el celular el claro / oscuro va en Más (en la
+>     hoja no entraba y tiraba la X a otra fila); un archivo con nombre UUID se muestra como "Cargada".
 >   - **Nuevas:** dentro de las últimas 24 h el sorteo pesa la antigüedad (`newWeight`: recién hecha ≈ 4×, de casi un día 1×).
 >
 > **Idioma español / inglés (2026-11-27, pedido del usuario; en `main`):** `src/lib/i18n/lang.ts` (`getLang` / `setLang`,

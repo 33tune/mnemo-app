@@ -32,7 +32,13 @@ interface UploadFieldProps {
 const DEFAULT_CAPTION: Record<UploadKind, string> = {
   avatar: "Foto de perfil", cover: "Imagen", logo: "Logo", audio: "MP3", font: "Fuente propia", cursor: "Cursor PNG",
 };
-const fileName = (v: string) => (v.startsWith("blob:") || v.startsWith("data:") ? "Archivo subido" : decodeURIComponent(v.split("?")[0].split("/").pop() || "Archivo"));
+// Uploaded files get a random (UUID) name in storage: that says nothing to the person (2026-11-28) —
+// show "Cargada" instead; a readable name (a sample sticker, a font file) stays.
+const fileName = (v: string) => {
+  if (v.startsWith("blob:") || v.startsWith("data:")) return "Archivo subido";
+  const n = decodeURIComponent(v.split("?")[0].split("/").pop() || "Archivo");
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(n) ? "Cargada" : n;
+};
 
 // Liquid glass (DS upload row, L3): with a file — a well with its thumbnail
 // (round photo, cover, contained logo, a disc for audio, "Aa" for a font),
